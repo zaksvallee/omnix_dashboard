@@ -51,7 +51,9 @@ const _governanceBorderStrongColor = OnyxDesignTokens.borderStrong;
 const _governanceTitleColor = OnyxDesignTokens.textPrimary;
 const _governanceBodyColor = OnyxDesignTokens.textSecondary;
 const _governanceMutedColor = OnyxDesignTokens.textMuted;
-const _governanceShadowColor = Color(0x0D000000);
+final _governanceShadowColor = OnyxColorTokens.backgroundPrimary.withValues(
+  alpha: 0.05,
+);
 const _governanceAccentSky = OnyxDesignTokens.accentSky;
 
 class GovernanceComplianceIssueFeed {
@@ -1322,7 +1324,7 @@ class _GovernancePageState extends State<GovernancePage> {
             color: _governancePanelColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: _governanceBorderColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
                 color: _governanceShadowColor,
                 blurRadius: 16,
@@ -1434,8 +1436,8 @@ class _GovernancePageState extends State<GovernancePage> {
                   label: 'Readiness',
                   value: operationalFeedLabel,
                   accent: operationalFeedLabel == 'Live'
-                      ? const Color(0xFF34D399)
-                      : const Color(0xFFF59E0B),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentAmber,
                 ),
                 _governanceWorkspaceChip(
                   label: 'Critical',
@@ -1443,15 +1445,15 @@ class _GovernancePageState extends State<GovernancePage> {
                       ? 'Pending'
                       : '$complianceCritical',
                   accent: complianceCritical == null
-                      ? const Color(0xFFF59E0B)
+                      ? OnyxColorTokens.accentAmber
                       : complianceCritical == 0
-                      ? const Color(0xFF34D399)
-                      : const Color(0xFFEF4444),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentRed,
                 ),
                 _governanceWorkspaceChip(
                   label: 'Events',
                   value: '$visibleEvents',
-                  accent: const Color(0xFF67E8F9),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
               ],
             ),
@@ -1472,7 +1474,7 @@ class _GovernancePageState extends State<GovernancePage> {
                 Text(
                   _focusedSceneActionDetailValue(report)!,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF4E92B7),
+                    color: OnyxColorTokens.accentBlue,
                     fontSize: 8.5,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -1535,7 +1537,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                   label: 'Latest Action',
                   focus: GovernanceSceneActionFocus.latestAction,
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
               if (report.recentActionsSummary.trim().isNotEmpty)
                 _sceneActionFocusChip(
@@ -1544,7 +1546,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                   label: 'Recent Actions',
                   focus: GovernanceSceneActionFocus.recentActions,
-                  color: const Color(0xFFFDE68A),
+                  color: OnyxColorTokens.accentAmber,
                 ),
               if (report.latestSuppressedPattern.trim().isNotEmpty)
                 _sceneActionFocusChip(
@@ -1553,7 +1555,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                   label: 'Filtered Pattern',
                   focus: GovernanceSceneActionFocus.filteredPattern,
-                  color: const Color(0xFF9CB2D1),
+                  color: OnyxColorTokens.textSecondary,
                 ),
             ],
           ),
@@ -1629,8 +1631,8 @@ class _GovernancePageState extends State<GovernancePage> {
                 title: _globalReadinessFocusState(report).toUpperCase(),
                 detail: _globalReadinessFocusSummary(report),
                 accent: _isHistoricalGlobalReadinessFocus(report)
-                    ? const Color(0xFFF59E0B)
-                    : const Color(0xFF22C55E),
+                    ? OnyxColorTokens.accentAmber
+                    : OnyxColorTokens.accentGreen,
               ),
               const SizedBox(height: 6),
               _governanceKeyValueRow(
@@ -1655,14 +1657,14 @@ class _GovernancePageState extends State<GovernancePage> {
                   title: 'Receipt summary pending',
                   detail:
                       'The generated receipt summary has not landed yet. Keep the lane moving through reports, ledger continuity, or a morning refresh while governance rebuilds the audit story.',
-                  accent: const Color(0xFFF1B872),
+                  accent: OnyxColorTokens.accentAmber,
                   actions: [
                     _governanceMiniAction(
                       key: const ValueKey(
                         'governance-context-receipt-open-reports',
                       ),
                       label: 'OPEN REPORTS WORKSPACE',
-                      accent: const Color(0xFFF1B872),
+                      accent: OnyxColorTokens.accentAmber,
                       onTap: _openPrimaryGovernanceReports(report),
                     ),
                     _governanceMiniAction(
@@ -1672,7 +1674,7 @@ class _GovernancePageState extends State<GovernancePage> {
                       label: canOpenLedger
                           ? 'OPEN SOVEREIGN LEDGER'
                           : 'RECOVER SOVEREIGN LEDGER',
-                      accent: const Color(0xFFA78BFA),
+                      accent: OnyxColorTokens.accentPurple,
                       onTap: _openGovernanceLedgerAction(report),
                     ),
                     if (widget.onGenerateMorningSovereignReport != null)
@@ -1683,7 +1685,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         label: _generatingMorningReport
                             ? 'Refreshing...'
                             : 'Refresh Morning Report',
-                        accent: const Color(0xFF67E8F9),
+                        accent: OnyxColorTokens.accentCyanTrue,
                         onTap: _generatingMorningReport
                             ? null
                             : _generateMorningReport,
@@ -1698,14 +1700,14 @@ class _GovernancePageState extends State<GovernancePage> {
                   title: 'Event trail awaiting new signals',
                   detail:
                       'No scoped governance events are available right now. Recover the lane through reports, ledger continuity, or a refreshed morning report while the event trail repopulates.',
-                  accent: const Color(0xFF67E8F9),
+                  accent: OnyxColorTokens.accentCyanTrue,
                   actions: [
                     _governanceMiniAction(
                       key: const ValueKey(
                         'governance-context-events-open-reports',
                       ),
                       label: 'OPEN REPORTS WORKSPACE',
-                      accent: const Color(0xFF67E8F9),
+                      accent: OnyxColorTokens.accentCyanTrue,
                       onTap: _openPrimaryGovernanceReports(report),
                     ),
                     _governanceMiniAction(
@@ -1715,7 +1717,7 @@ class _GovernancePageState extends State<GovernancePage> {
                       label: canOpenLedger
                           ? 'OPEN SOVEREIGN LEDGER'
                           : 'RECOVER SOVEREIGN LEDGER',
-                      accent: const Color(0xFFA78BFA),
+                      accent: OnyxColorTokens.accentPurple,
                       onTap: _openGovernanceLedgerAction(report),
                     ),
                     if (widget.onGenerateMorningSovereignReport != null)
@@ -1726,7 +1728,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         label: _generatingMorningReport
                             ? 'Refreshing...'
                             : 'Refresh Morning Report',
-                        accent: const Color(0xFFF1B872),
+                        accent: OnyxColorTokens.accentAmber,
                         onTap: _generatingMorningReport
                             ? null
                             : _generateMorningReport,
@@ -1762,7 +1764,7 @@ class _GovernancePageState extends State<GovernancePage> {
         Text(
           label,
           style: GoogleFonts.inter(
-            color: const Color(0xFF5A718A),
+            color: OnyxColorTokens.textMuted,
             fontSize: 9,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.45,
@@ -1772,7 +1774,7 @@ class _GovernancePageState extends State<GovernancePage> {
         Text(
           value,
           style: GoogleFonts.inter(
-            color: const Color(0xFF18304A),
+            color: OnyxColorTokens.textPrimary,
             fontSize: 10,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -1897,7 +1899,7 @@ class _GovernancePageState extends State<GovernancePage> {
           headline: 'Morning report generated',
           detail:
               'The sovereign report pipeline completed and refreshed the governance surface.',
-          accent: const Color(0xFF34D399),
+          accent: OnyxColorTokens.accentGreen,
           icon: Icons.description_outlined,
         );
       }
@@ -1907,7 +1909,7 @@ class _GovernancePageState extends State<GovernancePage> {
           headline: 'Morning report generation failed',
           detail:
               'Governance could not refresh the sovereign report. Review the pipeline and retry.',
-          accent: const Color(0xFFFF8A94),
+          accent: OnyxColorTokens.accentRed,
           icon: Icons.error_outline,
         );
       }
@@ -1941,19 +1943,19 @@ class _GovernancePageState extends State<GovernancePage> {
 
   void _showSnack(
     String message, {
-    Color background = const Color(0xFF0E203A),
+    Color background = OnyxColorTokens.backgroundPrimary,
   }) {
-    final accent = background == const Color(0xFF3A0E14)
-        ? const Color(0xFFFF8A94)
-        : background == const Color(0xFF0E203A)
+    final accent = background == OnyxColorTokens.redSurface
+        ? OnyxColorTokens.accentRed
+        : background == OnyxColorTokens.backgroundPrimary
         ? _governanceAccentSky
-        : const Color(0xFFF5C27A);
+        : OnyxColorTokens.accentAmber;
     _setCommandReceipt(
       headline: message,
       detail:
           'Governance kept this action in the page shell instead of a transient toast.',
       accent: accent,
-      icon: accent == const Color(0xFFFF8A94)
+      icon: accent == OnyxColorTokens.accentRed
           ? Icons.error_outline
           : Icons.notifications_active_outlined,
     );
@@ -2091,9 +2093,7 @@ class _GovernancePageState extends State<GovernancePage> {
               _heroActionButton(
                 key: const ValueKey('governance-generate-report-button'),
                 icon: Icons.description_outlined,
-                label: _generatingMorningReport
-                    ? 'Generating...'
-                    : 'Report',
+                label: _generatingMorningReport ? 'Generating...' : 'Report',
                 onPressed: generateEnabled && !_generatingMorningReport
                     ? _generateMorningReport
                     : null,
@@ -2263,7 +2263,10 @@ class _GovernancePageState extends State<GovernancePage> {
           disabledForegroundColor: OnyxColorTokens.textMuted,
           side: BorderSide(color: accent.withValues(alpha: 0.28)),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-          textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
@@ -2357,11 +2360,13 @@ class _GovernancePageState extends State<GovernancePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: active ? const Color(0x1622C55E) : _governancePanelAltColor,
+        color: active
+            ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09)
+            : _governancePanelAltColor,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(
           color: active
-              ? const Color(0xFF22C55E)
+              ? OnyxColorTokens.accentGreen
               : _governanceBorderStrongColor,
         ),
       ),
@@ -2371,13 +2376,15 @@ class _GovernancePageState extends State<GovernancePage> {
           Icon(
             icon,
             size: 10,
-            color: active ? const Color(0xFF22E39E) : _governanceTitleColor,
+            color: active ? OnyxColorTokens.accentGreen : _governanceTitleColor,
           ),
           const SizedBox(width: 4),
           Text(
             label,
             style: GoogleFonts.inter(
-              color: active ? const Color(0xFF22E39E) : _governanceTitleColor,
+              color: active
+                  ? OnyxColorTokens.accentGreen
+                  : _governanceTitleColor,
               fontSize: 9,
               fontWeight: FontWeight.w800,
             ),
@@ -2391,18 +2398,20 @@ class _GovernancePageState extends State<GovernancePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: active ? const Color(0x148B5CF6) : _governancePanelAltColor,
+        color: active
+            ? OnyxColorTokens.accentPurple.withValues(alpha: 0.08)
+            : _governancePanelAltColor,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(
           color: active
-              ? const Color(0xFF8B5CF6)
+              ? OnyxColorTokens.accentPurple
               : _governanceBorderStrongColor,
         ),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
-          color: active ? const Color(0xFF8B5CF6) : _governanceTitleColor,
+          color: active ? OnyxColorTokens.accentPurple : _governanceTitleColor,
           fontSize: 9,
           fontWeight: FontWeight.w800,
         ),
@@ -2420,13 +2429,13 @@ class _GovernancePageState extends State<GovernancePage> {
         subtitle: 'Pending live feed',
         trailing: _statusBadge(
           'PENDING LIVE FEED',
-          color: const Color(0xFFF59E0B),
+          color: OnyxColorTokens.accentAmber,
         ),
         child: _governanceInfoCallout(
           title: 'Pending live feed',
           detail:
               'Compliance blockers will populate once the live guard credential feed is available for this governance scope.',
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         ),
       );
     }
@@ -2441,8 +2450,8 @@ class _GovernancePageState extends State<GovernancePage> {
       trailing: _statusBadge(
         blockers.isEmpty ? 'CLEAR' : 'ACTION REQUIRED',
         color: blockers.isEmpty
-            ? const Color(0xFF22C55E)
-            : const Color(0xFFEF4444),
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.accentRed,
       ),
       child: Column(
         children: [
@@ -2451,7 +2460,7 @@ class _GovernancePageState extends State<GovernancePage> {
               title: 'No active readiness blockers',
               detail:
                   'Dispatch readiness, evidence posture, and partner compliance are currently stable.',
-              accent: const Color(0xFF22C55E),
+              accent: OnyxColorTokens.accentGreen,
             )
           else
             for (final issue in blockers.take(2)) ...[
@@ -2463,8 +2472,8 @@ class _GovernancePageState extends State<GovernancePage> {
                     '${issue.employeeName} expires ${_dateLabel(issue.expiryDate)} and is blocking dispatch readiness.',
                 footer: 'Watch & Identity',
                 accent: issue.daysRemaining <= 0
-                    ? const Color(0xFFEF4444)
-                    : const Color(0xFFF59E0B),
+                    ? OnyxColorTokens.accentRed
+                    : OnyxColorTokens.accentAmber,
                 actionLabel: 'Resolve',
                 onTap: () => _resolveComplianceIssue(issue),
               ),
@@ -2475,7 +2484,7 @@ class _GovernancePageState extends State<GovernancePage> {
             _governanceInfoCallout(
               title: 'Latest action focus',
               detail: report.latestActionTaken,
-              accent: const Color(0xFF67E8F9),
+              accent: OnyxColorTokens.accentCyanTrue,
             ),
           ],
         ],
@@ -2492,7 +2501,7 @@ class _GovernancePageState extends State<GovernancePage> {
           title: 'Pending live feed',
           detail:
               'Advisory-only compliance drift will appear here after the live credential feed lands.',
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         ),
       );
     }
@@ -2510,7 +2519,7 @@ class _GovernancePageState extends State<GovernancePage> {
             _governanceInfoCallout(
               title: 'No non-blocking governance drift',
               detail: 'No advisory-only compliance drift is currently active.',
-              accent: const Color(0xFF22C55E),
+              accent: OnyxColorTokens.accentGreen,
             )
           else
             for (final issue in nonBlockers.take(2)) ...[
@@ -2521,7 +2530,7 @@ class _GovernancePageState extends State<GovernancePage> {
                 detail:
                     '${issue.employeeName} remains operational, but ${issue.type.toLowerCase()} should be refreshed before the next readiness window.',
                 footer: 'Guards',
-                accent: const Color(0xFFF59E0B),
+                accent: OnyxColorTokens.accentAmber,
               ),
               if (issue != nonBlockers.take(2).last) const SizedBox(height: 8),
             ],
@@ -2542,8 +2551,8 @@ class _GovernancePageState extends State<GovernancePage> {
                 ? 'CCTV footage archived for ${report.generatedReports > 0 ? report.generatedReports : report.totalEvents} incidents'
                 : 'Evidence chain requires manual ledger verification',
             accent: report.hashVerified
-                ? const Color(0xFF22C55E)
-                : const Color(0xFFEF4444),
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentRed,
             buttonLabel:
                 'View Event ${report.partnerDispatchChains.isNotEmpty ? report.partnerDispatchChains.first.dispatchId : ''}'
                     .trim(),
@@ -2559,8 +2568,8 @@ class _GovernancePageState extends State<GovernancePage> {
                 ? report.receiptPolicySummary
                 : 'Morning sovereign report awaiting final verification',
             accent: report.generatedReports > 0
-                ? const Color(0xFFF59E0B)
-                : const Color(0xFF22C55E),
+                ? OnyxColorTokens.accentAmber
+                : OnyxColorTokens.accentGreen,
             buttonLabel: 'View Report ${report.reportDate}',
             onTap: _openPrimaryGovernanceReports(report),
           ),
@@ -2572,8 +2581,8 @@ class _GovernancePageState extends State<GovernancePage> {
                 ? 'All P1 incidents responded within 240s SLA'
                 : '${report.totalBlocked} sites need manual readiness verification',
             accent: report.totalBlocked == 0
-                ? const Color(0xFF22C55E)
-                : const Color(0xFFEF4444),
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentRed,
             buttonLabel: 'View Readiness Detail',
             onTap: _visibleGovernanceEvents().isNotEmpty
                 ? _openGovernanceEventsReview
@@ -2649,7 +2658,7 @@ class _GovernancePageState extends State<GovernancePage> {
         headline: 'Sovereign ledger opened',
         detail:
             'Governance handed ${scope.clientId}${scope.siteId == null ? '' : ' / ${scope.siteId}'} into sovereign ledger continuity.',
-        accent: const Color(0xFFA78BFA),
+        accent: OnyxColorTokens.accentPurple,
         icon: Icons.shield_outlined,
       );
     };
@@ -2717,12 +2726,12 @@ class _GovernancePageState extends State<GovernancePage> {
               intents: globalIntents,
             ),
             color: globalPosture.criticalSiteCount > 0
-                ? const Color(0xFFEF4444)
+                ? OnyxColorTokens.accentRed
                 : globalPosture.elevatedSiteCount > 0
-                ? const Color(0xFFF59E0B)
+                ? OnyxColorTokens.accentAmber
                 : globalIntents.isEmpty
-                ? const Color(0xFF10B981)
-                : const Color(0xFF22D3EE),
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentCyanTrue,
           ),
           _reportMetric(
             key: const ValueKey('governance-metric-synthetic-war-room'),
@@ -2733,10 +2742,10 @@ class _GovernancePageState extends State<GovernancePage> {
                 warRoomPlans.any(
                   (plan) => plan.actionType == 'POLICY RECOMMENDATION',
                 )
-                ? const Color(0xFF8B5CF6)
+                ? OnyxColorTokens.accentPurple
                 : warRoomPlans.isNotEmpty
-                ? const Color(0xFF22D3EE)
-                : const Color(0xFF10B981),
+                ? OnyxColorTokens.accentCyanTrue
+                : OnyxColorTokens.accentGreen,
           ),
           _reportMetric(
             label: 'Receipt Policy',
@@ -2745,10 +2754,10 @@ class _GovernancePageState extends State<GovernancePage> {
             color:
                 report.reportsWithOmittedSections > 0 ||
                     report.legacyConfigurationReports > 0
-                ? const Color(0xFFF59E0B)
+                ? OnyxColorTokens.accentAmber
                 : report.generatedReports > 0
-                ? const Color(0xFF10B981)
-                : const Color(0xFF22D3EE),
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentCyanTrue,
           ),
           _reportMetric(
             label: 'Partner Progression',
@@ -2759,10 +2768,10 @@ class _GovernancePageState extends State<GovernancePage> {
                 ? report.partnerSummary
                 : 'Accept ${report.partnerAccepted} • On site ${report.partnerOnSite} • All clear ${report.partnerAllClear}',
             color: report.partnerCancelled > 0
-                ? const Color(0xFFF59E0B)
+                ? OnyxColorTokens.accentAmber
                 : report.partnerDispatches > 0
-                ? const Color(0xFF22D3EE)
-                : const Color(0xFF10B981),
+                ? OnyxColorTokens.accentCyanTrue
+                : OnyxColorTokens.accentGreen,
           ),
         ],
       ),
@@ -2862,10 +2871,7 @@ class _GovernancePageState extends State<GovernancePage> {
             width: 6,
             height: 6,
             margin: const EdgeInsets.only(top: 5),
-            decoration: BoxDecoration(
-              color: accent,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -3073,7 +3079,10 @@ class _GovernancePageState extends State<GovernancePage> {
           side: const BorderSide(color: OnyxColorTokens.divider),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         child: Text(label),
       ),
@@ -3097,7 +3106,10 @@ class _GovernancePageState extends State<GovernancePage> {
           side: BorderSide(color: accent.withValues(alpha: 0.3)),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-          textStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         child: Text(label),
       ),
@@ -3136,7 +3148,7 @@ class _GovernancePageState extends State<GovernancePage> {
           headline: 'Receipt policy drill-in opened',
           detail:
               'Governance kept report investigation in-page because no scoped Reports Workspace was available for this handoff.',
-          accent: const Color(0xFFF1B872),
+          accent: OnyxColorTokens.accentAmber,
           icon: Icons.policy_outlined,
         );
         return;
@@ -3147,7 +3159,7 @@ class _GovernancePageState extends State<GovernancePage> {
         detail: usedPartnerScope
             ? 'Governance handed ${partnerScope.clientId} / ${partnerScope.siteId} (${partnerScope.partnerLabel}) into the Reports Workspace.'
             : 'Governance handed ${partnerScope.clientId} / ${partnerScope.siteId} into the scoped Reports Workspace while keeping ${partnerScope.partnerLabel} as the active partner context.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentCyanTrue,
         icon: Icons.article_outlined,
       );
     };
@@ -3187,7 +3199,7 @@ class _GovernancePageState extends State<GovernancePage> {
           title: 'Pending live feed',
           detail:
               'Watch availability and response metrics will appear here once the live monitoring runtime is available.',
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         ),
       );
     }
@@ -3205,24 +3217,24 @@ class _GovernancePageState extends State<GovernancePage> {
                 label: 'Watch Scopes Live',
                 value:
                     '${vigilance.availableScopeCount}/${vigilance.monitoredScopeCount}',
-                color: const Color(0xFF10B981),
+                color: OnyxColorTokens.accentGreen,
               ),
               _fleetMetric(
                 label: 'Degraded',
                 value: vigilance.degradedScopeCount.toString(),
-                color: const Color(0xFFF59E0B),
+                color: OnyxColorTokens.accentAmber,
               ),
               _fleetMetric(
                 label: 'Avg Response',
                 value: vigilance.averageResponseMinutes > 0
                     ? '${vigilance.averageResponseMinutes.toStringAsFixed(1)}m'
                     : 'Pending',
-                color: const Color(0xFF22D3EE),
+                color: OnyxColorTokens.accentCyanTrue,
               ),
               _fleetMetric(
                 label: 'Unresolved',
                 value: vigilance.unresolvedActionCount.toString(),
-                color: const Color(0xFFEF4444),
+                color: OnyxColorTokens.accentRed,
               ),
             ],
           ),
@@ -3234,8 +3246,8 @@ class _GovernancePageState extends State<GovernancePage> {
             detail:
                 'Alerts ${vigilance.alertCount} • Escalations ${vigilance.escalationCount} • Runtime scopes ${vigilance.monitoredScopeCount}',
             accent: vigilance.degradedScopeCount > 0
-                ? const Color(0xFFF59E0B)
-                : const Color(0xFF22C55E),
+                ? OnyxColorTokens.accentAmber
+                : OnyxColorTokens.accentGreen,
           ),
         ],
       ),
@@ -3251,7 +3263,7 @@ class _GovernancePageState extends State<GovernancePage> {
           title: 'Pending live feed',
           detail:
               'Active officers and dispatch queue depth will appear here once persisted dispatch state is available.',
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         ),
       );
     }
@@ -3268,22 +3280,22 @@ class _GovernancePageState extends State<GovernancePage> {
               _fleetMetric(
                 label: 'Active Officers',
                 value: fleet.activeOfficerCount.toString(),
-                color: const Color(0xFF22D3EE),
+                color: OnyxColorTokens.accentCyanTrue,
               ),
               _fleetMetric(
                 label: 'Assignments',
                 value: fleet.activeAssignmentCount.toString(),
-                color: const Color(0xFF10B981),
+                color: OnyxColorTokens.accentGreen,
               ),
               _fleetMetric(
                 label: 'Queue Depth',
                 value: fleet.dispatchQueueDepth.toString(),
-                color: const Color(0xFFF59E0B),
+                color: OnyxColorTokens.accentAmber,
               ),
               _fleetMetric(
                 label: 'Failed Ops',
                 value: fleet.failedOperationCount.toString(),
-                color: const Color(0xFFFFA2B2),
+                color: OnyxColorTokens.accentRed,
               ),
             ],
           ),
@@ -3364,9 +3376,15 @@ class _GovernancePageState extends State<GovernancePage> {
                       ? null
                       : _generateMorningReport,
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF22D3EE),
-                    backgroundColor: const Color(0x1A22D3EE),
-                    side: const BorderSide(color: Color(0x4422D3EE)),
+                    foregroundColor: OnyxColorTokens.accentCyanTrue,
+                    backgroundColor: OnyxColorTokens.accentCyanTrue.withValues(
+                      alpha: 0.1,
+                    ),
+                    side: BorderSide(
+                      color: OnyxColorTokens.accentCyanTrue.withValues(
+                        alpha: 0.27,
+                      ),
+                    ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 8,
@@ -3396,7 +3414,7 @@ class _GovernancePageState extends State<GovernancePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF3FB),
+                color: OnyxColorTokens.surfaceElevated,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: _governanceBorderStrongColor),
               ),
@@ -3406,7 +3424,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   Text(
                     'Partner scope focus active',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF2F6E9C),
+                      color: OnyxColorTokens.accentBlue,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -3430,7 +3448,7 @@ class _GovernancePageState extends State<GovernancePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF3FB),
+                color: OnyxColorTokens.surfaceElevated,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: _governanceBorderStrongColor),
               ),
@@ -3440,7 +3458,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   Text(
                     'Scope focus active',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF2F6E9C),
+                      color: OnyxColorTokens.accentBlue,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -3467,9 +3485,9 @@ class _GovernancePageState extends State<GovernancePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFEEF7F1),
+                color: OnyxColorTokens.greenSurface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFC9E4D0)),
+                border: Border.all(color: OnyxColorTokens.greenBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3477,7 +3495,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   Text(
                     'Historical readiness focus active',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF237A53),
+                      color: OnyxColorTokens.greenBorder,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -3718,7 +3736,7 @@ class _GovernancePageState extends State<GovernancePage> {
               Text(
                 report.partnerPerformanceHeadline,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9A6A00),
+                  color: OnyxColorTokens.amberBorder,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -3740,7 +3758,7 @@ class _GovernancePageState extends State<GovernancePage> {
               Text(
                 report.partnerSlaHeadline,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF0F7490),
+                  color: OnyxColorTokens.accentTeal,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -3777,9 +3795,11 @@ class _GovernancePageState extends State<GovernancePage> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0x1422D3EE),
+                color: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0x4422D3EE)),
+                border: Border.all(
+                  color: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.27),
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3791,7 +3811,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Focused scene action: ${_focusedSceneActionLabel(report)!}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF4FF),
+                            color: OnyxColorTokens.textPrimary,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -3822,7 +3842,7 @@ class _GovernancePageState extends State<GovernancePage> {
                               child: Text(
                                 _focusedSceneActionDetailValue(report)!,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF9FD8E8),
+                                  color: OnyxColorTokens.accentSky,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -3840,7 +3860,7 @@ class _GovernancePageState extends State<GovernancePage> {
                     child: Text(
                       'Clear',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF67E8F9),
+                        color: OnyxColorTokens.accentCyanTrue,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4225,7 +4245,7 @@ class _GovernancePageState extends State<GovernancePage> {
       child: Text(
         label,
         style: GoogleFonts.inter(
-          color: const Color(0xFFF5C27A),
+          color: OnyxColorTokens.accentAmber,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -4769,8 +4789,8 @@ class _GovernancePageState extends State<GovernancePage> {
       value: '${report.sceneReviews} reviews',
       detail: _sceneReviewMetricDetail(report),
       color: report.sceneEscalations > 0
-          ? const Color(0xFFF59E0B)
-          : const Color(0xFF22D3EE),
+          ? OnyxColorTokens.accentAmber
+          : OnyxColorTokens.accentCyanTrue,
     );
     final remainingMetrics = <Widget>[
       _reportMetric(
@@ -4780,8 +4800,8 @@ class _GovernancePageState extends State<GovernancePage> {
         detail:
             '${report.totalEvents} events • ${report.integrityScore}% score',
         color: report.hashVerified
-            ? const Color(0xFF10B981)
-            : const Color(0xFFEF4444),
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.accentRed,
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-ai-human-delta'),
@@ -4789,7 +4809,7 @@ class _GovernancePageState extends State<GovernancePage> {
         value: '${report.humanOverrides} overrides',
         detail:
             '${interventionRate.toStringAsFixed(1)}% intervention • AI ${report.aiDecisions}',
-        color: const Color(0xFF22D3EE),
+        color: OnyxColorTokens.accentCyanTrue,
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-norm-drift'),
@@ -4798,8 +4818,8 @@ class _GovernancePageState extends State<GovernancePage> {
         detail:
             'Avg match ${report.avgMatchScore}% of ${report.sitesMonitored}',
         color: report.avgMatchScore < 80
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF10B981),
+            ? OnyxColorTokens.accentAmber
+            : OnyxColorTokens.accentGreen,
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-compliance-blockage'),
@@ -4807,8 +4827,8 @@ class _GovernancePageState extends State<GovernancePage> {
         value: '${report.totalBlocked} blocked',
         detail: 'PSIRA ${report.psiraExpired} • PDP ${report.pdpExpired}',
         color: report.totalBlocked > 0
-            ? const Color(0xFFEF4444)
-            : const Color(0xFF10B981),
+            ? OnyxColorTokens.accentRed
+            : OnyxColorTokens.accentGreen,
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-global-readiness'),
@@ -4821,12 +4841,12 @@ class _GovernancePageState extends State<GovernancePage> {
           intents: globalIntents,
         ),
         color: globalPosture.criticalSiteCount > 0
-            ? const Color(0xFFEF4444)
+            ? OnyxColorTokens.accentRed
             : globalPosture.elevatedSiteCount > 0
-            ? const Color(0xFFF59E0B)
+            ? OnyxColorTokens.accentAmber
             : globalIntents.isEmpty
-            ? const Color(0xFF10B981)
-            : const Color(0xFF22D3EE),
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.accentCyanTrue,
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-synthetic-war-room'),
@@ -4837,10 +4857,10 @@ class _GovernancePageState extends State<GovernancePage> {
             warRoomPlans.any(
               (plan) => plan.actionType == 'POLICY RECOMMENDATION',
             )
-            ? const Color(0xFF8B5CF6)
+            ? OnyxColorTokens.accentPurple
             : warRoomPlans.isNotEmpty
-            ? const Color(0xFF22D3EE)
-            : const Color(0xFF10B981),
+            ? OnyxColorTokens.accentCyanTrue
+            : OnyxColorTokens.accentGreen,
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-listener-alarm'),
@@ -4852,14 +4872,14 @@ class _GovernancePageState extends State<GovernancePage> {
           latestParity: latestListenerParity,
         ),
         color: listenerMissedCount > 0
-            ? const Color(0xFFF59E0B)
+            ? OnyxColorTokens.accentAmber
             : listenerAdvisories.any(
                 (event) => event.dispositionLabel == 'suspicious',
               )
-            ? const Color(0xFF22D3EE)
+            ? OnyxColorTokens.accentCyanTrue
             : listenerAdvisories.isEmpty
-            ? const Color(0xFF10B981)
-            : const Color(0xFF34D399),
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.accentGreen,
         onTap: () => _showListenerAlarmParityDrillIn(report),
       ),
       _reportMetric(
@@ -4870,10 +4890,10 @@ class _GovernancePageState extends State<GovernancePage> {
         color:
             report.reportsWithOmittedSections > 0 ||
                 report.legacyConfigurationReports > 0
-            ? const Color(0xFFF59E0B)
+            ? OnyxColorTokens.accentAmber
             : report.generatedReports > 0
-            ? const Color(0xFF10B981)
-            : const Color(0xFF22D3EE),
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.accentCyanTrue,
         onTap: () => _showReceiptPolicyDrillIn(report),
       ),
       _reportMetric(
@@ -4882,13 +4902,13 @@ class _GovernancePageState extends State<GovernancePage> {
         value: '${report.siteActivitySignals} signals',
         detail: _siteActivityMetricDetail(report),
         color: report.siteActivityFlaggedIds > 0
-            ? const Color(0xFFEF4444)
+            ? OnyxColorTokens.accentRed
             : report.siteActivityUnknownSignals > 0 ||
                   report.siteActivityLongPresence > 0
-            ? const Color(0xFFF59E0B)
+            ? OnyxColorTokens.accentAmber
             : report.siteActivitySignals > 0
-            ? const Color(0xFF22D3EE)
-            : const Color(0xFF10B981),
+            ? OnyxColorTokens.accentCyanTrue
+            : OnyxColorTokens.accentGreen,
         onTap: () => _showSiteActivityDrillIn(report),
       ),
       _reportMetric(
@@ -4901,8 +4921,8 @@ class _GovernancePageState extends State<GovernancePage> {
             ? report.vehicleSummary
             : 'Completed ${report.vehicleCompletedVisits} • Active ${report.vehicleActiveVisits} • Incomplete ${report.vehicleIncompleteVisits}',
         color: report.vehicleUnknownEvents > 0
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF10B981),
+            ? OnyxColorTokens.accentAmber
+            : OnyxColorTokens.accentGreen,
         onTap: () => _showVehicleBiDashboardDrillIn(report),
       ),
       _reportMetric(
@@ -4919,10 +4939,10 @@ class _GovernancePageState extends State<GovernancePage> {
             ? report.partnerSummary
             : 'Accept ${report.partnerAccepted} • On site ${report.partnerOnSite} • All clear ${report.partnerAllClear}',
         color: report.partnerCancelled > 0
-            ? const Color(0xFFF59E0B)
+            ? OnyxColorTokens.accentAmber
             : report.partnerDispatches > 0
-            ? const Color(0xFF22D3EE)
-            : const Color(0xFF10B981),
+            ? OnyxColorTokens.accentCyanTrue
+            : OnyxColorTokens.accentGreen,
       ),
     ];
     if (_effectiveSceneActionFocus(report) != null) {
@@ -6664,30 +6684,30 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Color _globalReadinessModeColor(String modeLabel) {
     return switch (modeLabel.trim().toUpperCase()) {
-      'CRITICAL POSTURE' => const Color(0xFFEF4444),
-      'ELEVATED WATCH' => const Color(0xFFF59E0B),
-      'ACTIVE TENSION' => const Color(0xFF22D3EE),
-      'STABLE POSTURE' => const Color(0xFF10B981),
-      _ => const Color(0xFF9CB2D1),
+      'CRITICAL POSTURE' => OnyxColorTokens.accentRed,
+      'ELEVATED WATCH' => OnyxColorTokens.accentAmber,
+      'ACTIVE TENSION' => OnyxColorTokens.accentCyanTrue,
+      'STABLE POSTURE' => OnyxColorTokens.accentGreen,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
   Color _siteActivityModeColor(String modeLabel) {
     return switch (modeLabel.trim().toUpperCase()) {
-      'FLAGGED TRAFFIC' => const Color(0xFFEF4444),
-      'WATCHFUL FLOW' => const Color(0xFFF59E0B),
-      'NORMAL FLOW' => const Color(0xFF22D3EE),
-      'QUIET SITE' => const Color(0xFF10B981),
-      _ => const Color(0xFF9CB2D1),
+      'FLAGGED TRAFFIC' => OnyxColorTokens.accentRed,
+      'WATCHFUL FLOW' => OnyxColorTokens.accentAmber,
+      'NORMAL FLOW' => OnyxColorTokens.accentCyanTrue,
+      'QUIET SITE' => OnyxColorTokens.accentGreen,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
   Color _syntheticWarRoomModeColor(String modeLabel) {
     return switch (modeLabel.trim().toUpperCase()) {
-      'POLICY SHIFT' => const Color(0xFF8B5CF6),
-      'SIMULATION ACTIVE' => const Color(0xFF22D3EE),
-      'QUIET REHEARSAL' => const Color(0xFF10B981),
-      _ => const Color(0xFF9CB2D1),
+      'POLICY SHIFT' => OnyxColorTokens.accentPurple,
+      'SIMULATION ACTIVE' => OnyxColorTokens.accentCyanTrue,
+      'QUIET REHEARSAL' => OnyxColorTokens.accentGreen,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
@@ -6699,10 +6719,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final latestAdvisory = advisories.isEmpty ? null : advisories.first;
     final canOpenEvents = _canOpenGovernanceEventsReview();
     final parityColor = parities.isEmpty
-        ? const Color(0xFFF59E0B)
+        ? OnyxColorTokens.accentAmber
         : parities.first.statusLabel == 'ok'
-        ? const Color(0xFF34D399)
-        : const Color(0xFFF59E0B);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -6762,15 +6782,15 @@ class _GovernancePageState extends State<GovernancePage> {
                         label: 'Advisories',
                         value: '${advisories.length}',
                         color: advisories.isEmpty
-                            ? const Color(0xFF9CB2D1)
-                            : const Color(0xFF34D399),
+                            ? OnyxColorTokens.textSecondary
+                            : OnyxColorTokens.accentGreen,
                       ),
                       _partnerTrendMetricChip(
                         label: 'Feed Cycles',
                         value: '${feedCycles.length}',
                         color: feedCycles.isEmpty
-                            ? const Color(0xFF9CB2D1)
-                            : const Color(0xFF22D3EE),
+                            ? OnyxColorTokens.textSecondary
+                            : OnyxColorTokens.accentCyanTrue,
                       ),
                       _partnerTrendMetricChip(
                         label: 'Parity',
@@ -6815,7 +6835,7 @@ class _GovernancePageState extends State<GovernancePage> {
                             Text(
                               latestCycle.rejectSummary,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFFDE68A),
+                                color: OnyxColorTokens.accentAmber,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -6865,7 +6885,7 @@ class _GovernancePageState extends State<GovernancePage> {
                             Text(
                               latestAdvisory.recommendation,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFFDE68A),
+                                color: OnyxColorTokens.accentAmber,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -6886,7 +6906,7 @@ class _GovernancePageState extends State<GovernancePage> {
                             'governance-listener-drill-open-events',
                           ),
                           label: 'OPEN EVENTS SCOPE',
-                          accent: const Color(0xFF67E8F9),
+                          accent: OnyxColorTokens.accentCyanTrue,
                           onTap: () {
                             Navigator.of(dialogContext).pop();
                             _openGovernanceEventsReview();
@@ -6897,7 +6917,7 @@ class _GovernancePageState extends State<GovernancePage> {
                           'governance-listener-drill-open-reports',
                         ),
                         label: 'OPEN REPORTS WORKSPACE',
-                        accent: const Color(0xFFF1B872),
+                        accent: OnyxColorTokens.accentAmber,
                         onTap: () {
                           Navigator.of(dialogContext).pop();
                           _openPrimaryGovernanceReports(report)();
@@ -6911,7 +6931,7 @@ class _GovernancePageState extends State<GovernancePage> {
                           label: _generatingMorningReport
                               ? 'Refreshing...'
                               : 'Refresh Morning Report',
-                          accent: const Color(0xFF67E8F9),
+                          accent: OnyxColorTokens.accentCyanTrue,
                           onTap: _generatingMorningReport
                               ? null
                               : () async {
@@ -6936,7 +6956,7 @@ class _GovernancePageState extends State<GovernancePage> {
                               : latestAdvisory != null
                               ? '${advisories.length} listener advisories landed without a matching parity cycle. Use the recovery actions below to keep the current governance lane moving while the listener audit catches up.'
                               : 'No listener feed or parity cycles landed in this shift window yet. Use the recovery actions below to keep the governance lane moving while the listener audit path comes online.',
-                          accent: const Color(0xFFF59E0B),
+                          accent: OnyxColorTokens.accentAmber,
                           actions: [
                             if (canOpenEvents)
                               _governanceMiniAction(
@@ -6944,7 +6964,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                   'governance-listener-parity-empty-open-events',
                                 ),
                                 label: 'OPEN EVENTS SCOPE',
-                                accent: const Color(0xFF67E8F9),
+                                accent: OnyxColorTokens.accentCyanTrue,
                                 onTap: () {
                                   Navigator.of(dialogContext).pop();
                                   _openGovernanceEventsReview();
@@ -6955,7 +6975,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                 'governance-listener-parity-empty-open-reports',
                               ),
                               label: 'OPEN REPORTS WORKSPACE',
-                              accent: const Color(0xFFF1B872),
+                              accent: OnyxColorTokens.accentAmber,
                               onTap: () {
                                 Navigator.of(dialogContext).pop();
                                 _openPrimaryGovernanceReports(report)();
@@ -6969,7 +6989,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                 label: _generatingMorningReport
                                     ? 'Refreshing...'
                                     : 'Refresh Morning Report',
-                                accent: const Color(0xFF67E8F9),
+                                accent: OnyxColorTokens.accentCyanTrue,
                                 onTap: _generatingMorningReport
                                     ? null
                                     : () async {
@@ -7051,8 +7071,8 @@ class _GovernancePageState extends State<GovernancePage> {
                                             parity.statusLabel.toUpperCase(),
                                             style: GoogleFonts.inter(
                                               color: parity.statusLabel == 'ok'
-                                                  ? const Color(0xFF34D399)
-                                                  : const Color(0xFFF59E0B),
+                                                  ? OnyxColorTokens.accentGreen
+                                                  : OnyxColorTokens.accentAmber,
                                               fontSize: 8,
                                               fontWeight: FontWeight.w800,
                                             ),
@@ -7093,7 +7113,8 @@ class _GovernancePageState extends State<GovernancePage> {
                                             _partnerTrendMetricChip(
                                               label: entry.key,
                                               value: '${entry.value}',
-                                              color: const Color(0xFFF6C067),
+                                              color:
+                                                  OnyxColorTokens.accentAmber,
                                             ),
                                         ],
                                       ),
@@ -7105,7 +7126,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                       Text(
                                         parity.driftSummary,
                                         style: GoogleFonts.inter(
-                                          color: const Color(0xFF8EA4C2),
+                                          color: OnyxColorTokens.textMuted,
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -7152,21 +7173,21 @@ class _GovernancePageState extends State<GovernancePage> {
           key: ValueKey('governance-scene-focus-latest-action'),
           label: 'Latest Action',
           focus: GovernanceSceneActionFocus.latestAction,
-          color: Color(0xFF67E8F9),
+          color: OnyxColorTokens.accentCyanTrue,
         ),
       if (report.recentActionsSummary.trim().isNotEmpty)
         const _SceneActionFocusChipEntry(
           key: ValueKey('governance-scene-focus-recent-actions'),
           label: 'Recent Actions',
           focus: GovernanceSceneActionFocus.recentActions,
-          color: Color(0xFFFDE68A),
+          color: OnyxColorTokens.accentAmber,
         ),
       if (report.latestSuppressedPattern.trim().isNotEmpty)
         const _SceneActionFocusChipEntry(
           key: ValueKey('governance-scene-focus-filtered-pattern'),
           label: 'Filtered Pattern',
           focus: GovernanceSceneActionFocus.filteredPattern,
-          color: Color(0xFF9CB2D1),
+          color: OnyxColorTokens.textSecondary,
         ),
     ];
     final activeFocus = _activeSceneActionFocus;
@@ -7206,7 +7227,7 @@ class _GovernancePageState extends State<GovernancePage> {
         decoration: BoxDecoration(
           color: isActive
               ? color.withValues(alpha: 0.16)
-              : const Color(0xFF13131E),
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: isActive ? color : color.withValues(alpha: 0.55),
@@ -7232,9 +7253,11 @@ class _GovernancePageState extends State<GovernancePage> {
     final isActive = _activeSceneActionFocus == focus;
     final decoration = isActive
         ? BoxDecoration(
-            color: const Color(0x1422D3EE),
+            color: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0x4422D3EE)),
+            border: Border.all(
+              color: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.27),
+            ),
           )
         : null;
     return InkWell(
@@ -7257,8 +7280,8 @@ class _GovernancePageState extends State<GovernancePage> {
               '$label: $value',
               style: GoogleFonts.inter(
                 color: isActive
-                    ? const Color(0xFFEAF4FF)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.textPrimary
+                    : OnyxColorTokens.textMuted,
                 fontSize: 10,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
               ),
@@ -7270,8 +7293,8 @@ class _GovernancePageState extends State<GovernancePage> {
                 isActive ? 'Tap to clear' : 'Tap to focus',
                 style: GoogleFonts.inter(
                   color: isActive
-                      ? const Color(0xFF67E8F9)
-                      : const Color(0xFF6F86A6),
+                      ? OnyxColorTokens.accentCyanTrue
+                      : OnyxColorTokens.textMuted,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
@@ -7550,14 +7573,14 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Color _receiptPolicyEventAccent(ReportGenerated event) {
     if (event.brandingUsesOverride) {
-      return const Color(0xFFF6C067);
+      return OnyxColorTokens.accentAmber;
     }
     if (!_hasTrackedReportSectionConfiguration(event)) {
-      return const Color(0xFF8EA5C6);
+      return OnyxColorTokens.textMuted;
     }
     return _omittedReceiptSectionLabels(event).isEmpty
-        ? const Color(0xFF59D79B)
-        : const Color(0xFFF6C067);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
   }
 
   String? _receiptPolicyBrandingHeadline(ReportGenerated event) {
@@ -7656,17 +7679,17 @@ class _GovernancePageState extends State<GovernancePage> {
                       _partnerTrendMetricChip(
                         label: 'Tracked',
                         value: '${report.trackedConfigurationReports}',
-                        color: const Color(0xFF59D79B),
+                        color: OnyxColorTokens.accentGreen,
                       ),
                       _partnerTrendMetricChip(
                         label: 'Legacy',
                         value: '${report.legacyConfigurationReports}',
-                        color: const Color(0xFF8EA5C6),
+                        color: OnyxColorTokens.textMuted,
                       ),
                       _partnerTrendMetricChip(
                         label: 'Omitted',
                         value: '${report.reportsWithOmittedSections}',
-                        color: const Color(0xFFF6C067),
+                        color: OnyxColorTokens.accentAmber,
                       ),
                     ],
                   ),
@@ -7713,14 +7736,14 @@ class _GovernancePageState extends State<GovernancePage> {
                               title: 'Receipt board recovery ready',
                               detail:
                                   'No generated receipt events landed in this shift window. Recover the audit story through reports, ledger continuity, or a morning refresh while the receipt pipeline catches up.',
-                              accent: const Color(0xFFF1B872),
+                              accent: OnyxColorTokens.accentAmber,
                               actions: [
                                 _governanceMiniAction(
                                   key: const ValueKey(
                                     'governance-receipt-policy-empty-open-reports',
                                   ),
                                   label: 'OPEN REPORTS WORKSPACE',
-                                  accent: const Color(0xFFF1B872),
+                                  accent: OnyxColorTokens.accentAmber,
                                   onTap: () {
                                     Navigator.of(dialogContext).pop();
                                     _openPrimaryGovernanceReports(report)();
@@ -7733,7 +7756,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                   label: canOpenLedger
                                       ? 'OPEN SOVEREIGN LEDGER'
                                       : 'RECOVER SOVEREIGN LEDGER',
-                                  accent: const Color(0xFFA78BFA),
+                                  accent: OnyxColorTokens.accentPurple,
                                   onTap: () {
                                     Navigator.of(dialogContext).pop();
                                     _openGovernanceLedgerAction(report)();
@@ -7748,7 +7771,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                     label: _generatingMorningReport
                                         ? 'Refreshing...'
                                         : 'Refresh Morning Report',
-                                    accent: const Color(0xFF67E8F9),
+                                    accent: OnyxColorTokens.accentCyanTrue,
                                     onTap: _generatingMorningReport
                                         ? null
                                         : () async {
@@ -7887,7 +7910,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                     Text(
                                       '${_timestampLabel(event.occurredAt)} • Events ${event.eventRangeStart}-${event.eventRangeEnd} • ${event.eventCount} source events',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFF9CB2D1),
+                                        color: OnyxColorTokens.textSecondary,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -7896,7 +7919,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                     Text(
                                       _receiptPolicyEventDetail(event),
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFF9CB2D1),
+                                        color: OnyxColorTokens.textSecondary,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -7928,7 +7951,8 @@ class _GovernancePageState extends State<GovernancePage> {
                                               0xFFFFDDAA,
                                             ),
                                             side: const BorderSide(
-                                              color: Color(0xFF5B3A16),
+                                              color:
+                                                  OnyxColorTokens.amberBorder,
                                             ),
                                           ),
                                           label: Text(
@@ -7984,7 +8008,7 @@ class _GovernancePageState extends State<GovernancePage> {
             Text(
               scope.summaryLine,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9CB2D1),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -8029,10 +8053,14 @@ class _GovernancePageState extends State<GovernancePage> {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0x1822D3EE) : const Color(0x14151F2F),
+          color: isActive
+              ? OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.09)
+              : OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isActive ? const Color(0x5522D3EE) : const Color(0x335C728F),
+            color: isActive
+                ? OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.33)
+                : OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
           ),
         ),
         child: Column(
@@ -8044,7 +8072,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   child: Text(
                     '${exception.reasonLabel} • ${exception.vehicleLabel}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF4FF),
+                      color: OnyxColorTokens.textPrimary,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -8057,14 +8085,16 @@ class _GovernancePageState extends State<GovernancePage> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0x2210B981),
+                      color: OnyxColorTokens.accentGreen.withValues(
+                        alpha: 0.13,
+                      ),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x6610B981)),
+                      border: Border.all(color: OnyxColorTokens.greenBorder),
                     ),
                     child: Text(
                       'REVIEWED',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF10B981),
+                        color: OnyxColorTokens.accentGreen,
                         fontSize: 8,
                         fontWeight: FontWeight.w800,
                       ),
@@ -8079,14 +8109,20 @@ class _GovernancePageState extends State<GovernancePage> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0x2222D3EE),
+                      color: OnyxColorTokens.accentCyanTrue.withValues(
+                        alpha: 0.13,
+                      ),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x6622D3EE)),
+                      border: Border.all(
+                        color: OnyxColorTokens.accentCyanTrue.withValues(
+                          alpha: 0.4,
+                        ),
+                      ),
                     ),
                     child: Text(
                       'OVERRIDE',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF22D3EE),
+                        color: OnyxColorTokens.accentCyanTrue,
                         fontSize: 8,
                         fontWeight: FontWeight.w800,
                       ),
@@ -8098,8 +8134,8 @@ class _GovernancePageState extends State<GovernancePage> {
                   exception.statusLabel,
                   style: GoogleFonts.inter(
                     color: hasStatusOverride
-                        ? const Color(0xFF67E8F9)
-                        : const Color(0xFFFDE68A),
+                        ? OnyxColorTokens.accentCyanTrue
+                        : OnyxColorTokens.accentAmber,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
@@ -8110,7 +8146,7 @@ class _GovernancePageState extends State<GovernancePage> {
             Text(
               '$scopeLabel • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • last seen ${_timestampLabel(exception.lastSeenAtUtc)}',
               style: GoogleFonts.inter(
-                color: const Color(0xFF9CB2D1),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -8119,7 +8155,7 @@ class _GovernancePageState extends State<GovernancePage> {
             Text(
               'Zones: $zones',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
@@ -8128,7 +8164,7 @@ class _GovernancePageState extends State<GovernancePage> {
             Text(
               'Workflow: $workflow',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -8138,7 +8174,7 @@ class _GovernancePageState extends State<GovernancePage> {
               Text(
                 'Review audit: $reviewAuditSummary',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentCyanTrue,
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                 ),
@@ -8151,8 +8187,8 @@ class _GovernancePageState extends State<GovernancePage> {
                   isActive ? 'Tap to collapse' : 'Tap for visit detail',
                   style: GoogleFonts.inter(
                     color: isActive
-                        ? const Color(0xFF67E8F9)
-                        : const Color(0xFF6F86A6),
+                        ? OnyxColorTokens.accentCyanTrue
+                        : OnyxColorTokens.textMuted,
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
                   ),
@@ -8174,7 +8210,7 @@ class _GovernancePageState extends State<GovernancePage> {
                       );
                     },
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF67E8F9),
+                      foregroundColor: OnyxColorTokens.accentCyanTrue,
                       minimumSize: const Size(0, 0),
                       padding: EdgeInsets.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -8182,7 +8218,7 @@ class _GovernancePageState extends State<GovernancePage> {
                     child: Text(
                       'OPEN EVENTS SCOPE',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF67E8F9),
+                        color: OnyxColorTokens.accentCyanTrue,
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
                       ),
@@ -8196,9 +8232,13 @@ class _GovernancePageState extends State<GovernancePage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0x14151F2F),
+                  color: OnyxColorTokens.backgroundPrimary.withValues(
+                    alpha: 0.08,
+                  ),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0x335C728F)),
+                  border: Border.all(
+                    color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -8206,7 +8246,7 @@ class _GovernancePageState extends State<GovernancePage> {
                     Text(
                       'Visit timeline',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
                       ),
@@ -8253,7 +8293,7 @@ class _GovernancePageState extends State<GovernancePage> {
                           'governance-vehicle-review-audit-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
                         ),
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF4FF),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                         ),
@@ -8274,7 +8314,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         'governance-vehicle-review-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
                       ),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
                       ),
@@ -8370,7 +8410,7 @@ class _GovernancePageState extends State<GovernancePage> {
             TextSpan(
               text: '$label: ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -8378,7 +8418,7 @@ class _GovernancePageState extends State<GovernancePage> {
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9CB2D1),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
@@ -8402,16 +8442,22 @@ class _GovernancePageState extends State<GovernancePage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          color: active ? const Color(0x1A22D3EE) : const Color(0x14151F2F),
+          color: active
+              ? OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.1)
+              : OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: active ? const Color(0x6622D3EE) : const Color(0x335C728F),
+            color: active
+                ? OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.4)
+                : OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: active ? const Color(0xFF67E8F9) : const Color(0xFF9CB2D1),
+            color: active
+                ? OnyxColorTokens.accentCyanTrue
+                : OnyxColorTokens.textSecondary,
             fontSize: 9,
             fontWeight: FontWeight.w700,
           ),
@@ -8477,9 +8523,11 @@ class _GovernancePageState extends State<GovernancePage> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0x10151F2F),
+        color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x335C728F)),
+        border: Border.all(
+          color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -8487,7 +8535,7 @@ class _GovernancePageState extends State<GovernancePage> {
           Text(
             action,
             style: GoogleFonts.inter(
-              color: const Color(0xFF67E8F9),
+              color: OnyxColorTokens.accentCyanTrue,
               fontSize: 9,
               fontWeight: FontWeight.w700,
             ),
@@ -8496,7 +8544,7 @@ class _GovernancePageState extends State<GovernancePage> {
           Text(
             detailParts.join(' • '),
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
@@ -8899,9 +8947,9 @@ class _GovernancePageState extends State<GovernancePage> {
         key: ValueKey<String>('governance-partner-scope-$scopeLabel'),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131E),
+          color: OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x269D4BFF)),
+          border: Border.all(color: OnyxColorTokens.borderSubtle),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -8909,7 +8957,7 @@ class _GovernancePageState extends State<GovernancePage> {
             Text(
               scopeLabel,
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -8918,7 +8966,7 @@ class _GovernancePageState extends State<GovernancePage> {
             Text(
               scope.summaryLine,
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -8942,9 +8990,9 @@ class _GovernancePageState extends State<GovernancePage> {
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: OnyxColorTokens.backgroundSecondary,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0x269D4BFF)),
+            border: Border.all(color: OnyxColorTokens.borderSubtle),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -8952,7 +9000,7 @@ class _GovernancePageState extends State<GovernancePage> {
               Text(
                 '$scopeLabel • ${row.partnerLabel}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -8961,7 +9009,7 @@ class _GovernancePageState extends State<GovernancePage> {
               Text(
                 row.summaryLine,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -9012,9 +9060,9 @@ class _GovernancePageState extends State<GovernancePage> {
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: OnyxColorTokens.backgroundSecondary,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0x269D4BFF)),
+            border: Border.all(color: OnyxColorTokens.borderSubtle),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -9025,7 +9073,7 @@ class _GovernancePageState extends State<GovernancePage> {
                     child: Text(
                       '$scopeLabel • ${row.partnerLabel}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),
@@ -9082,7 +9130,7 @@ class _GovernancePageState extends State<GovernancePage> {
               Text(
                 row.summaryLine,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9CB2D1),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -9127,7 +9175,7 @@ class _GovernancePageState extends State<GovernancePage> {
           color: _governancePanelAltColor,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: _governanceBorderColor),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
               color: _governanceShadowColor,
               blurRadius: 10,
@@ -9233,7 +9281,7 @@ class _GovernancePageState extends State<GovernancePage> {
           color: _governancePanelAltColor,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: _governanceBorderColor),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
               color: _governanceShadowColor,
               blurRadius: 10,
@@ -9325,26 +9373,26 @@ class _GovernancePageState extends State<GovernancePage> {
                 _partnerTrendMetricChip(
                   label: 'Current Governance',
                   value: '${report.governanceHandoffReports}',
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Current Routine',
                   value: '${report.routineReviewReports}',
-                  color: const Color(0xFF63BDFF),
+                  color: OnyxColorTokens.accentSky,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Governance',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.governanceAverage.toStringAsFixed(1),
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Routine',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.routineAverage.toStringAsFixed(1),
-                  color: const Color(0xFF63BDFF),
+                  color: OnyxColorTokens.accentSky,
                 ),
               ],
             ),
@@ -9372,7 +9420,7 @@ class _GovernancePageState extends State<GovernancePage> {
           color: _governancePanelAltColor,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: _governanceBorderColor),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
               color: _governanceShadowColor,
               blurRadius: 10,
@@ -9464,38 +9512,38 @@ class _GovernancePageState extends State<GovernancePage> {
                 _partnerTrendMetricChip(
                   label: 'Current Critical',
                   value: '${snapshot.criticalSiteCount}',
-                  color: const Color(0xFFEF4444),
+                  color: OnyxColorTokens.accentRed,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Current Elevated',
                   value: '${snapshot.elevatedSiteCount}',
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Current Intents',
                   value: '${intents.length}',
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Critical',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.criticalAverage.toStringAsFixed(1),
-                  color: const Color(0xFFEF4444),
+                  color: OnyxColorTokens.accentRed,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Elevated',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.elevatedAverage.toStringAsFixed(1),
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Intents',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.intentAverage.toStringAsFixed(1),
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
               ],
             ),
@@ -9525,7 +9573,7 @@ class _GovernancePageState extends State<GovernancePage> {
           color: _governancePanelAltColor,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: _governanceBorderColor),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
               color: _governanceShadowColor,
               blurRadius: 10,
@@ -9617,26 +9665,26 @@ class _GovernancePageState extends State<GovernancePage> {
                 _partnerTrendMetricChip(
                   label: 'Current Plans',
                   value: '${plans.length}',
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Current Policy',
                   value: '$policyCount',
-                  color: const Color(0xFF8B5CF6),
+                  color: OnyxColorTokens.accentPurple,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Plans',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.planAverage.toStringAsFixed(1),
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Policy',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.policyAverage.toStringAsFixed(1),
-                  color: const Color(0xFF8B5CF6),
+                  color: OnyxColorTokens.accentPurple,
                 ),
               ],
             ),
@@ -9662,7 +9710,7 @@ class _GovernancePageState extends State<GovernancePage> {
           color: _governancePanelAltColor,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: _governanceBorderColor),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
               color: _governanceShadowColor,
               blurRadius: 10,
@@ -9754,17 +9802,17 @@ class _GovernancePageState extends State<GovernancePage> {
                 _partnerTrendMetricChip(
                   label: 'Current Signals',
                   value: '${report.siteActivitySignals}',
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Current Unknown',
                   value: '${report.siteActivityUnknownSignals}',
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Current Flagged',
                   value: '${report.siteActivityFlaggedIds}',
-                  color: const Color(0xFFEF4444),
+                  color: OnyxColorTokens.accentRed,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Current Guard',
@@ -9776,21 +9824,21 @@ class _GovernancePageState extends State<GovernancePage> {
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.signalsAverage.toStringAsFixed(1),
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Unknown',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.unknownAverage.toStringAsFixed(1),
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Flagged',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.flaggedAverage.toStringAsFixed(1),
-                  color: const Color(0xFFEF4444),
+                  color: OnyxColorTokens.accentRed,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Guard',
@@ -9845,7 +9893,7 @@ class _GovernancePageState extends State<GovernancePage> {
             ? accent.withValues(alpha: 0.3)
             : _governanceBorderColor,
       ),
-      boxShadow: const [
+      boxShadow: [
         BoxShadow(
           color: _governanceShadowColor,
           blurRadius: 10,
@@ -9948,17 +9996,17 @@ class _GovernancePageState extends State<GovernancePage> {
                 _partnerTrendMetricChip(
                   label: 'Custom',
                   value: '${report.customBrandingOverrideReports}',
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Default',
                   value: '${report.defaultPartnerBrandingReports}',
-                  color: const Color(0xFF63BDFF),
+                  color: OnyxColorTokens.accentSky,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Standard',
                   value: '${report.standardBrandingReports}',
-                  color: const Color(0xFF8EA5C6),
+                  color: OnyxColorTokens.textMuted,
                 ),
               ],
             ),
@@ -9978,7 +10026,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         padding: const EdgeInsets.all(10),
                         decoration: _governanceDrillInCardDecoration(
                           highlighted: point.current,
-                          accent: const Color(0xFF0EA5E9),
+                          accent: OnyxColorTokens.accentCyanTrue,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -10101,9 +10149,10 @@ class _GovernancePageState extends State<GovernancePage> {
                                     size: 16,
                                   ),
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFFFFDDAA),
+                                    foregroundColor:
+                                        OnyxColorTokens.accentAmber,
                                     side: const BorderSide(
-                                      color: Color(0xFF5B3A16),
+                                      color: OnyxColorTokens.amberBorder,
                                     ),
                                   ),
                                   label: Text(
@@ -10185,12 +10234,12 @@ class _GovernancePageState extends State<GovernancePage> {
                 _partnerTrendMetricChip(
                   label: 'Governance',
                   value: '${report.governanceHandoffReports}',
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Routine',
                   value: '${report.routineReviewReports}',
-                  color: const Color(0xFF63BDFF),
+                  color: OnyxColorTokens.accentSky,
                 ),
               ],
             ),
@@ -10210,7 +10259,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         padding: const EdgeInsets.all(10),
                         decoration: _governanceDrillInCardDecoration(
                           highlighted: point.current,
-                          accent: const Color(0xFF0EA5E9),
+                          accent: OnyxColorTokens.accentCyanTrue,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -10522,21 +10571,21 @@ class _GovernancePageState extends State<GovernancePage> {
                             value: baseline.reportDays <= 0
                                 ? 'n/a'
                                 : baseline.criticalAverage.toStringAsFixed(1),
-                            color: const Color(0xFFEF4444),
+                            color: OnyxColorTokens.accentRed,
                           ),
                           _partnerTrendMetricChip(
                             label: 'Baseline Elevated',
                             value: baseline.reportDays <= 0
                                 ? 'n/a'
                                 : baseline.elevatedAverage.toStringAsFixed(1),
-                            color: const Color(0xFFF59E0B),
+                            color: OnyxColorTokens.accentAmber,
                           ),
                           _partnerTrendMetricChip(
                             label: 'Baseline Intents',
                             value: baseline.reportDays <= 0
                                 ? 'n/a'
                                 : baseline.intentAverage.toStringAsFixed(1),
-                            color: const Color(0xFF22D3EE),
+                            color: OnyxColorTokens.accentCyanTrue,
                           ),
                         ],
                       ),
@@ -10556,7 +10605,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                   padding: const EdgeInsets.all(10),
                                   decoration: _governanceDrillInCardDecoration(
                                     highlighted: point.current,
-                                    accent: const Color(0xFF0EA5E9),
+                                    accent: OnyxColorTokens.accentCyanTrue,
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
@@ -10684,7 +10733,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Tomorrow urgency • ${point.tomorrowUrgencySummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFFFDE68A),
+                                            color: OnyxColorTokens.accentAmber,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -10697,7 +10746,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Tomorrow shadow posture • ${point.tomorrowShadowPostureSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFFBFDBFE),
+                                            color: OnyxColorTokens.accentSky,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -10710,7 +10759,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Tomorrow promotion pressure • ${point.tomorrowPromotionPressureSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFFFDE68A),
+                                            color: OnyxColorTokens.accentAmber,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -10724,7 +10773,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Tomorrow promotion execution • ${point.tomorrowPromotionExecutionSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFFFFEDD5),
+                                            color: OnyxColorTokens.accentAmber,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -10739,7 +10788,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                 Text(
                                   'SHADOW MO INTELLIGENCE',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFFB8D7FF),
+                                    color: OnyxColorTokens.accentSky,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 0.6,
@@ -10756,7 +10805,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                     child: Text(
                                       'Tomorrow urgency • ${(shadowDossier['tomorrowUrgencySummary'] ?? '').toString().trim()}',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFFFDE68A),
+                                        color: OnyxColorTokens.accentAmber,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -10772,7 +10821,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                     child: Text(
                                       'Tomorrow shadow posture • ${(shadowDossier['postureStrengthSummary'] ?? '').toString().trim()}',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFFBFDBFE),
+                                        color: OnyxColorTokens.accentSky,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -10788,7 +10837,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                     child: Text(
                                       'Previous tomorrow urgency • ${(shadowDossier['previousTomorrowUrgencySummary'] ?? '').toString().trim()}',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFFFCD34D),
+                                        color: OnyxColorTokens.accentAmber,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -10801,7 +10850,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                     padding: const EdgeInsets.all(10),
                                     decoration:
                                         _governanceDrillInCardDecoration(
-                                          accent: const Color(0xFF5B9BD5),
+                                          accent: OnyxColorTokens.accentBlue,
                                         ),
                                     child: Column(
                                       crossAxisAlignment:
@@ -10825,7 +10874,8 @@ class _GovernancePageState extends State<GovernancePage> {
                                             child: Text(
                                               'Posture weight ${shadowMoPostureStrengthSummary(site)}',
                                               style: GoogleFonts.robotoMono(
-                                                color: const Color(0xFFFDE68A),
+                                                color:
+                                                    OnyxColorTokens.accentAmber,
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w700,
                                               ),
@@ -10837,7 +10887,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                           Text(
                                             match.title,
                                             style: GoogleFonts.inter(
-                                              color: const Color(0xFFB8D7FF),
+                                              color: OnyxColorTokens.accentSky,
                                               fontSize: 10,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -11054,14 +11104,14 @@ class _GovernancePageState extends State<GovernancePage> {
                             value: baseline.reportDays <= 0
                                 ? 'n/a'
                                 : baseline.planAverage.toStringAsFixed(1),
-                            color: const Color(0xFF22D3EE),
+                            color: OnyxColorTokens.accentCyanTrue,
                           ),
                           _partnerTrendMetricChip(
                             label: 'Baseline Policy',
                             value: baseline.reportDays <= 0
                                 ? 'n/a'
                                 : baseline.policyAverage.toStringAsFixed(1),
-                            color: const Color(0xFF8B5CF6),
+                            color: OnyxColorTokens.accentPurple,
                           ),
                         ],
                       ),
@@ -11070,7 +11120,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           learningMemorySummary,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF6D56B3),
+                            color: OnyxColorTokens.accentPurple,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -11084,7 +11134,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Shadow posture • ${currentPromotionPoint.shadowPostureSummary}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF2F6E9C),
+                            color: OnyxColorTokens.accentBlue,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11098,7 +11148,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Shadow posture bias • ${currentPromotionPoint.shadowPostureBiasSummary}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF9A6A00),
+                            color: OnyxColorTokens.amberBorder,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11112,7 +11162,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Shadow validation • ${currentPromotionPoint.shadowValidationSummary}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF2F6E9C),
+                            color: OnyxColorTokens.accentBlue,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11126,7 +11176,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Shadow tomorrow urgency • ${currentPromotionPoint.shadowTomorrowUrgencySummary}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF9A6A00),
+                            color: OnyxColorTokens.amberBorder,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11141,7 +11191,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Previous shadow tomorrow urgency • ${previousSyntheticWarRoomPoint.shadowTomorrowUrgencySummary}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFB45309),
+                            color: OnyxColorTokens.amberBorder,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -11155,7 +11205,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Promotion pressure • ${currentPromotionPoint.promotionPressureSummary}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF237A53),
+                            color: OnyxColorTokens.greenBorder,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11169,7 +11219,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Promotion execution • ${currentPromotionPoint.promotionExecutionSummary}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF237A53),
+                            color: OnyxColorTokens.greenBorder,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11183,7 +11233,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         Text(
                           'Promotion • ${currentPromotionPoint.promotionSummary}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF237A53),
+                            color: OnyxColorTokens.greenBorder,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11195,12 +11245,12 @@ class _GovernancePageState extends State<GovernancePage> {
                             color:
                                 currentPromotionPoint.promotionDecisionStatus ==
                                     'accepted'
-                                ? const Color(0xFF237A53)
+                                ? OnyxColorTokens.greenBorder
                                 : currentPromotionPoint
                                           .promotionDecisionStatus ==
                                       'rejected'
-                                ? const Color(0xFFB42318)
-                                : const Color(0xFF9A6A00),
+                                ? OnyxColorTokens.redBorder
+                                : OnyxColorTokens.amberBorder,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -11265,7 +11315,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                   padding: const EdgeInsets.all(10),
                                   decoration: _governanceDrillInCardDecoration(
                                     highlighted: point.current,
-                                    accent: const Color(0xFF8B5CF6),
+                                    accent: OnyxColorTokens.accentPurple,
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
@@ -11373,7 +11423,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           point.recommendationSummary,
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF6D56B3),
+                                            color: OnyxColorTokens.accentPurple,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -11386,7 +11436,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           point.learningSummary,
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF6D56B3),
+                                            color: OnyxColorTokens.accentPurple,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -11399,7 +11449,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Shadow rehearsal • ${point.shadowSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF2F6E9C),
+                                            color: OnyxColorTokens.accentBlue,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -11412,7 +11462,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Shadow validation • ${point.shadowValidationSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF2F6E9C),
+                                            color: OnyxColorTokens.accentBlue,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11425,7 +11475,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Shadow posture • ${point.shadowPostureSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF2F6E9C),
+                                            color: OnyxColorTokens.accentBlue,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11438,7 +11488,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Shadow tomorrow urgency • ${point.shadowTomorrowUrgencySummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF9A6A00),
+                                            color: OnyxColorTokens.amberBorder,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11451,7 +11501,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Shadow learning • ${point.shadowLearningSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF2F6E9C),
+                                            color: OnyxColorTokens.accentBlue,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -11464,7 +11514,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           point.shadowMemorySummary,
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF2F6E9C),
+                                            color: OnyxColorTokens.accentBlue,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11477,7 +11527,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Shadow posture bias • ${point.shadowPostureBiasSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF9A6A00),
+                                            color: OnyxColorTokens.amberBorder,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11490,7 +11540,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Promotion pressure • ${point.promotionPressureSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF237A53),
+                                            color: OnyxColorTokens.greenBorder,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11503,7 +11553,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Promotion execution • ${point.promotionExecutionSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF237A53),
+                                            color: OnyxColorTokens.greenBorder,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11516,7 +11566,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         Text(
                                           'Promotion • ${point.promotionSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF237A53),
+                                            color: OnyxColorTokens.greenBorder,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11532,11 +11582,11 @@ class _GovernancePageState extends State<GovernancePage> {
                                             color:
                                                 point.promotionDecisionStatus ==
                                                     'accepted'
-                                                ? const Color(0xFF237A53)
+                                                ? OnyxColorTokens.greenBorder
                                                 : point.promotionDecisionStatus ==
                                                       'rejected'
-                                                ? const Color(0xFFB42318)
-                                                : const Color(0xFF9A6A00),
+                                                ? OnyxColorTokens.redBorder
+                                                : OnyxColorTokens.amberBorder,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11569,7 +11619,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                               'T-${point.memoryCountdownBias.trim()} s',
                                           ].join(' • '),
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF9A6A00),
+                                            color: OnyxColorTokens.amberBorder,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -11622,21 +11672,21 @@ class _GovernancePageState extends State<GovernancePage> {
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.signalsAverage.toStringAsFixed(1),
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Unknown',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.unknownAverage.toStringAsFixed(1),
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Flagged',
                   value: baseline.reportDays <= 0
                       ? 'n/a'
                       : baseline.flaggedAverage.toStringAsFixed(1),
-                  color: const Color(0xFFEF4444),
+                  color: OnyxColorTokens.accentRed,
                 ),
                 _partnerTrendMetricChip(
                   label: 'Baseline Guard',
@@ -11663,7 +11713,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         padding: const EdgeInsets.all(10),
                         decoration: _governanceDrillInCardDecoration(
                           highlighted: point.current,
-                          accent: const Color(0xFF0EA5E9),
+                          accent: OnyxColorTokens.accentCyanTrue,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -11802,7 +11852,8 @@ class _GovernancePageState extends State<GovernancePage> {
                 throughput: report.vehicleThroughput.copyWith(
                   exceptionVisits: report.vehicleExceptionVisits,
                 ),
-                scopeLabel: '${report.reportDate} • ${report.vehiclePeakHourLabel}',
+                scopeLabel:
+                    '${report.reportDate} • ${report.vehiclePeakHourLabel}',
               ),
             ),
           ],
@@ -11910,8 +11961,8 @@ class _GovernancePageState extends State<GovernancePage> {
                   },
                   icon: const Icon(Icons.assessment_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFFDDAA),
-                    side: const BorderSide(color: Color(0xFF5B3A16)),
+                    foregroundColor: OnyxColorTokens.accentAmber,
+                    side: const BorderSide(color: OnyxColorTokens.amberBorder),
                   ),
                   label: Text(
                     'OPEN REPORTS WORKSPACE',
@@ -11942,7 +11993,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         padding: const EdgeInsets.all(10),
                         decoration: _governanceDrillInCardDecoration(
                           highlighted: point.current,
-                          accent: const Color(0xFF0EA5E9),
+                          accent: OnyxColorTokens.accentCyanTrue,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -11988,7 +12039,7 @@ class _GovernancePageState extends State<GovernancePage> {
                         title: 'Chain recovery ready',
                         detail:
                             'No active dispatch chains are open for this partner scope right now. Recover this partner lane through reports, ledger continuity, or a refreshed morning pass while the next escalation forms.',
-                        accent: const Color(0xFF67E8F9),
+                        accent: OnyxColorTokens.accentCyanTrue,
                         actions: [
                           if (canOpenReports)
                             _governanceMiniAction(
@@ -11996,7 +12047,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                 'governance-partner-scorecard-empty-open-reports',
                               ),
                               label: 'OPEN REPORTS WORKSPACE',
-                              accent: const Color(0xFFF1B872),
+                              accent: OnyxColorTokens.accentAmber,
                               onTap: () {
                                 final opened = _dispatchGovernanceReportsScope(
                                   clientId: row.clientId,
@@ -12018,7 +12069,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                 'governance-partner-scorecard-empty-open-ledger',
                               ),
                               label: 'OPEN SOVEREIGN LEDGER',
-                              accent: const Color(0xFFA78BFA),
+                              accent: OnyxColorTokens.accentPurple,
                               onTap: () {
                                 widget.onOpenLedgerForScope!(
                                   row.clientId,
@@ -12029,7 +12080,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                   headline: 'Sovereign ledger opened',
                                   detail:
                                       'Governance handed ${row.clientId} / ${row.siteId} into sovereign ledger continuity while keeping ${row.partnerLabel} as the active partner context.',
-                                  accent: const Color(0xFFA78BFA),
+                                  accent: OnyxColorTokens.accentPurple,
                                   icon: Icons.shield_outlined,
                                 );
                               },
@@ -12042,7 +12093,7 @@ class _GovernancePageState extends State<GovernancePage> {
                               label: _generatingMorningReport
                                   ? 'Refreshing...'
                                   : 'Refresh Morning Report',
-                              accent: const Color(0xFF67E8F9),
+                              accent: OnyxColorTokens.accentCyanTrue,
                               onTap: _generatingMorningReport
                                   ? null
                                   : () async {
@@ -12255,7 +12306,7 @@ class _GovernancePageState extends State<GovernancePage> {
             Text(
               'SLA: ${_partnerChainTimingLabel(chain)}',
               style: GoogleFonts.inter(
-                color: const Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentCyanTrue,
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -12266,7 +12317,7 @@ class _GovernancePageState extends State<GovernancePage> {
             Text(
               'Scorecard: ${chain.scoreReason}',
               style: GoogleFonts.inter(
-                color: const Color(0xFFFDE68A),
+                color: OnyxColorTokens.accentAmber,
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
@@ -12292,21 +12343,21 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Color _partnerScoreColor(String scoreLabel) {
     return switch (scoreLabel.trim().toUpperCase()) {
-      'STRONG' => const Color(0xFF10B981),
-      'ON TRACK' => const Color(0xFF38BDF8),
-      'WATCH' => const Color(0xFFF59E0B),
-      'CRITICAL' => const Color(0xFFEF4444),
-      _ => const Color(0xFF9CB2D1),
+      'STRONG' => OnyxColorTokens.accentGreen,
+      'ON TRACK' => OnyxColorTokens.accentSky,
+      'WATCH' => OnyxColorTokens.accentAmber,
+      'CRITICAL' => OnyxColorTokens.accentRed,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
   Color _partnerTrendColor(String trendLabel) {
     return switch (trendLabel.trim().toUpperCase()) {
-      'IMPROVING' => const Color(0xFF10B981),
-      'STABLE' => const Color(0xFF38BDF8),
-      'SLIPPING' => const Color(0xFFF97316),
-      'NEW' => const Color(0xFFFDE68A),
-      _ => const Color(0xFF9CB2D1),
+      'IMPROVING' => OnyxColorTokens.accentGreen,
+      'STABLE' => OnyxColorTokens.accentSky,
+      'SLIPPING' => OnyxColorTokens.accentAmber,
+      'NEW' => OnyxColorTokens.accentAmber,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
@@ -12642,18 +12693,18 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Color _receiptBrandingModeColor(String modeLabel) {
     return switch (modeLabel.trim().toUpperCase()) {
-      'CUSTOM BRANDING' => const Color(0xFFF6C067),
-      'DEFAULT BRANDING' => const Color(0xFF63BDFF),
-      'STANDARD BRANDING' => const Color(0xFF8EA5C6),
-      _ => const Color(0xFF9CB2D1),
+      'CUSTOM BRANDING' => OnyxColorTokens.accentAmber,
+      'DEFAULT BRANDING' => OnyxColorTokens.accentSky,
+      'STANDARD BRANDING' => OnyxColorTokens.textMuted,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
   Color _receiptInvestigationModeColor(String modeLabel) {
     return switch (modeLabel.trim().toUpperCase()) {
-      'OVERSIGHT HANDOFF' => const Color(0xFFF6C067),
-      'ROUTINE REVIEW' => const Color(0xFF63BDFF),
-      _ => const Color(0xFF9CB2D1),
+      'OVERSIGHT HANDOFF' => OnyxColorTokens.accentAmber,
+      'ROUTINE REVIEW' => OnyxColorTokens.accentSky,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
@@ -12894,7 +12945,7 @@ class _GovernancePageState extends State<GovernancePage> {
         color: _governancePanelColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _governanceBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _governanceShadowColor,
             blurRadius: 12,
@@ -14725,11 +14776,11 @@ String _partnerStatusLabel(PartnerDispatchStatus status) {
 
 Color _partnerStatusColor(PartnerDispatchStatus status) {
   return switch (status) {
-    PartnerDispatchStatus.unknown => const Color(0xFF94A3B8),
-    PartnerDispatchStatus.accepted => const Color(0xFF38BDF8),
-    PartnerDispatchStatus.onSite => const Color(0xFFF59E0B),
-    PartnerDispatchStatus.allClear => const Color(0xFF10B981),
-    PartnerDispatchStatus.cancelled => const Color(0xFFEF4444),
+    PartnerDispatchStatus.unknown => OnyxColorTokens.textMuted,
+    PartnerDispatchStatus.accepted => OnyxColorTokens.accentSky,
+    PartnerDispatchStatus.onSite => OnyxColorTokens.accentAmber,
+    PartnerDispatchStatus.allClear => OnyxColorTokens.accentGreen,
+    PartnerDispatchStatus.cancelled => OnyxColorTokens.accentRed,
   };
 }
 
