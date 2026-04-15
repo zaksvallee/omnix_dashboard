@@ -136,7 +136,7 @@ class VipProtectionPage extends StatelessWidget {
                           label: const Text('New VIP detail'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: OnyxColorTokens.brand,
-                            foregroundColor: Colors.white,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                             minimumSize: const Size(0, 34),
                             textStyle: GoogleFonts.inter(
                               fontSize: 11,
@@ -542,7 +542,7 @@ class _VipEmptyState extends StatelessWidget {
             label: const Text('Create new VIP detail'),
             style: ElevatedButton.styleFrom(
               backgroundColor: OnyxColorTokens.accentGreen,
-              foregroundColor: Colors.white,
+              foregroundColor: OnyxColorTokens.textPrimary,
               minimumSize: const Size(0, 40),
               textStyle: GoogleFonts.inter(
                 fontSize: 12,
