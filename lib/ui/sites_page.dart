@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../domain/authority/onyx_route.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -10,17 +11,8 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/projection/operations_health_projection.dart';
-import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
-
-// Fallback response scores used when averageResponseMinutes has not yet been
-// sampled (e.g. a new site or a very recent shift start).
-// Derived from the formula `100 - ((minutes - 4) * 8)`:
-//   _kResponseScoreNoDataActive ≈ 8-minute equivalent (units live, no timing yet)
-//   _kResponseScoreNoDataQuiet  ≈ 4-minute equivalent (baseline, nothing active)
-const _kResponseScoreNoDataActive = 42;
-const _kResponseScoreNoDataQuiet = 86;
 
 class SitesPage extends StatefulWidget {
   final List<DispatchEvent> events;
@@ -31,58 +23,20 @@ class SitesPage extends StatefulWidget {
   State<SitesPage> createState() => _SitesPageState();
 }
 
-enum _SiteLaneFilter { all, watch, active, strong }
-
-enum _SiteWorkspaceView { command, outcomes, trace }
+enum _SitePosture { strong, atRisk, critical }
 
 class _SitesPageState extends State<SitesPage> {
-  static const int _maxRosterRows = 12;
-  static const double _spaceXs = 4;
-
   String? _selectedSiteKey;
-  _SiteLaneFilter _siteLaneFilter = _SiteLaneFilter.all;
-  _SiteWorkspaceView _workspaceView = _SiteWorkspaceView.command;
-  bool get _desktopEmbeddedScroll => allowEmbeddedPanelScroll(context);
-
-  Widget _siteStatusPill(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final projection = OperationsHealthProjection.build(widget.events);
-    final allSitesRaw = _buildSiteDrillSnapshots(widget.events, projection);
-    // Section 7: filter ghost sites from display only (data unchanged)
-    final allSites = allSitesRaw.where((site) {
-      final id = site.siteId.toLowerCase();
-      return id != 'site-unknown' && id.isNotEmpty;
-    }).toList(growable: false);
+    final allSites = _buildSiteDrillSnapshots(widget.events, projection)
+        .where((site) {
+          final id = site.siteId.trim().toLowerCase();
+          return id.isNotEmpty && id != 'site-unknown';
+        })
+        .toList(growable: false);
 
     if (allSites.isEmpty) {
       return const OnyxPageScaffold(
@@ -92,2238 +46,949 @@ class _SitesPageState extends State<SitesPage> {
       );
     }
 
-    final sites = _filteredSites(allSites);
-    final selectedPool = sites.isEmpty ? allSites : sites;
-
-    _selectedSiteKey ??= selectedPool.first.siteKey;
-    final selected = selectedPool.firstWhere(
-      (site) => site.siteKey == _selectedSiteKey,
-      orElse: () => selectedPool.first,
-    );
-
-    final activeDispatches = allSites.fold<int>(
-      0,
-      (total, site) => total + site.activeDispatches,
-    );
-    final averageHealth =
-        allSites.fold<double>(0, (total, site) => total + site.healthScore) /
-        allSites.length;
-    final boundedDesktopSurface = _desktopEmbeddedScroll;
-    const contentPadding = EdgeInsets.all(16);
-    final ultrawideSurface = isUltrawideLayout(context);
-    final widescreenSurface = isWidescreenLayout(context);
-    final surfaceMaxWidth = ultrawideSurface
-        ? MediaQuery.sizeOf(context).width
-        : widescreenSurface
-        ? MediaQuery.sizeOf(context).width * 0.94
-        : 1540.0;
-
-    Widget buildHeaderStack({
-      required bool compactForViewport,
-      required bool mergeWorkspaceBannerIntoHero,
-    }) {
-      final criticalCount = _siteCountForFilter(
-        allSites,
-        _SiteLaneFilter.active,
-      );
-      final atRiskCount = _siteCountForFilter(
-        allSites,
-        _SiteLaneFilter.watch,
-      );
-      final anyAlert = criticalCount > 0 || atRiskCount > 0;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Sites',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: OnyxDesignTokens.textPrimary,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const Spacer(),
-              Wrap(
-                spacing: 6,
-                children: [
-                  _siteStatusPill(
-                    anyAlert
-                        ? '$atRiskCount sites need review'
-                        : 'All sites monitored',
-                    anyAlert
-                        ? OnyxDesignTokens.amberWarning
-                        : OnyxDesignTokens.greenSpec,
-                  ),
-                  if (activeDispatches > 0)
-                    _siteStatusPill(
-                      '$activeDispatches active dispatch${activeDispatches == 1 ? '' : 'es'}',
-                      OnyxDesignTokens.redCritical,
-                    ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (!compactForViewport) ...[
-            _overviewGrid(
-              sites: allSites,
-              activeDispatches: activeDispatches,
-              averageHealth: averageHealth,
-            ),
-          ],
-        ],
-      );
-    }
-
-    Widget buildWorkspaceSection({required bool lockToViewport}) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final stackVertically = constraints.maxWidth < 1320;
-          final boundedHeight =
-              constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
-          final allowEmbeddedWorkspace = lockToViewport && boundedHeight;
-          final canStretchWorkspace = allowEmbeddedWorkspace;
-          final mergeWorkspaceBannerIntoHero =
-              lockToViewport && !stackVertically;
-
-          Widget buildVerticalWorkspace({required bool embeddedScroll}) {
-            if (!embeddedScroll) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _siteRoster(allSites, sites, selected, embeddedScroll: false),
-                  const SizedBox(height: _spaceXs),
-                  _siteWorkspace(
-                    allSites,
-                    sites,
-                    selected,
-                    embeddedScroll: false,
-                  ),
-                ],
-              );
-            }
-            final workspaceColumn = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  height: 212,
-                  child: _siteRoster(
-                    allSites,
-                    sites,
-                    selected,
-                    embeddedScroll: true,
-                  ),
-                ),
-                const SizedBox(height: 3.0),
-                Expanded(
-                  child: _siteWorkspace(
-                    allSites,
-                    sites,
-                    selected,
-                    embeddedScroll: true,
-                  ),
-                ),
-              ],
-            );
-            return workspaceColumn;
-          }
-
-          Widget buildHorizontalWorkspace({required bool embeddedScroll}) {
-            final ultrawideWorkspace = isUltrawideLayout(
-              context,
-              viewportWidth: constraints.maxWidth,
-            );
-            final widescreenWorkspace = isWidescreenLayout(
-              context,
-              viewportWidth: constraints.maxWidth,
-            );
-            final rosterWidth = ultrawideWorkspace
-                ? 184.0
-                : widescreenWorkspace
-                ? 172.0
-                : 160.0;
-            final workspaceRow = Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: rosterWidth,
-                  child: _siteRoster(
-                    allSites,
-                    sites,
-                    selected,
-                    embeddedScroll: embeddedScroll,
-                  ),
-                ),
-                const SizedBox(width: _spaceXs),
-                Expanded(
-                  child: _siteWorkspace(
-                    allSites,
-                    sites,
-                    selected,
-                    embeddedScroll: embeddedScroll,
-                  ),
-                ),
-              ],
-            );
-            return workspaceRow;
-          }
-
-          final workspaceShell = stackVertically
-              ? buildVerticalWorkspace(embeddedScroll: allowEmbeddedWorkspace)
-              : buildHorizontalWorkspace(
-                  embeddedScroll: allowEmbeddedWorkspace,
-                );
-
-          final sectionBody = stackVertically
-              ? workspaceShell
-              : canStretchWorkspace
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (!mergeWorkspaceBannerIntoHero) ...[
-                      _workspaceStatusBanner(
-                        context,
-                        allSites: allSites,
-                        visibleSites: sites,
-                        selected: selected,
-                      ),
-                      const SizedBox(height: 2.5),
-                    ],
-                    Expanded(child: workspaceShell),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (!mergeWorkspaceBannerIntoHero) ...[
-                      _workspaceStatusBanner(
-                        context,
-                        allSites: allSites,
-                        visibleSites: sites,
-                        selected: selected,
-                      ),
-                      const SizedBox(height: 2.5),
-                    ],
-                    workspaceShell,
-                  ],
-                );
-
-          if (!stackVertically) {
-            return sectionBody;
-          }
-          return OnyxSectionCard(
-            title: 'SITES',
-            padding: const EdgeInsets.all(20),
-            flexibleChild: lockToViewport,
-            child: sectionBody,
-          );
-        },
-      );
-    }
+    final selectedSite = _resolveSelectedSite(allSites);
+    final strongCount = allSites
+        .where((site) => _sitePosture(site) == _SitePosture.strong)
+        .length;
+    final atRiskCount = allSites
+        .where((site) => _sitePosture(site) == _SitePosture.atRisk)
+        .length;
+    final criticalCount = allSites
+        .where((site) => _sitePosture(site) == _SitePosture.critical)
+        .length;
 
     return OnyxPageScaffold(
       child: OnyxViewportWorkspaceLayout(
-        padding: contentPadding,
-        maxWidth: surfaceMaxWidth,
-        spacing: 16,
-        lockToViewport: boundedDesktopSurface,
-        header: LayoutBuilder(
-          builder: (context, headerConstraints) {
-            final compactHeaderForViewport = headerConstraints.maxWidth >= 1280;
-            final mergeWorkspaceBannerIntoHero =
-                boundedDesktopSurface && headerConstraints.maxWidth >= 1320;
-            return buildHeaderStack(
-              compactForViewport: compactHeaderForViewport,
-              mergeWorkspaceBannerIntoHero: mergeWorkspaceBannerIntoHero,
+        padding: const EdgeInsets.all(16),
+        maxWidth: 1540,
+        spacing: 12,
+        header: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeaderRow(context),
+            const SizedBox(height: 12),
+            _buildPostureSummaryBar(
+              totalCount: allSites.length,
+              strongCount: strongCount,
+              atRiskCount: atRiskCount,
+              criticalCount: criticalCount,
+            ),
+          ],
+        ),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked = constraints.maxWidth < 1100;
+            final roster = _buildRosterPanel(
+              sites: allSites,
+              selectedSite: selectedSite,
+            );
+            final detail = _buildDetailPanel(
+              context,
+              selectedSite: selectedSite,
+            );
+
+            if (stacked) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  roster,
+                  const SizedBox(height: 12),
+                  detail,
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 300, child: roster),
+                const SizedBox(width: 12),
+                Expanded(child: detail),
+              ],
             );
           },
         ),
-        body: buildWorkspaceSection(lockToViewport: boundedDesktopSurface),
       ),
     );
   }
 
-  // ignore: unused_element
-  Widget _heroHeader(
-    BuildContext context, {
-    required List<_SiteDrillSnapshot> sites,
-    required _SiteDrillSnapshot selected,
-    required int activeDispatches,
-    required double averageHealth,
-    Widget? workspaceBanner,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x12FFFFFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: [
-              _heroChip('Sites', '${sites.length}'),
-              _heroChip('Lane', _laneLabel(_siteLaneFilter)),
-              _heroChip('Dispatches', '$activeDispatches'),
-              _heroChip('Health', averageHealth.toStringAsFixed(1)),
-            ],
-          ),
-          if (workspaceBanner != null) ...[
-            const SizedBox(height: 6),
-            workspaceBanner,
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _heroChip(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.2),
-      decoration: BoxDecoration(
-        color: const Color(0x1A9D4BFF),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x269D4BFF)),
-      ),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF7A8FA4),
-                fontSize: 6.8,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
-                fontSize: 6.8,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statusPill({
-    required IconData icon,
-    required String label,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.5),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 9.0, color: accent),
-          const SizedBox(width: 1.5),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: accent,
-              fontSize: 7.3,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _overviewGrid({
-    required List<_SiteDrillSnapshot> sites,
-    required int activeDispatches,
-    required double averageHealth,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1200
-            ? 3
-            : constraints.maxWidth >= 760
-            ? 2
-            : 1;
-        return GridView.count(
-          key: const ValueKey('sites-overview-grid'),
-          crossAxisCount: columns,
-          mainAxisSpacing: 1.75,
-          crossAxisSpacing: 1.75,
-          childAspectRatio: columns == 2 ? 5.0 : 3.7,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _overviewCard(
-              title: 'Visible Sites',
-              value: '${sites.length}',
-              detail: 'Deployment footprint currently surfaced in the roster.',
-              icon: Icons.apartment_rounded,
-              accent: const Color(0xFF63BDFF),
-            ),
-            _overviewCard(
-              title: 'Active Dispatches',
-              value: '$activeDispatches',
-              detail:
-                  'Open response activity attached to the visible site set.',
-              icon: Icons.local_shipping_outlined,
-              accent: const Color(0xFF59D79B),
-            ),
-            _overviewCard(
-              title: 'Average Health',
-              value: averageHealth.toStringAsFixed(1),
-              detail:
-                  'Composite posture score across the current site footprint.',
-              icon: Icons.health_and_safety_outlined,
-              accent: const Color(0xFFF6C067),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _selectedSiteOverviewCard({required _SiteDrillSnapshot selected}) {
-    final statusColor = _statusColor(selected.healthStatus);
-    final responseScore = _responseScore(selected);
-
-    return Container(
-      key: const ValueKey('sites-overview-selected-card'),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            statusColor.withValues(alpha: 0.12),
-            const Color(0xFF13131E),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(4.25),
-        border: Border.all(color: statusColor.withValues(alpha: 0.24)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 10.5,
-                height: 10.5,
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: Icon(
-                  Icons.visibility_outlined,
-                  color: statusColor,
-                  size: 6.3,
-                ),
-              ),
-              const SizedBox(width: 1.0),
-              Expanded(
-                child: Text(
-                  'SITE IN FOCUS',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: statusColor,
-                    fontSize: 5.7,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 0.4),
-          _tinyPill('Health ${selected.healthStatus}', statusColor),
-          const SizedBox(height: 0.5),
-          Text(
-            selected.siteId,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
-              fontSize: 8.6,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 0.2),
-          Text(
-            '${selected.clientId} / ${selected.regionId}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
-              fontSize: 5.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 0.5),
-          Wrap(
-            spacing: 0.55,
-            runSpacing: 0.55,
-            children: [
-              _tinyPill('Response $responseScore%', const Color(0xFF63BDFF)),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-overview-selected-open-trace'),
-                label: 'Trace',
-                selected: _workspaceView == _SiteWorkspaceView.trace,
-                accent: _workspaceAccent(_SiteWorkspaceView.trace),
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.trace),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-overview-selected-open-tactical'),
-                label: 'Tactical',
-                selected: false,
-                accent: const Color(0xFF9D4BFF),
-                onTap: () => _showTacticalLinkDialog(context),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _overviewCard({
-    required String title,
-    required String value,
-    required String detail,
-    required IconData icon,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(2.25),
-      decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
-        borderRadius: BorderRadius.circular(4.25),
-        border: Border.all(color: const Color(0x269D4BFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 13,
-                height: 13,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(3.5),
-                ),
-                child: Icon(icon, color: accent, size: 8.4),
-              ),
-              const Spacer(),
-              Flexible(
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.robotoMono(
-                    color: const Color(0xFF172638),
-                    fontSize: 10.1,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 1.5),
-          Text(
-            title.toUpperCase(),
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
-              fontSize: 6.6,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 0.2),
-          Text(
-            detail,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
-              fontSize: 6.4,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTacticalLinkDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF13131E),
-          title: Text(
-            'Tactical Link Ready',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          content: Text(
-            'Use Tactical to inspect watch posture, limited coverage, responder context, and map-driven site actions for the selected deployment.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
-              height: 1.45,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _workspaceStatusBanner(
-    BuildContext context, {
-    required List<_SiteDrillSnapshot> allSites,
-    required List<_SiteDrillSnapshot> visibleSites,
-    required _SiteDrillSnapshot selected,
-    bool shellless = false,
-    bool summaryOnly = false,
-  }) {
-    final watchCount = _siteCountForFilter(allSites, _SiteLaneFilter.watch);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final showInlineFocusCard = constraints.maxWidth >= 1120;
-        final controls = Wrap(
-          spacing: 0.75,
-          runSpacing: 0.75,
-          children: [
-            _statusPill(
-              icon: Icons.apartment_rounded,
-              label: '${visibleSites.length} Visible',
-              accent: const Color(0xFF63BDFF),
-            ),
-            _statusPill(
-              icon: Icons.warning_amber_rounded,
-              label: '$watchCount Watch',
-              accent: watchCount > 0
-                  ? const Color(0xFFF6C067)
-                  : const Color(0xFF94A3B8),
-            ),
-            _workspaceBannerAction(
-              key: const ValueKey('sites-workspace-banner-open-all'),
-              label: 'All',
-              selected: _siteLaneFilter == _SiteLaneFilter.all,
-              accent: _laneAccent(_SiteLaneFilter.all),
-              onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
-            ),
-            _workspaceBannerAction(
-              key: const ValueKey('sites-workspace-banner-open-watch'),
-              label: 'Watch',
-              selected: _siteLaneFilter == _SiteLaneFilter.watch,
-              accent: _laneAccent(_SiteLaneFilter.watch),
-              onTap: watchCount == 0
-                  ? null
-                  : () => _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
-            ),
-            _workspaceBannerAction(
-              key: const ValueKey('sites-workspace-banner-open-command'),
-              label: 'Command',
-              selected: _workspaceView == _SiteWorkspaceView.command,
-              accent: _workspaceAccent(_SiteWorkspaceView.command),
-              onTap: () => _setWorkspaceView(_SiteWorkspaceView.command),
-            ),
-            _workspaceBannerAction(
-              key: const ValueKey('sites-workspace-banner-open-outcomes'),
-              label: 'Outcomes',
-              selected: _workspaceView == _SiteWorkspaceView.outcomes,
-              accent: _workspaceAccent(_SiteWorkspaceView.outcomes),
-              onTap: () => _setWorkspaceView(_SiteWorkspaceView.outcomes),
-            ),
-            _workspaceBannerAction(
-              key: const ValueKey('sites-workspace-banner-open-trace'),
-              label: 'Trace',
-              selected: _workspaceView == _SiteWorkspaceView.trace,
-              accent: _workspaceAccent(_SiteWorkspaceView.trace),
-              onTap: () => _setWorkspaceView(_SiteWorkspaceView.trace),
-            ),
-            _workspaceBannerAction(
-              key: const ValueKey('sites-workspace-banner-open-tactical'),
-              label: 'Tactical',
-              selected: false,
-              accent: const Color(0xFF9D4BFF),
-              onTap: () => _showTacticalLinkDialog(context),
-            ),
-          ],
-        );
-        final focusCard = _selectedSiteOverviewCard(selected: selected);
-        final bannerChild = showInlineFocusCard
-            ? summaryOnly
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 0.75,
-                                runSpacing: 0.75,
-                                children: [
-                                  _statusPill(
-                                    icon: Icons.apartment_rounded,
-                                    label: '${visibleSites.length} Visible',
-                                    accent: const Color(0xFF63BDFF),
-                                  ),
-                                  _statusPill(
-                                    icon: Icons.warning_amber_rounded,
-                                    label: '$watchCount Watch',
-                                    accent: watchCount > 0
-                                        ? const Color(0xFFF6C067)
-                                        : const Color(0xFF94A3B8),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 1.25),
-                        SizedBox(width: 118, child: focusCard),
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: controls),
-                        const SizedBox(width: 1.25),
-                        SizedBox(width: 118, child: focusCard),
-                      ],
-                    )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [controls, const SizedBox(height: 1.0), focusCard],
-              );
-        if (shellless) {
-          return KeyedSubtree(
-            key: const ValueKey('sites-workspace-status-banner'),
-            child: bannerChild,
-          );
+  _SiteDrillSnapshot _resolveSelectedSite(List<_SiteDrillSnapshot> sites) {
+    final selectedKey = _selectedSiteKey;
+    if (selectedKey != null) {
+      for (final site in sites) {
+        if (site.siteKey == selectedKey) {
+          return site;
         }
-        return Container(
-          key: const ValueKey('sites-workspace-status-banner'),
-          width: double.infinity,
-          padding: const EdgeInsets.all(1.5),
-          decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
-            borderRadius: BorderRadius.circular(4.25),
-            border: Border.all(color: const Color(0x269D4BFF)),
+      }
+    }
+
+    final first = sites.first;
+    _selectedSiteKey = first.siteKey;
+    return first;
+  }
+
+  Widget _buildHeaderRow(BuildContext context) {
+    return Row(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Sites & deployment',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: OnyxColorTokens.textPrimary,
+              ),
+            ),
+            Text(
+              'Site management, watch posture, and operational readiness',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: OnyxColorTokens.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+        OutlinedButton.icon(
+          onPressed: () => _navigateToRoute(context, OnyxRoute.tactical),
+          icon: const Icon(Icons.map_rounded, size: 16),
+          label: const Text('View tactical'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: OnyxColorTokens.textSecondary,
+            side: const BorderSide(color: OnyxColorTokens.borderSubtle),
+            minimumSize: const Size(0, 34),
+            textStyle: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          child: bannerChild,
-        );
-      },
+        ),
+      ],
     );
   }
 
-  Widget _siteRoster(
-    List<_SiteDrillSnapshot> allSites,
-    List<_SiteDrillSnapshot> sites,
-    _SiteDrillSnapshot selected, {
-    bool embeddedScroll = true,
+  Widget _buildPostureSummaryBar({
+    required int totalCount,
+    required int strongCount,
+    required int atRiskCount,
+    required int criticalCount,
   }) {
-    final visibleSites = sites.take(_maxRosterRows).toList(growable: false);
-    final hiddenSites = sites.length - visibleSites.length;
-    final list = ListView.separated(
-      padding: const EdgeInsets.all(_spaceXs),
-      itemCount: visibleSites.length,
-      shrinkWrap: !embeddedScroll,
-      primary: embeddedScroll,
-      physics: embeddedScroll ? null : const NeverScrollableScrollPhysics(),
-      separatorBuilder: (context, index) => const SizedBox(height: _spaceXs),
-      itemBuilder: (context, index) {
-        final site = visibleSites[index];
-        final isSelected = site.siteKey == selected.siteKey;
-        return _siteRosterCard(site, selected: isSelected);
-      },
-    );
     return Container(
-      decoration: onyxWorkspaceSurfaceDecoration(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border.all(color: OnyxColorTokens.divider),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          Text(
+            'SITE POSTURE:',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: OnyxColorTokens.textMuted,
+              letterSpacing: 0.7,
+            ),
+          ),
+          _posturePill('$totalCount Total', OnyxColorTokens.textSecondary),
+          _posturePill('$strongCount Strong', OnyxColorTokens.accentGreen),
+          if (atRiskCount > 0)
+            _posturePill('$atRiskCount At-Risk', OnyxColorTokens.accentAmber),
+          if (criticalCount > 0)
+            _posturePill('$criticalCount Critical', OnyxColorTokens.accentRed),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRosterPanel({
+    required List<_SiteDrillSnapshot> sites,
+    required _SiteDrillSnapshot? selectedSite,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border.all(color: OnyxColorTokens.divider),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(2.75, 2.75, 2.75, 1.25),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3C79BB),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      const SizedBox(height: _spaceXs),
-                      Text(
-                        'Site Roster',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF172638),
-                          fontSize: 11.0,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                Text(
+                  'SITE ROSTER',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: OnyxColorTokens.textMuted,
+                    letterSpacing: 0.7,
                   ),
                 ),
-                const SizedBox(width: 1.75),
+                const Spacer(),
                 Text(
-                  '${sites.length}/${allSites.length}',
+                  '${sites.length} sites',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF86A2C8),
-                    fontSize: 7.5,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: OnyxColorTokens.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(2.75, 0, 2.75, 2.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  sites.isEmpty
-                      ? 'No sites match the active lane. Switch lanes to recover the roster.'
-                      : '${sites.length} sites are visible in the ${_laneLabel(_siteLaneFilter).toLowerCase()} lane.',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF556B80),
-                    fontSize: 6.8,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 1.75),
-                Wrap(
-                  spacing: 2.0,
-                  runSpacing: 2.0,
-                  children: [
-                    _laneFilterChip(
-                      key: const ValueKey('sites-roster-filter-all'),
-                      label: 'All',
-                      count: allSites.length,
-                      selected: _siteLaneFilter == _SiteLaneFilter.all,
-                      onTap: () =>
-                          _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
-                    ),
-                    _laneFilterChip(
-                      key: const ValueKey('sites-roster-filter-watch'),
-                      label: 'Watch',
-                      count: _siteCountForFilter(
-                        allSites,
-                        _SiteLaneFilter.watch,
-                      ),
-                      selected: _siteLaneFilter == _SiteLaneFilter.watch,
-                      onTap: () =>
-                          _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
-                    ),
-                    _laneFilterChip(
-                      key: const ValueKey('sites-roster-filter-active'),
-                      label: 'Active',
-                      count: _siteCountForFilter(
-                        allSites,
-                        _SiteLaneFilter.active,
-                      ),
-                      selected: _siteLaneFilter == _SiteLaneFilter.active,
-                      onTap: () =>
-                          _setSiteLaneFilter(allSites, _SiteLaneFilter.active),
-                    ),
-                    _laneFilterChip(
-                      key: const ValueKey('sites-roster-filter-strong'),
-                      label: 'Strong',
-                      count: _siteCountForFilter(
-                        allSites,
-                        _SiteLaneFilter.strong,
-                      ),
-                      selected: _siteLaneFilter == _SiteLaneFilter.strong,
-                      onTap: () =>
-                          _setSiteLaneFilter(allSites, _SiteLaneFilter.strong),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          const Divider(color: OnyxColorTokens.divider, height: 1),
+          ListView.builder(
+            shrinkWrap: true,
+            primary: false,
+            itemCount: sites.length,
+            itemBuilder: (context, index) {
+              final site = sites[index];
+              return _siteRosterRow(
+                site,
+                isSelected: selectedSite?.siteKey == site.siteKey,
+                onTap: () => setState(() => _selectedSiteKey = site.siteKey),
+              );
+            },
           ),
-          const Divider(height: 1, color: Color(0xFF223244)),
-          if (embeddedScroll)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: sites.isEmpty
-                        ? Padding(
-                            padding: EdgeInsets.all(5),
-                            child: Align(
-                              alignment: Alignment.topLeft,
-                              child: Text(
-                                'No sites are visible in this lane. Use another lane to continue.',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF7D93B1),
-                                  fontSize: 8.2,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          )
-                        : list,
-                  ),
-                  if (hiddenSites > 0)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 2.5),
-                      child: OnyxTruncationHint(
-                        visibleCount: visibleSites.length,
-                        totalCount: sites.length,
-                        subject: 'sites',
-                        hiddenDescriptor: 'additional sites',
-                        color: const Color(0xFF86A2C8),
-                      ),
-                    ),
-                ],
-              ),
-            )
-          else ...[
-            if (sites.isEmpty)
-              Padding(
-                padding: EdgeInsets.all(5),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Text(
-                    'No sites are visible in this lane. Use another lane to continue.',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF7D93B1),
-                      fontSize: 8.6,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              )
-            else
-              list,
-            if (hiddenSites > 0)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 0, 4, 3.5),
-                child: OnyxTruncationHint(
-                  visibleCount: visibleSites.length,
-                  totalCount: sites.length,
-                  subject: 'sites',
-                  hiddenDescriptor: 'additional sites',
-                  color: const Color(0xFF86A2C8),
-                ),
-              ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _siteRosterCard(_SiteDrillSnapshot site, {required bool selected}) {
-    final statusColor = _statusColor(site.healthStatus);
-    final pressureColor = site.failedCount > 0
-        ? const Color(0xFFFF6A78)
-        : site.activeDispatches > 0
-        ? const Color(0xFF6FB5FF)
-        : statusColor;
+  Widget _siteRosterRow(
+    _SiteDrillSnapshot site, {
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final activeCams = _siteActiveCameras(site);
+    final totalCams = _siteTotalCameras(site);
+
     return InkWell(
-      key: ValueKey('sites-roster-card-${site.siteId}'),
-      onTap: () => _selectSite(site),
-      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          gradient: selected
-              ? const LinearGradient(
-                  colors: [Color(0x1A9D4BFF), Color(0xFF1A1A2E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: selected ? null : const Color(0xFF13131E),
-          borderRadius: BorderRadius.circular(6.0),
-          border: Border.all(
-            color: selected ? const Color(0xFF9D4BFF) : const Color(0x269D4BFF),
+          color: isSelected
+              ? OnyxColorTokens.cyanSurface
+              : Colors.transparent,
+          border: Border(
+            left: BorderSide(
+              color: isSelected ? OnyxColorTokens.brand : Colors.transparent,
+              width: 2,
+            ),
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              children: [
+                Text(
+                  site.siteId,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: OnyxColorTokens.textMuted,
+                  ),
+                ),
+                const Spacer(),
+                _postureBadge(site),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _siteDisplayName(site.siteId),
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: OnyxColorTokens.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(
+                  Icons.people_alt_rounded,
+                  size: 12,
+                  color: OnyxColorTokens.textMuted,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${site.guardsEngaged} guards',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: OnyxColorTokens.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(
+                  Icons.videocam_rounded,
+                  size: 12,
+                  color: OnyxColorTokens.textMuted,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$activeCams/$totalCams cams',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: OnyxColorTokens.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailPanel(
+    BuildContext context, {
+    required _SiteDrillSnapshot? selectedSite,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border.all(color: OnyxColorTokens.divider),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: selectedSite == null
+          ? _emptyDetailState()
+          : _siteDetailContent(context, selectedSite),
+    );
+  }
+
+  Widget _emptyDetailState() {
+    return SizedBox(
+      height: 520,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.brand.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: OnyxColorTokens.borderSubtle),
+              ),
+              child: const Icon(
+                Icons.business_rounded,
+                color: OnyxColorTokens.brand,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Select a site',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: OnyxColorTokens.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Choose a site from the roster to inspect posture and operations.',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: OnyxColorTokens.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _siteDetailContent(BuildContext context, _SiteDrillSnapshot site) {
+    final activeCams = _siteActiveCameras(site);
+    final totalCams = _siteTotalCameras(site);
+    final avgResponseSeconds = site.averageResponseMinutes > 0
+        ? (site.averageResponseMinutes * 60).round()
+        : 0;
+    final watchStatus = _watchStatus(site);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.brand.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: OnyxColorTokens.borderSubtle),
+              ),
+              child: const Icon(
+                Icons.business_rounded,
+                color: OnyxColorTokens.brand,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                Text(
+                  _siteDisplayName(site.siteId),
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: OnyxColorTokens.textPrimary,
+                  ),
+                ),
+                Text(
+                  site.siteId,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: OnyxColorTokens.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            _postureBadge(site),
+          ],
+        ),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 920) {
+              return Column(
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        site.siteId,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF172638),
-                          fontSize: 9.6,
-                          fontWeight: FontWeight.w700,
+                      Expanded(
+                        child: _siteStatCard(
+                          'GUARDS ON-SITE',
+                          site.guardsEngaged.toString(),
                         ),
                       ),
-                      const SizedBox(height: 0.85),
-                      Text(
-                        '${site.clientId} / ${site.regionId}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF556B80),
-                          fontSize: 7.7,
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _siteStatCard(
+                          'CAMERAS ACTIVE',
+                          '$activeCams/$totalCams',
                         ),
                       ),
                     ],
                   ),
-                ),
-                _siteStatusBadge(site),
-              ],
-            ),
-            const SizedBox(height: 1.75),
-            Wrap(
-              spacing: 1.75,
-              runSpacing: 1.75,
-              children: [
-                _tinyPill(
-                  'Health ${site.healthScore.toStringAsFixed(0)}',
-                  statusColor,
-                ),
-                _tinyPill(
-                  'Active ${site.activeDispatches}',
-                  const Color(0xFF4EB8FF),
-                ),
-                _tinyPill(
-                  'Guards ${site.guardsEngaged}',
-                  const Color(0xFF65D5A5),
-                ),
-              ],
-            ),
-            const SizedBox(height: 1.75),
-            _miniProgressBar(
-              label: 'Response tempo',
-              value: _responseScore(site),
-              color: pressureColor,
-            ),
-            const SizedBox(height: 1.75),
-            _miniProgressBar(
-              label: 'Patrol coverage',
-              value: _patrolCoverageScore(site),
-              color: statusColor,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _siteWorkspace(
-    List<_SiteDrillSnapshot> allSites,
-    List<_SiteDrillSnapshot> visibleSites,
-    _SiteDrillSnapshot site, {
-    bool embeddedScroll = true,
-  }) {
-    final statusColor = _statusColor(site.healthStatus);
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 20,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3C79BB),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  const SizedBox(height: 1.5),
-                  Text(
-                    '${site.clientId} / ${site.regionId} / ${site.siteId}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFE7F0FF),
-                      fontSize: 9.7,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 0.4),
-                  Text(
-                    '${visibleSites.length}/${allSites.length} visible • ${_workspaceViewLabel(_workspaceView)}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF93AACE),
-                      fontSize: 5.9,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 2.0),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 3.25,
-                vertical: 1.2,
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                color: statusColor.withValues(alpha: 0.15),
-                border: Border.all(color: statusColor.withValues(alpha: 0.8)),
-              ),
-              child: Text(
-                '${site.healthStatus} • ${site.healthScore.toStringAsFixed(1)}',
-                style: GoogleFonts.inter(
-                  color: statusColor,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 7.6,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 0.85),
-        _siteFocusBanner(site),
-        const SizedBox(height: 0.85),
-        Wrap(
-          spacing: 1.0,
-          runSpacing: 1.0,
-          children: [
-            _workspaceViewChip(
-              key: const ValueKey('sites-workspace-view-command'),
-              label: 'Command',
-              selected: _workspaceView == _SiteWorkspaceView.command,
-              onTap: () => _setWorkspaceView(_SiteWorkspaceView.command),
-            ),
-            _workspaceViewChip(
-              key: const ValueKey('sites-workspace-view-outcomes'),
-              label: 'Outcomes',
-              selected: _workspaceView == _SiteWorkspaceView.outcomes,
-              onTap: () => _setWorkspaceView(_SiteWorkspaceView.outcomes),
-            ),
-            _workspaceViewChip(
-              key: const ValueKey('sites-workspace-view-trace'),
-              label: 'Trace',
-              selected: _workspaceView == _SiteWorkspaceView.trace,
-              onTap: () => _setWorkspaceView(_SiteWorkspaceView.trace),
-            ),
-          ],
-        ),
-        const SizedBox(height: 0.85),
-        _workspaceDeck(site),
-      ],
-    );
-    return Container(
-      decoration: onyxWorkspaceSurfaceDecoration(),
-      child: embeddedScroll
-          ? SingleChildScrollView(
-              padding: const EdgeInsets.all(1.35),
-              child: content,
-            )
-          : Padding(padding: const EdgeInsets.all(1.35), child: content),
-    );
-  }
-
-  Widget _workspaceDeck(_SiteDrillSnapshot site) {
-    return switch (_workspaceView) {
-      _SiteWorkspaceView.command => _commandWorkspace(site),
-      _SiteWorkspaceView.outcomes => _outcomesWorkspace(site),
-      _SiteWorkspaceView.trace => _traceWorkspace(site),
-    };
-  }
-
-  Widget _commandWorkspace(_SiteDrillSnapshot site) {
-    return Column(
-      key: const ValueKey('sites-workspace-panel-command'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 4,
-          runSpacing: 3,
-          children: [
-            _metricCard(
-              'Decisions',
-              site.decisions.toString(),
-              const Color(0xFF58B7FF),
-            ),
-            _metricCard(
-              'Executed',
-              site.executedCount.toString(),
-              const Color(0xFF4CDD8A),
-            ),
-            _metricCard(
-              'Denied',
-              site.deniedCount.toString(),
-              const Color(0xFFF6B24A),
-            ),
-            _metricCard(
-              'Failed',
-              site.failedCount.toString(),
-              const Color(0xFFFF6A78),
-            ),
-            _metricCard(
-              'Active',
-              site.activeDispatches.toString(),
-              const Color(0xFF7CA2FF),
-            ),
-            _metricCard(
-              'Check-Ins',
-              site.guardCheckIns.toString(),
-              const Color(0xFF68CBFF),
-            ),
-            _metricCard(
-              'Patrols',
-              site.patrolsCompleted.toString(),
-              const Color(0xFF65D5A5),
-            ),
-            _metricCard(
-              'Avg Response',
-              '${site.averageResponseMinutes.toStringAsFixed(1)} min',
-              const Color(0xFF8FD0FF),
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final stacked = constraints.maxWidth < 920;
-            final outcomePanel = _panel(
-              'Dispatch Outcome Mix',
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ratioBar(
-                    'Executed',
-                    site.executedCount,
-                    site.decisions,
-                    const Color(0xFF45D58D),
-                  ),
-                  _ratioBar(
-                    'Denied',
-                    site.deniedCount,
-                    site.decisions,
-                    const Color(0xFFF0B24C),
-                  ),
-                  _ratioBar(
-                    'Failed',
-                    site.failedCount,
-                    site.decisions,
-                    const Color(0xFFFF6A78),
-                  ),
-                  _ratioBar(
-                    'Still Active',
-                    site.activeDispatches,
-                    site.decisions,
-                    const Color(0xFF6FB5FF),
-                  ),
-                ],
-              ),
-              shellless: !stacked,
-            );
-            final pulsePanel = _panel(
-              'Operational Pulse',
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _textLine('Guards Engaged', site.guardsEngaged.toString()),
-                  _textLine(
-                    'Avg Patrol Duration',
-                    '${site.averagePatrolMinutes.toStringAsFixed(1)} min',
-                  ),
-                  _textLine('Last Event UTC', _formatUtc(site.lastEventAtUtc)),
-                  _textLine(
-                    'Recent Event Count',
-                    site.recentEvents.length.toString(),
-                  ),
-                  _textLine(
-                    'Denied Reason Trend',
-                    site.deniedReasons.isEmpty
-                        ? 'No denials recorded'
-                        : site.deniedReasons.first,
-                  ),
-                ],
-              ),
-              shellless: !stacked,
-            );
-            if (stacked) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [outcomePanel, const SizedBox(height: 5), pulsePanel],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: outcomePanel),
-                const SizedBox(width: 4),
-                Expanded(child: pulsePanel),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 4),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final stacked = constraints.maxWidth < 920;
-            final directivePanel = _panel(
-              'Command Directive',
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _siteDirective(site),
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF556B80),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  _textLine(
-                    'Watch posture',
-                    _siteNeedsWatch(site)
-                        ? 'Active monitoring required'
-                        : 'Stable command hold',
-                  ),
-                  _textLine(
-                    'Lead pressure',
-                    site.failedCount > 0
-                        ? 'Execution failure'
-                        : site.activeDispatches > 0
-                        ? 'Open dispatch exposure'
-                        : 'Routine patrol rhythm',
-                  ),
-                ],
-              ),
-              shellless: !stacked,
-            );
-            final tracePanel = _eventTracePanel(
-              site,
-              previewOnly: true,
-              shellless: !stacked,
-            );
-            if (stacked) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  directivePanel,
-                  const SizedBox(height: 5),
-                  tracePanel,
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: directivePanel),
-                const SizedBox(width: 5),
-                Expanded(child: tracePanel),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _outcomesWorkspace(_SiteDrillSnapshot site) {
-    return Column(
-      key: const ValueKey('sites-workspace-panel-outcomes'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 5,
-          runSpacing: 4,
-          children: [
-            _metricCard(
-              'Executed',
-              site.executedCount.toString(),
-              const Color(0xFF4CDD8A),
-            ),
-            _metricCard(
-              'Denied',
-              site.deniedCount.toString(),
-              const Color(0xFFF6B24A),
-            ),
-            _metricCard(
-              'Failed',
-              site.failedCount.toString(),
-              const Color(0xFFFF6A78),
-            ),
-            _metricCard(
-              'Active',
-              site.activeDispatches.toString(),
-              const Color(0xFF7CA2FF),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final stacked = constraints.maxWidth < 920;
-            final outcomePanel = _panel(
-              'Dispatch Outcome Mix',
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ratioBar(
-                    'Executed',
-                    site.executedCount,
-                    site.decisions,
-                    const Color(0xFF45D58D),
-                  ),
-                  _ratioBar(
-                    'Denied',
-                    site.deniedCount,
-                    site.decisions,
-                    const Color(0xFFF0B24C),
-                  ),
-                  _ratioBar(
-                    'Failed',
-                    site.failedCount,
-                    site.decisions,
-                    const Color(0xFFFF6A78),
-                  ),
-                  _ratioBar(
-                    'Still Active',
-                    site.activeDispatches,
-                    site.decisions,
-                    const Color(0xFF6FB5FF),
-                  ),
-                ],
-              ),
-              shellless: !stacked,
-            );
-            final pressurePanel = _panel(
-              'Outcome Pressure',
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _textLine('Decision Volume', site.decisions.toString()),
-                  _textLine(
-                    'Closed Incidents',
-                    site.incidentsClosed.toString(),
-                  ),
-                  _textLine(
-                    'Denied Reason Trend',
-                    site.deniedReasons.isEmpty
-                        ? 'No denials recorded'
-                        : site.deniedReasons.first,
-                  ),
-                  _textLine(
-                    'Outcome Read',
-                    site.failedCount > 0
-                        ? 'Failures require immediate review'
-                        : site.deniedCount > 0
-                        ? 'Denials need operator validation'
-                        : 'Outcome flow is under control',
-                  ),
-                ],
-              ),
-              shellless: !stacked,
-            );
-            if (stacked) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  outcomePanel,
-                  const SizedBox(height: 5),
-                  pressurePanel,
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: outcomePanel),
-                const SizedBox(width: 5),
-                Expanded(child: pressurePanel),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _traceWorkspace(_SiteDrillSnapshot site) {
-    return Column(
-      key: const ValueKey('sites-workspace-panel-trace'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final stacked = constraints.maxWidth < 920;
-            final tracePanel = _eventTracePanel(site, shellless: !stacked);
-            final reviewPanel = _panel(
-              'Trace Review',
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _textLine('Last Event UTC', _formatUtc(site.lastEventAtUtc)),
-                  _textLine('Trace Count', site.traceEventCount.toString()),
-                  _textLine('Guards Engaged', site.guardsEngaged.toString()),
-                  _textLine(
-                    'Latest Denial',
-                    site.deniedReasons.isEmpty
-                        ? 'No denials recorded'
-                        : site.deniedReasons.first,
-                  ),
-                ],
-              ),
-              shellless: !stacked,
-            );
-            if (stacked) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [tracePanel, const SizedBox(height: 5), reviewPanel],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 6, child: tracePanel),
-                const SizedBox(width: 5),
-                Expanded(flex: 4, child: reviewPanel),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _eventTracePanel(
-    _SiteDrillSnapshot site, {
-    bool previewOnly = false,
-    bool shellless = false,
-  }) {
-    final rows = previewOnly
-        ? site.recentEvents.take(4).toList()
-        : site.recentEvents;
-    return _panel(
-      'Recent Site Event Trace',
-      rows.isEmpty
-          ? Text(
-              'No event trace available.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
-                fontSize: 12,
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListView.separated(
-                  shrinkWrap: true,
-                  primary: false,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: rows.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 5),
-                  itemBuilder: (context, index) {
-                    final row = rows[index];
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Icon(
-                            Icons.circle,
-                            size: 6,
-                            color: Color(0xFF4AAAFF),
-                          ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _siteStatCard(
+                          '24H INCIDENTS',
+                          site.decisions.toString(),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            row,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _siteStatCard(
+                          'AVG RESPONSE',
+                          '${avgResponseSeconds}s',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(
+                  child: _siteStatCard(
+                    'GUARDS ON-SITE',
+                    site.guardsEngaged.toString(),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _siteStatCard(
+                    'CAMERAS ACTIVE',
+                    '$activeCams/$totalCams',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _siteStatCard('24H INCIDENTS', site.decisions.toString()),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _siteStatCard(
+                    'AVG RESPONSE',
+                    '${avgResponseSeconds}s',
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.backgroundSecondary,
+            border: Border.all(color: OnyxColorTokens.divider),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.visibility_rounded,
+                    size: 16,
+                    color: OnyxColorTokens.brand,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'WATCH HEALTH STATUS',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: OnyxColorTokens.textMuted,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Camera feed and verification state',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: OnyxColorTokens.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: watchStatus.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: watchStatus.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(watchStatus.icon, size: 16, color: watchStatus.accent),
+                    const SizedBox(width: 8),
+                    Text(
+                      watchStatus.headline,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: watchStatus.accent,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: watchStatus.accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        watchStatus.badgeLabel,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: watchStatus.accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: watchStatus.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: watchStatus.border),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      watchStatus.detailIcon,
+                      size: 16,
+                      color: watchStatus.accent,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            watchStatus.detailTitle,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF556B80),
-                              fontSize: 11.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              height: 1.35,
+                              color: watchStatus.accent,
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                          Text(
+                            watchStatus.detailBody,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: OnyxColorTokens.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                if (site.traceEventCount > rows.length)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: OnyxTruncationHint(
-                      visibleCount: rows.length,
-                      totalCount: site.traceEventCount,
-                      subject: 'site events',
-                      hiddenDescriptor: 'older events',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.backgroundSecondary,
+            border: Border.all(color: OnyxColorTokens.divider),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.settings_rounded,
+                    size: 16,
+                    color: OnyxColorTokens.brand,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'SITE OPERATIONS',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: OnyxColorTokens.textMuted,
+                      letterSpacing: 0.7,
                     ),
                   ),
-              ],
-            ),
-      shellless: shellless,
-    );
-  }
-
-  List<_SiteDrillSnapshot> _filteredSites(
-    List<_SiteDrillSnapshot> sites, {
-    _SiteLaneFilter? filter,
-  }) {
-    final activeFilter = filter ?? _siteLaneFilter;
-    return sites
-        .where((site) {
-          return switch (activeFilter) {
-            _SiteLaneFilter.all => true,
-            _SiteLaneFilter.watch => _siteNeedsWatch(site),
-            _SiteLaneFilter.active => site.activeDispatches > 0,
-            _SiteLaneFilter.strong =>
-              site.healthStatus == 'STRONG' &&
-                  site.failedCount == 0 &&
-                  site.deniedCount == 0 &&
-                  site.activeDispatches == 0,
-          };
-        })
-        .toList(growable: false);
-  }
-
-  int _siteCountForFilter(
-    List<_SiteDrillSnapshot> sites,
-    _SiteLaneFilter filter,
-  ) {
-    return _filteredSites(sites, filter: filter).length;
-  }
-
-  void _setSiteLaneFilter(
-    List<_SiteDrillSnapshot> sites,
-    _SiteLaneFilter filter,
-  ) {
-    if (_siteLaneFilter == filter) {
-      return;
-    }
-    final filtered = _filteredSites(sites, filter: filter);
-    final nextSelected = filtered.isEmpty
-        ? _selectedSiteKey
-        : filtered.any((site) => site.siteKey == _selectedSiteKey)
-        ? _selectedSiteKey
-        : filtered.first.siteKey;
-    setState(() {
-      _siteLaneFilter = filter;
-      _selectedSiteKey = nextSelected;
-    });
-  }
-
-  void _setWorkspaceView(_SiteWorkspaceView view) {
-    if (_workspaceView == view) {
-      return;
-    }
-    setState(() {
-      _workspaceView = view;
-    });
-  }
-
-  void _selectSite(_SiteDrillSnapshot site) {
-    if (_selectedSiteKey == site.siteKey) {
-      return;
-    }
-    setState(() {
-      _selectedSiteKey = site.siteKey;
-    });
-  }
-
-  bool _siteNeedsWatch(_SiteDrillSnapshot site) {
-    return site.healthStatus == 'CRITICAL' ||
-        site.healthStatus == 'WARNING' ||
-        site.failedCount > 0 ||
-        site.deniedCount > 0;
-  }
-
-  String _laneLabel(_SiteLaneFilter filter) {
-    return switch (filter) {
-      _SiteLaneFilter.all => 'All Sites',
-      _SiteLaneFilter.watch => 'Watch Lane',
-      _SiteLaneFilter.active => 'Active Lane',
-      _SiteLaneFilter.strong => 'Strong Lane',
-    };
-  }
-
-  Color _laneAccent(_SiteLaneFilter filter) {
-    return switch (filter) {
-      _SiteLaneFilter.all => const Color(0xFF63BDFF),
-      _SiteLaneFilter.watch => const Color(0xFFF6C067),
-      _SiteLaneFilter.active => const Color(0xFF59D79B),
-      _SiteLaneFilter.strong => const Color(0xFF34D399),
-    };
-  }
-
-  String _workspaceViewLabel(_SiteWorkspaceView view) {
-    return switch (view) {
-      _SiteWorkspaceView.command => 'Command Board',
-      _SiteWorkspaceView.outcomes => 'Outcome Board',
-      _SiteWorkspaceView.trace => 'Trace Board',
-    };
-  }
-
-  Color _workspaceAccent(_SiteWorkspaceView view) {
-    return switch (view) {
-      _SiteWorkspaceView.command => const Color(0xFF63BDFF),
-      _SiteWorkspaceView.outcomes => const Color(0xFF59D79B),
-      _SiteWorkspaceView.trace => const Color(0xFFA78BFA),
-    };
-  }
-
-  String _siteDirective(_SiteDrillSnapshot site) {
-    if (site.failedCount > 0) {
-      return 'Execution failures are shaping posture at ${site.siteId}. Hold this site in command focus until the broken chain is explained.';
-    }
-    if (site.activeDispatches > 0) {
-      return '${site.siteId} is carrying active response load. Keep patrol visibility and responder tempo in the front channel.';
-    }
-    if (site.deniedCount > 0) {
-      return 'Denied actions are suppressing part of the response path. Validate the operator rationale before pressure returns.';
-    }
-    if (site.healthStatus == 'STRONG') {
-      return '${site.siteId} is holding a strong deployment posture. Use it as the clean benchmark lane.';
-    }
-    return '${site.siteId} is stable, but the next patrol loop should still be kept in view for early drift.';
-  }
-
-  int _responseScore(_SiteDrillSnapshot site) {
-    if (site.averageResponseMinutes <= 0) {
-      return site.activeDispatches > 0
-          ? _kResponseScoreNoDataActive
-          : _kResponseScoreNoDataQuiet;
-    }
-    final score =
-        100 - (((site.averageResponseMinutes - 4).clamp(0.0, 12.0)) * 8);
-    return score.round().clamp(0, 100);
-  }
-
-  int _patrolCoverageScore(_SiteDrillSnapshot site) {
-    final score =
-        (site.patrolsCompleted * 14) +
-        (site.guardCheckIns * 10) +
-        (site.guardsEngaged * 8);
-    return score.clamp(0, 100);
-  }
-
-  Widget _siteStatusBadge(_SiteDrillSnapshot site) {
-    final color = _statusColor(site.healthStatus);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.8)),
-      ),
-      child: Text(
-        site.healthStatus,
-        style: GoogleFonts.inter(
-          color: color,
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
-        ),
-      ),
-    );
-  }
-
-  Widget _miniProgressBar({
-    required String label,
-    required int value,
-    required Color color,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF7A8FA4),
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w600,
-                ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Management and operational controls',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: OnyxColorTokens.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Text(
-              '$value%',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _siteOpButton(
+                      context,
+                      Icons.map_rounded,
+                      'Tactical map',
+                      () => _navigateToRoute(context, OnyxRoute.tactical),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _siteOpButton(
+                      context,
+                      Icons.settings_rounded,
+                      'Site settings',
+                      () {},
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            minHeight: 3,
-            value: value / 100,
-            backgroundColor: const Color(0xFFE6EEF6),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _siteOpButton(
+                      context,
+                      Icons.people_alt_rounded,
+                      'Guard roster',
+                      () => _navigateToRoute(context, OnyxRoute.guards),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _siteOpButton(
+                      context,
+                      Icons.videocam_rounded,
+                      'Camera feed',
+                      () => _navigateToRoute(context, OnyxRoute.aiQueue),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _laneFilterChip({
-    required Key key,
-    required String label,
-    required int count,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.75),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? const Color(0x669D4BFF) : const Color(0x269D4BFF),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                color: selected
-                    ? const Color(0xFF2F6AA3)
-                    : const Color(0xFF7A8FA4),
-                fontSize: 6.8,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 3),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 4.5,
-                vertical: 1.75,
-              ),
-              decoration: BoxDecoration(
-                color: selected
-                    ? const Color(0x339D4BFF)
-                    : const Color(0x12FFFFFF),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '$count',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
-                  fontSize: 6.8,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
+  Widget _siteOpButton(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback onPressed,
+  ) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: OnyxColorTokens.textSecondary,
+        side: const BorderSide(color: OnyxColorTokens.divider),
+        minimumSize: const Size(double.infinity, 44),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
       ),
-    );
-  }
-
-  Widget _workspaceViewChip({
-    required Key key,
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.75),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? const Color(0x669D4BFF) : const Color(0x269D4BFF),
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: selected ? const Color(0xFF2F6AA3) : const Color(0xFF7A8FA4),
-            fontSize: 6.8,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _workspaceBannerAction({
-    required Key key,
-    required String label,
-    required bool selected,
-    required Color accent,
-    required VoidCallback? onTap,
-  }) {
-    final enabled = onTap != null;
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.75),
-        decoration: BoxDecoration(
-          color: !enabled
-              ? const Color(0xFF1A1A2E)
-              : selected
-              ? accent.withValues(alpha: 0.2)
-              : const Color(0xFF13131E),
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(
-            color: !enabled
-                ? const Color(0x269D4BFF)
-                : selected
-                ? accent.withValues(alpha: 0.75)
-                : accent.withValues(alpha: 0.35),
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: !enabled ? const Color(0xFF7A8FA4) : const Color(0xFF172638),
-            fontSize: 6.6,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _siteFocusBanner(_SiteDrillSnapshot site) {
-    final statusColor = _statusColor(site.healthStatus);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(2.0),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF13131E), Color(0xFF1A1A2E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(5.0),
-        border: Border.all(color: const Color(0x269D4BFF)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 920;
-          final summary = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Site Focus',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF7A8FA4),
-                  fontSize: 6.3,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 0.5),
-              Text(
-                _siteDirective(site),
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
-                  fontSize: 7.0,
-                  fontWeight: FontWeight.w600,
-                  height: 1.36,
-                ),
-              ),
-            ],
-          );
-          final metrics = Wrap(
-            spacing: 1.5,
-            runSpacing: 1.5,
-            children: [
-              _tinyPill(
-                'Health ${site.healthScore.toStringAsFixed(0)}',
-                statusColor,
-              ),
-              _tinyPill(
-                'Response ${_responseScore(site)}%',
-                const Color(0xFF8FD0FF),
-              ),
-              _tinyPill(
-                'Patrol ${_patrolCoverageScore(site)}%',
-                const Color(0xFF65D5A5),
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [summary, const SizedBox(height: 1.0), metrics],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: summary),
-              const SizedBox(width: 0.85),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 144),
-                child: metrics,
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _ratioBar(String label, int value, int total, Color color) {
-    final ratio = total <= 0 ? 0.0 : (value / total).clamp(0.0, 1.0);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF7A8FA4),
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '$value/$total',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 4,
-              value: ratio,
-              backgroundColor: const Color(0xFFE6EEF6),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _textLine(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2.5),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF7A8FA4),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _panel(
-    String title,
-    Widget child, {
-    bool expandChild = false,
-    bool shellless = false,
-  }) {
-    if (shellless) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
-              fontSize: 8.9,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          if (expandChild) Expanded(child: child) else child,
-        ],
-      );
-    }
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: onyxPanelSurfaceDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 24,
-            height: 3,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3C79BB),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 1.5),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          if (expandChild) Expanded(child: child) else child,
-        ],
-      ),
-    );
-  }
-
-  Widget _metricCard(String label, String value, Color accent) {
-    return Container(
-      width: 112,
-      padding: const EdgeInsets.all(3),
-      decoration: onyxPanelSurfaceDecoration(radius: 11),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 20,
-            height: 3,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 3),
+          Icon(icon, size: 16),
+          const SizedBox(width: 10),
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
-              fontSize: 7,
-              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 0.5),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: accent,
-              fontSize: 14.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          const Spacer(),
+          const Icon(Icons.chevron_right_rounded, size: 16),
         ],
       ),
     );
   }
 
-  Widget _tinyPill(String label, Color color) {
+  Widget _posturePill(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 1.75),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.8)),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
           color: color,
-          fontSize: 7.6,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'CRITICAL':
-        return const Color(0xFFFF6575);
-      case 'WARNING':
-        return const Color(0xFFF6B24A);
-      case 'STABLE':
-        return const Color(0xFF47D49B);
-      default:
-        return const Color(0xFF8EA4C2);
-    }
+  Widget _postureBadge(_SiteDrillSnapshot site) {
+    final posture = _sitePosture(site);
+    final color = switch (posture) {
+      _SitePosture.strong => OnyxColorTokens.accentGreen,
+      _SitePosture.atRisk => OnyxColorTokens.accentAmber,
+      _SitePosture.critical => OnyxColorTokens.accentRed,
+    };
+    final label = switch (posture) {
+      _SitePosture.strong => 'STRONG',
+      _SitePosture.atRisk => 'AT-RISK',
+      _SitePosture.critical => 'CRITICAL',
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
   }
 
-  String _formatUtc(DateTime dt) {
-    final z = dt.toUtc().toIso8601String();
-    return z.length > 19 ? '${z.substring(0, 19)}Z' : z;
+  Widget _siteStatCard(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: OnyxColorTokens.textMuted,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: OnyxColorTokens.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  _WatchStatus _watchStatus(_SiteDrillSnapshot site) {
+    final posture = _sitePosture(site);
+    final watchAvailable = _siteWatchAvailable(site);
+
+    if (posture == _SitePosture.critical) {
+      return const _WatchStatus(
+        surface: OnyxColorTokens.redSurface,
+        border: OnyxColorTokens.redBorder,
+        accent: OnyxColorTokens.accentRed,
+        icon: Icons.warning_rounded,
+        headline: 'Watch degraded',
+        badgeLabel: 'CRITICAL',
+        detailIcon: Icons.error_rounded,
+        detailTitle: 'Critical site posture',
+        detailBody:
+            'Active failures or severe watch pressure need immediate intervention and escalation.',
+      );
+    }
+
+    if (!watchAvailable || posture == _SitePosture.atRisk) {
+      return const _WatchStatus(
+        surface: OnyxColorTokens.amberSurface,
+        border: OnyxColorTokens.amberBorder,
+        accent: OnyxColorTokens.accentAmber,
+        icon: Icons.remove_red_eye_rounded,
+        headline: 'Watch under review',
+        badgeLabel: 'AT-RISK',
+        detailIcon: Icons.info_rounded,
+        detailTitle: 'At-risk site posture',
+        detailBody:
+            'Recent site signals need closer review to keep watch continuity and response readiness tight.',
+      );
+    }
+
+    return const _WatchStatus(
+      surface: OnyxColorTokens.greenSurface,
+      border: OnyxColorTokens.greenBorder,
+      accent: OnyxColorTokens.accentGreen,
+      icon: Icons.wifi_rounded,
+      headline: 'Watch available',
+      badgeLabel: 'AVAILABLE',
+      detailIcon: Icons.check_circle_rounded,
+      detailTitle: 'Strong site posture',
+      detailBody:
+          'All systems operational. Guards present. Watch available. No immediate concerns.',
+    );
+  }
+
+  bool _siteWatchAvailable(_SiteDrillSnapshot site) {
+    return site.failedCount == 0 &&
+        site.healthStatus != 'CRITICAL' &&
+        (site.guardsEngaged > 0 ||
+            site.guardCheckIns > 0 ||
+            site.patrolsCompleted > 0 ||
+            site.recentEvents.isNotEmpty);
+  }
+
+  _SitePosture _sitePosture(_SiteDrillSnapshot site) {
+    if (site.healthStatus == 'CRITICAL' || site.failedCount > 0) {
+      return _SitePosture.critical;
+    }
+    if (site.healthStatus == 'WARNING' ||
+        site.deniedCount > 0 ||
+        site.activeDispatches > 0) {
+      return _SitePosture.atRisk;
+    }
+    return _SitePosture.strong;
+  }
+
+  int _siteActiveCameras(_SiteDrillSnapshot site) {
+    return 0;
+  }
+
+  int _siteTotalCameras(_SiteDrillSnapshot site) {
+    return 0;
+  }
+
+  String _siteDisplayName(String raw) {
+    final normalized = raw.trim().replaceAll('_', '-');
+    return normalized
+        .split('-')
+        .where((segment) => segment.trim().isNotEmpty)
+        .map((segment) {
+          final word = segment.trim();
+          if (word == word.toUpperCase()) {
+            return word;
+          }
+          return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+        })
+        .join(' ');
+  }
+
+  void _navigateToRoute(BuildContext context, OnyxRoute route) {
+    try {
+      Navigator.of(context).pushNamed(route.path);
+    } catch (_) {
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger == null) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: OnyxColorTokens.backgroundPrimary,
+          content: Text(
+            '${route.label} opens from the controller shell.',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: OnyxColorTokens.accentSky,
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   List<_SiteDrillSnapshot> _buildSiteDrillSnapshots(
@@ -2508,6 +1173,35 @@ class _SitesPageState extends State<SitesPage> {
     final z = _formatUtc(ts);
     return '$z • $message';
   }
+
+  String _formatUtc(DateTime dt) {
+    final z = dt.toUtc().toIso8601String();
+    return z.length > 19 ? '${z.substring(0, 19)}Z' : z;
+  }
+}
+
+class _WatchStatus {
+  final Color surface;
+  final Color border;
+  final Color accent;
+  final IconData icon;
+  final String headline;
+  final String badgeLabel;
+  final IconData detailIcon;
+  final String detailTitle;
+  final String detailBody;
+
+  const _WatchStatus({
+    required this.surface,
+    required this.border,
+    required this.accent,
+    required this.icon,
+    required this.headline,
+    required this.badgeLabel,
+    required this.detailIcon,
+    required this.detailTitle,
+    required this.detailBody,
+  });
 }
 
 class _SiteAccumulator {
