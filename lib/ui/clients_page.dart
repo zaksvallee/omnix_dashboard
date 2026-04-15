@@ -633,7 +633,6 @@ class _ClientsPageState extends State<ClientsPage> {
               header: const SizedBox.shrink(),
               body: ClientCommsQueueBoard(
                 items: queueItems,
-                showDetailedWorkspace: false,
                 latestSentFollowUpAuthor: widget.liveFollowUpNotice?.author,
                 latestSentFollowUpBody: widget.liveFollowUpNotice?.body,
                 latestSentFollowUpOccurredAtUtc:

@@ -73,7 +73,6 @@ class ClientCommsHistoryEntry {
 class ClientCommsQueueBoard extends StatelessWidget {
   final List<ClientCommsQueueItem> items;
   final VoidCallback onToggleDetailedWorkspace;
-  final bool showDetailedWorkspace;
   final String? latestSentFollowUpAuthor;
   final String? latestSentFollowUpBody;
   final DateTime? latestSentFollowUpOccurredAtUtc;
@@ -98,7 +97,6 @@ class ClientCommsQueueBoard extends StatelessWidget {
     super.key,
     required this.items,
     required this.onToggleDetailedWorkspace,
-    required this.showDetailedWorkspace,
     this.latestSentFollowUpAuthor,
     this.latestSentFollowUpBody,
     this.latestSentFollowUpOccurredAtUtc,
@@ -159,59 +157,20 @@ class ClientCommsQueueBoard extends StatelessWidget {
   // ── Page header ───────────────────────────────────────────────────────────
 
   Widget _pageHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Client communications',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: _titleColor,
-                letterSpacing: -0.3,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'AI-generated messages awaiting approval',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: _bodyColor,
-              ),
-            ),
-          ],
-        ),
-        const Spacer(),
-        OutlinedButton.icon(
-          key: const ValueKey('clients-toggle-detailed-workspace'),
-          onPressed: onToggleDetailedWorkspace,
-          icon: Icon(
-            showDetailedWorkspace
-                ? Icons.visibility_off_rounded
-                : Icons.open_in_new_rounded,
-            size: 14,
-          ),
-          label: Text(
-            showDetailedWorkspace ? 'Hide Workspace' : 'Full Workspace',
-          ),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: OnyxDesignTokens.cyanInteractive,
-            side: const BorderSide(color: OnyxColorTokens.cyanBorder),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            textStyle: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+    return SizedBox(
+      height: 40,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Client communications',
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: _titleColor,
+            letterSpacing: -0.3,
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -276,7 +235,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: _mutedColor,
+              color: _bodyColor,
               letterSpacing: 0.7,
             ),
           ),
@@ -295,7 +254,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: _mutedColor,
+              color: _bodyColor,
               letterSpacing: 0.5,
             ),
           ),
@@ -355,7 +314,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: _mutedColor,
+                  color: _bodyColor,
                   letterSpacing: 0.7,
                 ),
               ),
@@ -376,7 +335,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w400,
-              color: _mutedColor,
+              color: _bodyColor,
             ),
           ),
         ],
@@ -404,7 +363,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: _mutedColor,
+              color: _bodyColor,
               letterSpacing: 0.7,
             ),
           ),
@@ -459,7 +418,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
           style: GoogleFonts.inter(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: _mutedColor,
+            color: _bodyColor,
             letterSpacing: 0.7,
           ),
         ),
@@ -496,7 +455,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w400,
-                  color: _mutedColor,
+                  color: _bodyColor,
                 ),
               ),
             ],
@@ -797,7 +756,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: _mutedColor,
+                    color: _bodyColor,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -806,7 +765,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w400,
-                    color: _mutedColor,
+                    color: _bodyColor,
                   ),
                 ),
               ],
@@ -857,7 +816,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
                   const Icon(
                     Icons.info_outline_rounded,
                     size: 14,
-                    color: _mutedColor,
+                    color: _bodyColor,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -865,7 +824,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: _mutedColor,
+                      color: _bodyColor,
                       letterSpacing: 0.7,
                     ),
                   ),
@@ -892,7 +851,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: _mutedColor,
+                color: _bodyColor,
                 letterSpacing: 0.7,
               ),
             ),
@@ -1036,7 +995,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
       icon: const Icon(Icons.close_rounded, size: 14),
       label: const Text('REJECT'),
       style: OutlinedButton.styleFrom(
-        foregroundColor: _mutedColor,
+        foregroundColor: _bodyColor,
         minimumSize: const Size(0, 40),
         side: BorderSide(color: _dividerColor),
         textStyle: GoogleFonts.inter(
