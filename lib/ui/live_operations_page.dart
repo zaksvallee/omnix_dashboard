@@ -3173,7 +3173,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         child: GestureDetector(
           onTap: m.onTap != null ? () => m.onTap!() : null,
           child: Container(
-            constraints: const BoxConstraints(minHeight: 130),
+            constraints: const BoxConstraints(minHeight: 140),
             margin: margin,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -3188,9 +3188,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 // Top group: icon row + metric value + label
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
@@ -3202,11 +3202,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           ),
                           child: Icon(m.icon, size: 22, color: m.accent),
                         ),
-                        const Spacer(),
                         Container(
                           width: 8,
                           height: 8,
-                          margin: const EdgeInsets.only(top: 4),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: m.accent,
@@ -3220,7 +3218,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
                       displayVal,
                       style: GoogleFonts.inter(
@@ -3233,14 +3231,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       cardBodyLabel,
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _commandMutedColor,
-                        letterSpacing: 0.6,
+                        letterSpacing: 0.7,
                         height: 1.0,
                       ),
                       maxLines: 1,
@@ -3250,7 +3248,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 // Bottom: nav link right-aligned
                 Align(
-                  alignment: Alignment.centerRight,
+                  alignment: Alignment.bottomRight,
                   child: Text(
                     '$footerLabel →',
                     style: GoogleFonts.inter(
@@ -4696,7 +4694,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    module.label,
+                                    switch (module.label) {
+                                      'ALARMS' => 'Alarms',
+                                      'GUARDS' => 'Guards',
+                                      'RISK INTEL' => 'Intel',
+                                      'VIP PROTECTION' => 'VIP',
+                                      'CLIENT COMMS' => 'Comms',
+                                      _ => 'CCTV',
+                                    },
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.inter(
