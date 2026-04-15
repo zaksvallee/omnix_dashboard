@@ -214,7 +214,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     message: 'The last AI decision stays pinned in this rail on desktop.',
     detail:
         'Promotions, pause changes, and shadow dossier exports stay visible while you work the next queue call.',
-    accent: Color(0xFF8FD1FF),
+    accent: OnyxColorTokens.accentSky,
   );
   late List<_AiQueueAction> _actions;
   late _AiQueueDailyStats _stats;
@@ -829,7 +829,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     label: const Text('View camera'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: OnyxColorTokens.brand,
-                      foregroundColor: Colors.white,
+                      foregroundColor: OnyxColorTokens.textPrimary,
                       minimumSize: const Size(double.infinity, 40),
                       elevation: 0,
                       textStyle: GoogleFonts.inter(
@@ -854,11 +854,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: OnyxColorTokens.accentRed,
-                      foregroundColor: Colors.white,
+                      foregroundColor: OnyxColorTokens.textPrimary,
                       disabledBackgroundColor:
                           OnyxColorTokens.accentRed.withValues(alpha: 0.35),
                       disabledForegroundColor:
-                          Colors.white.withValues(alpha: 0.7),
+                          OnyxColorTokens.textPrimary.withValues(alpha: 0.7),
                       minimumSize: const Size(double.infinity, 40),
                       elevation: 0,
                       textStyle: GoogleFonts.inter(
@@ -1053,7 +1053,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.7),
+                      OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.7),
                       Colors.transparent,
                     ],
                   ),
@@ -1067,7 +1067,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: OnyxColorTokens.textPrimary,
                   ),
                 ),
               ),
@@ -1348,14 +1348,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(5.4),
             gradient: const LinearGradient(
-              colors: [Color(0xFF9333EA), Color(0xFF4F46E5)],
+              colors: [OnyxColorTokens.accentPurple, OnyxColorTokens.accentPurple],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.psychology_alt_rounded,
-            color: Colors.white,
+            color: OnyxColorTokens.textPrimary,
             size: 10.4,
           ),
         ),
@@ -1367,7 +1367,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               Text(
                 'AI Automation Queue',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF1A1A2E),
+                  color: OnyxColorTokens.surfaceElevated,
                   fontSize: compact ? 12.2 : 13.0,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1376,7 +1376,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               Text(
                 'AI flags what matters, ranks the risk, and waits 30s for your override.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF95A9C7),
+                  color: OnyxColorTokens.textMuted,
                   fontSize: 6.8,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1396,7 +1396,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             key: const ValueKey('ai-queue-toggle-detailed-workspace'),
             icon: Icons.visibility_off_rounded,
             label: 'Hide Detailed Workspace',
-            accent: const Color(0xFF9FD8FF),
+            accent: OnyxColorTokens.accentSky,
             onPressed: () {
               setState(() {
                 _showDetailedWorkspace = false;
@@ -1407,7 +1407,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           key: const ValueKey('ai-queue-view-events-button'),
           icon: Icons.open_in_new,
           label: 'View Events',
-          accent: const Color(0xFF93C5FD),
+          accent: OnyxColorTokens.accentSky.withValues(alpha: 0.75),
           onPressed: openEventsAction == null
               ? null
               : () => _openEventsForAction(openEventsAction),
@@ -1416,19 +1416,19 @@ class _AIQueuePageState extends State<AIQueuePage> {
           key: const ValueKey('ai-queue-open-agent-button'),
           icon: Icons.psychology_alt_rounded,
           label: 'Ask Agent',
-          accent: const Color(0xFFC4B5FD),
+          accent: OnyxColorTokens.accentPurple,
           onPressed: agentIncidentReference.isEmpty ? null : onOpenAgent,
         ),
         _heroStatusChip(
           label: _queuePaused ? 'AI Engine Paused' : 'AI Engine Active',
           accent: _queuePaused
-              ? const Color(0xFFF6C067)
-              : const Color(0xFF10B981),
+              ? OnyxColorTokens.accentAmber
+              : OnyxColorTokens.accentGreen,
         ),
         _heroCountCard(
           label: 'Total Queue',
           value: '$totalQueueCount',
-          accent: const Color(0xFFEEF2FF),
+          accent: OnyxColorTokens.surfaceInset,
         ),
       ],
     );
@@ -1507,9 +1507,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(2.7, 1.7, 2.7, 1.7),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFDFF),
+        color: OnyxColorTokens.surfaceInset,
         borderRadius: BorderRadius.circular(5.5),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1517,7 +1517,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label.toUpperCase(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: 6.0,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.9,
@@ -1553,8 +1553,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
-        disabledBackgroundColor: const Color(0xFFF0F4F8),
-        disabledForegroundColor: const Color(0x667A8CA8),
+        disabledBackgroundColor: OnyxColorTokens.surfaceInset,
+        disabledForegroundColor: OnyxColorTokens.textMuted.withValues(alpha: 0.40),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
         padding: const EdgeInsets.symmetric(horizontal: 2.9, vertical: 1.7),
         textStyle: GoogleFonts.inter(
@@ -1610,21 +1610,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required bool compactPresentation,
   }) {
     final items = [
-      (label: 'Queued', value: '$queuedCount', accent: const Color(0xFF22D3EE)),
-      (label: 'Drafts', value: '$draftCount', accent: const Color(0xFFC8D2FF)),
+      (label: 'Queued', value: '$queuedCount', accent: OnyxColorTokens.accentCyan),
+      (label: 'Drafts', value: '$draftCount', accent: OnyxColorTokens.accentSky),
       (
         label: 'Shadow Sites',
         value: '$shadowCount',
-        accent: const Color(0xFFB8D7FF),
+        accent: OnyxColorTokens.accentSky,
       ),
     ];
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compactPresentation ? 1.35 : 1.7),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFDFF),
+        color: OnyxColorTokens.surfaceInset,
         borderRadius: BorderRadius.circular(5.0),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1632,7 +1632,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'QUEUE SNAPSHOT',
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: 5.8,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -1688,7 +1688,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: compactPresentation ? 10.4 : 10.8,
               fontWeight: FontWeight.w700,
               height: 0.92,
@@ -1723,7 +1723,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       padding: EdgeInsets.all(compactPresentation ? 1.35 : 1.55),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.12), const Color(0xFF13131E)],
+          colors: [accent.withValues(alpha: 0.12), OnyxColorTokens.backgroundSecondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1794,7 +1794,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: compactPresentation ? 9.0 : 9.5,
               fontWeight: FontWeight.w700,
               height: 0.95,
@@ -1806,7 +1806,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textMuted,
               fontSize: compactPresentation ? 5.8 : 6.0,
               fontWeight: FontWeight.w600,
               height: 1.26,
@@ -1847,7 +1847,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   key: const ValueKey('ai-queue-overview-selected-promote'),
                   label: 'Promote',
                   selected: false,
-                  accent: const Color(0xFF2563EB),
+                  accent: OnyxColorTokens.accentSky,
                   onTap: () => _promoteAction(selectedFocus.action!.id),
                 )
               else if (canOpenScope)
@@ -1857,7 +1857,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       ? 'Open Evidence'
                       : 'Open Event Scope',
                   selected: false,
-                  accent: const Color(0xFF8FD1FF),
+                  accent: OnyxColorTokens.accentSky,
                   onTap: () => _openEventsForFocus(selectedFocus!),
                 ),
             ],
@@ -1898,8 +1898,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 _workspaceStatusPill(
                   label: _queuePaused ? 'Engine paused' : 'Engine active',
                   accent: _queuePaused
-                      ? const Color(0xFFF6C067)
-                      : const Color(0xFF10B981),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
                 _workspaceStatusPill(
                   label: 'Lane ${_laneLabel(effectiveLane)}',
@@ -1907,13 +1907,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ),
                 _workspaceStatusPill(
                   label: focusToken,
-                  accent: selectedFocus?.accent ?? const Color(0xFF8FD1FF),
+                  accent: selectedFocus?.accent ?? OnyxColorTokens.accentSky,
                 ),
                 if (activeAction != null)
                   _workspaceStatusPill(
                     label:
                         'Live ${_formatTime(activeAction.timeUntilExecutionSeconds)}',
-                    accent: const Color(0xFF22D3EE),
+                    accent: OnyxColorTokens.accentCyan,
                   ),
               ],
             ),
@@ -1921,7 +1921,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'Lane pivots stay pinned in the queue rail, while runbook, policy, context, promote, pause, and scope actions stay anchored to the selected automation board below.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 6.2,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
@@ -1964,13 +1964,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4.9),
         gradient: const LinearGradient(
-          colors: [Color(0xFF13131E), Color(0xFF1A1A2E)],
+          colors: [OnyxColorTokens.backgroundSecondary, OnyxColorTokens.surfaceElevated],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x12172638), blurRadius: 12, spreadRadius: 1),
+        border: Border.all(color: OnyxColorTokens.divider),
+        boxShadow: [
+          BoxShadow(color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07), blurRadius: 12, spreadRadius: 1),
         ],
       ),
       child: bannerContent,
@@ -2013,18 +2013,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFF13131E),
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.5)
-                : const Color(0xFFD6E1EC),
+                : OnyxColorTokens.divider,
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFF172638),
+            color: selected ? accent : OnyxColorTokens.textPrimary,
             fontSize: 6.0,
             fontWeight: FontWeight.w800,
           ),
@@ -2141,7 +2141,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'Queue Lanes',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE7F1FF),
+              color: OnyxColorTokens.surfaceInset,
               fontSize: 10.8,
               fontWeight: FontWeight.w700,
             ),
@@ -2150,7 +2150,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'Pick the live lane, queued stack, next-shift drafts, or shadow posture signals.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C5),
+              color: OnyxColorTokens.textMuted,
               fontSize: 6.3,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -2188,18 +2188,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.16)
-              : const Color(0xFF13131E),
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.42)
-                : const Color(0xFFD4DFEA),
+                : OnyxColorTokens.divider,
           ),
         ),
         child: Text(
           '${_laneLabel(lane)} $count',
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFF556B80),
+            color: selected ? accent : OnyxColorTokens.textMuted,
             fontSize: 6.5,
             fontWeight: FontWeight.w800,
           ),
@@ -2220,7 +2220,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       title: 'No automation is staged in this rail.',
       summary:
           'The lane shell stays armed so you can keep the workspace oriented while policy, runbook, and context views remain one tap away.',
-      accent: const Color(0xFF8FD1FF),
+      accent: OnyxColorTokens.accentSky,
       metrics: _standbyWorkspaceMetrics(
         totalQueueCount: totalQueueCount,
         queuedCount: queuedCount,
@@ -2262,7 +2262,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       Text(
                         item.primaryLabel,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFE6F0FF),
+                          color: OnyxColorTokens.surfaceInset,
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2271,7 +2271,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       Text(
                         item.secondaryLabel,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF8EA5C6),
+                          color: OnyxColorTokens.textMuted,
                           fontSize: 7.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -2286,14 +2286,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0x129FD9FF),
+                      color: OnyxColorTokens.accentSky.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x409FD9FF)),
+                      border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.25)),
                     ),
                     child: Text(
                       'FOCUS',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9FD9FF),
+                        color: OnyxColorTokens.accentSky,
                         fontSize: 7,
                         fontWeight: FontWeight.w800,
                       ),
@@ -2313,7 +2313,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               item.summary,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9CB2D1),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 7.5,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
@@ -2392,7 +2392,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'Selected Automation',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE7F1FF),
+              color: OnyxColorTokens.surfaceInset,
               fontSize: 11.0,
               fontWeight: FontWeight.w700,
             ),
@@ -2401,7 +2401,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'A focused execution board for the selected queue item, policy signal, or shadow dossier.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C5),
+              color: OnyxColorTokens.textMuted,
               fontSize: 6.6,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -2444,7 +2444,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         title: 'Board clear. Nothing hot is pinned.',
         summary:
             'Standby supervision is still armed. Reset the live lane or pivot to policy and context without leaving the board.',
-        accent: const Color(0xFF8FD1FF),
+        accent: OnyxColorTokens.accentSky,
         metrics: _standbyWorkspaceMetrics(
           totalQueueCount: totalQueueCount,
           queuedCount: queuedCount,
@@ -2461,7 +2461,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         gradient: LinearGradient(
           colors: [
             selectedFocus.accent.withValues(alpha: 0.18),
-            const Color(0xFFFBFDFF),
+            OnyxColorTokens.surfaceInset,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -2485,7 +2485,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             selectedFocus.headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 11.0,
               fontWeight: FontWeight.w700,
             ),
@@ -2494,7 +2494,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             selectedFocus.bannerSummary,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textMuted,
               fontSize: 6.9,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -2524,13 +2524,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 _detailChip(
                   'ETA',
                   _formatTime(selectedFocus.action!.timeUntilExecutionSeconds),
-                  accent: const Color(0xFF22D3EE),
+                  accent: OnyxColorTokens.accentCyan,
                 ),
               if (selectedFocus.shadowSite != null)
                 _detailChip(
                   'Matches',
                   '${selectedFocus.shadowSite!.moShadowMatchCount}',
-                  accent: const Color(0xFFB8D7FF),
+                  accent: OnyxColorTokens.accentSky,
                 ),
             ],
           ),
@@ -2551,18 +2551,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.16)
-              : const Color(0xFF13131E),
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.45)
-                : const Color(0xFFD4DFEA),
+                : OnyxColorTokens.divider,
           ),
         ),
         child: Text(
           _workspaceLabel(view),
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFF556B80),
+            color: selected ? accent : OnyxColorTokens.textMuted,
             fontSize: 7.3,
             fontWeight: FontWeight.w800,
           ),
@@ -2630,7 +2630,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: _panelDecoration(border: const Color(0xFF3A567A)),
+      decoration: _panelDecoration(border: OnyxColorTokens.surfaceElevated),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2640,12 +2640,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0x331F9AD3),
+                  color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   isDraft ? Icons.upcoming_rounded : Icons.schedule_rounded,
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyan,
                   size: 20,
                 ),
               ),
@@ -2657,7 +2657,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     Text(
                       isDraft ? 'NEXT-SHIFT DRAFT' : 'QUEUED ACTION',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F3FF),
+                        color: OnyxColorTokens.surfaceInset,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.4,
@@ -2669,7 +2669,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           ? 'Draft carry-forward is staged for the next operator window.'
                           : 'Awaiting promotion into the active autonomy slot.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9AB5D7),
+                        color: OnyxColorTokens.textMuted,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -2695,9 +2695,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0x1A0B2234),
+              color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF21445E)),
+              border: Border.all(color: OnyxColorTokens.surfaceElevated),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2705,7 +2705,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   'PROPOSED ACTION',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF22D3EE),
+                    color: OnyxColorTokens.accentCyan,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.6,
@@ -2715,7 +2715,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   action.description,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFF3F8FF),
+                    color: OnyxColorTokens.surfaceInset,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -2748,7 +2748,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'Promote this action to active execution, approve it immediately, or remove it from the queue.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C5),
+              color: OnyxColorTokens.textMuted,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -2761,7 +2761,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               _actionButton(
                 label: 'CANCEL ACTION',
                 icon: Icons.cancel_rounded,
-                background: const Color(0xFFEF4444),
+                background: OnyxColorTokens.accentRed,
                 onPressed: () => _cancelAction(action.id),
               ),
               FilledButton.icon(
@@ -2769,8 +2769,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 onPressed: () => _promoteAction(action.id),
                 icon: const Icon(Icons.bolt_rounded, size: 18),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: const Color(0xFFF3F8FF),
+                  backgroundColor: OnyxColorTokens.accentSky,
+                  foregroundColor: OnyxColorTokens.surfaceInset,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 10,
@@ -2789,7 +2789,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               _actionButton(
                 label: 'APPROVE NOW',
                 icon: Icons.check_circle_rounded,
-                background: const Color(0xFF10B981),
+                background: OnyxColorTokens.accentGreen,
                 onPressed: () => _approveAction(action.id),
               ),
               if (canOpenEvents)
@@ -2813,14 +2813,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: _panelDecoration(border: const Color(0x665B9BD5)),
+      decoration: _panelDecoration(border: OnyxColorTokens.accentSky.withValues(alpha: 0.40)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'SHADOW DOSSIER FOCUS',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F3FF),
+              color: OnyxColorTokens.surfaceInset,
               fontSize: 13,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.4,
@@ -2830,7 +2830,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             '${site.siteId} • ${site.moShadowSummary}',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE6F0FF),
+              color: OnyxColorTokens.surfaceInset,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -2854,7 +2854,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'No matched dossier entries are available for this site yet.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF9AB5D7),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -2868,9 +2868,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF13131E),
+                      color: OnyxColorTokens.backgroundSecondary,
                       borderRadius: BorderRadius.circular(9),
-                      border: Border.all(color: const Color(0xFFD4DFEA)),
+                      border: Border.all(color: OnyxColorTokens.divider),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2878,7 +2878,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         Text(
                           match.title,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF315A86),
+                            color: OnyxColorTokens.accentSky,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2887,7 +2887,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         Text(
                           'Indicators ${match.matchedIndicators.join(', ')}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
+                            color: OnyxColorTokens.textMuted,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -2974,7 +2974,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       title: 'Policy panel is waiting for the next focus.',
       summary:
           'Autonomy pressure, execution bias, and lane posture will land here as soon as an automation re-enters the board.',
-      accent: const Color(0xFF86EFAC),
+      accent: OnyxColorTokens.accentGreen,
       metrics: _standbyWorkspaceMetrics(
         totalQueueCount: totalQueueCount,
         queuedCount: queuedCount,
@@ -3002,7 +3002,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Policy Signals',
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
@@ -3011,7 +3011,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Autonomy pressure, biasing cues, and carry-forward posture for the current focus.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF556B80),
+            color: OnyxColorTokens.textMuted,
             fontSize: 9.5,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -3022,7 +3022,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'Promotion pressure: $promotionPressureSummary',
             style: GoogleFonts.inter(
-              color: const Color(0xFF86EFAC),
+              color: OnyxColorTokens.accentGreen,
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
@@ -3032,7 +3032,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'Promotion execution: $promotionExecutionSummary',
             style: GoogleFonts.inter(
-              color: const Color(0xFF86EFAC),
+              color: OnyxColorTokens.accentGreen,
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
@@ -3043,7 +3043,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'Shadow bias in effect: $shadowBiasSummary',
             style: GoogleFonts.inter(
-              color: const Color(0xFFC8D2FF),
+              color: OnyxColorTokens.accentSky,
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
@@ -3057,17 +3057,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
             _miniPolicyTile(
               'Queue Depth',
               '${queuedActions.length}',
-              const Color(0xFF22D3EE),
+              OnyxColorTokens.accentCyan,
             ),
             _miniPolicyTile(
               'Draft Carry',
               '${nextShiftDrafts.length}',
-              const Color(0xFFC8D2FF),
+              OnyxColorTokens.accentSky,
             ),
             _miniPolicyTile(
               'Shadow Sites',
               '${moShadowSites.length}',
-              const Color(0xFFB8D7FF),
+              OnyxColorTokens.accentSky,
             ),
           ],
         ),
@@ -3076,9 +3076,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E),
+            color: OnyxColorTokens.surfaceElevated,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFD6E1EC)),
+            border: Border.all(color: OnyxColorTokens.divider),
           ),
           child: Text(
             (action.metadata['scope'] ?? '').trim().toUpperCase() ==
@@ -3086,7 +3086,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ? 'This recommendation is currently staged for the next-shift carry-forward lane.'
                 : 'This recommendation is held inside the live queue and can be promoted directly into execution.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9.5,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -3104,7 +3104,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Shadow Pattern Weighting',
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
@@ -3113,7 +3113,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Pattern strength, recommended actions, and evidence density for the selected shadow site.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF556B80),
+            color: OnyxColorTokens.textMuted,
             fontSize: 9.5,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -3124,16 +3124,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
           spacing: 5,
           runSpacing: 5,
           children: [
-            _miniPolicyTile('Lead Site', site.siteId, const Color(0xFFB8D7FF)),
+            _miniPolicyTile('Lead Site', site.siteId, OnyxColorTokens.accentSky),
             _miniPolicyTile(
               'Matches',
               '${site.moShadowMatchCount}',
-              const Color(0xFF22D3EE),
+              OnyxColorTokens.accentCyan,
             ),
             _miniPolicyTile(
               'Posture Weight',
               shadowMoPostureStrengthSummary(site),
-              const Color(0xFFC8D2FF),
+              OnyxColorTokens.accentSky,
             ),
           ],
         ),
@@ -3143,9 +3143,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: OnyxColorTokens.surfaceElevated,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFD6E1EC)),
+              border: Border.all(color: OnyxColorTokens.divider),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3153,7 +3153,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   match.title,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF2F6AA3),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3162,7 +3162,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   'Actions ${match.recommendedActionPlans.join(' • ')}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF556B80),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -3180,7 +3180,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
@@ -3190,7 +3190,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
@@ -3228,7 +3228,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Execution Context',
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
@@ -3237,7 +3237,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Queue counts, related lanes, and handoffs for the current automation focus.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF556B80),
+            color: OnyxColorTokens.textMuted,
             fontSize: 9.5,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -3266,7 +3266,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             title: 'Standby supervision is still armed.',
             summary:
                 'Use the context rail to reset the live lane or move back into the runbook and policy shells while the queue stays clear.',
-            accent: const Color(0xFFC8D2FF),
+            accent: OnyxColorTokens.accentSky,
             metrics: _standbyWorkspaceMetrics(
               totalQueueCount: totalQueueCount,
               queuedCount: queuedActions.length,
@@ -3331,9 +3331,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: body,
     );
@@ -3344,9 +3344,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3354,7 +3354,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
@@ -3364,7 +3364,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
@@ -3401,7 +3401,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             receipt.label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: OnyxColorTokens.surfaceInset,
               fontSize: 8.6,
               fontWeight: FontWeight.w800,
             ),
@@ -3410,7 +3410,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             receipt.message,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: OnyxColorTokens.surfaceInset,
               fontSize: 8.6,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -3420,7 +3420,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             receipt.detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: OnyxColorTokens.textMuted,
               fontSize: 7.6,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -3470,7 +3470,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       message: 'Returned from Agent for $ref.',
       detail:
           'The CCTV focus stayed pinned so controllers can keep validating the same incident inside the simple queue flow.',
-      accent: const Color(0xFF8B5CF6),
+      accent: OnyxColorTokens.accentPurple,
     );
     if (fromInit) {
       _commandReceipt = receipt;
@@ -3510,7 +3510,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'WHY IT FIRED',
               style: GoogleFonts.inter(
-                color: const Color(0xFFE7F1FF),
+                color: OnyxColorTokens.surfaceInset,
                 fontSize: 11.0,
                 fontWeight: FontWeight.w700,
               ),
@@ -3519,7 +3519,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'Keep the active lane, the last receipt, and the next queues visible while the workspace changes.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA5C5),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 6.8,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
@@ -3569,10 +3569,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Widget _activeAutomationCard(_AiQueueAction action, {required bool compact}) {
     final countdownColor = action.timeUntilExecutionSeconds <= 10
-        ? const Color(0xFFEF4444)
+        ? OnyxColorTokens.accentRed
         : action.timeUntilExecutionSeconds <= 20
-        ? const Color(0xFFF59E0B)
-        : const Color(0xFF22D3EE);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentCyan;
     final progress = (action.timeUntilExecutionSeconds /
             action.initialExecutionSeconds.clamp(1, 1 << 20))
         .clamp(0.0, 1.0);
@@ -3591,7 +3591,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(8),
-      decoration: _panelDecoration(border: const Color(0x6640A5D8), glow: true),
+      decoration: _panelDecoration(border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40), glow: true),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3604,7 +3604,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   Text(
                     paused ? 'ACTIVE AUTOMATION (PAUSED)' : 'ACTIVE AUTOMATION',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE8F3FF),
+                      color: OnyxColorTokens.surfaceInset,
                       fontSize: compact ? 12.5 : 13.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.4,
@@ -3616,7 +3616,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         ? 'Execution hold is active'
                         : 'AI thinks this should happen next • override window live',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB5D7),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -3626,12 +3626,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
               final leadingIcon = Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0x3322D3EE),
+                  color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.bolt_rounded,
-                  color: Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyan,
                   size: 20,
                 ),
               );
@@ -3676,9 +3676,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0x1A0B2234),
+              color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF21445E)),
+              border: Border.all(color: OnyxColorTokens.surfaceElevated),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3686,7 +3686,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   'PROPOSED ACTION',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF22D3EE),
+                    color: OnyxColorTokens.accentCyan,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.6,
@@ -3696,7 +3696,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   action.description,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFF3F8FF),
+                    color: OnyxColorTokens.surfaceInset,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -3710,19 +3710,19 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       _activeSignalCard(
                         label: 'Officer Status',
                         value: paused ? 'On Hold' : 'Available',
-                        accent: const Color(0xFF7DD3FC),
+                        accent: OnyxColorTokens.accentSky,
                         icon: Icons.shield_outlined,
                       ),
                       _activeSignalCard(
                         label: 'Distance',
                         value: distance,
-                        accent: const Color(0xFF22D3EE),
+                        accent: OnyxColorTokens.accentCyan,
                         icon: Icons.map_outlined,
                       ),
                       _activeSignalCard(
                         label: 'Confidence',
                         value: confidence,
-                        accent: const Color(0xFF34D399),
+                        accent: OnyxColorTokens.accentGreen,
                         icon: Icons.bolt_rounded,
                       ),
                     ];
@@ -3755,7 +3755,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'Promotion pressure: $promotionPressureSummary',
               style: GoogleFonts.inter(
-                color: const Color(0xFF86EFAC),
+                color: OnyxColorTokens.accentGreen,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -3766,7 +3766,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'Promotion execution: $promotionExecutionSummary',
               style: GoogleFonts.inter(
-                color: const Color(0xFF86EFAC),
+                color: OnyxColorTokens.accentGreen,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -3783,7 +3783,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     Text(
                       'INTERVENTION WINDOW',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFA1B7D5),
+                        color: OnyxColorTokens.textMuted,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
@@ -3795,7 +3795,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           ? 'Execution hold remains active until resumed'
                           : 'Auto-executes when timer reaches zero',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7F95B6),
+                        color: OnyxColorTokens.textMuted,
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
@@ -3823,7 +3823,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         Text(
                           'INTERVENTION WINDOW',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFA1B7D5),
+                            color: OnyxColorTokens.textMuted,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.4,
@@ -3835,7 +3835,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                               ? 'Execution hold remains active until resumed'
                               : 'Auto-executes when timer reaches zero',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF7F95B6),
+                            color: OnyxColorTokens.textMuted,
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
                           ),
@@ -3862,7 +3862,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             child: LinearProgressIndicator(
               minHeight: 6,
               value: paused ? 0.0 : progress,
-              backgroundColor: const Color(0x66000000),
+              backgroundColor: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.40),
               valueColor: AlwaysStoppedAnimation<Color>(countdownColor),
             ),
           ),
@@ -3877,7 +3877,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     _actionButton(
                       label: 'CANCEL ACTION',
                       icon: Icons.cancel_rounded,
-                      background: const Color(0xFFEF4444),
+                      background: OnyxColorTokens.accentRed,
                       onPressed: () => _cancelAction(action.id),
                     ),
                     const SizedBox(height: 5),
@@ -3886,14 +3886,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       icon: paused
                           ? Icons.play_arrow_rounded
                           : Icons.pause_rounded,
-                      background: const Color(0xFF24354E),
+                      background: OnyxColorTokens.surfaceElevated,
                       onPressed: () => _togglePause(action.id),
                     ),
                     const SizedBox(height: 5),
                     _actionButton(
                       label: 'APPROVE NOW',
                       icon: Icons.check_circle_rounded,
-                      background: const Color(0xFF10B981),
+                      background: OnyxColorTokens.accentGreen,
                       onPressed: () => _approveAction(action.id),
                     ),
                   ],
@@ -3905,7 +3905,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     child: _actionButton(
                       label: 'CANCEL ACTION',
                       icon: Icons.cancel_rounded,
-                      background: const Color(0xFFEF4444),
+                      background: OnyxColorTokens.accentRed,
                       onPressed: () => _cancelAction(action.id),
                     ),
                   ),
@@ -3915,7 +3915,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     icon: paused
                         ? Icons.play_arrow_rounded
                         : Icons.pause_rounded,
-                    background: const Color(0xFF24354E),
+                    background: OnyxColorTokens.surfaceElevated,
                     onPressed: () => _togglePause(action.id),
                   ),
                   const SizedBox(width: 5),
@@ -3923,7 +3923,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     child: _actionButton(
                       label: 'APPROVE NOW',
                       icon: Icons.check_circle_rounded,
-                      background: const Color(0xFF10B981),
+                      background: OnyxColorTokens.accentGreen,
                       onPressed: () => _approveAction(action.id),
                     ),
                   ),
@@ -3948,7 +3948,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       title: 'Nothing is firing right now.',
       summary:
           'The board is quiet, but the shell stays hot so you can reset the live lane or move straight into policy and context review.',
-      accent: const Color(0xFF22D3EE),
+      accent: OnyxColorTokens.accentCyan,
       metrics: _standbyWorkspaceMetrics(
         totalQueueCount: totalQueueCount,
         queuedCount: queuedCount,
@@ -3973,7 +3973,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
         boxShadow: [
@@ -4001,7 +4001,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -4010,7 +4010,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             summary,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -4038,19 +4038,19 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return [
       _workspaceStatusPill(
         label: 'Total $totalQueueCount',
-        accent: const Color(0xFFA78BFA),
+        accent: OnyxColorTokens.accentPurple,
       ),
       _workspaceStatusPill(
         label: 'Queued $queuedCount',
-        accent: const Color(0xFF63BDFF),
+        accent: OnyxColorTokens.accentSky,
       ),
       _workspaceStatusPill(
         label: 'Drafts $draftCount',
-        accent: const Color(0xFFC8D2FF),
+        accent: OnyxColorTokens.accentSky,
       ),
       _workspaceStatusPill(
         label: 'Shadow $shadowCount',
-        accent: const Color(0xFFB8D7FF),
+        accent: OnyxColorTokens.accentSky,
       ),
     ];
   }
@@ -4087,7 +4087,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(9),
-      decoration: _panelDecoration(border: const Color(0xFF223A59)),
+      decoration: _panelDecoration(border: OnyxColorTokens.surfaceElevated),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4098,13 +4098,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
             children: [
               const Icon(
                 Icons.schedule_rounded,
-                color: Color(0xFFA9BEDB),
+                color: OnyxColorTokens.textMuted,
                 size: 18,
               ),
               Text(
                 'Queued Actions',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4116,13 +4116,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: const Color(0x3322D3EE),
-                  border: Border.all(color: const Color(0x6622D3EE)),
+                  color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
+                  border: Border.all(color: OnyxColorTokens.accentCyan.withValues(alpha: 0.40)),
                 ),
                 child: Text(
                   '${queuedActions.length}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF22D3EE),
+                    color: OnyxColorTokens.accentCyan,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
@@ -4137,21 +4137,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: const Color(0xFF1A1A2E),
-                border: Border.all(color: const Color(0xFFD6E1EC)),
+                color: OnyxColorTokens.surfaceElevated,
+                border: Border.all(color: OnyxColorTokens.divider),
               ),
               child: Column(
                 children: [
                   const Icon(
                     Icons.schedule_rounded,
-                    color: Color(0xFF7A8FA4),
+                    color: OnyxColorTokens.textMuted,
                     size: 24,
                   ),
                   const SizedBox(height: 5),
                   Text(
                     'No actions queued',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF556B80),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4184,8 +4184,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       padding: const EdgeInsets.all(5.5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: const Color(0xFF1A1A2E),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        color: OnyxColorTokens.surfaceElevated,
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -4201,13 +4201,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
-                      color: const Color(0x3322D3EE),
-                      border: Border.all(color: const Color(0x6622D3EE)),
+                      color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
+                      border: Border.all(color: OnyxColorTokens.accentCyan.withValues(alpha: 0.40)),
                     ),
                     child: Text(
                       '$index',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF22D3EE),
+                        color: OnyxColorTokens.accentCyan,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
                       ),
@@ -4226,7 +4226,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             Text(
                               action.actionType,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF172638),
+                                color: OnyxColorTokens.textPrimary,
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -4234,7 +4234,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             Text(
                               '• ${action.incidentId}',
                               style: GoogleFonts.robotoMono(
-                                color: const Color(0xFF22D3EE),
+                                color: OnyxColorTokens.accentCyan,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -4264,7 +4264,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         Text(
                           action.description,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
+                            color: OnyxColorTokens.textMuted,
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
                           ),
@@ -4274,7 +4274,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           Text(
                             'Promotion pressure: $promotionPressureSummary',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF86EFAC),
+                              color: OnyxColorTokens.accentGreen,
                               fontSize: 8,
                               fontWeight: FontWeight.w700,
                             ),
@@ -4285,7 +4285,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           Text(
                             'Promotion execution: $promotionExecutionSummary',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF86EFAC),
+                              color: OnyxColorTokens.accentGreen,
                               fontSize: 8,
                               fontWeight: FontWeight.w700,
                             ),
@@ -4309,7 +4309,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     Text(
                       'Executes in',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7A8FA4),
+                        color: OnyxColorTokens.textMuted,
                         fontSize: 8,
                         fontWeight: FontWeight.w600,
                       ),
@@ -4317,7 +4317,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     Text(
                       _formatTime(action.timeUntilExecutionSeconds),
                       style: GoogleFonts.robotoMono(
-                        color: const Color(0xFF22D3EE),
+                        color: OnyxColorTokens.accentCyan,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4337,26 +4337,26 @@ class _AIQueuePageState extends State<AIQueuePage> {
       (
         label: 'Total Actions',
         value: _stats.totalActions.toString(),
-        color: const Color(0xFFE6F0FF),
-        border: const Color(0xFF253B5A),
+        color: OnyxColorTokens.surfaceInset,
+        border: OnyxColorTokens.surfaceElevated,
       ),
       (
         label: 'Executed',
         value: _stats.executed.toString(),
-        color: const Color(0xFF10B981),
-        border: const Color(0x5522C38E),
+        color: OnyxColorTokens.accentGreen,
+        border: OnyxColorTokens.accentGreen.withValues(alpha: 0.33),
       ),
       (
         label: 'Overridden',
         value: _stats.overridden.toString(),
-        color: const Color(0xFFF59E0B),
-        border: const Color(0x55E8A635),
+        color: OnyxColorTokens.accentAmber,
+        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.33),
       ),
       (
         label: 'Approval Rate',
         value: '${_stats.approvalRate}%',
-        color: const Color(0xFF22D3EE),
-        border: const Color(0x5540BAD4),
+        color: OnyxColorTokens.accentCyan,
+        border: OnyxColorTokens.accentCyan.withValues(alpha: 0.33),
       ),
     ];
     if (compact) {
@@ -4396,7 +4396,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(7),
-      decoration: _panelDecoration(border: const Color(0x665C7CFA)),
+      decoration: _panelDecoration(border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4407,13 +4407,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
             children: [
               const Icon(
                 Icons.upcoming_rounded,
-                color: Color(0xFFC8D2FF),
+                color: OnyxColorTokens.accentSky,
                 size: 18,
               ),
               Text(
                 'Next-Shift Drafts',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4425,13 +4425,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: const Color(0x225C7CFA),
-                  border: Border.all(color: const Color(0x665C7CFA)),
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.13),
+                  border: Border.all(color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40)),
                 ),
                 child: Text(
                   '${drafts.length}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFC8D2FF),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
@@ -4443,7 +4443,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             leadDraft.actionType,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
             ),
@@ -4452,7 +4452,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             leadDraft.description,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
@@ -4541,7 +4541,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       key: const ValueKey('ai-queue-mo-shadow-card'),
       width: double.infinity,
       padding: const EdgeInsets.all(7),
-      decoration: _panelDecoration(border: const Color(0x665B9BD5)),
+      decoration: _panelDecoration(border: OnyxColorTokens.accentSky.withValues(alpha: 0.40)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4552,13 +4552,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
             children: [
               const Icon(
                 Icons.visibility_rounded,
-                color: Color(0xFFB8D7FF),
+                color: OnyxColorTokens.accentSky,
                 size: 18,
               ),
               Text(
                 'Shadow MO Intelligence',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4570,13 +4570,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: const Color(0x225B9BD5),
-                  border: Border.all(color: const Color(0x665B9BD5)),
+                  color: OnyxColorTokens.accentSky.withValues(alpha: 0.13),
+                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.40)),
                 ),
                 child: Text(
                   '${sites.length}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFB8D7FF),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
@@ -4588,7 +4588,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             '${lead.siteId} • ${lead.moShadowSummary}',
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
@@ -4621,7 +4621,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'Supporting sites: $supporting',
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
@@ -4637,7 +4637,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       context: context,
       builder: (dialogContext) {
         return Dialog(
-          backgroundColor: const Color(0xFF13131E),
+          backgroundColor: OnyxColorTokens.backgroundSecondary,
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 24,
             vertical: 24,
@@ -4656,7 +4656,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         child: Text(
                           'SHADOW MO DOSSIER',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF172638),
+                            color: OnyxColorTokens.textPrimary,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
@@ -4682,14 +4682,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             label: 'SHADOW DOSSIER',
                             detail:
                                 'The exported MO dossier stays pinned in the context rail while the shadow lane remains available.',
-                            accent: const Color(0xFFB8D7FF),
+                            accent: OnyxColorTokens.accentSky,
                           );
                         },
                         child: const Text('COPY JSON'),
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: Color(0xFF172638)),
+                        icon: const Icon(Icons.close, color: OnyxColorTokens.textPrimary),
                       ),
                     ],
                   ),
@@ -4703,9 +4703,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A1A2E),
+                            color: OnyxColorTokens.surfaceElevated,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFD6E1EC)),
+                            border: Border.all(color: OnyxColorTokens.divider),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -4713,7 +4713,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                               Text(
                                 '${site.siteId} • ${site.moShadowSummary}',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF172638),
+                                  color: OnyxColorTokens.textPrimary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -4723,7 +4723,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                 Text(
                                   match.title,
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFF2F6AA3),
+                                    color: OnyxColorTokens.accentSky,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -4732,7 +4732,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                 Text(
                                   'Indicators ${match.matchedIndicators.join(', ')}',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFF556B80),
+                                    color: OnyxColorTokens.textMuted,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -4742,7 +4742,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                   Text(
                                     'Strength ${shadowMoStrengthSummary(match)}',
                                     style: GoogleFonts.robotoMono(
-                                      color: const Color(0xFF8FD1FF),
+                                      color: OnyxColorTokens.accentSky,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -4755,7 +4755,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                   Text(
                                     'Actions ${match.recommendedActionPlans.join(' • ')}',
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFF2F6AA3),
+                                      color: OnyxColorTokens.accentSky,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -4817,7 +4817,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: compactPresentation ? 8.5 : 9,
               fontWeight: FontWeight.w700,
             ),
@@ -4841,14 +4841,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0x332C1144),
+        color: OnyxColorTokens.accentPurple.withValues(alpha: 0.20),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x664C1D95)),
+        border: Border.all(color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40)),
       ),
       child: Text(
         label.toUpperCase(),
         style: GoogleFonts.inter(
-          color: const Color(0xFFD8B4FE),
+          color: OnyxColorTokens.accentPurple,
           fontSize: 10,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.5,
@@ -4912,9 +4912,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4923,7 +4923,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label.toUpperCase(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: 8.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.9,
@@ -4937,15 +4937,15 @@ class _AIQueuePageState extends State<AIQueuePage> {
             style: mono
                 ? GoogleFonts.robotoMono(
                     color: accent
-                        ? const Color(0xFF22D3EE)
-                        : const Color(0xFF172638),
+                        ? OnyxColorTokens.accentCyan
+                        : OnyxColorTokens.textPrimary,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   )
                 : GoogleFonts.inter(
                     color: accent
-                        ? const Color(0xFF22D3EE)
-                        : const Color(0xFF172638),
+                        ? OnyxColorTokens.accentCyan
+                        : OnyxColorTokens.textPrimary,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -4964,9 +4964,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Row(
         children: [
@@ -4987,7 +4987,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   label,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7A8FA4),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 8.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -5017,7 +5017,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           normalizedLabel,
           style: GoogleFonts.inter(
-            color: const Color(0xFF7F95B6),
+            color: OnyxColorTokens.textMuted,
             fontSize: 8.5,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.7,
@@ -5027,12 +5027,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
           value,
           style: mono
               ? GoogleFonts.robotoMono(
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyan,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 )
               : GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -5052,7 +5052,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       icon: Icon(icon, size: 16),
       style: FilledButton.styleFrom(
         backgroundColor: background,
-        foregroundColor: const Color(0xFFF3F8FF),
+        foregroundColor: OnyxColorTokens.surfaceInset,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         textStyle: GoogleFonts.inter(
@@ -5068,22 +5068,22 @@ class _AIQueuePageState extends State<AIQueuePage> {
   BoxDecoration _panelDecoration({required Color border, bool glow = false}) {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(16),
-      color: const Color(0xFF13131E),
+      color: OnyxColorTokens.backgroundSecondary,
       border: Border.all(color: border),
       boxShadow: glow
-          ? const [
+          ? [
               BoxShadow(
-                color: Color(0x18172638),
+                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.09),
                 blurRadius: 18,
                 spreadRadius: 1,
-                offset: Offset(0, 0),
+                offset: const Offset(0, 0),
               ),
             ]
-          : const [
+          : [
               BoxShadow(
-                color: Color(0x10172638),
+                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.06),
                 blurRadius: 12,
-                offset: Offset(0, 6),
+                offset: const Offset(0, 6),
               ),
             ],
     );
@@ -5204,7 +5204,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     String message, {
     String label = 'QUEUE ACTION',
     String? detail,
-    Color accent = const Color(0xFF8FD1FF),
+    Color accent = OnyxColorTokens.accentSky,
   }) {
     if (_usesDesktopWorkspace(context)) {
       setState(() {
@@ -5223,16 +5223,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF13131E),
+        backgroundColor: OnyxColorTokens.backgroundSecondary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFFD6E1EC)),
+          side: const BorderSide(color: OnyxColorTokens.divider),
         ),
         content: Text(
           message,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -5283,7 +5283,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       label: isPaused ? 'PAUSE ENGINE' : 'RESUME ENGINE',
       detail:
           '${toggledAction!.site} stays pinned in the workspace while the queue lane remains available for review.',
-      accent: isPaused ? const Color(0xFFF6C067) : const Color(0xFF22D3EE),
+      accent: isPaused ? OnyxColorTokens.accentAmber : OnyxColorTokens.accentCyan,
     );
   }
 
@@ -5315,7 +5315,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       label: 'PROMOTE CURRENT',
       detail:
           '${promotedAction!.site} now leads the automation board while queued alternatives stay visible in the lane rail.',
-      accent: const Color(0xFF2563EB),
+      accent: OnyxColorTokens.accentSky,
     );
   }
 
@@ -5507,10 +5507,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Color _laneAccent(_AiQueueLaneFilter lane) {
     return switch (lane) {
-      _AiQueueLaneFilter.live => const Color(0xFF22D3EE),
-      _AiQueueLaneFilter.queued => const Color(0xFF63BDFF),
-      _AiQueueLaneFilter.drafts => const Color(0xFFC8D2FF),
-      _AiQueueLaneFilter.shadow => const Color(0xFFB8D7FF),
+      _AiQueueLaneFilter.live => OnyxColorTokens.accentCyan,
+      _AiQueueLaneFilter.queued => OnyxColorTokens.accentSky,
+      _AiQueueLaneFilter.drafts => OnyxColorTokens.accentSky,
+      _AiQueueLaneFilter.shadow => OnyxColorTokens.accentSky,
     };
   }
 
@@ -5524,9 +5524,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Color _workspaceAccent(_AiQueueWorkspaceView view) {
     return switch (view) {
-      _AiQueueWorkspaceView.runbook => const Color(0xFF22D3EE),
-      _AiQueueWorkspaceView.policy => const Color(0xFF86EFAC),
-      _AiQueueWorkspaceView.context => const Color(0xFFC8D2FF),
+      _AiQueueWorkspaceView.runbook => OnyxColorTokens.accentCyan,
+      _AiQueueWorkspaceView.policy => OnyxColorTokens.accentGreen,
+      _AiQueueWorkspaceView.context => OnyxColorTokens.accentSky,
     };
   }
 
@@ -5539,23 +5539,23 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   _AiQueuePriorityStyle _priorityStyle(_AiIncidentPriority priority) {
     return switch (priority) {
-      _AiIncidentPriority.p1Critical => const _AiQueuePriorityStyle(
+      _AiIncidentPriority.p1Critical => _AiQueuePriorityStyle(
         label: 'P1-CRITICAL',
-        foreground: Color(0xFFEF4444),
-        background: Color(0x33EF4444),
-        border: Color(0x66EF4444),
+        foreground: OnyxColorTokens.accentRed,
+        background: OnyxColorTokens.accentRed.withValues(alpha: 0.20),
+        border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
       ),
-      _AiIncidentPriority.p2High => const _AiQueuePriorityStyle(
+      _AiIncidentPriority.p2High => _AiQueuePriorityStyle(
         label: 'P2-HIGH',
-        foreground: Color(0xFFF59E0B),
-        background: Color(0x33F59E0B),
-        border: Color(0x66F59E0B),
+        foreground: OnyxColorTokens.accentAmber,
+        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.20),
+        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
       ),
-      _AiIncidentPriority.p3Medium => const _AiQueuePriorityStyle(
+      _AiIncidentPriority.p3Medium => _AiQueuePriorityStyle(
         label: 'P3-MEDIUM',
-        foreground: Color(0xFFFACC15),
-        background: Color(0x33FACC15),
-        border: Color(0x66FACC15),
+        foreground: OnyxColorTokens.accentAmber,
+        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.20),
+        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
       ),
     };
   }
@@ -5869,12 +5869,12 @@ class _AiQueueFocusItem {
   Color get accent {
     if (action != null) {
       return switch (action!.incidentPriority) {
-        _AiIncidentPriority.p1Critical => const Color(0xFFEF4444),
-        _AiIncidentPriority.p2High => const Color(0xFFF59E0B),
-        _AiIncidentPriority.p3Medium => const Color(0xFF22D3EE),
+        _AiIncidentPriority.p1Critical => OnyxColorTokens.accentRed,
+        _AiIncidentPriority.p2High => OnyxColorTokens.accentAmber,
+        _AiIncidentPriority.p3Medium => OnyxColorTokens.accentCyan,
       };
     }
-    return const Color(0xFFB8D7FF);
+    return OnyxColorTokens.accentSky;
   }
 
   String get primaryLabel {
@@ -5928,13 +5928,13 @@ class _AiQueueFocusItem {
         (
           'ETA',
           _formatChipTime(action!.timeUntilExecutionSeconds),
-          const Color(0xFF22D3EE),
+          OnyxColorTokens.accentCyan,
         ),
       ];
     }
     return [
-      ('Signal', 'mo_shadow', const Color(0xFFB8D7FF)),
-      ('Matches', '${shadowSite!.moShadowMatchCount}', const Color(0xFF22D3EE)),
+      ('Signal', 'mo_shadow', OnyxColorTokens.accentSky),
+      ('Matches', '${shadowSite!.moShadowMatchCount}', OnyxColorTokens.accentCyan),
     ];
   }
 
