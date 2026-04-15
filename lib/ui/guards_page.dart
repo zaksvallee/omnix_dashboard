@@ -938,57 +938,78 @@ class _GuardsPageState extends State<GuardsPage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _guardRosterPanel(guards),
+          _guardRosterPanel(guards, bounded: false),
           const SizedBox(height: 16),
           _guardDetailPanel(context, selectedGuard),
         ],
       );
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(width: 300, child: _guardRosterPanel(guards)),
-        const SizedBox(width: 16),
-        Expanded(child: _guardDetailPanel(context, selectedGuard)),
-      ],
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final tabHeight = (viewportHeight - 280).clamp(480.0, 1200.0);
+
+    return SizedBox(
+      height: tabHeight,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(width: 300, child: _guardRosterPanel(guards, bounded: true)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              child: _guardDetailPanel(context, selectedGuard),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _guardRosterPanel(List<_GuardRecord> guards) {
+  Widget _guardRosterPanel(
+    List<_GuardRecord> guards, {
+    required bool bounded,
+  }) {
+    final header = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Text('GUARD ROSTER', style: _capsLabelStyle()),
+          const Spacer(),
+          Text(
+            '${guards.length} guards',
+            style: GoogleFonts.inter(fontSize: 11, color: _bodyColor),
+          ),
+        ],
+      ),
+    );
+
+    final Widget listArea = bounded
+        ? Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: guards.length,
+              itemBuilder: (context, index) =>
+                  _guardRosterRow(guards[index], guards),
+            ),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final guard in guards) _guardRosterRow(guard, guards),
+            ],
+          );
+
     return _panelContainer(
       key: const ValueKey('guards-roster-panel'),
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: bounded ? MainAxisSize.max : MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Text('GUARD ROSTER', style: _capsLabelStyle()),
-                const Spacer(),
-                Text(
-                  '${guards.length} guards',
-                  style: GoogleFonts.inter(fontSize: 11, color: _bodyColor),
-                ),
-              ],
-            ),
-          ),
+          header,
           Divider(color: _dividerColor, height: 1),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 640),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final guard in guards) _guardRosterRow(guard, guards),
-                ],
-              ),
-            ),
-          ),
+          listArea,
         ],
       ),
     );
