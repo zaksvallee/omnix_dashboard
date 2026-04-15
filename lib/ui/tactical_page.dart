@@ -747,7 +747,7 @@ class TacticalPage extends StatelessWidget {
                       _tacticalAlertBanner(
                         key: const ValueKey('tactical-sos-banner'),
                         icon: Icons.warning_amber_rounded,
-                        accent: const Color(0xFFEF4444),
+                        accent: OnyxColorTokens.accentRed,
                         label: 'ACTIVE SOS TRIGGER',
                         message:
                             '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
@@ -759,7 +759,7 @@ class TacticalPage extends StatelessWidget {
                       _tacticalAlertBanner(
                         key: const ValueKey('tactical-geofence-banner'),
                         icon: Icons.report_gmailerrorred_rounded,
-                        accent: const Color(0xFFF59E0B),
+                        accent: OnyxColorTokens.accentAmber,
                         label: 'GEOFENCE BREACH DETECTED',
                         message:
                             '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
@@ -1076,7 +1076,7 @@ class TacticalPage extends StatelessWidget {
                     _tacticalAlertBanner(
                       key: const ValueKey('tactical-sos-banner'),
                       icon: Icons.warning_amber_rounded,
-                      accent: const Color(0xFFEF4444),
+                      accent: OnyxColorTokens.accentRed,
                       label: 'ACTIVE SOS TRIGGER',
                       message:
                           '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
@@ -1088,7 +1088,7 @@ class TacticalPage extends StatelessWidget {
                     _tacticalAlertBanner(
                       key: const ValueKey('tactical-geofence-banner'),
                       icon: Icons.report_gmailerrorred_rounded,
-                      accent: const Color(0xFFF59E0B),
+                      accent: OnyxColorTokens.accentAmber,
                       label: 'GEOFENCE BREACH DETECTED',
                       message:
                           '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
@@ -1435,7 +1435,7 @@ class TacticalPage extends StatelessWidget {
             side: BorderSide(
               color: dispatchAction == null
                   ? _tacticalStrongBorderColor
-                  : const Color(0xFF9DB9D9),
+                  : OnyxColorTokens.textMuted,
             ),
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
             shape: RoundedRectangleBorder(
@@ -1455,13 +1455,13 @@ class TacticalPage extends StatelessWidget {
           key: const ValueKey('tactical-open-agent-button'),
           onPressed: agentAction,
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF6C4BD2),
+            foregroundColor: OnyxColorTokens.accentPurple,
             side: BorderSide(
               color: agentAction == null
                   ? _tacticalStrongBorderColor
-                  : const Color(0xFFB7A5EE),
+                  : OnyxColorTokens.accentPurple,
             ),
-            backgroundColor: const Color(0xFFF6F1FF),
+            backgroundColor: OnyxColorTokens.surfaceInset,
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(7),
@@ -1491,14 +1491,14 @@ class TacticalPage extends StatelessWidget {
                 height: 28,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF7C3AED), Color(0xFF4338CA)],
+                    colors: [OnyxColorTokens.accentPurple, OnyxColorTokens.accentPurple],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x337C3AED),
+                      color: OnyxColorTokens.accentPurple.withValues(alpha: 0.20),
                       blurRadius: 16,
                       spreadRadius: 1,
                     ),
@@ -1541,33 +1541,33 @@ class TacticalPage extends StatelessWidget {
                         _heroChip(
                           label:
                               '${visibleFleetScopeHealth.length} Fleet Scope${visibleFleetScopeHealth.length == 1 ? '' : 's'}',
-                          foreground: const Color(0xFF8FD1FF),
-                          background: const Color(0x1A8FD1FF),
-                          border: const Color(0x668FD1FF),
+                          foreground: OnyxColorTokens.accentSky,
+                          background: OnyxColorTokens.accentSky.withValues(alpha: 0.10),
+                          border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                         ),
                         _heroChip(
                           label: '$limitedCount Limited Watch',
                           foreground: limitedCount > 0
-                              ? const Color(0xFFF59E0B)
-                              : const Color(0xFF9AB1CF),
+                              ? OnyxColorTokens.accentAmber
+                              : OnyxColorTokens.textMuted,
                           background: limitedCount > 0
-                              ? const Color(0x1AF59E0B)
-                              : const Color(0x1A94A3B8),
+                              ? OnyxColorTokens.accentAmber.withValues(alpha: 0.10)
+                              : OnyxColorTokens.textMuted.withValues(alpha: 0.10),
                           border: limitedCount > 0
-                              ? const Color(0x66F59E0B)
-                              : const Color(0x6694A3B8),
+                              ? OnyxColorTokens.accentAmber.withValues(alpha: 0.40)
+                              : OnyxColorTokens.textMuted.withValues(alpha: 0.40),
                         ),
                         _heroChip(
                           label: '$unavailableCount Unavailable',
                           foreground: unavailableCount > 0
-                              ? const Color(0xFFF87171)
-                              : const Color(0xFF9AB1CF),
+                              ? OnyxColorTokens.accentRed
+                              : OnyxColorTokens.textMuted,
                           background: unavailableCount > 0
-                              ? const Color(0x1AF87171)
-                              : const Color(0x1A94A3B8),
+                              ? OnyxColorTokens.accentRed.withValues(alpha: 0.10)
+                              : OnyxColorTokens.textMuted.withValues(alpha: 0.10),
                           border: unavailableCount > 0
-                              ? const Color(0x66F87171)
-                              : const Color(0x6694A3B8),
+                              ? OnyxColorTokens.accentRed.withValues(alpha: 0.40)
+                              : OnyxColorTokens.textMuted.withValues(alpha: 0.40),
                         ),
                       ],
                     ),
@@ -1583,15 +1583,15 @@ class TacticalPage extends StatelessWidget {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFF8FBFF), Color(0xFFEDF4FB)],
+              colors: [OnyxColorTokens.surfaceInset, OnyxColorTokens.surfaceInset],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: _tacticalBorderColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x120F172A),
+                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07),
                 blurRadius: 18,
                 offset: Offset(0, 8),
               ),
@@ -1661,7 +1661,7 @@ class TacticalPage extends StatelessWidget {
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: OnyxDesignTokens.accentBlue,
-          side: const BorderSide(color: Color(0xFFBFD2E8)),
+          side: const BorderSide(color: OnyxColorTokens.textMuted),
           backgroundColor: _tacticalSurfaceColor,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           textStyle: GoogleFonts.inter(
@@ -1726,7 +1726,7 @@ class TacticalPage extends StatelessWidget {
       headline: 'Returned from Agent for $agentReturnReference.',
       detail:
           'The scoped track board stayed pinned so controllers can continue from the same tactical focus without reopening the legacy workspace.',
-      accent: const Color(0xFF8B5CF6),
+      accent: OnyxColorTokens.accentPurple,
     );
   }
 
@@ -1761,13 +1761,13 @@ class TacticalPage extends StatelessWidget {
               width: 20,
               height: 20,
               decoration: BoxDecoration(
-                color: const Color(0x1A7C3AED),
+                color: OnyxColorTokens.accentPurple.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: const Color(0x664338CA)),
+                border: Border.all(color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40)),
               ),
               child: const Icon(
                 Icons.explore_rounded,
-                color: Color(0xFFDCD4FF),
+                color: OnyxColorTokens.accentPurple,
                 size: 11,
               ),
             ),
@@ -1837,67 +1837,67 @@ class TacticalPage extends StatelessWidget {
                 _tacticalWorkspaceActionChip(
                   key: const ValueKey('tactical-workspace-open-dispatches'),
                   label: 'Dispatches',
-                  foreground: const Color(0xFFDCD4FF),
-                  background: const Color(0x147C3AED),
-                  border: const Color(0x667C3AED),
+                  foreground: OnyxColorTokens.accentPurple,
+                  background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                  border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                   onTap: headerDispatchAction,
                 ),
               if (headerAgentAction != null)
                 _tacticalWorkspaceActionChip(
                   key: const ValueKey('tactical-workspace-open-agent'),
                   label: 'Ask Agent',
-                  foreground: const Color(0xFFE9D5FF),
-                  background: const Color(0x147C3AED),
-                  border: const Color(0x667C3AED),
+                  foreground: OnyxColorTokens.accentPurple,
+                  background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                  border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                   onTap: headerAgentAction,
                 ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-workspace-cycle-filter'),
                 label: 'Cycle',
-                foreground: const Color(0xFF8FD1FF),
-                background: const Color(0x148FD1FF),
-                border: const Color(0x668FD1FF),
+                foreground: OnyxColorTokens.accentSky,
+                background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                 onTap: onCycleFilter,
               ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-workspace-center-track'),
                 label: 'Center track',
-                foreground: const Color(0xFFFDE68A),
-                background: const Color(0x14FDE68A),
-                border: const Color(0x66FDE68A),
+                foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                 onTap: onCenterActive,
               ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-workspace-queue-anomalies'),
                 label: 'Anomalies',
-                foreground: const Color(0xFFFF99A8),
-                background: const Color(0x14FF99A8),
-                border: const Color(0x66FF99A8),
+                foreground: OnyxColorTokens.accentRed,
+                background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                 onTap: () => onSetQueueTab(_VerificationQueueTab.anomalies),
               ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-workspace-queue-matches'),
                 label: 'Matches',
-                foreground: const Color(0xFF8FD1FF),
-                background: const Color(0x148FD1FF),
-                border: const Color(0x668FD1FF),
+                foreground: OnyxColorTokens.accentSky,
+                background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                 onTap: () => onSetQueueTab(_VerificationQueueTab.matches),
               ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-workspace-queue-assets'),
                 label: 'Assets',
-                foreground: const Color(0xFFA7F3D0),
-                background: const Color(0x14A7F3D0),
-                border: const Color(0x66A7F3D0),
+                foreground: OnyxColorTokens.accentGreen,
+                background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                 onTap: () => onSetQueueTab(_VerificationQueueTab.assets),
               ),
               if (onOpenFleetStatus != null)
                 _tacticalWorkspaceActionChip(
                   key: const ValueKey('tactical-workspace-open-fleet'),
                   label: 'Fleet status',
-                  foreground: const Color(0xFFEAF4FF),
-                  background: const Color(0x143B82F6),
-                  border: const Color(0x663B82F6),
+                  foreground: OnyxColorTokens.surfaceInset,
+                  background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                  border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                   onTap: onOpenFleetStatus,
                 ),
             ],
@@ -1945,9 +1945,9 @@ class TacticalPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             color: _tacticalSurfaceColor,
             border: Border.all(color: _tacticalBorderColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x120F172A),
+                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07),
                 blurRadius: 16,
                 offset: Offset(0, 8),
               ),
@@ -2029,9 +2029,9 @@ class TacticalPage extends StatelessWidget {
         color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: receipt.accent.withValues(alpha: 0.42)),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x120F172A),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07),
             blurRadius: 18,
             offset: Offset(0, 8),
           ),
@@ -2160,7 +2160,7 @@ class TacticalPage extends StatelessWidget {
                 Text(
                   message,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
+                    color: OnyxColorTokens.surfaceInset,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2269,12 +2269,12 @@ class TacticalPage extends StatelessWidget {
         ? 'Resync coverage'
         : 'Open latest detail';
     final primaryActionColor = hasTacticalLead
-        ? const Color(0xFF8FD1FF)
+        ? OnyxColorTokens.accentSky
         : hasDispatchLead
-        ? const Color(0xFFFDE68A)
+        ? OnyxColorTokens.accentAmber.withValues(alpha: 0.5)
         : canRecoverLead
-        ? const Color(0xFFFCA5A5)
-        : const Color(0xFF67E8F9);
+        ? OnyxColorTokens.accentRed
+        : OnyxColorTokens.accentCyan;
 
     void focusFleetDrilldown(VideoFleetWatchActionDrilldown drilldown) {
       if (activeWatchActionDrilldown != drilldown) {
@@ -2296,7 +2296,7 @@ class TacticalPage extends StatelessWidget {
         label: 'FLEET FOCUS',
         detail:
             'The fleet command rail returned to the broader mixed-lane overview.',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textMuted,
       );
     }
 
@@ -2307,7 +2307,7 @@ class TacticalPage extends StatelessWidget {
         label: 'FLEET DETAIL',
         detail:
             '${leadScope.siteName} remains pinned while the fleet rail keeps the current watch lane in focus.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentCyan,
       );
     }
 
@@ -2326,7 +2326,7 @@ class TacticalPage extends StatelessWidget {
         label: 'TACTICAL HANDOFF',
         detail:
             '${leadScope.siteName} is now foregrounded in the scoped tactical workspace.',
-        accent: const Color(0xFF8FD1FF),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -2345,7 +2345,7 @@ class TacticalPage extends StatelessWidget {
         label: 'DISPATCH HANDOFF',
         detail:
             '${leadScope.siteName} is now foregrounded in the scoped dispatch workspace.',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       );
     }
 
@@ -2359,7 +2359,7 @@ class TacticalPage extends StatelessWidget {
         label: 'COVERAGE RESYNC',
         detail:
             '${leadScope.siteName} has been queued for watch-window recovery from the fleet rail.',
-        accent: const Color(0xFFFCA5A5),
+        accent: OnyxColorTokens.accentRed,
       );
     }
 
@@ -2395,9 +2395,9 @@ class TacticalPage extends StatelessWidget {
             color: _tacticalSurfaceColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: focusAccent.withValues(alpha: 0.42)),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x0F0F172A),
+                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.06),
                 blurRadius: 24,
                 offset: Offset(0, 10),
               ),
@@ -2485,7 +2485,7 @@ class TacticalPage extends StatelessWidget {
                         Text(
                           primaryActionLabel,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF4FF),
+                            color: OnyxColorTokens.surfaceInset,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2514,12 +2514,12 @@ class TacticalPage extends StatelessWidget {
                   _topChip(
                     'Actionable',
                     '${focusSections.actionableScopes.length}',
-                    const Color(0xFF8FD1FF),
+                    OnyxColorTokens.accentSky,
                   ),
                   _topChip(
                     'Watch only',
                     '${focusSections.watchOnlyScopes.length}',
-                    const Color(0xFFFDE68A),
+                    OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
                   ),
                   if (leadScope.latestRiskScore != null)
                     _topChip(
@@ -2548,45 +2548,45 @@ class TacticalPage extends StatelessWidget {
                   _tacticalWorkspaceActionChip(
                     key: const ValueKey('tactical-fleet-focus-open-detail'),
                     label: 'Latest detail',
-                    foreground: const Color(0xFF67E8F9),
-                    background: const Color(0x1467E8F9),
-                    border: const Color(0x6667E8F9),
+                    foreground: OnyxColorTokens.accentCyan,
+                    background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                     onTap: openLeadDetail,
                   ),
                   if (hasTacticalLead)
                     _tacticalWorkspaceActionChip(
                       key: const ValueKey('tactical-fleet-focus-open-tactical'),
                       label: 'OPEN TACTICAL TRACK',
-                      foreground: const Color(0xFF8FD1FF),
-                      background: const Color(0x148FD1FF),
-                      border: const Color(0x668FD1FF),
+                      foreground: OnyxColorTokens.accentSky,
+                      background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                       onTap: openLeadTactical,
                     ),
                   if (hasDispatchLead)
                     _tacticalWorkspaceActionChip(
                       key: const ValueKey('tactical-fleet-focus-open-dispatch'),
                       label: 'OPEN DISPATCH BOARD',
-                      foreground: const Color(0xFFFDE68A),
-                      background: const Color(0x14FDE68A),
-                      border: const Color(0x66FDE68A),
+                      foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                      background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                       onTap: openLeadDispatch,
                     ),
                   if (canRecoverLead)
                     _tacticalWorkspaceActionChip(
                       key: const ValueKey('tactical-fleet-focus-resync'),
                       label: 'Resync coverage',
-                      foreground: const Color(0xFFFCA5A5),
-                      background: const Color(0x14FCA5A5),
-                      border: const Color(0x66FCA5A5),
+                      foreground: OnyxColorTokens.accentRed,
+                      background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                       onTap: recoverLeadScope,
                     ),
                   if (activeWatchActionDrilldown != null)
                     _tacticalWorkspaceActionChip(
                       key: const ValueKey('tactical-fleet-focus-clear'),
                       label: 'Clear focus',
-                      foreground: const Color(0xFF9AB1CF),
-                      background: const Color(0x149AB1CF),
-                      border: const Color(0x669AB1CF),
+                      foreground: OnyxColorTokens.textMuted,
+                      background: OnyxColorTokens.textMuted.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.textMuted.withValues(alpha: 0.40),
                       onTap: clearFleetFocus,
                     ),
                   _tacticalWorkspaceActionChip(
@@ -2680,7 +2680,7 @@ class TacticalPage extends StatelessWidget {
         .where((drilldown) => drilldown != primaryDrilldown)
         .take(3)
         .toList(growable: false);
-    final accent = primaryDrilldown?.accentColor ?? const Color(0xFF9AB1CF);
+    final accent = primaryDrilldown?.accentColor ?? OnyxColorTokens.textMuted;
     final headline = activeDrilldown != null
         ? 'Fleet lane in focus'
         : primaryDrilldown != null
@@ -2700,9 +2700,9 @@ class TacticalPage extends StatelessWidget {
         color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.36)),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0F0F172A),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: Offset(0, 8),
           ),
@@ -2807,22 +2807,22 @@ class TacticalPage extends StatelessWidget {
                   _topChip(
                     'Actionable',
                     '${sections.actionableScopes.length}',
-                    const Color(0xFF8FD1FF),
+                    OnyxColorTokens.accentSky,
                   ),
                   _topChip(
                     'Watch only',
                     '${sections.watchOnlyScopes.length}',
-                    const Color(0xFFFDE68A),
+                    OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
                   ),
                   _topChip(
                     'High risk',
                     '${sections.highRiskCount}',
-                    const Color(0xFFFCA5A5),
+                    OnyxColorTokens.accentRed,
                   ),
                   _topChip(
                     'Gaps',
                     '${sections.gapCount}',
-                    const Color(0xFFFCA5A5),
+                    OnyxColorTokens.accentRed,
                   ),
                 ],
               ),
@@ -2860,9 +2860,9 @@ class TacticalPage extends StatelessWidget {
                       _tacticalWorkspaceActionChip(
                         key: const ValueKey('tactical-fleet-summary-clear'),
                         label: 'All scopes',
-                        foreground: const Color(0xFF9AB1CF),
-                        background: const Color(0x149AB1CF),
-                        border: const Color(0x669AB1CF),
+                        foreground: OnyxColorTokens.textMuted,
+                        background: OnyxColorTokens.textMuted.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.textMuted.withValues(alpha: 0.40),
                         onTap: onClearFocus,
                       ),
                   ],
@@ -2925,10 +2925,10 @@ class TacticalPage extends StatelessWidget {
         ? 'OPEN DISPATCH BOARD'
         : 'Open latest detail';
     final primaryActionColor = hasTacticalLane
-        ? const Color(0xFF8FD1FF)
+        ? OnyxColorTokens.accentSky
         : hasDispatchLane
-        ? const Color(0xFFFDE68A)
-        : const Color(0xFF67E8F9);
+        ? OnyxColorTokens.accentAmber.withValues(alpha: 0.5)
+        : OnyxColorTokens.accentCyan;
 
     void openSuppressedDetail(_SuppressedFleetReviewEntry entry) {
       onOpenLatestWatchActionDetail(entry.scope);
@@ -2937,7 +2937,7 @@ class TacticalPage extends StatelessWidget {
         label: 'REVIEW DETAIL',
         detail:
             'Latest suppressed scene-review context stays pinned for ${entry.scope.siteName}.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentCyan,
       );
     }
 
@@ -2956,7 +2956,7 @@ class TacticalPage extends StatelessWidget {
         label: 'TACTICAL HANDOFF',
         detail:
             '${entry.scope.siteName} is now foregrounded in the scoped tactical workspace.',
-        accent: const Color(0xFF8FD1FF),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -2975,7 +2975,7 @@ class TacticalPage extends StatelessWidget {
         label: 'DISPATCH HANDOFF',
         detail:
             '${entry.scope.siteName} is now foregrounded in the scoped dispatch workspace.',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       );
     }
 
@@ -2986,7 +2986,7 @@ class TacticalPage extends StatelessWidget {
         label: 'FILTERED REVIEWS',
         detail:
             'Suppressed scene reviews now stay foregrounded ahead of broader fleet health.',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textMuted,
       );
     }
 
@@ -3000,9 +3000,9 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3015,7 +3015,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 'SUPPRESSED ${videoOpsLabel.toUpperCase()} REVIEWS',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF7A8FA4),
+                  color: OnyxColorTokens.textMuted,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.1,
@@ -3024,7 +3024,7 @@ class TacticalPage extends StatelessWidget {
               _topChip(
                 'Internal',
                 '${entries.length}',
-                const Color(0xFF9AB1CF),
+                OnyxColorTokens.textMuted,
               ),
             ],
           ),
@@ -3032,7 +3032,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'Recent ${videoOpsLabel.toUpperCase()} reviews ONYX held below the client-notification threshold across the active fleet.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textMuted,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
@@ -3043,9 +3043,9 @@ class TacticalPage extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7FAFD),
+              color: OnyxColorTokens.surfaceInset,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFD6E1EC)),
+              border: Border.all(color: OnyxColorTokens.divider),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3060,7 +3060,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             'SUPPRESSED REVIEW FOCUS',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF7A8FA4),
+                              color: OnyxColorTokens.textMuted,
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
@@ -3070,7 +3070,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             focusScope.siteName,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF172638),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -3081,7 +3081,7 @@ class TacticalPage extends StatelessWidget {
                                 ? 'Suppressed because the activity remained below the client threshold.'
                                 : focusReview.decisionSummary.trim(),
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF556B80),
+                              color: OnyxColorTokens.textMuted,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
@@ -3121,7 +3121,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             primaryActionLabel,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF172638),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
@@ -3139,30 +3139,30 @@ class TacticalPage extends StatelessWidget {
                     _topChip(
                       'Internal',
                       '${entries.length}',
-                      const Color(0xFF9AB1CF),
+                      OnyxColorTokens.textMuted,
                     ),
                     _topChip(
                       'Action',
                       focusReview.decisionLabel.trim().isEmpty
                           ? 'Suppressed'
                           : focusReview.decisionLabel.trim(),
-                      const Color(0xFFBFD7F2),
+                      OnyxColorTokens.surfaceInset,
                     ),
                     _topChip(
                       'Posture',
                       focusReview.postureLabel.trim(),
-                      const Color(0xFF86EFAC),
+                      OnyxColorTokens.accentGreen,
                     ),
                     if ((focusScope.latestCameraLabel ?? '').trim().isNotEmpty)
                       _topChip(
                         'Camera',
                         focusScope.latestCameraLabel!.trim(),
-                        const Color(0xFF8FD1FF),
+                        OnyxColorTokens.accentSky,
                       ),
                     _topChip(
                       'Reviewed',
                       _clockLabel(focusReview.reviewedAtUtc.toLocal()),
-                      const Color(0xFF8EA4C2),
+                      OnyxColorTokens.textMuted,
                     ),
                   ],
                 ),
@@ -3176,9 +3176,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-suppressed-focus-filtered-lane',
                       ),
                       label: 'Filtered lane',
-                      foreground: const Color(0xFF9AB1CF),
-                      background: const Color(0x149AB1CF),
-                      border: const Color(0x669AB1CF),
+                      foreground: OnyxColorTokens.textMuted,
+                      background: OnyxColorTokens.textMuted.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.textMuted.withValues(alpha: 0.40),
                       onTap: focusFilteredLane,
                     ),
                     _tacticalWorkspaceActionChip(
@@ -3186,9 +3186,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-suppressed-focus-open-detail',
                       ),
                       label: 'Latest detail',
-                      foreground: const Color(0xFF67E8F9),
-                      background: const Color(0x1467E8F9),
-                      border: const Color(0x6667E8F9),
+                      foreground: OnyxColorTokens.accentCyan,
+                      background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                       onTap: () => openSuppressedDetail(focusEntry),
                     ),
                     if (hasTacticalLane)
@@ -3197,9 +3197,9 @@ class TacticalPage extends StatelessWidget {
                           'tactical-suppressed-focus-open-tactical',
                         ),
                         label: 'OPEN TACTICAL TRACK',
-                        foreground: const Color(0xFF8FD1FF),
-                        background: const Color(0x148FD1FF),
-                        border: const Color(0x668FD1FF),
+                        foreground: OnyxColorTokens.accentSky,
+                        background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                         onTap: () => openSuppressedTactical(focusEntry),
                       ),
                     if (hasDispatchLane)
@@ -3208,9 +3208,9 @@ class TacticalPage extends StatelessWidget {
                           'tactical-suppressed-focus-open-dispatch',
                         ),
                         label: 'OPEN DISPATCH BOARD',
-                        foreground: const Color(0xFFFDE68A),
-                        background: const Color(0x14FDE68A),
-                        border: const Color(0x66FDE68A),
+                        foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                         onTap: () => openSuppressedDispatch(focusEntry),
                       ),
                     _tacticalWorkspaceActionChip(
@@ -3269,9 +3269,9 @@ class TacticalPage extends StatelessWidget {
       width: 280,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF101D31),
+        color: OnyxColorTokens.backgroundPrimary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF23344C)),
+        border: Border.all(color: OnyxColorTokens.surfaceElevated),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3293,7 +3293,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 _clockLabel(review.reviewedAtUtc.toLocal()),
                 style: GoogleFonts.robotoMono(
-                  color: const Color(0xFF8EA4C2),
+                  color: OnyxColorTokens.textMuted,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -3310,18 +3310,18 @@ class TacticalPage extends StatelessWidget {
                 review.decisionLabel.trim().isEmpty
                     ? 'Suppressed'
                     : review.decisionLabel.trim(),
-                const Color(0xFFBFD7F2),
+                OnyxColorTokens.surfaceInset,
               ),
               if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
                 _topChip(
                   'Camera',
                   scope.latestCameraLabel!.trim(),
-                  const Color(0xFF8FD1FF),
+                  OnyxColorTokens.accentSky,
                 ),
               _topChip(
                 'Posture',
                 review.postureLabel.trim(),
-                const Color(0xFF86EFAC),
+                OnyxColorTokens.accentGreen,
               ),
             ],
           ),
@@ -3331,7 +3331,7 @@ class TacticalPage extends StatelessWidget {
                 ? 'Suppressed because the activity remained below threshold.'
                 : review.decisionSummary.trim(),
             style: GoogleFonts.inter(
-              color: const Color(0xFFD9E7F7),
+              color: OnyxColorTokens.surfaceInset,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -3340,7 +3340,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'Scene review: ${review.summary.trim()}',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: OnyxColorTokens.textMuted,
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -3355,9 +3355,9 @@ class TacticalPage extends StatelessWidget {
                   'tactical-suppressed-detail-${scope.siteId}',
                 ),
                 label: 'Detail',
-                foreground: const Color(0xFF67E8F9),
-                background: const Color(0x1467E8F9),
-                border: const Color(0x6667E8F9),
+                foreground: OnyxColorTokens.accentCyan,
+                background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                 onTap: onOpenDetail,
               ),
               if (onOpenTactical != null)
@@ -3366,9 +3366,9 @@ class TacticalPage extends StatelessWidget {
                     'tactical-suppressed-tactical-${scope.siteId}',
                   ),
                   label: 'Tactical',
-                  foreground: const Color(0xFF8FD1FF),
-                  background: const Color(0x148FD1FF),
-                  border: const Color(0x668FD1FF),
+                  foreground: OnyxColorTokens.accentSky,
+                  background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                  border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                   onTap: onOpenTactical,
                 ),
               if (onOpenDispatch != null)
@@ -3377,9 +3377,9 @@ class TacticalPage extends StatelessWidget {
                     'tactical-suppressed-dispatch-${scope.siteId}',
                   ),
                   label: 'Dispatch',
-                  foreground: const Color(0xFFFDE68A),
-                  background: const Color(0x14FDE68A),
-                  border: const Color(0x66FDE68A),
+                  foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                  background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                  border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                   onTap: onOpenDispatch,
                 ),
             ],
@@ -3403,20 +3403,20 @@ class TacticalPage extends StatelessWidget {
     onOpenLatestWatchActionDetail,
   }) {
     final statusColor = switch (scope.statusLabel.toUpperCase()) {
-      'LIVE' => const Color(0xFF86EFAC),
-      'ACTIVE WATCH' => const Color(0xFF8FD1FF),
-      'LIMITED WATCH' => const Color(0xFFFBBF24),
-      'WATCH READY' => const Color(0xFFFDE68A),
-      _ => const Color(0xFF9AB1CF),
+      'LIVE' => OnyxColorTokens.accentGreen,
+      'ACTIVE WATCH' => OnyxColorTokens.accentSky,
+      'LIMITED WATCH' => OnyxColorTokens.accentAmber,
+      'WATCH READY' => OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+      _ => OnyxColorTokens.textMuted,
     };
     final watchColor = scope.watchLabel == 'LIMITED'
-        ? const Color(0xFFFBBF24)
-        : const Color(0xFF8FD1FF);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentSky;
     final phaseColor = (scope.watchWindowStateLabel ?? '').contains('LIMITED')
-        ? const Color(0xFFFBBF24)
+        ? OnyxColorTokens.accentAmber
         : scope.watchWindowStateLabel == 'IN WINDOW'
-        ? const Color(0xFF86EFAC)
-        : const Color(0xFFFDE68A);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber.withValues(alpha: 0.5);
     final hasTacticalLane =
         scope.hasIncidentContext && onOpenFleetTacticalScope != null;
     final hasDispatchLane =
@@ -3434,12 +3434,12 @@ class TacticalPage extends StatelessWidget {
         ? 'OPEN DISPATCH BOARD'
         : 'Latest detail';
     final primaryActionColor = canRecoverCoverage
-        ? const Color(0xFFFCA5A5)
+        ? OnyxColorTokens.accentRed
         : hasTacticalLane
-        ? const Color(0xFF8FD1FF)
+        ? OnyxColorTokens.accentSky
         : hasDispatchLane
-        ? const Color(0xFFFDE68A)
-        : const Color(0xFF67E8F9);
+        ? OnyxColorTokens.accentAmber.withValues(alpha: 0.5)
+        : OnyxColorTokens.accentCyan;
 
     void openFleetDetail() {
       onOpenLatestWatchActionDetail(scope);
@@ -3448,7 +3448,7 @@ class TacticalPage extends StatelessWidget {
         label: 'FLEET DETAIL',
         detail:
             '${scope.siteName} stays pinned in the fleet rail while the latest watch context opens below it.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentCyan,
       );
     }
 
@@ -3467,7 +3467,7 @@ class TacticalPage extends StatelessWidget {
         label: 'TACTICAL HANDOFF',
         detail:
             '${scope.siteName} is now foregrounded in the scoped tactical workspace.',
-        accent: const Color(0xFF8FD1FF),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -3486,7 +3486,7 @@ class TacticalPage extends StatelessWidget {
         label: 'DISPATCH HANDOFF',
         detail:
             '${scope.siteName} is now foregrounded in the scoped dispatch workspace.',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       );
     }
 
@@ -3501,7 +3501,7 @@ class TacticalPage extends StatelessWidget {
         label: 'COVERAGE RESYNC',
         detail:
             '${scope.siteName} has been queued for watch-window recovery from the fleet scope card.',
-        accent: const Color(0xFFFCA5A5),
+        accent: OnyxColorTokens.accentRed,
       );
     }
 
@@ -3512,7 +3512,7 @@ class TacticalPage extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFFFBFDFF),
+          color: OnyxColorTokens.surfaceInset,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: commandAccent.withValues(alpha: 0.26)),
         ),
@@ -3536,7 +3536,7 @@ class TacticalPage extends StatelessWidget {
                   Text(
                     commandHeadline,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF4FF),
+                      color: OnyxColorTokens.surfaceInset,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -3545,7 +3545,7 @@ class TacticalPage extends StatelessWidget {
                   Text(
                     commandDetail,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFCAD7E8),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
@@ -3590,7 +3590,7 @@ class TacticalPage extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF4FF),
+                          color: OnyxColorTokens.surfaceInset,
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                         ),
@@ -3632,7 +3632,7 @@ class TacticalPage extends StatelessWidget {
                 _topChip(
                   'Endpoint',
                   scope.endpointLabel,
-                  const Color(0xFF9AB1CF),
+                  OnyxColorTokens.textMuted,
                 ),
                 _topChip(
                   'Last seen',
@@ -3643,16 +3643,16 @@ class TacticalPage extends StatelessWidget {
                   _topChip(
                     'Reference',
                     scope.latestIncidentReference!,
-                    const Color(0xFF8FD1FF),
+                    OnyxColorTokens.accentSky,
                   ),
                 if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
                   _topChip(
                     'Camera',
                     scope.latestCameraLabel!,
-                    const Color(0xFF9AB1CF),
+                    OnyxColorTokens.textMuted,
                   ),
                 if (!scope.hasIncidentContext)
-                  _topChip('Context', 'Pending', const Color(0xFFFDE68A)),
+                  _topChip('Context', 'Pending', OnyxColorTokens.accentAmber.withValues(alpha: 0.5)),
               ],
             ),
           ],
@@ -3669,27 +3669,27 @@ class TacticalPage extends StatelessWidget {
         fontWeight: FontWeight.w700,
       ),
       endpointStyle: GoogleFonts.inter(
-        color: const Color(0xFF8EA4C2),
+        color: OnyxColorTokens.textMuted,
         fontSize: 10,
         fontWeight: FontWeight.w600,
       ),
       lastSeenStyle: GoogleFonts.inter(
-        color: const Color(0xFF9AB1CF),
+        color: OnyxColorTokens.textMuted,
         fontSize: 11,
         fontWeight: FontWeight.w600,
       ),
       statusDetailStyle: GoogleFonts.inter(
-        color: const Color(0xFFFDE68A),
+        color: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
         fontSize: 10,
         fontWeight: FontWeight.w600,
       ),
       noteStyle: GoogleFonts.inter(
-        color: const Color(0xFF9AB1CF),
+        color: OnyxColorTokens.textMuted,
         fontSize: 11,
         fontWeight: FontWeight.w500,
       ),
       latestStyle: GoogleFonts.inter(
-        color: const Color(0xFFD9E7F7),
+        color: OnyxColorTokens.surfaceInset,
         fontSize: 11,
         fontWeight: FontWeight.w600,
       ),
@@ -3697,35 +3697,35 @@ class TacticalPage extends StatelessWidget {
       primaryGroupAccent: commandAccent,
       primaryGroupKey: ValueKey('tactical-fleet-scope-posture-${scope.siteId}'),
       contextGroupLabel: 'WATCH CONTEXT',
-      contextGroupAccent: const Color(0xFFFDE68A),
+      contextGroupAccent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       contextGroupKey: ValueKey('tactical-fleet-scope-context-${scope.siteId}'),
       latestGroupLabel: 'LATEST SIGNAL',
-      latestGroupAccent: const Color(0xFF67E8F9),
+      latestGroupAccent: OnyxColorTokens.accentCyan,
       latestGroupKey: ValueKey('tactical-fleet-scope-latest-${scope.siteId}'),
       secondaryGroupLabel: 'LIVE FEED',
-      secondaryGroupAccent: const Color(0xFF8FD1FF),
+      secondaryGroupAccent: OnyxColorTokens.accentSky,
       secondaryGroupKey: ValueKey('tactical-fleet-scope-feed-${scope.siteId}'),
       actionsGroupLabel: 'COMMAND ACTIONS',
       actionsGroupAccent: primaryActionColor,
       actionsGroupKey: ValueKey('tactical-fleet-scope-actions-${scope.siteId}'),
       primaryChips: [
         if ((scope.operatorOutcomeLabel ?? '').trim().isNotEmpty)
-          _topChip('Cue', scope.operatorOutcomeLabel!, const Color(0xFF67E8F9)),
+          _topChip('Cue', scope.operatorOutcomeLabel!, OnyxColorTokens.accentCyan),
         if ((scope.operatorOutcomeLabel ?? '').trim().isEmpty &&
             (scope.lastRecoveryLabel ?? '').trim().isNotEmpty)
           _topChip(
             'Recovery',
             scope.lastRecoveryLabel!,
-            const Color(0xFF86EFAC),
+            OnyxColorTokens.accentGreen,
           ),
         if (scope.hasWatchActivationGap)
           _topChip(
             'Gap',
             scope.watchActivationGapLabel!,
-            const Color(0xFFFCA5A5),
+            OnyxColorTokens.accentRed,
           ),
         if (!scope.hasIncidentContext)
-          _topChip('Context', 'Pending', const Color(0xFFFDE68A)),
+          _topChip('Context', 'Pending', OnyxColorTokens.accentAmber.withValues(alpha: 0.5)),
         if (scope.identityPolicyChipValue != null)
           _topChip(
             'Identity',
@@ -3737,10 +3737,10 @@ class TacticalPage extends StatelessWidget {
             'Client',
             scope.clientDecisionChipValue!,
             scope.clientDecisionChipValue == 'Approved'
-                ? const Color(0xFF86EFAC)
+                ? OnyxColorTokens.accentGreen
                 : scope.clientDecisionChipValue == 'Review'
-                ? const Color(0xFFFDE68A)
-                : const Color(0xFFFCA5A5),
+                ? OnyxColorTokens.accentAmber.withValues(alpha: 0.5)
+                : OnyxColorTokens.accentRed,
           ),
         _topChip('Status', scope.statusLabel, statusColor),
         _topChip('Watch', scope.watchLabel, watchColor),
@@ -3749,11 +3749,11 @@ class TacticalPage extends StatelessWidget {
           scope.freshnessLabel,
           _fleetFreshnessColor(scope),
         ),
-        _topChip('Events 6h', '${scope.recentEvents}', const Color(0xFF9AB1CF)),
+        _topChip('Events 6h', '${scope.recentEvents}', OnyxColorTokens.textMuted),
       ],
       secondaryChips: [
         if (scope.watchWindowLabel != null)
-          _topChip('Window', scope.watchWindowLabel!, const Color(0xFF86EFAC)),
+          _topChip('Window', scope.watchWindowLabel!, OnyxColorTokens.accentGreen),
         if (scope.watchWindowStateLabel != null)
           _topChip('Phase', scope.watchWindowStateLabel!, phaseColor),
         if (scope.latestRiskScore != null)
@@ -3763,34 +3763,34 @@ class TacticalPage extends StatelessWidget {
             _fleetRiskColor(scope.latestRiskScore!),
           ),
         if (scope.latestCameraLabel != null)
-          _topChip('Camera', scope.latestCameraLabel!, const Color(0xFF9AB1CF)),
+          _topChip('Camera', scope.latestCameraLabel!, OnyxColorTokens.textMuted),
       ],
       actionChildren: [
         _fleetActionButton(
           key: ValueKey('tactical-fleet-detail-${scope.siteId}'),
           label: 'Latest detail',
-          color: const Color(0xFF67E8F9),
+          color: OnyxColorTokens.accentCyan,
           onPressed: openFleetDetail,
         ),
         if (canRecoverCoverage)
           _fleetActionButton(
             key: ValueKey('tactical-fleet-resync-${scope.siteId}'),
             label: 'Resync',
-            color: const Color(0xFFFCA5A5),
+            color: OnyxColorTokens.accentRed,
             onPressed: recoverFleetScope,
           ),
         if (hasTacticalLane)
           _fleetActionButton(
             key: ValueKey('tactical-fleet-tactical-${scope.siteId}'),
             label: 'Tactical',
-            color: const Color(0xFF8FD1FF),
+            color: OnyxColorTokens.accentSky,
             onPressed: openFleetTactical,
           ),
         if (hasDispatchLane)
           _fleetActionButton(
             key: ValueKey('tactical-fleet-dispatch-${scope.siteId}'),
             label: 'Dispatch',
-            color: const Color(0xFFFDE68A),
+            color: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
             onPressed: openFleetDispatch,
           ),
       ],
@@ -3807,9 +3807,9 @@ class TacticalPage extends StatelessWidget {
           ? openFleetDispatch
           : openFleetDetail,
       decoration: BoxDecoration(
-        color: const Color(0xFF101D31),
+        color: OnyxColorTokens.backgroundPrimary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF23344C)),
+        border: Border.all(color: OnyxColorTokens.surfaceElevated),
       ),
       constraints: const BoxConstraints(minWidth: 230, maxWidth: 320),
     );
@@ -3817,19 +3817,19 @@ class TacticalPage extends StatelessWidget {
 
   Color _fleetScopeCommandAccent(VideoFleetScopeHealthView scope) {
     if (scope.hasWatchActivationGap) {
-      return const Color(0xFFFCA5A5);
+      return OnyxColorTokens.accentRed;
     }
     if (scope.identityPolicyChipValue != null) {
       return identityPolicyAccentColorForScope(scope);
     }
     if (scope.escalationCount > 0) {
-      return const Color(0xFFFCA5A5);
+      return OnyxColorTokens.accentRed;
     }
     if (scope.alertCount > 0) {
-      return const Color(0xFF67E8F9);
+      return OnyxColorTokens.accentCyan;
     }
     if (scope.repeatCount > 0) {
-      return const Color(0xFFFDE68A);
+      return OnyxColorTokens.accentAmber.withValues(alpha: 0.5);
     }
     if (scope.latestRiskScore != null) {
       return _fleetRiskColor(scope.latestRiskScore!);
@@ -3956,14 +3956,14 @@ class TacticalPage extends StatelessWidget {
         'Active',
         '${sections.activeCount}',
         detail: 'Live or limited watch lanes',
-        accent: const Color(0xFF8FD1FF),
+        accent: OnyxColorTokens.accentSky,
       ),
       _fleetSummaryTile(
         key: const ValueKey('tactical-fleet-summary-tile-limited'),
         'Limited',
         '${sections.limitedCount}',
         detail: 'Remote monitoring constrained',
-        accent: const Color(0xFFFBBF24),
+        accent: OnyxColorTokens.accentAmber,
         isActive:
             activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.limited,
@@ -3978,35 +3978,35 @@ class TacticalPage extends StatelessWidget {
         'Gap',
         '${sections.gapCount}',
         detail: 'Watch starts missed or delayed',
-        accent: const Color(0xFFFCA5A5),
+        accent: OnyxColorTokens.accentRed,
       ),
       _fleetSummaryTile(
         key: const ValueKey('tactical-fleet-summary-tile-high-risk'),
         'High Risk',
         '${sections.highRiskCount}',
         detail: '70+ risk scopes in rail',
-        accent: const Color(0xFFFCA5A5),
+        accent: OnyxColorTokens.accentRed,
       ),
       _fleetSummaryTile(
         key: const ValueKey('tactical-fleet-summary-tile-recovered'),
         'Recovered 6h',
         '${sections.recoveredCount}',
         detail: 'Recent operator recovery passes',
-        accent: const Color(0xFF86EFAC),
+        accent: OnyxColorTokens.accentGreen,
       ),
       _fleetSummaryTile(
         key: const ValueKey('tactical-fleet-summary-tile-suppressed'),
         'Suppressed',
         '${sections.suppressedCount}',
         detail: 'Quiet filtered watch reviews',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textMuted,
       ),
       _fleetSummaryTile(
         key: const ValueKey('tactical-fleet-summary-tile-alerts'),
         'Alerts',
         '${sections.alertActionCount}',
         detail: 'Client alerts sent from rail',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentCyan,
         isActive:
             activeWatchActionDrilldown == VideoFleetWatchActionDrilldown.alerts,
         onTap: sections.alertActionCount > 0
@@ -4020,7 +4020,7 @@ class TacticalPage extends StatelessWidget {
         'Repeat',
         '${sections.repeatActionCount}',
         detail: 'Monitoring loops still repeating',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
         isActive:
             activeWatchActionDrilldown == VideoFleetWatchActionDrilldown.repeat,
         onTap: sections.repeatActionCount > 0
@@ -4034,7 +4034,7 @@ class TacticalPage extends StatelessWidget {
         'Escalated',
         '${sections.escalationActionCount}',
         detail: 'Reviews pushed into escalation',
-        accent: const Color(0xFFFCA5A5),
+        accent: OnyxColorTokens.accentRed,
         isActive:
             activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.escalated,
@@ -4049,7 +4049,7 @@ class TacticalPage extends StatelessWidget {
         'Filtered',
         '${sections.suppressedActionCount}',
         detail: 'Below-threshold review holds',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textMuted,
         isActive:
             activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.filtered,
@@ -4109,14 +4109,14 @@ class TacticalPage extends StatelessWidget {
         'Stale',
         '${sections.staleCount}',
         detail: 'Feeds aging beyond fresh window',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       ),
       _fleetSummaryTile(
         key: const ValueKey('tactical-fleet-summary-tile-no-incident'),
         'No Incident',
         '${sections.noIncidentCount}',
         detail: 'Telemetry without linked incident',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textMuted,
       ),
     ];
   }
@@ -4235,15 +4235,15 @@ class TacticalPage extends StatelessWidget {
 
   Color _fleetRiskColor(int score) {
     if (score >= 85) {
-      return const Color(0xFFFCA5A5);
+      return OnyxColorTokens.accentRed;
     }
     if (score >= 70) {
-      return const Color(0xFFFDE68A);
+      return OnyxColorTokens.accentAmber.withValues(alpha: 0.5);
     }
     if (score >= 40) {
-      return const Color(0xFF93C5FD);
+      return OnyxColorTokens.accentSky.withValues(alpha: 0.75);
     }
-    return const Color(0xFF9AB1CF);
+    return OnyxColorTokens.textMuted;
   }
 
   String _fleetRiskLabel(int score) {
@@ -4261,11 +4261,11 @@ class TacticalPage extends StatelessWidget {
 
   Color _fleetFreshnessColor(VideoFleetScopeHealthView scope) {
     return switch (scope.freshnessLabel) {
-      'Fresh' => const Color(0xFF86EFAC),
-      'Recent' => const Color(0xFF8FD1FF),
-      'Stale' => const Color(0xFFFCA5A5),
-      'Quiet' => const Color(0xFFFDE68A),
-      _ => const Color(0xFF9AB1CF),
+      'Fresh' => OnyxColorTokens.accentGreen,
+      'Recent' => OnyxColorTokens.accentSky,
+      'Stale' => OnyxColorTokens.accentRed,
+      'Quiet' => OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+      _ => OnyxColorTokens.textMuted,
     };
   }
 
@@ -4310,30 +4310,30 @@ class TacticalPage extends StatelessWidget {
                   letterSpacing: 1.2,
                 ),
               ),
-              _topChip('Active Responders', '8', const Color(0xFF8FD1FF)),
+              _topChip('Active Responders', '8', OnyxColorTokens.accentSky),
               _topChip(
                 'Geofence Alerts',
                 geofenceAlerts.toString(),
                 geofenceAlerts > 0
-                    ? const Color(0xFFFFC37B)
-                    : const Color(0xFF9AB1CF),
+                    ? OnyxColorTokens.accentAmber
+                    : OnyxColorTokens.textMuted,
               ),
               _topChip(
                 'SOS',
                 sosAlerts.toString(),
                 sosAlerts > 0
-                    ? const Color(0xFFFF99A8)
-                    : const Color(0xFF9AB1CF),
+                    ? OnyxColorTokens.accentRed
+                    : OnyxColorTokens.textMuted,
               ),
-              _topChip('Mode', mode, const Color(0xFF8FD1FF)),
+              _topChip('Mode', mode, OnyxColorTokens.accentSky),
               _topChip(
                 videoOpsLabel,
                 cctvReadiness,
                 cctvReadiness == 'ACTIVE'
-                    ? const Color(0xFF86EFAC)
+                    ? OnyxColorTokens.accentGreen
                     : cctvReadiness == 'PARTIAL'
-                    ? const Color(0xFFFDE68A)
-                    : const Color(0xFF9AB1CF),
+                    ? OnyxColorTokens.accentAmber.withValues(alpha: 0.5)
+                    : OnyxColorTokens.textMuted,
               ),
               if (focusReference.isNotEmpty)
                 _topChip(
@@ -4345,7 +4345,7 @@ class TacticalPage extends StatelessWidget {
                 _topChip(
                   'Scope',
                   '$scopeClientId/$scopeSiteId',
-                  const Color(0xFF8FD1FF),
+                  OnyxColorTokens.accentSky,
                 ),
             ],
           ),
@@ -4353,7 +4353,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             summaryLine,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: OnyxColorTokens.textMuted,
               fontSize: compactDetails ? 8.5 : 9,
               fontWeight: FontWeight.w600,
             ),
@@ -4363,7 +4363,7 @@ class TacticalPage extends StatelessWidget {
             Text(
               '$videoOpsLabel Recent: $cctvRecentSignalSummary',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 8,
                 fontWeight: FontWeight.w600,
               ),
@@ -4387,9 +4387,9 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0x141C3C57),
+        color: OnyxColorTokens.textMuted.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: const Color(0x4435506F)),
+        border: Border.all(color: OnyxColorTokens.textMuted.withValues(alpha: 0.27)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4397,7 +4397,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'Scope focus active',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: OnyxColorTokens.accentSky,
               fontSize: 7.5,
               fontWeight: FontWeight.w800,
             ),
@@ -4406,7 +4406,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             scopeLabel,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: OnyxColorTokens.surfaceInset,
               fontSize: 7.5,
               fontWeight: FontWeight.w700,
             ),
@@ -4421,7 +4421,7 @@ class TacticalPage extends StatelessWidget {
                       ? 'Tactical is locked to this client lane. Fleet DVR roll-up will appear once that client scope is linked.'
                       : 'Tactical is locked to this exact lane. Fleet DVR roll-up will appear once that scope is linked.'),
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: OnyxColorTokens.textMuted,
               fontSize: 8,
               fontWeight: FontWeight.w600,
             ),
@@ -4473,9 +4473,9 @@ class TacticalPage extends StatelessWidget {
         color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _tacticalBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x120F172A),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07),
             blurRadius: 24,
             offset: Offset(0, 10),
           ),
@@ -4535,7 +4535,7 @@ class TacticalPage extends StatelessWidget {
                         ),
                         maxZoom: 18,
                         minZoom: 10,
-                        backgroundColor: const Color(0xFF08101A),
+                        backgroundColor: OnyxColorTokens.backgroundPrimary,
                       ),
                       children: [
                         TileLayer(
@@ -4633,16 +4633,16 @@ class TacticalPage extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0x33EF4444),
+                          color: OnyxColorTokens.accentRed.withValues(alpha: 0.20),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: const Color(0x99EF4444),
+                            color: OnyxColorTokens.accentRed.withValues(alpha: 0.60),
                           ),
                         ),
                         child: Text(
                           'SOS TRIGGER • ${triggerSos.length} geofence anomalies',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFFFB8C1),
+                            color: OnyxColorTokens.accentRed,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -4652,8 +4652,8 @@ class TacticalPage extends StatelessWidget {
                   if (connectingToLiveData && markers.isEmpty)
                     Positioned.fill(
                       child: Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0xCC08101A),
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.80),
                         ),
                         child: Center(
                           child: Container(
@@ -4662,7 +4662,7 @@ class TacticalPage extends StatelessWidget {
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F1E2E),
+                              color: OnyxColorTokens.backgroundPrimary,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: _tacticalStrongBorderColor,
@@ -4676,14 +4676,14 @@ class TacticalPage extends StatelessWidget {
                                   height: 14,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Color(0xFF8EC8FF),
+                                    color: OnyxColorTokens.accentSky,
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
                                   'Connecting to live data\u2026',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFF8EC8FF),
+                                    color: OnyxColorTokens.accentSky,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -4702,7 +4702,7 @@ class TacticalPage extends StatelessWidget {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xF6FFFFFF),
+                          color: OnyxColorTokens.textPrimary.withValues(alpha: 0.96),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: _tacticalStrongBorderColor,
@@ -4726,21 +4726,21 @@ class TacticalPage extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 5,
                       children: [
-                        _legendPill('Guard Ping', const Color(0xFF3B82F6)),
-                        _legendPill('Vehicle', const Color(0xFF10B981)),
-                        _legendPill('Incident', const Color(0xFFEF4444)),
-                        _legendPill('Geofence', const Color(0xFF22D3EE)),
+                        _legendPill('Guard Ping', OnyxColorTokens.accentSky),
+                        _legendPill('Vehicle', OnyxColorTokens.accentGreen),
+                        _legendPill('Incident', OnyxColorTokens.accentRed),
+                        _legendPill('Geofence', OnyxColorTokens.accentCyan),
                         _legendPill(
                           'Geofence Alert',
                           geofenceAlerts > 0
-                              ? const Color(0xFFF59E0B)
-                              : const Color(0xFF8EA4C2),
+                              ? OnyxColorTokens.accentAmber
+                              : OnyxColorTokens.textMuted,
                         ),
                         _legendPill(
                           'SOS',
                           sosAlerts > 0
-                              ? const Color(0xFFEF4444)
-                              : const Color(0xFF8EA4C2),
+                              ? OnyxColorTokens.accentRed
+                              : OnyxColorTokens.textMuted,
                         ),
                       ],
                     ),
@@ -5038,7 +5038,7 @@ class TacticalPage extends StatelessWidget {
               _topChip(
                 'Queue',
                 _verificationQueueWorkspaceLabel(activeQueueTab),
-                const Color(0xFF8FD1FF),
+                OnyxColorTokens.accentSky,
               ),
               _topChip('Focus', focusLabel, _focusStateColor(focusState)),
               if (marker.battery != null)
@@ -5046,8 +5046,8 @@ class TacticalPage extends StatelessWidget {
                   'Battery',
                   '${marker.battery}%',
                   marker.battery! < 20
-                      ? const Color(0xFFFACC15)
-                      : const Color(0xFFA7F3D0),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
             ],
           ),
@@ -5059,42 +5059,42 @@ class TacticalPage extends StatelessWidget {
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-map-focus-center-track'),
                 label: 'Center track',
-                foreground: const Color(0xFFFDE68A),
-                background: const Color(0x14FDE68A),
-                border: const Color(0x66FDE68A),
+                foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                 onTap: onCenterActive,
               ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-map-focus-queue-anomalies'),
                 label: 'Anomalies',
-                foreground: const Color(0xFFFF99A8),
-                background: const Color(0x14FF99A8),
-                border: const Color(0x66FF99A8),
+                foreground: OnyxColorTokens.accentRed,
+                background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                 onTap: () => onSetQueueTab(_VerificationQueueTab.anomalies),
               ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-map-focus-queue-matches'),
                 label: 'Matches',
-                foreground: const Color(0xFF8FD1FF),
-                background: const Color(0x148FD1FF),
-                border: const Color(0x668FD1FF),
+                foreground: OnyxColorTokens.accentSky,
+                background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                 onTap: () => onSetQueueTab(_VerificationQueueTab.matches),
               ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-map-focus-queue-assets'),
                 label: 'Assets',
-                foreground: const Color(0xFFA7F3D0),
-                background: const Color(0x14A7F3D0),
-                border: const Color(0x66A7F3D0),
+                foreground: OnyxColorTokens.accentGreen,
+                background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                 onTap: () => onSetQueueTab(_VerificationQueueTab.assets),
               ),
               if (onOpenDispatches != null)
                 _tacticalWorkspaceActionChip(
                   key: const ValueKey('tactical-map-focus-open-dispatches'),
                   label: 'OPEN DISPATCH BOARD',
-                  foreground: const Color(0xFFDCD4FF),
-                  background: const Color(0x147C3AED),
-                  border: const Color(0x667C3AED),
+                  foreground: OnyxColorTokens.accentPurple,
+                  background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                  border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                   onTap: onOpenDispatches,
                 ),
             ],
@@ -5164,7 +5164,7 @@ class TacticalPage extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9AB1CF),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -5292,19 +5292,19 @@ class TacticalPage extends StatelessWidget {
 
   Color _focusStateColor(_FocusLinkState state) {
     return switch (state) {
-      _FocusLinkState.exact => const Color(0xFF86EFAC),
-      _FocusLinkState.scopeBacked => const Color(0xFF8FD1FF),
-      _FocusLinkState.seeded => const Color(0xFFFACC15),
-      _FocusLinkState.none => const Color(0xFF9AB1CF),
+      _FocusLinkState.exact => OnyxColorTokens.accentGreen,
+      _FocusLinkState.scopeBacked => OnyxColorTokens.accentSky,
+      _FocusLinkState.seeded => OnyxColorTokens.accentAmber,
+      _FocusLinkState.none => OnyxColorTokens.textMuted,
     };
   }
 
   Color _focusStateTextColor(_FocusLinkState state) {
     return switch (state) {
-      _FocusLinkState.exact => const Color(0xFFCCFFE8),
-      _FocusLinkState.scopeBacked => const Color(0xFFE0F2FF),
-      _FocusLinkState.seeded => const Color(0xFFFDE68A),
-      _FocusLinkState.none => const Color(0xFFCAD6E5),
+      _FocusLinkState.exact => OnyxColorTokens.accentGreen.withValues(alpha: 0.3),
+      _FocusLinkState.scopeBacked => OnyxColorTokens.surfaceInset,
+      _FocusLinkState.seeded => OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+      _FocusLinkState.none => OnyxColorTokens.textMuted,
     };
   }
 
@@ -5627,14 +5627,14 @@ class TacticalPage extends StatelessWidget {
   }) {
     final matchScore = telemetry.suggestedMatchScore;
     final scoreColor = matchScore >= 95
-        ? const Color(0xFF10B981)
+        ? OnyxColorTokens.accentGreen
         : matchScore >= 60
-        ? const Color(0xFFFACC15)
-        : const Color(0xFFEF4444);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentRed;
     final queueAccent = switch (activeQueueTab) {
-      _VerificationQueueTab.anomalies => const Color(0xFFFF99A8),
-      _VerificationQueueTab.matches => const Color(0xFF8FD1FF),
-      _VerificationQueueTab.assets => const Color(0xFFA7F3D0),
+      _VerificationQueueTab.anomalies => OnyxColorTokens.accentRed,
+      _VerificationQueueTab.matches => OnyxColorTokens.accentSky,
+      _VerificationQueueTab.assets => OnyxColorTokens.accentGreen,
     };
     final focusAccent = activeMarker == null
         ? queueAccent
@@ -5678,9 +5678,9 @@ class TacticalPage extends StatelessWidget {
     void openQueueWithFeedback(_VerificationQueueTab tab) {
       onQueueTabChanged(tab);
       final accent = switch (tab) {
-        _VerificationQueueTab.anomalies => const Color(0xFFFF99A8),
-        _VerificationQueueTab.matches => const Color(0xFF8FD1FF),
-        _VerificationQueueTab.assets => const Color(0xFFA7F3D0),
+        _VerificationQueueTab.anomalies => OnyxColorTokens.accentRed,
+        _VerificationQueueTab.matches => OnyxColorTokens.accentSky,
+        _VerificationQueueTab.assets => OnyxColorTokens.accentGreen,
       };
       final label = switch (tab) {
         _VerificationQueueTab.anomalies => 'ANOMALY QUEUE',
@@ -5707,7 +5707,7 @@ class TacticalPage extends StatelessWidget {
         label: 'TRACK FOCUS',
         detail:
             '${activeMarker.label} stays pinned while the ${_verificationQueueWorkspaceLabel(activeQueueTab).toLowerCase()} queue remains foregrounded.',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       );
     }
 
@@ -5722,7 +5722,7 @@ class TacticalPage extends StatelessWidget {
         label: 'DISPATCH HANDOFF',
         detail:
             'The current tactical focus handed off into the scoped dispatch workspace.',
-        accent: const Color(0xFFDCD4FF),
+        accent: OnyxColorTokens.accentPurple,
       );
     }
 
@@ -5751,16 +5751,16 @@ class TacticalPage extends StatelessWidget {
     final primaryActionColor = switch (activeQueueTab) {
       _VerificationQueueTab.anomalies =>
         activeMarker == null
-            ? const Color(0xFF8FD1FF)
-            : const Color(0xFFFDE68A),
+            ? OnyxColorTokens.accentSky
+            : OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       _VerificationQueueTab.matches =>
         onOpenDispatches == null
-            ? const Color(0xFFFF99A8)
-            : const Color(0xFFDCD4FF),
+            ? OnyxColorTokens.accentRed
+            : OnyxColorTokens.accentPurple,
       _VerificationQueueTab.assets =>
         activeMarker == null
-            ? const Color(0xFF8FD1FF)
-            : const Color(0xFFFDE68A),
+            ? OnyxColorTokens.accentSky
+            : OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
     };
     final VoidCallback primaryAction = switch (activeQueueTab) {
       _VerificationQueueTab.anomalies =>
@@ -5782,9 +5782,9 @@ class TacticalPage extends StatelessWidget {
         ? _VerificationQueueTab.matches
         : _VerificationQueueTab.assets;
     final comparisonPrimaryColor = switch (comparisonPrimaryTab) {
-      _VerificationQueueTab.anomalies => const Color(0xFFFF99A8),
-      _VerificationQueueTab.matches => const Color(0xFF8FD1FF),
-      _VerificationQueueTab.assets => const Color(0xFFA7F3D0),
+      _VerificationQueueTab.anomalies => OnyxColorTokens.accentRed,
+      _VerificationQueueTab.matches => OnyxColorTokens.accentSky,
+      _VerificationQueueTab.assets => OnyxColorTokens.accentGreen,
     };
     final comparisonPrimaryLabel = switch (comparisonPrimaryTab) {
       _VerificationQueueTab.anomalies => 'Review anomaly lane',
@@ -5812,9 +5812,9 @@ class TacticalPage extends StatelessWidget {
         color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _tacticalBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x120F172A),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07),
             blurRadius: 20,
             offset: Offset(0, 10),
           ),
@@ -5965,15 +5965,15 @@ class TacticalPage extends StatelessWidget {
                     _topChip(
                       'Signals',
                       '${telemetry.totalSignals}',
-                      const Color(0xFF9AB1CF),
+                      OnyxColorTokens.textMuted,
                     ),
                     if (activeMarker?.battery != null)
                       _topChip(
                         'Battery',
                         '${activeMarker!.battery}%',
                         activeMarker.battery! < 20
-                            ? const Color(0xFFFACC15)
-                            : const Color(0xFFA7F3D0),
+                            ? OnyxColorTokens.accentAmber
+                            : OnyxColorTokens.accentGreen,
                       ),
                   ],
                 ),
@@ -5988,9 +5988,9 @@ class TacticalPage extends StatelessWidget {
                           'tactical-verification-focus-center-track',
                         ),
                         label: 'Center track',
-                        foreground: const Color(0xFFFDE68A),
-                        background: const Color(0x14FDE68A),
-                        border: const Color(0x66FDE68A),
+                        foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                         onTap: centerTrackWithFeedback,
                       ),
                     _tacticalWorkspaceActionChip(
@@ -5998,9 +5998,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-verification-focus-queue-anomalies',
                       ),
                       label: 'Anomalies',
-                      foreground: const Color(0xFFFF99A8),
-                      background: const Color(0x14FF99A8),
-                      border: const Color(0x66FF99A8),
+                      foreground: OnyxColorTokens.accentRed,
+                      background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                       onTap: () => openQueueWithFeedback(
                         _VerificationQueueTab.anomalies,
                       ),
@@ -6010,9 +6010,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-verification-focus-queue-matches',
                       ),
                       label: 'Matches',
-                      foreground: const Color(0xFF8FD1FF),
-                      background: const Color(0x148FD1FF),
-                      border: const Color(0x668FD1FF),
+                      foreground: OnyxColorTokens.accentSky,
+                      background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.matches),
                     ),
@@ -6021,9 +6021,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-verification-focus-queue-assets',
                       ),
                       label: 'Assets',
-                      foreground: const Color(0xFFA7F3D0),
-                      background: const Color(0x14A7F3D0),
-                      border: const Color(0x66A7F3D0),
+                      foreground: OnyxColorTokens.accentGreen,
+                      background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.assets),
                     ),
@@ -6033,9 +6033,9 @@ class TacticalPage extends StatelessWidget {
                           'tactical-verification-focus-open-dispatches',
                         ),
                         label: 'OPEN DISPATCH BOARD',
-                        foreground: const Color(0xFFDCD4FF),
-                        background: const Color(0x147C3AED),
-                        border: const Color(0x667C3AED),
+                        foreground: OnyxColorTokens.accentPurple,
+                        background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                         onTap: openDispatchesWithFeedback,
                       ),
                   ],
@@ -6066,7 +6066,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             'LENS COMPARISON BOARD',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF8FD1FF),
+                              color: OnyxColorTokens.accentSky,
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
@@ -6143,15 +6143,15 @@ class TacticalPage extends StatelessWidget {
                     _topChip(
                       'Baseline',
                       normMode.toUpperCase(),
-                      const Color(0xFF8EA4C2),
+                      OnyxColorTokens.textMuted,
                     ),
-                    _topChip('Live', timestamp, const Color(0xFFEF4444)),
+                    _topChip('Live', timestamp, OnyxColorTokens.accentRed),
                     _topChip(
                       'Drift',
                       comparisonDriftLabel,
                       _anomalies.isEmpty
-                          ? const Color(0xFFA7F3D0)
-                          : const Color(0xFFFF99A8),
+                          ? OnyxColorTokens.accentGreen
+                          : OnyxColorTokens.accentRed,
                     ),
                     _topChip(
                       'Queue',
@@ -6166,12 +6166,12 @@ class TacticalPage extends StatelessWidget {
                     final stacked = constraints.maxWidth < 420;
                     final normFrame = _lensFrame(
                       label: 'NORM (${normMode.toUpperCase()})',
-                      accent: const Color(0xFF8EA4C2),
+                      accent: OnyxColorTokens.textMuted,
                       anomalies: const [],
                     );
                     final liveFrame = _lensFrame(
                       label: 'LIVE • $timestamp',
-                      accent: const Color(0xFFEF4444),
+                      accent: OnyxColorTokens.accentRed,
                       anomalies: _anomalies,
                     );
                     if (stacked) {
@@ -6202,9 +6202,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-lens-comparison-review-anomalies',
                       ),
                       label: 'Review anomalies',
-                      foreground: const Color(0xFFFF99A8),
-                      background: const Color(0x14FF99A8),
-                      border: const Color(0x66FF99A8),
+                      foreground: OnyxColorTokens.accentRed,
+                      background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                       onTap: () => openQueueWithFeedback(
                         _VerificationQueueTab.anomalies,
                       ),
@@ -6214,9 +6214,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-lens-comparison-review-matches',
                       ),
                       label: 'Review matches',
-                      foreground: const Color(0xFF8FD1FF),
-                      background: const Color(0x148FD1FF),
-                      border: const Color(0x668FD1FF),
+                      foreground: OnyxColorTokens.accentSky,
+                      background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.matches),
                     ),
@@ -6225,9 +6225,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-lens-comparison-review-assets',
                       ),
                       label: 'Review assets',
-                      foreground: const Color(0xFFA7F3D0),
-                      background: const Color(0x14A7F3D0),
-                      border: const Color(0x66A7F3D0),
+                      foreground: OnyxColorTokens.accentGreen,
+                      background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.assets),
                     ),
@@ -6237,9 +6237,9 @@ class TacticalPage extends StatelessWidget {
                           'tactical-lens-comparison-center-track',
                         ),
                         label: 'Center track',
-                        foreground: const Color(0xFFFDE68A),
-                        background: const Color(0x14FDE68A),
-                        border: const Color(0x66FDE68A),
+                        foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                         onTap: centerTrackWithFeedback,
                       ),
                     if (onOpenDispatches != null)
@@ -6248,9 +6248,9 @@ class TacticalPage extends StatelessWidget {
                           'tactical-lens-comparison-open-dispatches',
                         ),
                         label: 'OPEN DISPATCH BOARD',
-                        foreground: const Color(0xFFDCD4FF),
-                        background: const Color(0x147C3AED),
-                        border: const Color(0x667C3AED),
+                        foreground: OnyxColorTokens.accentPurple,
+                        background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                         onTap: openDispatchesWithFeedback,
                       ),
                   ],
@@ -6276,37 +6276,37 @@ class TacticalPage extends StatelessWidget {
               _topChip(
                 'FR Matches',
                 '${telemetry.frMatches}',
-                const Color(0xFF8FD1FF),
+                OnyxColorTokens.accentSky,
               ),
               _topChip(
                 'Signals',
                 '${telemetry.totalSignals}',
-                const Color(0xFF9AB1CF),
+                OnyxColorTokens.textMuted,
               ),
               _topChip(
                 'LPR Hits',
                 '${telemetry.lprHits}',
-                const Color(0xFF86EFAC),
+                OnyxColorTokens.accentGreen,
               ),
               _topChip(
                 'Anomalies',
                 '${telemetry.anomalies}',
-                const Color(0xFFFF99A8),
+                OnyxColorTokens.accentRed,
               ),
               _topChip(
                 'Snapshots',
                 '${telemetry.snapshotsReady}',
-                const Color(0xFF93C5FD),
+                OnyxColorTokens.accentSky.withValues(alpha: 0.75),
               ),
               _topChip(
                 'Clips',
                 '${telemetry.clipsReady}',
-                const Color(0xFFA7F3D0),
+                OnyxColorTokens.accentGreen,
               ),
               _topChip(
                 'Trend',
                 telemetry.anomalyTrend,
-                const Color(0xFFFACC15),
+                OnyxColorTokens.accentAmber,
               ),
             ],
           ),
@@ -6426,7 +6426,7 @@ class TacticalPage extends StatelessWidget {
                     _topChip(
                       'Filter',
                       _mapFilterLabel(activeFilter),
-                      const Color(0xFF8EA4C2),
+                      OnyxColorTokens.textMuted,
                     ),
                     _topChip('Ready', '$queueCount', queueAccent),
                     _topChip(
@@ -6510,9 +6510,9 @@ class TacticalPage extends StatelessWidget {
                           'tactical-verification-queue-center-track',
                         ),
                         label: 'Center track',
-                        foreground: const Color(0xFFFDE68A),
-                        background: const Color(0x14FDE68A),
-                        border: const Color(0x66FDE68A),
+                        foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                         onTap: centerTrackWithFeedback,
                       ),
                     _tacticalWorkspaceActionChip(
@@ -6520,9 +6520,9 @@ class TacticalPage extends StatelessWidget {
                         'tactical-verification-queue-anomalies',
                       ),
                       label: 'Anomalies',
-                      foreground: const Color(0xFFFF99A8),
-                      background: const Color(0x14FF99A8),
-                      border: const Color(0x66FF99A8),
+                      foreground: OnyxColorTokens.accentRed,
+                      background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                       onTap: () => openQueueWithFeedback(
                         _VerificationQueueTab.anomalies,
                       ),
@@ -6532,18 +6532,18 @@ class TacticalPage extends StatelessWidget {
                         'tactical-verification-queue-matches',
                       ),
                       label: 'Matches',
-                      foreground: const Color(0xFF8FD1FF),
-                      background: const Color(0x148FD1FF),
-                      border: const Color(0x668FD1FF),
+                      foreground: OnyxColorTokens.accentSky,
+                      background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.matches),
                     ),
                     _tacticalWorkspaceActionChip(
                       key: const ValueKey('tactical-verification-queue-assets'),
                       label: 'Assets',
-                      foreground: const Color(0xFFA7F3D0),
-                      background: const Color(0x14A7F3D0),
-                      border: const Color(0x66A7F3D0),
+                      foreground: OnyxColorTokens.accentGreen,
+                      background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.assets),
                     ),
@@ -6553,9 +6553,9 @@ class TacticalPage extends StatelessWidget {
                           'tactical-verification-queue-open-dispatches',
                         ),
                         label: 'OPEN DISPATCH BOARD',
-                        foreground: const Color(0xFFDCD4FF),
-                        background: const Color(0x147C3AED),
-                        border: const Color(0x667C3AED),
+                        foreground: OnyxColorTokens.accentPurple,
+                        background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                         onTap: openDispatchesWithFeedback,
                       ),
                   ],
@@ -6595,7 +6595,7 @@ class TacticalPage extends StatelessWidget {
                       label: 'No anomaly overlays',
                       detail:
                           'The active ${_mapFilterLabel(activeFilter).toLowerCase()} filter has no flagged overlays.',
-                      accent: const Color(0xFF8EA4C2),
+                      accent: OnyxColorTokens.textMuted,
                     ),
                   for (final anomaly in _anomalies) ...[
                     _anomaly(anomaly.description, anomaly.confidence),
@@ -6606,14 +6606,14 @@ class TacticalPage extends StatelessWidget {
                     label: 'FR watchlist matches',
                     detail:
                         '${telemetry.frMatches} match${telemetry.frMatches == 1 ? '' : 'es'} in the current 6h window.',
-                    accent: const Color(0xFF8FD1FF),
+                    accent: OnyxColorTokens.accentSky,
                   ),
                   const SizedBox(height: 6),
                   _verificationQueueRow(
                     label: 'LPR recognition hits',
                     detail:
                         '${telemetry.lprHits} plate hit${telemetry.lprHits == 1 ? '' : 's'} staged for controller review.',
-                    accent: const Color(0xFF86EFAC),
+                    accent: OnyxColorTokens.accentGreen,
                   ),
                   const SizedBox(height: 6),
                   _verificationQueueRow(
@@ -6627,14 +6627,14 @@ class TacticalPage extends StatelessWidget {
                     label: 'Snapshots ready',
                     detail:
                         '${telemetry.snapshotsReady} still image${telemetry.snapshotsReady == 1 ? '' : 's'} ready for export.',
-                    accent: const Color(0xFF93C5FD),
+                    accent: OnyxColorTokens.accentSky.withValues(alpha: 0.75),
                   ),
                   const SizedBox(height: 6),
                   _verificationQueueRow(
                     label: 'Clips ready',
                     detail:
                         '${telemetry.clipsReady} clip${telemetry.clipsReady == 1 ? '' : 's'} ready for operator playback.',
-                    accent: const Color(0xFFA7F3D0),
+                    accent: OnyxColorTokens.accentGreen,
                   ),
                   const SizedBox(height: 6),
                   _verificationQueueRow(
@@ -6642,7 +6642,7 @@ class TacticalPage extends StatelessWidget {
                     detail: activeMarker == null
                         ? '${_mapFilterLabel(activeFilter)} filter is active with no selected track.'
                         : '${activeMarker.label} is centered in the current ${_mapFilterLabel(activeFilter).toLowerCase()} review queue.',
-                    accent: const Color(0xFFFACC15),
+                    accent: OnyxColorTokens.accentAmber,
                   ),
                 ],
               ],
@@ -6772,7 +6772,7 @@ class TacticalPage extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected
                 ? color.withValues(alpha: 0.18)
-                : const Color(0xCC0A0D14),
+                : OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.80),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: selected
@@ -6795,7 +6795,7 @@ class TacticalPage extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: OnyxColorTokens.surfaceInset,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -6810,7 +6810,7 @@ class TacticalPage extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9AB1CF),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -6822,8 +6822,8 @@ class TacticalPage extends StatelessWidget {
                   'Battery ${marker.battery}%',
                   style: GoogleFonts.inter(
                     color: batteryLow
-                        ? const Color(0xFFFACC15)
-                        : const Color(0xFF9AB1CF),
+                        ? OnyxColorTokens.accentAmber
+                        : OnyxColorTokens.textMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -6840,14 +6840,14 @@ class TacticalPage extends StatelessWidget {
     required _SafetyGeofence fence,
   }) {
     final color = switch (fence.status) {
-      _FenceStatus.safe => const Color(0x8022D3EE),
-      _FenceStatus.breach => const Color(0xCCEF4444),
-      _FenceStatus.stationary => const Color(0xCCF59E0B),
+      _FenceStatus.safe => OnyxColorTokens.accentCyan.withValues(alpha: 0.50),
+      _FenceStatus.breach => OnyxColorTokens.accentRed.withValues(alpha: 0.80),
+      _FenceStatus.stationary => OnyxColorTokens.accentAmber.withValues(alpha: 0.80),
     };
     final fill = switch (fence.status) {
-      _FenceStatus.safe => const Color(0x1422D3EE),
-      _FenceStatus.breach => const Color(0x22EF4444),
-      _FenceStatus.stationary => const Color(0x22F59E0B),
+      _FenceStatus.safe => OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+      _FenceStatus.breach => OnyxColorTokens.accentRed.withValues(alpha: 0.13),
+      _FenceStatus.stationary => OnyxColorTokens.accentAmber.withValues(alpha: 0.13),
     };
     return Marker(
       point: fence.point,
@@ -6888,9 +6888,9 @@ class TacticalPage extends StatelessWidget {
       height: 132,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x22FFFFFF)),
+        border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.13)),
         gradient: const LinearGradient(
-          colors: [Color(0xFF101C2C), Color(0xFF0C1220)],
+          colors: [OnyxColorTokens.backgroundPrimary, OnyxColorTokens.backgroundPrimary],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -6910,13 +6910,13 @@ class TacticalPage extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xCC000000),
+                    color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.80),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     label,
                     style: GoogleFonts.inter(
-                      color: const Color(0xCCFFFFFF),
+                      color: OnyxColorTokens.textPrimary.withValues(alpha: 0.80),
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
                     ),
@@ -6931,10 +6931,10 @@ class TacticalPage extends StatelessWidget {
                     width: anomaly.w * width,
                     height: anomaly.h * height,
                     decoration: BoxDecoration(
-                      color: const Color(0x22EF4444),
+                      color: OnyxColorTokens.accentRed.withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                        color: const Color(0xCCEF4444),
+                        color: OnyxColorTokens.accentRed.withValues(alpha: 0.80),
                         width: 1.2,
                       ),
                     ),
@@ -6964,9 +6964,9 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0x22EF4444),
+        color: OnyxColorTokens.accentRed.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x55EF4444)),
+        border: Border.all(color: OnyxColorTokens.accentRed.withValues(alpha: 0.33)),
       ),
       child: Row(
         children: [
@@ -6974,7 +6974,7 @@ class TacticalPage extends StatelessWidget {
             child: Text(
               label,
               style: GoogleFonts.inter(
-                color: const Color(0xFFFFB4BD),
+                color: OnyxColorTokens.accentRed,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -6983,7 +6983,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             '$confidence%',
             style: GoogleFonts.robotoMono(
-              color: const Color(0xFFEF4444),
+              color: OnyxColorTokens.accentRed,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -7010,9 +7010,9 @@ class TacticalPage extends StatelessWidget {
     required ValueChanged<_VerificationQueueTab> onTap,
   }) {
     final accent = switch (tab) {
-      _VerificationQueueTab.anomalies => const Color(0xFFFF99A8),
-      _VerificationQueueTab.matches => const Color(0xFF8FD1FF),
-      _VerificationQueueTab.assets => const Color(0xFFA7F3D0),
+      _VerificationQueueTab.anomalies => OnyxColorTokens.accentRed,
+      _VerificationQueueTab.matches => OnyxColorTokens.accentSky,
+      _VerificationQueueTab.assets => OnyxColorTokens.accentGreen,
     };
     return InkWell(
       key: ValueKey<String>('tactical-verification-tab-${tab.name}'),
@@ -7218,13 +7218,13 @@ class TacticalPage extends StatelessWidget {
                       label: 'TEMPORARY ID',
                       detail:
                           'The approval expiry stays pinned in the verification rail while the watch-action focus remains in place.',
-                      accent: const Color(0xFFFCA5A5),
+                      accent: OnyxColorTokens.accentRed,
                     );
                   },
                   child: Text(
                     'Expire now',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFB95D5D),
+                      color: OnyxColorTokens.accentRed,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -7330,11 +7330,11 @@ class TacticalPage extends StatelessWidget {
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFFFF1F1),
-                foregroundColor: const Color(0xFFB42318),
+                backgroundColor: OnyxColorTokens.surfaceInset,
+                foregroundColor: OnyxColorTokens.accentRed,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Color(0xFFE8B6B6)),
+                  side: BorderSide(color: OnyxColorTokens.accentRed.withValues(alpha: 0.6)),
                 ),
               ),
               child: Text(
@@ -7372,7 +7372,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF425D78),
+              color: OnyxColorTokens.textMuted,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -7383,12 +7383,12 @@ class TacticalPage extends StatelessWidget {
   }
 
   Color _markerColor(_MarkerType type, _MarkerStatus status) {
-    if (status == _MarkerStatus.sos) return const Color(0xFFEF4444);
+    if (status == _MarkerStatus.sos) return OnyxColorTokens.accentRed;
     return switch (type) {
-      _MarkerType.guard => const Color(0xFF3B82F6),
-      _MarkerType.vehicle => const Color(0xFF10B981),
-      _MarkerType.incident => const Color(0xFFEF4444),
-      _MarkerType.site => const Color(0xFF8EA4C2),
+      _MarkerType.guard => OnyxColorTokens.accentSky,
+      _MarkerType.vehicle => OnyxColorTokens.accentGreen,
+      _MarkerType.incident => OnyxColorTokens.accentRed,
+      _MarkerType.site => OnyxColorTokens.textMuted,
     };
   }
 
@@ -7420,16 +7420,16 @@ class _MapControlChip extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? const Color(0x1A22D3EE) : _tacticalAltSurfaceColor,
+          color: active ? OnyxColorTokens.accentCyan.withValues(alpha: 0.10) : _tacticalAltSurfaceColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: active ? const Color(0x8822D3EE) : _tacticalBorderColor,
+            color: active ? OnyxColorTokens.accentCyan.withValues(alpha: 0.53) : _tacticalBorderColor,
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: active ? const Color(0xFF0F6782) : _tacticalBodyColor,
+            color: active ? OnyxColorTokens.accentCyan : _tacticalBodyColor,
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
