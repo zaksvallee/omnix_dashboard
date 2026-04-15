@@ -820,14 +820,14 @@ class _AlarmsPageState extends State<AlarmsPage> {
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: OnyxColorTokens.textPrimary,
                         ),
                       )
                     : const Icon(Icons.warning_amber_rounded, size: 16),
                 label: const Text('DISPATCH NOW'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: OnyxDesignTokens.redCritical,
-                  foregroundColor: Colors.white,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   disabledBackgroundColor:
                       OnyxColorTokens.redSurface,
                   disabledForegroundColor: OnyxDesignTokens.textMuted,
