@@ -3062,6 +3062,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ledger: ledger,
     );
 
+    // Compact mode — used only in legacy workspace shell (unused_element).
     if (compact) {
       return Container(
         key: const ValueKey('live-operations-command-center-hero'),
@@ -3076,22 +3077,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
     }
 
-    final decisionItems = _commandDecisionItems(
-      activeIncident: activeIncident,
-      clientCommsSnapshot: clientCommsSnapshot,
-      controlInboxSnapshot: controlInboxSnapshot,
-      ledger: ledger,
-    );
-
+    // ── Data ──────────────────────────────────────────────────────────────
     final now = DateTime.now();
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} SAST';
-    final siteSet = _incidents
-        .map((i) => i.site)
-        .where((s) => s.isNotEmpty)
-        .toSet();
-    final hasScopeHint = (widget.initialScopeSiteId ?? '').trim().isNotEmpty;
-    final siteCount = siteSet.isEmpty ? (hasScopeHint ? 1 : 0) : siteSet.length;
     final unresolvedCount = _incidents
         .where((i) => i.status != _IncidentStatus.resolved)
         .length;
@@ -3099,11 +3088,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final guardAlert = widget.guardRosterSignalNeedsAttention &&
         (widget.guardRosterSignalHeadline ?? '').trim().isNotEmpty;
     final allNominal = unresolvedCount == 0;
-    final sealedCount = ledger.where((e) => e.verified).length;
-    final recentActivity = ledger.take(6).toList();
+    final scopeSiteId = (widget.initialScopeSiteId ?? '').trim();
+    final siteSet = _incidents
+        .map((i) => i.site)
+        .where((s) => s.isNotEmpty)
+        .toSet();
+    final rawSiteName = scopeSiteId.isNotEmpty
+        ? scopeSiteId
+        : siteSet.isNotEmpty
+        ? siteSet.first
+        : 'MS-VALLEE-RESIDENCE';
+    final siteName = _humaniseSiteId(rawSiteName);
 
-    // ── Local helpers ──────────────────────────────────────────────────────
-    Widget statusPill(String label, Color color) => Container(
+    // ── Status pill ───────────────────────────────────────────────────────
+    Widget heroPill(String label, Color color) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.08),
@@ -3134,7 +3132,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ),
         );
 
-    Widget statCard(_CommandCenterModule m) {
+    // ── Large stat card ───────────────────────────────────────────────────
+    Widget heroStatCard(_CommandCenterModule m, {EdgeInsets? margin}) {
       final isTextVal = m.label == 'RISK INTEL';
       final displayVal = isTextVal
           ? m.metricLabel.replaceFirst('THREAT LEVEL: ', '')
@@ -3142,53 +3141,96 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       final valColor = m.accent == OnyxDesignTokens.textMuted
           ? _commandTitleColor
           : m.accent;
-      return GestureDetector(
-        onTap: m.onTap != null ? () => m.onTap!() : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: OnyxColorTokens.backgroundSecondary,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: OnyxColorTokens.divider),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: m.accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(5),
+      // Determine alerting: any accent that isn't nominal green, teal, or muted.
+      final isAlerting = m.accent != OnyxDesignTokens.textMuted &&
+          m.accent != OnyxDesignTokens.greenNominal &&
+          m.accent != OnyxDesignTokens.accentTeal;
+      final cardBg = isAlerting
+          ? Color.alphaBlend(
+              m.accent.withValues(alpha: 0.04),
+              OnyxColorTokens.backgroundSecondary,
+            )
+          : OnyxColorTokens.backgroundSecondary;
+      final borderColor = isAlerting
+          ? m.accent.withValues(alpha: 0.20)
+          : OnyxColorTokens.divider;
+      // Footer label: title-case each word of the module label.
+      final footerLabel = m.label
+          .split(' ')
+          .map(
+            (p) => p.isEmpty
+                ? ''
+                : '${p[0].toUpperCase()}${p.substring(1).toLowerCase()}',
+          )
+          .join(' ');
+
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: m.onTap != null ? () => m.onTap!() : null,
+          child: Container(
+            height: 160,
+            margin: margin,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: OnyxRadiusTokens.radiusMd,
+              border: Border.all(color: borderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Icon box + status dot
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: m.accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(m.icon, size: 22, color: m.accent),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(top: 4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: m.accent,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Icon(m.icon, size: 11, color: m.accent),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Column(
+                // Metric value + label
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       displayVal,
                       style: GoogleFonts.inter(
-                        fontSize: isTextVal ? 14 : 18,
+                        fontSize: OnyxTypographyTokens.metricSm,
                         fontWeight: FontWeight.w700,
                         color: valColor,
-                        letterSpacing: -0.4,
+                        letterSpacing: -0.5,
                         height: 1,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       m.label,
                       style: GoogleFonts.inter(
-                        fontSize: 9,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _commandMutedColor,
-                        letterSpacing: 0.4,
+                        letterSpacing: 0.6,
                         height: 1,
                       ),
                       maxLines: 1,
@@ -3196,179 +3238,27 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    Widget activityRow(_LedgerEntry entry) {
-      final t =
-          '${entry.timestamp.hour.toString().padLeft(2, '0')}:${entry.timestamp.minute.toString().padLeft(2, '0')}';
-      final (badge, col) = switch (entry.type) {
-        _LedgerType.aiAction => ('AI', OnyxDesignTokens.accentPurple),
-        _LedgerType.humanOverride =>
-          ('NOTE', OnyxDesignTokens.textSecondary),
-        _LedgerType.systemEvent => ('SYS', OnyxDesignTokens.cyanInfo),
-        _LedgerType.escalation => ('DVR', OnyxDesignTokens.amberWarning),
-      };
-      return Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 40,
+                // Footer: page name + arrow (right-aligned)
+                Align(
+                  alignment: Alignment.centerRight,
                   child: Text(
-                    t,
+                    '$footerLabel →',
                     style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: _commandMutedColor,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: col.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    badge,
-                    style: GoogleFonts.inter(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: col,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _humaniseSiteIdsInText(entry.description),
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                       color: _commandBodyColor,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
           ),
-          Container(height: 1, color: OnyxColorTokens.divider),
-        ],
+        ),
       );
     }
 
-
-    // ── Activity + ledger section ──────────────────────────────────────────
-    final activitySection = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'ACTIVITY FEED',
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: _commandMutedColor,
-            letterSpacing: 0.7,
-          ),
-        ),
-        const SizedBox(height: 4),
-        if (recentActivity.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No recent activity',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: _commandMutedColor,
-              ),
-            ),
-          )
-        else
-          ...recentActivity.map(activityRow),
-        const SizedBox(height: 16),
-        // Ledger sub-section
-        Row(
-          children: [
-            Text(
-              'LEDGER',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: _commandMutedColor,
-                letterSpacing: 0.7,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '$sealedCount/${ledger.length} sealed',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: _commandMutedColor,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: OnyxDesignTokens.greenSpec.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(
-                  color: OnyxDesignTokens.greenSpec.withValues(alpha: 0.15),
-                ),
-              ),
-              child: Text(
-                'Chain intact',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: OnyxDesignTokens.greenSpec,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ...ledger.take(3).map(activityRow),
-        const SizedBox(height: 6),
-        OutlinedButton(
-          onPressed: null,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _commandBodyColor,
-            side: BorderSide(color: _commandBorderColor),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 5,
-            ),
-            textStyle: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(5),
-            ),
-          ),
-          child: const Text('Verify chain'),
-        ),
-      ],
-    );
-
-    // ── Priority queue section ─────────────────────────────────────────────
-    final queueSection = _commandDecisionQueuePanel(
-      items: decisionItems,
-      streamlined: true,
-    );
+    final row1 = modules.sublist(0, 3);
+    final row2 = modules.sublist(3, 6);
 
     return SizedBox(
       key: const ValueKey('live-operations-command-center-hero'),
@@ -3376,144 +3266,87 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Top bar ────────────────────────────────────────────────────
-          Row(
-            children: [
-              Text(
-                'Command center',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: _commandTitleColor,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const Spacer(),
-              Row(
-                children: [
-                  if (siteCount > 0)
-                    Text(
-                      '$siteCount ${siteCount == 1 ? "site" : "sites"} · ',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: _commandMutedColor,
-                      ),
-                    ),
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: OnyxDesignTokens.greenSpec,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Live · $timeStr',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: _commandMutedColor,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // ── Status strip ───────────────────────────────────────────────
+          // ── Status pills ──────────────────────────────────────────────
           Wrap(
             spacing: 8,
             runSpacing: 6,
             children: [
-              statusPill(
+              heroPill(
                 allNominal
                     ? 'All sites nominal'
-                    : '$unresolvedCount active alarm${unresolvedCount == 1 ? '' : 's'}',
+                    : '$unresolvedCount ${unresolvedCount == 1 ? 'site' : 'sites'} at risk',
                 allNominal
                     ? OnyxDesignTokens.greenSpec
                     : OnyxDesignTokens.redCritical,
               ),
-              statusPill(
+              heroPill(
                 guardAlert
                     ? (widget.guardRosterSignalLabel ?? 'Guard alert')
                     : guardCount > 0
                         ? '$guardCount guard${guardCount == 1 ? '' : 's'} on duty'
                         : 'No guards on duty',
-                guardAlert
+                guardAlert || guardCount == 0
                     ? OnyxDesignTokens.amberWarning
-                    : guardCount > 0
-                        ? OnyxDesignTokens.greenSpec
-                        : OnyxDesignTokens.amberWarning,
+                    : OnyxDesignTokens.greenSpec,
               ),
-              statusPill('DVR online', OnyxDesignTokens.greenSpec),
+              heroPill('DVR online', OnyxDesignTokens.greenSpec),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // ── Site name row ─────────────────────────────────────────────
+          Row(
+            children: [
+              Text(
+                siteName,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _commandTitleColor,
+                ),
+              ),
+              Text(
+                '  ·  Live  ·  $timeStr',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: _commandMutedColor,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // ── Stat cards (6-column) ──────────────────────────────────────
+          // ── Stat card grid — row 1 ────────────────────────────────────
           Row(
-            children: modules.asMap().entries.map((entry) {
+            children: row1.asMap().entries.map((e) {
               return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    right: entry.key < modules.length - 1 ? 10 : 0,
-                  ),
-                  child: statCard(entry.value),
+                child: heroStatCard(
+                  e.value,
+                  margin: EdgeInsets.only(right: e.key < 2 ? 12 : 0),
                 ),
               );
             }).toList(),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
-          // ── Sites ──────────────────────────────────────────────────────
-          Text(
-            'SITES',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _commandMutedColor,
-              letterSpacing: 0.7,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ..._commandSiteRows(
-            unresolvedCount: unresolvedCount,
-            guardCount: guardCount,
-          ),
-          const SizedBox(height: 20),
-
-          // ── Two-column layout: activity feed | priority queue ──────────
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 760;
-              if (!isWide) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    activitySection,
-                    const SizedBox(height: 16),
-                    queueSection,
-                  ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: activitySection),
-                  const SizedBox(width: 16),
-                  SizedBox(width: 360, child: queueSection),
-                ],
+          // ── Stat card grid — row 2 ────────────────────────────────────
+          Row(
+            children: row2.asMap().entries.map((e) {
+              return Expanded(
+                child: heroStatCard(
+                  e.value,
+                  margin: EdgeInsets.only(right: e.key < 2 ? 12 : 0),
+                ),
               );
-            },
+            }).toList(),
           ),
         ],
       ),
     );
   }
 
-  /// Returns site rows for the Command Center sites section.
-  /// Site registry data is static until multi-site provisioning is plumbed.
+  // ignore: unused_element
   List<Widget> _commandSiteRows({
     required int unresolvedCount,
     required int guardCount,
