@@ -611,7 +611,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               Row(
                 children: [
                   Text(
-                    'AI queue',
+                    'AI Queue',
                     style: GoogleFonts.inter(
                       color: OnyxColorTokens.textPrimary,
                       fontSize: 16,
@@ -622,18 +622,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: alerts.isNotEmpty
                           ? OnyxColorTokens.amberSurface
-                          : OnyxColorTokens.backgroundSecondary,
-                      borderRadius: BorderRadius.circular(5),
+                          : OnyxColorTokens.greenSurface,
+                      borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: alerts.isNotEmpty
                             ? OnyxColorTokens.amberBorder
-                            : OnyxColorTokens.divider,
+                            : OnyxColorTokens.greenBorder,
                       ),
                     ),
                     child: Row(
@@ -649,30 +647,20 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             shape: BoxShape.circle,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 5),
                         Text(
                           alerts.isNotEmpty
                               ? '${alerts.length} alert${alerts.length == 1 ? '' : 's'}'
-                              : 'No alerts',
+                              : 'All clear',
                           style: GoogleFonts.inter(
                             color: alerts.isNotEmpty
                                 ? OnyxColorTokens.accentAmber
                                 : OnyxColorTokens.accentGreen,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'DVR active',
-                    style: GoogleFonts.inter(
-                      color: OnyxColorTokens.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],

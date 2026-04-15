@@ -331,7 +331,7 @@ class RiskIntelligencePage extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          'Risk intelligence',
+                          'Risk Intelligence',
                           style: GoogleFonts.inter(
                             color: OnyxColorTokens.textPrimary,
                             fontSize: 16,
@@ -342,44 +342,43 @@ class RiskIntelligencePage extends StatelessWidget {
                         const SizedBox(width: 8),
                         Builder(
                           builder: (context) {
-                            final level =
-                                hottestArea?.level.trim().toUpperCase() ?? '';
-                            final Color dot;
-                            final Color surface;
-                            final Color border;
-                            final String label;
-                            switch (level) {
-                              case 'CRITICAL' || 'HIGH':
-                                dot = OnyxColorTokens.accentRed;
-                                surface = OnyxColorTokens.redSurface;
-                                border = OnyxColorTokens.redBorder;
-                                label = 'THREAT: HIGH';
-                              case 'MEDIUM' || 'MED':
-                                dot = OnyxColorTokens.accentAmber;
-                                surface = OnyxColorTokens.amberSurface;
-                                border = OnyxColorTokens.amberBorder;
-                                label = 'THREAT: MED';
-                              case 'LOW':
-                                dot = OnyxColorTokens.accentGreen;
-                                surface = OnyxColorTokens.greenSurface;
-                                border = OnyxColorTokens.greenBorder;
-                                label = 'THREAT: LOW';
-                              default:
-                                dot = OnyxColorTokens.textMuted;
-                                surface =
-                                    OnyxColorTokens.backgroundSecondary;
-                                border = OnyxColorTokens.divider;
-                                label = 'Threat unknown';
-                            }
+                            final level = (hottestArea?.level ?? '')
+                                .trim()
+                                .toUpperCase();
+                            final isHigh =
+                                level == 'CRITICAL' || level == 'HIGH';
+                            final isMed =
+                                level == 'MEDIUM' || level == 'MED';
+                            final dotColor = isHigh
+                                ? OnyxColorTokens.statusCritical
+                                : isMed
+                                    ? OnyxColorTokens.statusWarning
+                                    : OnyxColorTokens.accentGreen;
+                            final surfaceColor = isHigh
+                                ? OnyxColorTokens.redSurface
+                                : isMed
+                                    ? OnyxColorTokens.amberSurface
+                                    : OnyxColorTokens.greenSurface;
+                            final borderColor = isHigh
+                                ? OnyxColorTokens.redBorder
+                                : isMed
+                                    ? OnyxColorTokens.amberBorder
+                                    : OnyxColorTokens.greenBorder;
+                            final label = isHigh
+                                ? 'Threat: High'
+                                : isMed
+                                    ? 'Threat: Med'
+                                    : level == 'LOW'
+                                        ? 'Threat: Low'
+                                        : 'Threat unknown';
                             return Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: surface,
-                                borderRadius: BorderRadius.circular(5),
-                                border: Border.all(color: border),
+                                color: surfaceColor,
+                                borderRadius: BorderRadius.circular(999),
+                                border:
+                                    Border.all(color: borderColor),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -388,18 +387,17 @@ class RiskIntelligencePage extends StatelessWidget {
                                     width: 5,
                                     height: 5,
                                     decoration: BoxDecoration(
-                                      color: dot,
+                                      color: dotColor,
                                       shape: BoxShape.circle,
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(width: 5),
                                   Text(
                                     label,
                                     style: GoogleFonts.inter(
-                                      color: dot,
+                                      color: dotColor,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.2,
                                     ),
                                   ),
                                 ],
@@ -409,8 +407,48 @@ class RiskIntelligencePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     _IntelStatusStrip(areas: areas),
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F4FF),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xFFBED8F2)),
+                      ),
+                      child: Text(
+                        'Command Board',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF2A6F8A),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Risk Intelligence',
+                      style: GoogleFonts.inter(
+                        color: _intelTitleColor,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        height: 0.92,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'AI flags what can hurt tonight and points to the next check.',
+                      style: GoogleFonts.inter(
+                        color: _intelBodyColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     const SizedBox(height: 18),
                     _IntelPriorityPanel(
                       priorityArea: hottestArea,

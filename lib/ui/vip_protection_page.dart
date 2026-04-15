@@ -110,7 +110,7 @@ class VipProtectionPage extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          'VIP protection',
+                          'VIP Protection',
                           style: GoogleFonts.inter(
                             color: OnyxColorTokens.textPrimary,
                             fontSize: 16,
@@ -121,18 +121,16 @@ class VipProtectionPage extends StatelessWidget {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: hasScheduledDetails
                                 ? OnyxColorTokens.cyanSurface
-                                : OnyxColorTokens.backgroundSecondary,
-                            borderRadius: BorderRadius.circular(5),
+                                : OnyxColorTokens.greenSurface,
+                            borderRadius: BorderRadius.circular(999),
                             border: Border.all(
                               color: hasScheduledDetails
                                   ? OnyxColorTokens.cyanBorder
-                                  : OnyxColorTokens.divider,
+                                  : OnyxColorTokens.greenBorder,
                             ),
                           ),
                           child: Row(
@@ -143,23 +141,22 @@ class VipProtectionPage extends StatelessWidget {
                                 height: 5,
                                 decoration: BoxDecoration(
                                   color: hasScheduledDetails
-                                      ? OnyxColorTokens.accentCyan
-                                      : OnyxColorTokens.textMuted,
+                                      ? OnyxColorTokens.accentCyanTrue
+                                      : OnyxColorTokens.accentGreen,
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 5),
                               Text(
                                 hasScheduledDetails
                                     ? '${scheduledDetails.length} active'
                                     : 'No active details',
                                 style: GoogleFonts.inter(
                                   color: hasScheduledDetails
-                                      ? OnyxColorTokens.accentCyan
-                                      : OnyxColorTokens.textMuted,
+                                      ? OnyxColorTokens.accentCyanTrue
+                                      : OnyxColorTokens.accentGreen,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ],
