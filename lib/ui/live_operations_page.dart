@@ -1330,7 +1330,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   DateTime? _lastLedgerVerificationAt;
   _LiveOpsCommandReceipt _commandReceipt = _defaultCommandReceipt;
   bool _desktopWorkspaceActive = false;
-  bool _showDetailedWorkspace = false;
+  String? _sidebarItemKey;
   String _lastPlainLanguageCommand = '';
   OnyxCommandSurfacePreview? _lastPlainLanguagePreview;
   String _rememberedReplayHistorySummary = '';
@@ -2825,9 +2825,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scopeClientId = (widget.initialScopeClientId ?? '').trim();
-    final scopeSiteId = (widget.initialScopeSiteId ?? '').trim();
-    final hasScopeFocus = scopeClientId.isNotEmpty;
     final activeIncident = _activeIncident;
     final clientCommsSnapshot = widget.clientCommsSnapshot;
     final controlInboxSnapshot = widget.controlInboxSnapshot;
@@ -2836,7 +2833,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final handsetLayout = isHandsetLayout(context);
     final viewportSize = MediaQuery.sizeOf(context);
     final viewportWidth = viewportSize.width;
-    final wide = allowEmbeddedPanelScroll(context);
     final showPageTopBar = viewportWidth < 980 || handsetLayout;
     final showCommandReceiptBanner =
         _hasAgentReturnReceipt || _hasAutoAuditReceipt;
@@ -2850,108 +2846,40 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               padding: const EdgeInsets.all(16),
               child: LayoutBuilder(
                 builder: (context, bodyConstraints) {
-                  final canUseEmbeddedDesktopLayout =
-                      _showDetailedWorkspace &&
-                      wide &&
-                      bodyConstraints.maxWidth >= 2200 &&
-                      bodyConstraints.maxHeight >= 1120;
-                  final autoShowDetailedWorkspace = handsetLayout;
-                  final showDetailedWorkspace =
-                      autoShowDetailedWorkspace || _showDetailedWorkspace;
-                  final surfaceMaxWidth = canUseEmbeddedDesktopLayout
-                      ? (bodyConstraints.maxWidth > 1880
-                            ? 1880.0
-                            : bodyConstraints.maxWidth)
-                      : (bodyConstraints.maxWidth > 1460
-                            ? 1460.0
-                            : bodyConstraints.maxWidth);
-                  _desktopWorkspaceActive = canUseEmbeddedDesktopLayout;
+                  final surfaceMaxWidth = bodyConstraints.maxWidth > 1460
+                      ? 1460.0
+                      : bodyConstraints.maxWidth;
+                  _desktopWorkspaceActive = false;
                   return OnyxCommandSurface(
                     compactDesktopWidth: surfaceMaxWidth,
                     viewportWidth: bodyConstraints.maxWidth,
-                    child: canUseEmbeddedDesktopLayout
-                        ? Column(
-                            children: [
-                              _commandWorkspaceToggle(
-                                showDetailedWorkspace: true,
-                                canCollapse: true,
-                              ),
-                              const SizedBox(height: 20),
-                              Expanded(
-                                child: _desktopWorkspaceShell(
-                                  hasScopeFocus: hasScopeFocus,
-                                  scopeClientId: scopeClientId,
-                                  scopeSiteId: scopeSiteId,
-                                  activeIncident: activeIncident,
-                                  clientCommsSnapshot: clientCommsSnapshot,
-                                  controlInboxSnapshot: controlInboxSnapshot,
-                                  ledger: ledger,
-                                ),
-                              ),
-                            ],
-                          )
-                        : SingleChildScrollView(
-                            child: Column(
-                              children: [
-                                if (_criticalAlertIncident != null &&
-                                    showDetailedWorkspace) ...[
-                                  _criticalAlertBanner(_criticalAlertIncident!),
-                                  const SizedBox(height: 20),
-                                ],
-                                _commandCenterHero(
-                                  activeIncident: activeIncident,
-                                  clientCommsSnapshot: clientCommsSnapshot,
-                                  controlInboxSnapshot: controlInboxSnapshot,
-                                  ledger: ledger,
-                                ),
-                                if (showCommandReceiptBanner) ...[
-                                  const SizedBox(height: 20),
-                                  _liveOpsCommandReceiptCard(),
-                                ],
-                                if (!canUseEmbeddedDesktopLayout &&
-                                    !autoShowDetailedWorkspace) ...[
-                                  const SizedBox(height: 20),
-                                  _commandWorkspaceToggle(
-                                    showDetailedWorkspace:
-                                        showDetailedWorkspace,
-                                    canCollapse: !autoShowDetailedWorkspace,
-                                  ),
-                                ],
-                                // Priority queue is now embedded in _commandCenterHero.
-                                if (showDetailedWorkspace) ...[
-                                  const SizedBox(height: 20),
-                                  if (controlInboxSnapshot != null ||
-                                      ledger.isNotEmpty) ...[
-                                    _operationsDecisionDeck(
-                                      controlInboxSnapshot:
-                                          controlInboxSnapshot,
-                                      activeIncident: activeIncident,
-                                      ledger: ledger,
-                                    ),
-                                    const SizedBox(height: 20),
-                                  ],
-                                  if (clientCommsSnapshot != null) ...[
-                                    _clientLaneWatchPanel(
-                                      clientCommsSnapshot,
-                                      activeIncident,
-                                    ),
-                                    const SizedBox(height: 20),
-                                  ],
-                                  _incidentQueuePanel(embeddedScroll: false),
-                                  const SizedBox(height: 20),
-                                  _actionLadderPanel(
-                                    activeIncident,
-                                    embeddedScroll: false,
-                                  ),
-                                  const SizedBox(height: 20),
-                                  _contextAndVigilancePanel(
-                                    activeIncident,
-                                    embeddedScroll: false,
-                                  ),
-                                ],
-                              ],
-                            ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          if (_criticalAlertIncident != null) ...[
+                            _criticalAlertBanner(_criticalAlertIncident!),
+                            const SizedBox(height: 20),
+                          ],
+                          _commandCenterHero(
+                            activeIncident: activeIncident,
+                            clientCommsSnapshot: clientCommsSnapshot,
+                            controlInboxSnapshot: controlInboxSnapshot,
+                            ledger: ledger,
                           ),
+                          if (showCommandReceiptBanner) ...[
+                            const SizedBox(height: 20),
+                            _liveOpsCommandReceiptCard(),
+                          ],
+                          const SizedBox(height: 20),
+                          _commandOverviewDeck(
+                            activeIncident: activeIncident,
+                            clientCommsSnapshot: clientCommsSnapshot,
+                            controlInboxSnapshot: controlInboxSnapshot,
+                            ledger: ledger,
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
@@ -2962,6 +2890,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _desktopWorkspaceShell({
     required bool hasScopeFocus,
     required String scopeClientId,
@@ -3106,51 +3035,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _commandWorkspaceToggle({
-    required bool showDetailedWorkspace,
-    required bool canCollapse,
-  }) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: OutlinedButton.icon(
-        key: const ValueKey('live-operations-toggle-detailed-workspace'),
-        onPressed: () {
-          setState(() {
-            if (showDetailedWorkspace && canCollapse) {
-              _showDetailedWorkspace = false;
-            } else {
-              _showDetailedWorkspace = true;
-            }
-          });
-        },
-        icon: Icon(
-          showDetailedWorkspace && canCollapse
-              ? Icons.visibility_off_rounded
-              : Icons.open_in_new_rounded,
-          size: 15,
-        ),
-        label: Text(
-          showDetailedWorkspace && canCollapse
-              ? 'Hide Detailed Workspace'
-              : 'Open Detailed Workspace',
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: OnyxDesignTokens.cyanInteractive,
-          side: const BorderSide(color: _commandBorderStrongColor),
-          backgroundColor: _commandPanelColor,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          textStyle: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
     );
   }
 
@@ -3891,7 +3775,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }).toList();
   }
 
-  // ignore: unused_element
   Widget _commandOverviewDeck({
     required _IncidentRecord? activeIncident,
     required LiveClientCommsSnapshot? clientCommsSnapshot,
@@ -3910,6 +3793,26 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       controlInboxSnapshot: controlInboxSnapshot,
       ledger: ledger,
     );
+    final sidebarOpen = _sidebarItemKey != null;
+
+    void handleItemSelected(String keyValue) {
+      setState(() {
+        _sidebarItemKey = keyValue;
+        // Focus the matching incident in the sidebar if it's an incident card.
+        final incidentKey = RegExp(r'command-item-incident-(.+)$');
+        final match = incidentKey.firstMatch(keyValue);
+        if (match != null) {
+          final incidentId = match.group(1) ?? '';
+          final matched = _incidents.cast<_IncidentRecord?>().firstWhere(
+            (i) => i?.id == incidentId,
+            orElse: () => null,
+          );
+          if (matched != null) {
+            _activeIncidentId = matched.id;
+          }
+        }
+      });
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -3930,8 +3833,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         final queuePanel = _commandDecisionQueuePanel(
           items: decisionItems,
           streamlined: compactPanels,
+          onItemSelected: handleItemSelected,
         );
-        final memoryPanel = _commandMemoryPanel(ledger);
+        final rightPanel = sidebarOpen
+            ? _incidentContextSidebar(activeIncident)
+            : _commandMemoryPanel(ledger);
 
         if (!wideDeck) {
           return Column(
@@ -3941,7 +3847,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               const SizedBox(height: 8),
               queuePanel,
               const SizedBox(height: 8),
-              memoryPanel,
+              rightPanel,
             ],
           );
         }
@@ -3953,10 +3859,101 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             const SizedBox(width: 8),
             Expanded(flex: 34, child: queuePanel),
             const SizedBox(width: 8),
-            Expanded(flex: 28, child: memoryPanel),
+            Expanded(flex: 28, child: rightPanel),
           ],
         );
       },
+    );
+  }
+
+  Widget _incidentContextSidebar(_IncidentRecord? activeIncident) {
+    return Container(
+      key: const ValueKey('live-operations-incident-context-sidebar'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _commandPanelColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _commandBorderStrongColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Header ───────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+            decoration: BoxDecoration(
+              color: _commandPanelTintColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(15),
+              ),
+              border: Border(
+                bottom: BorderSide(color: _commandBorderColor),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: OnyxDesignTokens.accentPurple.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    Icons.article_outlined,
+                    size: 14,
+                    color: OnyxDesignTokens.accentPurple,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    activeIncident == null
+                        ? 'Incident Context'
+                        : _humaniseSiteId(activeIncident.site),
+                    style: GoogleFonts.inter(
+                      color: _commandTitleColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  key: const ValueKey(
+                    'live-operations-incident-context-sidebar-close',
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _sidebarItemKey = null;
+                    });
+                  },
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  color: _commandMutedColor,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+          // ── Tabs ─────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+            child: _contextTabs(),
+          ),
+          // ── Body ─────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+            child: _contextPanelBody(activeIncident, embeddedScroll: false),
+          ),
+        ],
+      ),
     );
   }
 
@@ -4182,7 +4179,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  // ignore: unused_element
   Widget _commandCurrentFocusPanel({
     required _IncidentRecord? activeIncident,
     required LiveClientCommsSnapshot? clientCommsSnapshot,
@@ -4538,11 +4534,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             onPressed: rosterAttentionFocus
                 ? _openRosterPlannerFromCommand
                 : activeIncident == null
-                ? () {
-                    setState(() {
-                      _showDetailedWorkspace = true;
-                    });
-                  }
+                ? null
                 : () async {
                     if (typedDecision != null) {
                       await _executeTypedCommandDecision(
@@ -4901,7 +4893,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  // ignore: unused_element
   Widget _commandQuickOpenPanel({
     required List<_CommandCenterModule> modules,
     bool compact = false,
@@ -5152,11 +5143,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             return;
           }
           _focusLeadIncident();
-          if (!_showDetailedWorkspace) {
-            setState(() {
-              _showDetailedWorkspace = true;
-            });
-          }
         },
       ),
       _CommandCenterModule(
@@ -5173,11 +5159,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           if (widget.onOpenGuards != null) {
             widget.onOpenGuards!.call();
             return;
-          }
-          if (!_showDetailedWorkspace) {
-            setState(() {
-              _showDetailedWorkspace = true;
-            });
           }
           await Future<void>.delayed(Duration.zero);
           await _ensureContextAndVigilancePanelVisible();
@@ -5202,10 +5183,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             widget.onOpenCctv!.call();
             return;
           }
-          if (_activeTab != _ContextTab.visual || !_showDetailedWorkspace) {
+          if (_activeTab != _ContextTab.visual) {
             setState(() {
               _activeTab = _ContextTab.visual;
-              _showDetailedWorkspace = true;
             });
           }
           await Future<void>.delayed(Duration.zero);
@@ -5274,11 +5254,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           if (clientLaneAction != null) {
             clientLaneAction();
             return;
-          }
-          if (!_showDetailedWorkspace) {
-            setState(() {
-              _showDetailedWorkspace = true;
-            });
           }
           await Future<void>.delayed(Duration.zero);
           await _ensureControlInboxPanelVisible();
@@ -5434,7 +5409,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  // ignore: unused_element
   Widget _commandDecisionMiniChip({
     required String label,
     required int count,
@@ -5492,10 +5466,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  // ignore: unused_element
   Widget _commandDecisionQueuePanel({
     required List<_CommandDecisionItem> items,
     bool streamlined = false,
+    void Function(String keyValue)? onItemSelected,
   }) {
     const maxVisibleItems = 3;
     final visibleItems = items.take(maxVisibleItems).toList(growable: true);
@@ -5589,7 +5563,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Column(
             children: [
               for (var index = 0; index < visibleItems.length; index++) ...[
-                _commandDecisionCard(visibleItems[index], priorityRank: index),
+                _commandDecisionCard(
+                  visibleItems[index],
+                  priorityRank: index,
+                  onSelected: onItemSelected == null
+                      ? null
+                      : () => onItemSelected(visibleItems[index]._keyValue),
+                ),
                 if (index != visibleItems.length - 1) const SizedBox(height: 8),
               ],
               if (hiddenCount > 0) ...[
@@ -5672,10 +5652,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  // ignore: unused_element
   Widget _commandDecisionCard(
     _CommandDecisionItem item, {
     int priorityRank = 999,
+    VoidCallback? onSelected,
   }) {
     final featured = priorityRank == 0;
     final emphasized = priorityRank < 3;
@@ -5905,7 +5885,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
     );
 
-    if (item.onTap == null) {
+    if (item.onTap == null && onSelected == null) {
       return card;
     }
 
@@ -5914,14 +5894,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () async {
-          await item.onTap!.call();
+          onSelected?.call();
+          if (item.onTap != null) {
+            await item.onTap!.call();
+          }
         },
         child: card,
       ),
     );
   }
 
-  // ignore: unused_element
   Widget _commandDecisionActionButton(
     _CommandDecisionAction action, {
     bool emphasized = false,
@@ -5971,7 +5953,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  // ignore: unused_element
   Widget _commandMemoryPanel(List<_LedgerEntry> ledger) {
     final visibleEntries = ledger.take(4).toList(growable: false);
     final verifiedCount = ledger.where((entry) => entry.verified).length;
@@ -6289,7 +6270,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  // ignore: unused_element
   List<_CommandDecisionItem> _commandDecisionItems({
     required _IncidentRecord? activeIncident,
     required LiveClientCommsSnapshot? clientCommsSnapshot,
@@ -6314,7 +6294,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           key: ValueKey('live-operations-command-item-incident-${incident.id}'),
           severity: _CommandDecisionSeverity.critical,
           label: 'Critical',
-          title: '${incident.type} - ${incident.site}',
+          title: '${incident.type} - ${_humaniseSiteId(incident.site)}',
           detail: _commandIncidentDetail(incident, critical: true),
           context: '${incident.timestamp} • ${_statusLabel(incident.status)}',
           icon: Icons.warning_amber_rounded,
@@ -6726,7 +6706,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           severity: _CommandDecisionSeverity.review,
           label: 'Review',
           title:
-              '${visualIncident.latestSceneReviewLabel ?? '${widget.videoOpsLabel} Review'} - ${visualIncident.site}',
+              '${visualIncident.latestSceneReviewLabel ?? '${widget.videoOpsLabel} Review'} - ${_humaniseSiteId(visualIncident.site)}',
           detail:
               (visualIncident.latestSceneReviewSummary ?? '').trim().isNotEmpty
               ? visualIncident.latestSceneReviewSummary!
@@ -6790,7 +6770,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           label: nextIncident.priority == _IncidentPriority.p2High
               ? 'Action Required'
               : 'Review',
-          title: '${nextIncident.type} - ${nextIncident.site}',
+          title: '${nextIncident.type} - ${_humaniseSiteId(nextIncident.site)}',
           detail: _commandIncidentDetail(
             nextIncident,
             critical: nextIncident.priority == _IncidentPriority.p1Critical,
@@ -7942,11 +7922,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     if (widget.onOpenGuards != null) {
       widget.onOpenGuards!.call();
       return;
-    }
-    if (!_showDetailedWorkspace && mounted) {
-      setState(() {
-        _showDetailedWorkspace = true;
-      });
     }
     await Future<void>.delayed(Duration.zero);
     await _ensureContextAndVigilancePanelVisible();
@@ -12085,7 +12060,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'SITE ${incident.site}',
+                                        'SITE ${_humaniseSiteId(incident.site)}',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(
@@ -14033,7 +14008,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             children: [
               _commsChip(
                 icon: Icons.location_on_outlined,
-                label: incident.site,
+                label: _humaniseSiteId(incident.site),
                 accent: const Color(0xFF22D3EE),
               ),
               _commsChip(
@@ -14114,7 +14089,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         final tiles = [
           factTile(
             label: 'SITE',
-            value: incident.site,
+            value: _humaniseSiteId(incident.site),
             accent: const Color(0xFF22D3EE),
             icon: Icons.location_on_outlined,
           ),
@@ -16288,7 +16263,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               _commsChip(
                 icon: Icons.location_on_outlined,
-                label: incident.site,
+                label: _humaniseSiteId(incident.site),
                 accent: const Color(0xFF22D3EE),
               ),
             ],
