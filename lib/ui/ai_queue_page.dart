@@ -828,7 +828,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     icon: const Icon(Icons.fullscreen_rounded, size: 16),
                     label: const Text('View camera'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: OnyxColorTokens.brand,
+                      backgroundColor: OnyxColorTokens.accentPurple,
                       foregroundColor: OnyxColorTokens.textPrimary,
                       minimumSize: const Size(double.infinity, 40),
                       elevation: 0,
@@ -855,10 +855,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: OnyxColorTokens.accentRed,
                       foregroundColor: OnyxColorTokens.textPrimary,
-                      disabledBackgroundColor:
-                          OnyxColorTokens.accentRed.withValues(alpha: 0.35),
-                      disabledForegroundColor:
-                          OnyxColorTokens.textPrimary.withValues(alpha: 0.7),
+                      disabledBackgroundColor: OnyxColorTokens.accentRed
+                          .withValues(alpha: 0.35),
+                      disabledForegroundColor: OnyxColorTokens.textPrimary
+                          .withValues(alpha: 0.7),
                       minimumSize: const Size(double.infinity, 40),
                       elevation: 0,
                       textStyle: GoogleFonts.inter(
@@ -881,10 +881,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       key: const ValueKey('ai-queue-action-open-agent'),
-                      icon: const Icon(
-                        Icons.psychology_alt_rounded,
-                        size: 16,
-                      ),
+                      icon: const Icon(Icons.psychology_alt_rounded, size: 16),
                       label: const Text('Ask agent'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: OnyxColorTokens.accentPurple,
@@ -993,7 +990,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
             childAspectRatio: 16 / 10,
           ),
           itemCount: feeds.length,
-          itemBuilder: (context, index) => _buildCctvFeedTile(feed: feeds[index]),
+          itemBuilder: (context, index) =>
+              _buildCctvFeedTile(feed: feeds[index]),
         ),
       ],
     );
@@ -1004,7 +1002,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final hasAlert = feed.hasAlert;
     final borderColor = hasAlert
         ? OnyxColorTokens.accentAmber
-        : (selected ? OnyxColorTokens.brand : OnyxColorTokens.divider);
+        : (selected ? OnyxColorTokens.accentPurple : OnyxColorTokens.divider);
     final borderWidth = hasAlert ? 1.5 : (selected ? 1.5 : 1.0);
     return InkWell(
       borderRadius: BorderRadius.circular(8),
@@ -1084,8 +1082,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     color: OnyxColorTokens.accentAmber,
                     boxShadow: [
                       BoxShadow(
-                        color: OnyxColorTokens.accentAmber
-                            .withValues(alpha: 0.5),
+                        color: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.5,
+                        ),
                         blurRadius: 6,
                       ),
                     ],
@@ -1119,9 +1118,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );
@@ -1348,7 +1345,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(5.4),
             gradient: const LinearGradient(
-              colors: [OnyxColorTokens.accentPurple, OnyxColorTokens.accentPurple],
+              colors: [
+                OnyxColorTokens.accentPurple,
+                OnyxColorTokens.accentPurple,
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1554,7 +1554,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
         disabledBackgroundColor: OnyxColorTokens.surfaceInset,
-        disabledForegroundColor: OnyxColorTokens.textMuted.withValues(alpha: 0.40),
+        disabledForegroundColor: OnyxColorTokens.textMuted.withValues(
+          alpha: 0.40,
+        ),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
         padding: const EdgeInsets.symmetric(horizontal: 2.9, vertical: 1.7),
         textStyle: GoogleFonts.inter(
@@ -1610,8 +1612,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required bool compactPresentation,
   }) {
     final items = [
-      (label: 'Queued', value: '$queuedCount', accent: OnyxColorTokens.accentCyan),
-      (label: 'Drafts', value: '$draftCount', accent: OnyxColorTokens.accentSky),
+      (
+        label: 'Queued',
+        value: '$queuedCount',
+        accent: OnyxColorTokens.accentCyan,
+      ),
+      (
+        label: 'Drafts',
+        value: '$draftCount',
+        accent: OnyxColorTokens.accentSky,
+      ),
       (
         label: 'Shadow Sites',
         value: '$shadowCount',
@@ -1723,7 +1733,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
       padding: EdgeInsets.all(compactPresentation ? 1.35 : 1.55),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.12), OnyxColorTokens.backgroundSecondary],
+          colors: [
+            accent.withValues(alpha: 0.12),
+            OnyxColorTokens.backgroundSecondary,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1964,13 +1977,20 @@ class _AIQueuePageState extends State<AIQueuePage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4.9),
         gradient: const LinearGradient(
-          colors: [OnyxColorTokens.backgroundSecondary, OnyxColorTokens.surfaceElevated],
+          colors: [
+            OnyxColorTokens.backgroundSecondary,
+            OnyxColorTokens.surfaceElevated,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         border: Border.all(color: OnyxColorTokens.divider),
         boxShadow: [
-          BoxShadow(color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07), blurRadius: 12, spreadRadius: 1),
+          BoxShadow(
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
         ],
       ),
       child: bannerContent,
@@ -2288,7 +2308,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     decoration: BoxDecoration(
                       color: OnyxColorTokens.accentSky.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.25)),
+                      border: Border.all(
+                        color: OnyxColorTokens.accentSky.withValues(
+                          alpha: 0.25,
+                        ),
+                      ),
                     ),
                     child: Text(
                       'FOCUS',
@@ -2813,7 +2837,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: _panelDecoration(border: OnyxColorTokens.accentSky.withValues(alpha: 0.40)),
+      decoration: _panelDecoration(
+        border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3124,7 +3150,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
           spacing: 5,
           runSpacing: 5,
           children: [
-            _miniPolicyTile('Lead Site', site.siteId, OnyxColorTokens.accentSky),
+            _miniPolicyTile(
+              'Lead Site',
+              site.siteId,
+              OnyxColorTokens.accentSky,
+            ),
             _miniPolicyTile(
               'Matches',
               '${site.moShadowMatchCount}',
@@ -3573,9 +3603,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
         : action.timeUntilExecutionSeconds <= 20
         ? OnyxColorTokens.accentAmber
         : OnyxColorTokens.accentCyan;
-    final progress = (action.timeUntilExecutionSeconds /
-            action.initialExecutionSeconds.clamp(1, 1 << 20))
-        .clamp(0.0, 1.0);
+    final progress =
+        (action.timeUntilExecutionSeconds /
+                action.initialExecutionSeconds.clamp(1, 1 << 20))
+            .clamp(0.0, 1.0);
     final paused = action.status == _AiActionStatus.paused;
     final promotionPressureSummary = _promotionPressureSummary(action.metadata);
     final promotionExecutionSummary = _promotionExecutionSummary(
@@ -3591,7 +3622,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(8),
-      decoration: _panelDecoration(border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40), glow: true),
+      decoration: _panelDecoration(
+        border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
+        glow: true,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3862,7 +3896,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
             child: LinearProgressIndicator(
               minHeight: 6,
               value: paused ? 0.0 : progress,
-              backgroundColor: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.40),
+              backgroundColor: OnyxColorTokens.backgroundPrimary.withValues(
+                alpha: 0.40,
+              ),
               valueColor: AlwaysStoppedAnimation<Color>(countdownColor),
             ),
           ),
@@ -4117,7 +4153,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
                   color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
-                  border: Border.all(color: OnyxColorTokens.accentCyan.withValues(alpha: 0.40)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
+                  ),
                 ),
                 child: Text(
                   '${queuedActions.length}',
@@ -4202,7 +4240,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
                       color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
-                      border: Border.all(color: OnyxColorTokens.accentCyan.withValues(alpha: 0.40)),
+                      border: Border.all(
+                        color: OnyxColorTokens.accentCyan.withValues(
+                          alpha: 0.40,
+                        ),
+                      ),
                     ),
                     child: Text(
                       '$index',
@@ -4396,7 +4438,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(7),
-      decoration: _panelDecoration(border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40)),
+      decoration: _panelDecoration(
+        border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4426,7 +4470,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
                   color: OnyxColorTokens.accentPurple.withValues(alpha: 0.13),
-                  border: Border.all(color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
+                  ),
                 ),
                 child: Text(
                   '${drafts.length}',
@@ -4541,7 +4587,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       key: const ValueKey('ai-queue-mo-shadow-card'),
       width: double.infinity,
       padding: const EdgeInsets.all(7),
-      decoration: _panelDecoration(border: OnyxColorTokens.accentSky.withValues(alpha: 0.40)),
+      decoration: _panelDecoration(
+        border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4571,7 +4619,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
                   color: OnyxColorTokens.accentSky.withValues(alpha: 0.13),
-                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.40)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
+                  ),
                 ),
                 child: Text(
                   '${sites.length}',
@@ -4689,7 +4739,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: OnyxColorTokens.textPrimary),
+                        icon: const Icon(
+                          Icons.close,
+                          color: OnyxColorTokens.textPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -4843,7 +4896,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       decoration: BoxDecoration(
         color: OnyxColorTokens.accentPurple.withValues(alpha: 0.20),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40)),
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
+        ),
       ),
       child: Text(
         label.toUpperCase(),
@@ -5073,7 +5128,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       boxShadow: glow
           ? [
               BoxShadow(
-                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.09),
+                color: OnyxColorTokens.backgroundPrimary.withValues(
+                  alpha: 0.09,
+                ),
                 blurRadius: 18,
                 spreadRadius: 1,
                 offset: const Offset(0, 0),
@@ -5081,7 +5138,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ]
           : [
               BoxShadow(
-                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.06),
+                color: OnyxColorTokens.backgroundPrimary.withValues(
+                  alpha: 0.06,
+                ),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -5123,9 +5182,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       .where((action) => !_isNextShiftDraft(action))
       .toList(growable: false);
 
-  List<_AiQueueAction> get _nextShiftDrafts => _actions
-      .where(_isNextShiftDraft)
-      .toList(growable: false);
+  List<_AiQueueAction> get _nextShiftDrafts =>
+      _actions.where(_isNextShiftDraft).toList(growable: false);
 
   List<MonitoringGlobalSitePosture> get _moShadowSites => _cachedMoShadowSites;
 
@@ -5283,7 +5341,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       label: isPaused ? 'PAUSE ENGINE' : 'RESUME ENGINE',
       detail:
           '${toggledAction!.site} stays pinned in the workspace while the queue lane remains available for review.',
-      accent: isPaused ? OnyxColorTokens.accentAmber : OnyxColorTokens.accentCyan,
+      accent: isPaused
+          ? OnyxColorTokens.accentAmber
+          : OnyxColorTokens.accentCyan,
     );
   }
 
@@ -5934,7 +5994,11 @@ class _AiQueueFocusItem {
     }
     return [
       ('Signal', 'mo_shadow', OnyxColorTokens.accentSky),
-      ('Matches', '${shadowSite!.moShadowMatchCount}', OnyxColorTokens.accentCyan),
+      (
+        'Matches',
+        '${shadowSite!.moShadowMatchCount}',
+        OnyxColorTokens.accentCyan,
+      ),
     ];
   }
 

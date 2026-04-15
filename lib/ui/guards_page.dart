@@ -19,7 +19,7 @@ const _titleColor = OnyxColorTokens.textPrimary;
 const _bodyColor = OnyxColorTokens.textSecondary;
 const _mutedColor = OnyxColorTokens.textMuted;
 const _dividerColor = OnyxColorTokens.divider;
-const _brand = OnyxColorTokens.brand;
+const _brand = OnyxColorTokens.accentPurple;
 const _selectedSurface = OnyxColorTokens.cyanSurface;
 const _greenColor = OnyxColorTokens.accentGreen;
 const _amberColor = OnyxColorTokens.accentAmber;
@@ -579,7 +579,8 @@ class _GuardsPageState extends State<GuardsPage> {
         useSetState: true,
       );
     }
-    if (oldWidget.guardSyncRepositoryFuture != widget.guardSyncRepositoryFuture) {
+    if (oldWidget.guardSyncRepositoryFuture !=
+        widget.guardSyncRepositoryFuture) {
       unawaited(_loadLiveGuards());
     }
   }
@@ -720,7 +721,10 @@ class _GuardsPageState extends State<GuardsPage> {
         behavior: SnackBarBehavior.floating,
         content: Text(
           'Export feature coming soon',
-          style: GoogleFonts.inter(color: _titleColor, fontWeight: FontWeight.w600),
+          style: GoogleFonts.inter(
+            color: _titleColor,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -755,10 +759,19 @@ class _GuardsPageState extends State<GuardsPage> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text('WORKFORCE STATUS:', style: _capsLabelStyle()),
-              _statusPill('$onDutyCount on duty', OnyxDesignTokens.greenNominal),
-              _statusPill('$activeShifts active shifts', OnyxDesignTokens.cyanInteractive),
+              _statusPill(
+                '$onDutyCount on duty',
+                OnyxDesignTokens.greenNominal,
+              ),
+              _statusPill(
+                '$activeShifts active shifts',
+                OnyxDesignTokens.cyanInteractive,
+              ),
               if (syncIssues > 0)
-                _statusPill('$syncIssues sync issues', OnyxDesignTokens.amberWarning),
+                _statusPill(
+                  '$syncIssues sync issues',
+                  OnyxDesignTokens.amberWarning,
+                ),
             ],
           );
           final filterGroup = Wrap(
@@ -862,9 +875,21 @@ class _GuardsPageState extends State<GuardsPage> {
       ),
       child: Row(
         children: [
-          _guardTab('Active guards', Icons.people_alt_rounded, _GuardsView.active),
-          _guardTab('Shift roster', Icons.calendar_month_rounded, _GuardsView.roster),
-          _guardTab('Shift history', Icons.history_rounded, _GuardsView.history),
+          _guardTab(
+            'Active guards',
+            Icons.people_alt_rounded,
+            _GuardsView.active,
+          ),
+          _guardTab(
+            'Shift roster',
+            Icons.calendar_month_rounded,
+            _GuardsView.roster,
+          ),
+          _guardTab(
+            'Shift history',
+            Icons.history_rounded,
+            _GuardsView.history,
+          ),
         ],
       ),
     );
@@ -895,11 +920,7 @@ class _GuardsPageState extends State<GuardsPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: selected ? _titleColor : _mutedColor,
-            ),
+            Icon(icon, size: 16, color: selected ? _titleColor : _mutedColor),
             const SizedBox(width: 6),
             Text(
               label,
@@ -965,10 +986,7 @@ class _GuardsPageState extends State<GuardsPage> {
     );
   }
 
-  Widget _guardRosterPanel(
-    List<_GuardRecord> guards, {
-    required bool bounded,
-  }) {
+  Widget _guardRosterPanel(List<_GuardRecord> guards, {required bool bounded}) {
     final header = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -1052,10 +1070,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   const SizedBox(height: 2),
                   Text(
                     '${guard.employeeId} · ${guard.siteCode == '--' ? 'Unassigned' : guard.siteCode}',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: _bodyColor,
-                    ),
+                    style: GoogleFonts.inter(fontSize: 11, color: _bodyColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1145,10 +1160,7 @@ class _GuardsPageState extends State<GuardsPage> {
                     const SizedBox(height: 2),
                     Text(
                       guard.employeeId,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: _bodyColor,
-                      ),
+                      style: GoogleFonts.inter(fontSize: 12, color: _bodyColor),
                     ),
                   ],
                 ),
@@ -1161,7 +1173,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   onPressed: () => _showClockOutNotice(guard),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: OnyxColorTokens.accentRed,
-                    foregroundColor: Colors.white,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                     minimumSize: const Size(0, 32),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     shape: RoundedRectangleBorder(
@@ -1191,8 +1203,14 @@ class _GuardsPageState extends State<GuardsPage> {
           LayoutBuilder(
             builder: (context, constraints) {
               final twoCol = constraints.maxWidth >= 500;
-              final currentSite = _detailStatCard('CURRENT SITE', guard.siteName);
-              final clockedIn = _detailStatCard('CLOCKED IN', guard.clockIn == '--' ? '—' : guard.clockIn);
+              final currentSite = _detailStatCard(
+                'CURRENT SITE',
+                guard.siteName,
+              );
+              final clockedIn = _detailStatCard(
+                'CLOCKED IN',
+                guard.clockIn == '--' ? '—' : guard.clockIn,
+              );
               if (twoCol) {
                 return Row(
                   children: [
@@ -1213,16 +1231,22 @@ class _GuardsPageState extends State<GuardsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: guard.hasSyncIssue ? OnyxColorTokens.amberSurface : OnyxColorTokens.greenSurface,
+              color: guard.hasSyncIssue
+                  ? OnyxColorTokens.amberSurface
+                  : OnyxColorTokens.greenSurface,
               borderRadius: OnyxRadiusTokens.radiusSm,
               border: Border.all(
-                color: guard.hasSyncIssue ? OnyxColorTokens.amberBorder : OnyxColorTokens.greenBorder,
+                color: guard.hasSyncIssue
+                    ? OnyxColorTokens.amberBorder
+                    : OnyxColorTokens.greenBorder,
               ),
             ),
             child: Row(
               children: [
                 Icon(
-                  guard.hasSyncIssue ? Icons.wifi_off_rounded : Icons.wifi_rounded,
+                  guard.hasSyncIssue
+                      ? Icons.wifi_off_rounded
+                      : Icons.wifi_rounded,
                   size: 16,
                   color: guard.hasSyncIssue ? _amberColor : _greenColor,
                 ),
@@ -1405,11 +1429,7 @@ class _GuardsPageState extends State<GuardsPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 14,
-              color: enabled ? _brand : _mutedColor,
-            ),
+            Icon(icon, size: 14, color: enabled ? _brand : _mutedColor),
             const SizedBox(width: 6),
             Text(
               label,
@@ -1436,7 +1456,9 @@ class _GuardsPageState extends State<GuardsPage> {
         ? rosterRows
         : rosterRows
               .where(
-                (r) => r.siteCode == _siteFilter || visibleCodes.contains(r.siteCode),
+                (r) =>
+                    r.siteCode == _siteFilter ||
+                    visibleCodes.contains(r.siteCode),
               )
               .toList(growable: false);
 
@@ -1467,11 +1489,14 @@ class _GuardsPageState extends State<GuardsPage> {
                   icon: const Icon(Icons.add_rounded, size: 14),
                   label: Text(
                     'Add shift',
-                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _brand,
-                    foregroundColor: Colors.white,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                     minimumSize: const Size(0, 32),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -1514,7 +1539,9 @@ class _GuardsPageState extends State<GuardsPage> {
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                       decoration: BoxDecoration(
                         color: i.isOdd ? _bg : Colors.transparent,
-                        border: Border(bottom: BorderSide(color: _dividerColor)),
+                        border: Border(
+                          bottom: BorderSide(color: _dividerColor),
+                        ),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -1536,7 +1563,11 @@ class _GuardsPageState extends State<GuardsPage> {
     );
   }
 
-  Widget _rosterColHeader(String label, {required double width, bool centered = false}) {
+  Widget _rosterColHeader(
+    String label, {
+    required double width,
+    bool centered = false,
+  }) {
     return SizedBox(
       width: width,
       child: Text(
@@ -1634,10 +1665,7 @@ class _GuardsPageState extends State<GuardsPage> {
                     const SizedBox(height: 2),
                     Text(
                       block.time,
-                      style: GoogleFonts.inter(
-                        fontSize: 9,
-                        color: _bodyColor,
-                      ),
+                      style: GoogleFonts.inter(fontSize: 9, color: _bodyColor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1659,7 +1687,9 @@ class _GuardsPageState extends State<GuardsPage> {
               .where((r) => r.siteCode == _siteFilter)
               .toList(growable: false);
     final activeCount = rows.where((r) => r.statusLabel == 'ACTIVE').length;
-    final completedCount = rows.where((r) => r.statusLabel == 'COMPLETED').length;
+    final completedCount = rows
+        .where((r) => r.statusLabel == 'COMPLETED')
+        .length;
 
     return _panelContainer(
       key: const ValueKey('guards-shift-history-panel'),
@@ -1674,7 +1704,10 @@ class _GuardsPageState extends State<GuardsPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('SHIFT HISTORY & TIMESHEETS', style: _capsLabelStyle()),
+                    Text(
+                      'SHIFT HISTORY & TIMESHEETS',
+                      style: _capsLabelStyle(),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       'All clock in/out events and shift records',
@@ -1683,7 +1716,10 @@ class _GuardsPageState extends State<GuardsPage> {
                   ],
                 ),
                 const Spacer(),
-                _countBadge('$activeCount active', OnyxDesignTokens.cyanInteractive),
+                _countBadge(
+                  '$activeCount active',
+                  OnyxDesignTokens.cyanInteractive,
+                ),
                 const SizedBox(width: 8),
                 _countBadge('$completedCount completed', _mutedColor),
               ],
@@ -1732,16 +1768,25 @@ class _GuardsPageState extends State<GuardsPage> {
                         children: [
                           _historyCell(
                             width: 120,
-                            child: Text(rows[i].date, style: _historyBodyStyle()),
+                            child: Text(
+                              rows[i].date,
+                              style: _historyBodyStyle(),
+                            ),
                           ),
                           _historyCell(
                             width: 160,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(rows[i].displayName, style: _historyStrongStyle()),
+                                Text(
+                                  rows[i].displayName,
+                                  style: _historyStrongStyle(),
+                                ),
                                 const SizedBox(height: 2),
-                                Text(rows[i].employeeId, style: _historyBodyStyle()),
+                                Text(
+                                  rows[i].employeeId,
+                                  style: _historyBodyStyle(),
+                                ),
                               ],
                             ),
                           ),
@@ -1750,7 +1795,10 @@ class _GuardsPageState extends State<GuardsPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(rows[i].siteCode, style: _historyStrongStyle()),
+                                Text(
+                                  rows[i].siteCode,
+                                  style: _historyStrongStyle(),
+                                ),
                                 const SizedBox(height: 2),
                                 Text(
                                   rows[i].siteName,
@@ -1763,26 +1811,39 @@ class _GuardsPageState extends State<GuardsPage> {
                           ),
                           _historyCell(
                             width: 100,
-                            child: Text(rows[i].clockIn, style: _historyBodyStyle()),
+                            child: Text(
+                              rows[i].clockIn,
+                              style: _historyBodyStyle(),
+                            ),
                           ),
                           _historyCell(
                             width: 110,
-                            child: Text(rows[i].clockOut, style: _historyBodyStyle()),
+                            child: Text(
+                              rows[i].clockOut,
+                              style: _historyBodyStyle(),
+                            ),
                           ),
                           _historyCell(
                             width: 110,
                             child: Text(
                               rows[i].duration,
-                              style: _historyStrongStyle(color: OnyxDesignTokens.cyanInfo),
+                              style: _historyStrongStyle(
+                                color: OnyxColorTokens.accentSky,
+                              ),
                             ),
                           ),
                           _historyCell(
                             width: 120,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: rows[i].statusBackground,
-                                borderRadius: BorderRadius.circular(OnyxRadiusTokens.pill),
+                                borderRadius: BorderRadius.circular(
+                                  OnyxRadiusTokens.pill,
+                                ),
                                 border: Border.all(color: rows[i].statusBorder),
                               ),
                               child: Text(
@@ -1797,7 +1858,10 @@ class _GuardsPageState extends State<GuardsPage> {
                           ),
                           _historyCell(
                             width: 120,
-                            child: Text(rows[i].handledBy, style: _historyBodyStyle()),
+                            child: Text(
+                              rows[i].handledBy,
+                              style: _historyBodyStyle(),
+                            ),
                           ),
                         ],
                       ),
@@ -1830,10 +1894,8 @@ class _GuardsPageState extends State<GuardsPage> {
     return SizedBox(width: width, child: child);
   }
 
-  TextStyle _historyBodyStyle() => GoogleFonts.inter(
-    fontSize: 12,
-    color: _bodyColor,
-  );
+  TextStyle _historyBodyStyle() =>
+      GoogleFonts.inter(fontSize: 12, color: _bodyColor);
 
   TextStyle _historyStrongStyle({Color? color}) => GoogleFonts.inter(
     fontSize: 12,
@@ -1954,15 +2016,14 @@ class _GuardsPageState extends State<GuardsPage> {
     });
   }
 
-  void _selectGuard(String guardId) => setState(() => _selectedGuardId = guardId);
+  void _selectGuard(String guardId) =>
+      setState(() => _selectedGuardId = guardId);
 
   List<_GuardRecord> _filteredGuards({String? siteCodeOverride}) {
     final filter = siteCodeOverride ?? _siteFilter;
     final guards = _effectiveGuards;
     if (filter == 'ALL') return guards;
-    return guards
-        .where((g) => g.siteCode == filter)
-        .toList(growable: false);
+    return guards.where((g) => g.siteCode == filter).toList(growable: false);
   }
 
   _GuardRecord? _selectedGuard(List<_GuardRecord> visible) {
@@ -1977,7 +2038,12 @@ class _GuardsPageState extends State<GuardsPage> {
     final normalized = raw.trim().toLowerCase();
     if (normalized.isEmpty || normalized == 'all') return 'ALL';
     const aliases = <String, List<String>>{
-      'SE-01': ['se-01', 'sandton estate north', 'wtf-main', 'waterfall estate main'],
+      'SE-01': [
+        'se-01',
+        'sandton estate north',
+        'wtf-main',
+        'waterfall estate main',
+      ],
       'WF-02': ['wf-02', 'waterfall estate', 'blue ridge security'],
       'BR-03': ['br-03', 'blue ridge residence', 'sdn-north'],
     };
@@ -1988,12 +2054,13 @@ class _GuardsPageState extends State<GuardsPage> {
   }
 
   List<String> _availableSiteFilters(List<_GuardRecord> guards) {
-    final codes = guards
-        .map((g) => g.siteCode)
-        .where((c) => c != '--')
-        .toSet()
-        .toList(growable: false)
-      ..sort();
+    final codes =
+        guards
+            .map((g) => g.siteCode)
+            .where((c) => c != '--')
+            .toSet()
+            .toList(growable: false)
+          ..sort();
     return <String>['ALL', ...codes];
   }
 
@@ -2034,7 +2101,10 @@ class _GuardsPageState extends State<GuardsPage> {
     }
     logUiAction(
       'guards_reports_opened',
-      context: <String, Object?>{'site_id': guard.routeSiteId, 'guard_id': guard.id},
+      context: <String, Object?>{
+        'site_id': guard.routeSiteId,
+        'guard_id': guard.id,
+      },
     );
     callback(guard.routeSiteId);
   }
@@ -2046,7 +2116,10 @@ class _GuardsPageState extends State<GuardsPage> {
         backgroundColor: _surface,
         title: Text(
           'Reports Workspace Ready',
-          style: GoogleFonts.inter(color: _titleColor, fontWeight: FontWeight.w700),
+          style: GoogleFonts.inter(
+            color: _titleColor,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: Text(
           'Use Reports Workspace to review workforce documentation, schedule exports, and field-performance outputs tied to the selected guard or site.',
@@ -2078,7 +2151,10 @@ class _GuardsPageState extends State<GuardsPage> {
         behavior: SnackBarBehavior.floating,
         content: Text(
           'Clock-out flow for ${guard.displayName} is ready for the next wiring pass.',
-          style: GoogleFonts.inter(color: _titleColor, fontWeight: FontWeight.w600),
+          style: GoogleFonts.inter(
+            color: _titleColor,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -2091,7 +2167,10 @@ class _GuardsPageState extends State<GuardsPage> {
     if (!mounted) return;
     logUiAction(
       'guard_contact_copied',
-      context: <String, Object?>{'guard_id': guard.id, 'site_id': guard.routeSiteId},
+      context: <String, Object?>{
+        'guard_id': guard.id,
+        'site_id': guard.routeSiteId,
+      },
     );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -2099,7 +2178,10 @@ class _GuardsPageState extends State<GuardsPage> {
         behavior: SnackBarBehavior.floating,
         content: Text(
           '${guard.contactName} contact copied.',
-          style: GoogleFonts.inter(color: _titleColor, fontWeight: FontWeight.w600),
+          style: GoogleFonts.inter(
+            color: _titleColor,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -2112,7 +2194,9 @@ class _GuardsPageState extends State<GuardsPage> {
     final isMessage = initialMode == _GuardContactMode.message;
     final clientLaneAvailable = widget.onOpenClientLaneForSite != null;
     final voipAvailable = widget.onStageGuardVoipCall != null;
-    final primaryActionAvailable = isMessage ? clientLaneAvailable : voipAvailable;
+    final primaryActionAvailable = isMessage
+        ? clientLaneAvailable
+        : voipAvailable;
     final readinessNote = isMessage
         ? (clientLaneAvailable
               ? 'Open Client Comms to keep guard outreach warm, logged, and tied to the site thread.'
@@ -2157,7 +2241,11 @@ class _GuardsPageState extends State<GuardsPage> {
                 isMessage
                     ? 'Use Client Comms for warm, traceable outreach. Telegram stays primary and SMS remains fallback-only once delivery wiring is live.'
                     : 'Stage the voice handoff now so control has the right contact context ready when VoIP lands.',
-                style: GoogleFonts.inter(color: _bodyColor, fontSize: 13, height: 1.45),
+                style: GoogleFonts.inter(
+                  color: _bodyColor,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -2168,7 +2256,10 @@ class _GuardsPageState extends State<GuardsPage> {
                     label: isMessage ? 'Telegram primary' : 'VoIP ready',
                     accent: _skyColor,
                   ),
-                  _contactChip(label: 'SMS fallback standby', accent: _amberColor),
+                  _contactChip(
+                    label: 'SMS fallback standby',
+                    accent: _amberColor,
+                  ),
                   _contactChip(
                     label: '${guard.siteCode} · ${guard.siteName}',
                     accent: _greenColor,
@@ -2203,7 +2294,10 @@ class _GuardsPageState extends State<GuardsPage> {
                       icon: const Icon(Icons.copy_rounded, size: 16),
                       label: Text(
                         'Copy Contact',
-                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _brand,
@@ -2230,7 +2324,9 @@ class _GuardsPageState extends State<GuardsPage> {
                                     'site_id': guard.routeSiteId,
                                   },
                                 );
-                                widget.onOpenClientLaneForSite?.call(guard.routeSiteId);
+                                widget.onOpenClientLaneForSite?.call(
+                                  guard.routeSiteId,
+                                );
                                 return;
                               }
                               final stageCall = widget.onStageGuardVoipCall;
@@ -2260,16 +2356,21 @@ class _GuardsPageState extends State<GuardsPage> {
                             }
                           : null,
                       icon: Icon(
-                        isMessage ? Icons.forum_rounded : Icons.phone_forwarded_rounded,
+                        isMessage
+                            ? Icons.forum_rounded
+                            : Icons.phone_forwarded_rounded,
                         size: 16,
                       ),
                       label: Text(
                         isMessage ? 'Open Client Comms' : 'Stage VoIP Call',
-                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       style: FilledButton.styleFrom(
                         backgroundColor: OnyxDesignTokens.accentBlue,
-                        foregroundColor: Colors.white,
+                        foregroundColor: OnyxColorTokens.textPrimary,
                         minimumSize: const Size.fromHeight(46),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -2315,13 +2416,21 @@ class _GuardsPageState extends State<GuardsPage> {
             width: 92,
             child: Text(
               label,
-              style: GoogleFonts.inter(color: _mutedColor, fontSize: 11, fontWeight: FontWeight.w600),
+              style: GoogleFonts.inter(
+                color: _mutedColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.inter(color: _titleColor, fontSize: 12, fontWeight: FontWeight.w600),
+              style: GoogleFonts.inter(
+                color: _titleColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -2342,7 +2451,9 @@ class _GuardsPageState extends State<GuardsPage> {
       final repository = await repositoryFuture;
       final assignments = await repository.readAssignments();
       final operations = await repository.readOperations(
-        statuses: Set<GuardSyncOperationStatus>.from(GuardSyncOperationStatus.values),
+        statuses: Set<GuardSyncOperationStatus>.from(
+          GuardSyncOperationStatus.values,
+        ),
         limit: 500,
       );
       final liveGuards = _mergeLiveGuards(assignments, operations);
@@ -2365,7 +2476,9 @@ class _GuardsPageState extends State<GuardsPage> {
     List<GuardAssignment> assignments,
     List<GuardSyncOperation> operations,
   ) {
-    if (assignments.isEmpty && operations.isEmpty) return const <_GuardRecord>[];
+    if (assignments.isEmpty && operations.isEmpty) {
+      return const <_GuardRecord>[];
+    }
     final assignmentsByGuard = <String, GuardAssignment>{};
     for (final assignment in assignments) {
       final guardId = assignment.guardId.trim();
@@ -2379,7 +2492,9 @@ class _GuardsPageState extends State<GuardsPage> {
     for (final operation in operations) {
       final guardId = (operation.payload['guard_id'] ?? '').toString().trim();
       if (guardId.isEmpty) continue;
-      operationsByGuard.putIfAbsent(guardId, () => <GuardSyncOperation>[]).add(operation);
+      operationsByGuard
+          .putIfAbsent(guardId, () => <GuardSyncOperation>[])
+          .add(operation);
     }
     for (final ops in operationsByGuard.values) {
       ops.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -2387,22 +2502,23 @@ class _GuardsPageState extends State<GuardsPage> {
     final liveGuardIds = <String>{
       ...assignmentsByGuard.keys,
       ...operationsByGuard.keys,
-    }.toList(growable: false)
-      ..sort();
+    }.toList(growable: false)..sort();
 
     final records = <_GuardRecord>[
       for (final guardId in liveGuardIds)
         _guardRecordFromLive(
           guardId: guardId,
           assignment: assignmentsByGuard[guardId],
-          operations: operationsByGuard[guardId] ?? const <GuardSyncOperation>[],
+          operations:
+              operationsByGuard[guardId] ?? const <GuardSyncOperation>[],
         ),
       for (final seed in _guards)
         if (!liveGuardIds.contains(seed.id)) seed,
     ];
     records.sort((a, b) {
-      final dutyCmp = (a.status == _GuardStatus.onDuty ? 0 : 1)
-          .compareTo(b.status == _GuardStatus.onDuty ? 0 : 1);
+      final dutyCmp = (a.status == _GuardStatus.onDuty ? 0 : 1).compareTo(
+        b.status == _GuardStatus.onDuty ? 0 : 1,
+      );
       if (dutyCmp != 0) return dutyCmp;
       return a.displayName.compareTo(b.displayName);
     });
@@ -2431,21 +2547,29 @@ class _GuardsPageState extends State<GuardsPage> {
     );
     final siteSummary = _siteSummaryForRouteSiteId(routeSiteId, seed: seed);
     final clockInAt =
-        assignment?.acknowledgedAt ?? assignment?.issuedAt ?? latestOperation?.createdAt;
+        assignment?.acknowledgedAt ??
+        assignment?.issuedAt ??
+        latestOperation?.createdAt;
     final shiftLabel = _shiftLabelFor(clockInAt, fallback: seed?.shiftLabel);
-    final shiftWindow = status == _GuardStatus.onDuty ? _shiftWindowFor(shiftLabel) : '--';
+    final shiftWindow = status == _GuardStatus.onDuty
+        ? _shiftWindowFor(shiftLabel)
+        : '--';
     return _GuardRecord(
       id: guardId,
       displayName: seed?.displayName ?? _compactGuardLabel(guardId),
       contactName: seed?.contactName ?? _humanizeScopeLabel(guardId),
-      employeeId: seed?.employeeId ?? 'EMP-${guardId.replaceAll(RegExp(r'[^0-9A-Za-z]'), '')}',
+      employeeId:
+          seed?.employeeId ??
+          'EMP-${guardId.replaceAll(RegExp(r'[^0-9A-Za-z]'), '')}',
       siteCode: routeSiteId.isEmpty ? '--' : siteSummary.code,
       siteName: routeSiteId.isEmpty ? 'No active assignment' : siteSummary.name,
       routeSiteId: routeSiteId,
       contactPhone: seed?.contactPhone ?? '-',
       status: status,
       hasSyncIssue:
-          operations.any((op) => op.status == GuardSyncOperationStatus.failed) ||
+          operations.any(
+            (op) => op.status == GuardSyncOperationStatus.failed,
+          ) ||
           (operations.isEmpty && (seed?.hasSyncIssue ?? false)),
       clockIn: clockInAt == null ? '--' : _timeLabel(clockInAt),
       shiftWindow: shiftWindow,
@@ -2482,7 +2606,9 @@ class _GuardsPageState extends State<GuardsPage> {
     for (final op in operations) {
       final status = _guardDutyStatusFromOperation(op);
       if (status == null) continue;
-      return status == GuardDutyStatus.offline ? _GuardStatus.offDuty : _GuardStatus.onDuty;
+      return status == GuardDutyStatus.offline
+          ? _GuardStatus.offDuty
+          : _GuardStatus.onDuty;
     }
     final assignmentStatus = assignment?.status;
     if (assignmentStatus != null) {
@@ -2566,7 +2692,10 @@ class _GuardsPageState extends State<GuardsPage> {
     if (assignment == null) return fallback ?? '--';
     for (final op in operations) {
       final status = _guardDutyStatusFromOperation(op);
-      if (status != GuardDutyStatus.enRoute && status != GuardDutyStatus.onSite) continue;
+      if (status != GuardDutyStatus.enRoute &&
+          status != GuardDutyStatus.onSite) {
+        continue;
+      }
       final delta = op.createdAt.difference(assignment.issuedAt);
       return '${delta.inSeconds.clamp(0, 99999)}s';
     }
@@ -2600,18 +2729,22 @@ class _GuardsPageState extends State<GuardsPage> {
   }
 
   List<_ShiftRosterRow> _buildShiftRosterRows(List<_GuardRecord> guards) {
-    return guards.map((guard) => _ShiftRosterRow(
-      displayName: guard.displayName,
-      employeeId: guard.employeeId,
-      siteCode: guard.siteCode,
-      siteName: guard.siteCode == '--' ? 'Unassigned' : guard.siteName,
-      blocks: List<_ShiftBlock?>.filled(
-        5,
-        guard.status == _GuardStatus.onDuty
-            ? (guard.shiftLabel == 'Day' ? _dayBlock : _nightBlock)
-            : null,
-      ),
-    )).toList(growable: false);
+    return guards
+        .map(
+          (guard) => _ShiftRosterRow(
+            displayName: guard.displayName,
+            employeeId: guard.employeeId,
+            siteCode: guard.siteCode,
+            siteName: guard.siteCode == '--' ? 'Unassigned' : guard.siteName,
+            blocks: List<_ShiftBlock?>.filled(
+              5,
+              guard.status == _GuardStatus.onDuty
+                  ? (guard.shiftLabel == 'Day' ? _dayBlock : _nightBlock)
+                  : null,
+            ),
+          ),
+        )
+        .toList(growable: false);
   }
 
   List<_ShiftHistoryRow> _buildShiftHistoryRows(List<_GuardRecord> guards) {
@@ -2665,7 +2798,13 @@ class _GuardsPageState extends State<GuardsPage> {
     if (parts.length != 2) return '--';
     final hour = int.tryParse(parts[0]) ?? 0;
     final minute = int.tryParse(parts[1]) ?? 0;
-    var startedAt = DateTime.utc(nowUtc.year, nowUtc.month, nowUtc.day, hour, minute);
+    var startedAt = DateTime.utc(
+      nowUtc.year,
+      nowUtc.month,
+      nowUtc.day,
+      hour,
+      minute,
+    );
     if (startedAt.isAfter(nowUtc)) {
       startedAt = startedAt.subtract(const Duration(days: 1));
     }

@@ -135,7 +135,7 @@ class VipProtectionPage extends StatelessWidget {
                           icon: const Icon(Icons.add, size: 16),
                           label: const Text('New VIP detail'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: OnyxColorTokens.brand,
+                            backgroundColor: OnyxColorTokens.accentPurple,
                             foregroundColor: OnyxColorTokens.textPrimary,
                             minimumSize: const Size(0, 34),
                             textStyle: GoogleFonts.inter(
@@ -160,7 +160,7 @@ class VipProtectionPage extends StatelessWidget {
                         Icon(
                           Icons.calendar_month_rounded,
                           size: 14,
-                          color: OnyxColorTokens.brand,
+                          color: OnyxColorTokens.accentPurple,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -251,13 +251,13 @@ class VipProtectionPage extends StatelessWidget {
     final badgeLabel = isToday
         ? 'TODAY'
         : isTomorrow
-            ? 'TOMORROW'
-            : detail.badgeLabel;
+        ? 'TOMORROW'
+        : detail.badgeLabel;
     final badgeColor = isToday
         ? OnyxColorTokens.accentRed
         : isTomorrow
-            ? OnyxColorTokens.accentAmber
-            : OnyxColorTokens.brand;
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentPurple;
 
     // Pull the first three facts as time window / officers / route info,
     // mapping to the original VipDetailFact data rather than renaming fields.

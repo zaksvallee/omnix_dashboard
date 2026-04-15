@@ -310,28 +310,28 @@ class RiskIntelligencePage extends StatelessWidget {
     return switch (source.toLowerCase()) {
       'twitter' => OnyxColorTokens.accentSky,
       'news24' || 'news' => OnyxColorTokens.accentGreen,
-      'police scanner' || 'police-scanner' || 'police' =>
-          OnyxColorTokens.accentRed,
-      'manual' => OnyxColorTokens.brand,
+      'police scanner' ||
+      'police-scanner' ||
+      'police' => OnyxColorTokens.accentRed,
+      'manual' => OnyxColorTokens.accentPurple,
       _ => OnyxColorTokens.textSecondary,
     };
   }
 
-  Widget _areaRiskCard(
-      BuildContext context, RiskIntelAreaSummary area) {
+  Widget _areaRiskCard(BuildContext context, RiskIntelAreaSummary area) {
     final level = area.level.trim().toUpperCase();
     final isHigh = level == 'CRITICAL' || level == 'HIGH';
     final isMed = level == 'MEDIUM' || level == 'MED';
     final dotColor = isHigh
         ? OnyxColorTokens.accentRed
         : isMed
-            ? OnyxColorTokens.accentAmber
-            : OnyxColorTokens.accentGreen;
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentGreen;
     final borderColor = isHigh
         ? OnyxColorTokens.redBorder
         : isMed
-            ? OnyxColorTokens.amberBorder
-            : OnyxColorTokens.divider;
+        ? OnyxColorTokens.amberBorder
+        : OnyxColorTokens.divider;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -340,8 +340,8 @@ class RiskIntelligencePage extends StatelessWidget {
             color: isHigh
                 ? OnyxColorTokens.accentRed
                 : isMed
-                    ? OnyxColorTokens.accentAmber
-                    : Colors.transparent,
+                ? OnyxColorTokens.accentAmber
+                : Colors.transparent,
             width: 2,
           ),
           bottom: BorderSide(color: OnyxColorTokens.divider),
@@ -372,13 +372,11 @@ class RiskIntelligencePage extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: dotColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border:
-                      Border.all(color: dotColor.withValues(alpha: 0.25)),
+                  border: Border.all(color: dotColor.withValues(alpha: 0.25)),
                 ),
                 child: Text(
                   level,
@@ -421,7 +419,9 @@ class RiskIntelligencePage extends StatelessWidget {
   }
 
   Widget _intelFeedCard(BuildContext context, RiskIntelFeedItem item) {
-    final source = item.sourceLabel.isNotEmpty ? item.sourceLabel : item.provider;
+    final source = item.sourceLabel.isNotEmpty
+        ? item.sourceLabel
+        : item.provider;
     final sourceColor = _sourceColor(source);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -445,13 +445,13 @@ class RiskIntelligencePage extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: sourceColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
-                      color: sourceColor.withValues(alpha: 0.25)),
+                    color: sourceColor.withValues(alpha: 0.25),
+                  ),
                 ),
                 child: Text(
                   source.toUpperCase(),
@@ -504,14 +504,13 @@ class RiskIntelligencePage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 Icon(
                   Icons.location_on_rounded,
                   size: 14,
-                  color: OnyxColorTokens.brand,
+                  color: OnyxColorTokens.accentPurple,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -535,7 +534,7 @@ class RiskIntelligencePage extends StatelessWidget {
               icon: const Icon(Icons.add, size: 14),
               label: const Text('Add manual intel'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: OnyxColorTokens.brand,
+                foregroundColor: OnyxColorTokens.accentPurple,
                 side: BorderSide(color: OnyxColorTokens.borderSubtle),
                 minimumSize: const Size(double.infinity, 36),
                 textStyle: GoogleFonts.inter(
@@ -560,7 +559,7 @@ class RiskIntelligencePage extends StatelessWidget {
             Icon(
               Icons.trending_up_rounded,
               size: 14,
-              color: OnyxColorTokens.brand,
+              color: OnyxColorTokens.accentPurple,
             ),
             const SizedBox(width: 6),
             Text(
@@ -653,8 +652,8 @@ class RiskIntelligencePage extends StatelessWidget {
       ),
     );
   }
-
 }
+
 class _IntelDialogFrame extends StatelessWidget {
   final Key? dialogKey;
   final String title;

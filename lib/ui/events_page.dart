@@ -23,14 +23,29 @@ import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
 
-const _eventsPanelColor = Color(0xFF13131E);
-const _eventsPanelTint = Color(0xFF1A1A2E);
-const _eventsPanelMuted = Color(0xFF1A1A2E);
-const _eventsBorderColor = Color(0x269D4BFF);
-const _eventsTitleColor = Color(0xFFE8E8F0);
-const _eventsBodyColor = Color(0x80FFFFFF);
-const _eventsMutedColor = Color(0x4DFFFFFF);
-const _eventsAccentBlue = Color(0xFF9D4BFF);
+const _eventsPanelColor = OnyxColorTokens.backgroundSecondary;
+const _eventsPanelTint = OnyxColorTokens.surfaceElevated;
+const _eventsPanelMuted = OnyxColorTokens.surfaceElevated;
+const _eventsBorderColor = OnyxColorTokens.borderSubtle;
+const _eventsTitleColor = OnyxColorTokens.textPrimary;
+const _eventsBodyColor = OnyxColorTokens.textSecondary;
+const _eventsMutedColor = OnyxColorTokens.textMuted;
+const _eventsAccentBlue = OnyxColorTokens.accentPurple;
+const _eventsInfoAccent = OnyxColorTokens.accentSky;
+const _eventsSuccessAccent = OnyxColorTokens.accentGreen;
+const _eventsWarningAccent = OnyxColorTokens.accentAmber;
+const _eventsAdminAccent = OnyxColorTokens.accentPurple;
+const _eventsCriticalAccent = OnyxColorTokens.accentRed;
+const _eventsInfoSurface = OnyxColorTokens.cyanSurface;
+const _eventsSuccessSurface = OnyxColorTokens.greenSurface;
+const _eventsCriticalSurface = OnyxColorTokens.redSurface;
+const _eventsInfoBorder = OnyxColorTokens.cyanBorder;
+const _eventsSuccessBorder = OnyxColorTokens.greenBorder;
+const _eventsActionForeground = OnyxColorTokens.backgroundPrimary;
+const _eventsBlueText = OnyxColorTokens.textSecondary;
+final _eventsShadowColor = OnyxColorTokens.backgroundPrimary.withValues(
+  alpha: 0.08,
+);
 
 class EventsPage extends StatefulWidget {
   final List<DispatchEvent> events;
@@ -173,16 +188,18 @@ class _EventsPageState extends State<EventsPage> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: (chainIntact
-                                    ? OnyxDesignTokens.greenSpec
-                                    : OnyxDesignTokens.redCritical)
-                                .withValues(alpha: 0.08),
+                            color:
+                                (chainIntact
+                                        ? OnyxColorTokens.accentGreen
+                                        : OnyxColorTokens.accentRed)
+                                    .withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(5),
                             border: Border.all(
-                              color: (chainIntact
-                                      ? OnyxDesignTokens.greenSpec
-                                      : OnyxDesignTokens.redCritical)
-                                  .withValues(alpha: 0.15),
+                              color:
+                                  (chainIntact
+                                          ? OnyxColorTokens.accentGreen
+                                          : OnyxColorTokens.accentRed)
+                                      .withValues(alpha: 0.15),
                             ),
                           ),
                           child: Row(
@@ -194,8 +211,8 @@ class _EventsPageState extends State<EventsPage> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: chainIntact
-                                      ? OnyxDesignTokens.greenSpec
-                                      : OnyxDesignTokens.redCritical,
+                                      ? OnyxColorTokens.accentGreen
+                                      : OnyxColorTokens.accentRed,
                                 ),
                               ),
                               const SizedBox(width: 5),
@@ -204,8 +221,8 @@ class _EventsPageState extends State<EventsPage> {
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   color: chainIntact
-                                      ? OnyxDesignTokens.greenSpec
-                                      : OnyxDesignTokens.redCritical,
+                                      ? OnyxColorTokens.accentGreen
+                                      : OnyxColorTokens.accentRed,
                                 ),
                               ),
                             ],
@@ -467,7 +484,7 @@ class _EventsPageState extends State<EventsPage> {
               detail:
                   'Immutable forensic rows available for review in this session.',
               icon: Icons.timeline_rounded,
-              accent: const Color(0xFF63BDFF),
+              accent: _eventsInfoAccent,
             ),
             _overviewCard(
               title: 'Visible Rows',
@@ -475,7 +492,7 @@ class _EventsPageState extends State<EventsPage> {
               detail:
                   '${_activeFilterCount()} active filters plus the $laneLabel lane are shaping the review.',
               icon: Icons.filter_alt_outlined,
-              accent: const Color(0xFF59D79B),
+              accent: _eventsSuccessAccent,
             ),
             _selectedEventOverviewCard(
               filteredRows: filteredRows,
@@ -487,7 +504,7 @@ class _EventsPageState extends State<EventsPage> {
               value: latestSequence == null ? 'None' : '$latestSequence',
               detail: 'Newest event sequence available for timeline replay.',
               icon: Icons.pin_outlined,
-              accent: const Color(0xFFF6C067),
+              accent: _eventsWarningAccent,
             ),
           ],
         );
@@ -511,9 +528,7 @@ class _EventsPageState extends State<EventsPage> {
         _activeFilterCount() > 0 || _laneFilter != _EventLaneFilter.all;
     final accent =
         selected?.info.color ??
-        (hasScopedRowsOutsideLane
-            ? const Color(0xFF63BDFF)
-            : const Color(0xFFF6C067));
+        (hasScopedRowsOutsideLane ? _eventsInfoAccent : _eventsWarningAccent);
     final title = selected == null
         ? 'GET A CASE BACK'
         : _eventNextMoveLabel(selected.event);
@@ -527,14 +542,14 @@ class _EventsPageState extends State<EventsPage> {
         _overviewCardAction(
           key: const ValueKey('events-overview-selected-open-casefile'),
           label: 'Case File',
-          accent: const Color(0xFFA78BFA),
+          accent: _eventsAdminAccent,
           selected: _workspaceView == _EventWorkspaceView.casefile,
           onTap: () => _setWorkspaceView(_EventWorkspaceView.casefile),
         ),
         _overviewCardAction(
           key: const ValueKey('events-overview-selected-open-evidence'),
           label: 'Evidence',
-          accent: const Color(0xFF63BDFF),
+          accent: _eventsInfoAccent,
           selected: _workspaceView == _EventWorkspaceView.evidence,
           onTap: () => _setWorkspaceView(_EventWorkspaceView.evidence),
         ),
@@ -543,7 +558,7 @@ class _EventsPageState extends State<EventsPage> {
           _overviewCardAction(
             key: const ValueKey('events-overview-selected-open-chain'),
             label: 'Chain',
-            accent: const Color(0xFF59D79B),
+            accent: _eventsSuccessAccent,
             selected: _workspaceView == _EventWorkspaceView.chain,
             onTap: () => _setWorkspaceView(_EventWorkspaceView.chain),
           ),
@@ -574,14 +589,14 @@ class _EventsPageState extends State<EventsPage> {
           _overviewCardAction(
             key: const ValueKey('events-overview-selected-open-all-time'),
             label: 'All Time',
-            accent: const Color(0xFFF6C067),
+            accent: _eventsWarningAccent,
             onTap: () => _setTimeWindow(_TimeWindow.all),
           ),
         if (canResetScope)
           _overviewCardAction(
             key: const ValueKey('events-overview-selected-reset-scope'),
             label: 'Reset Scope',
-            accent: const Color(0xFF59D79B),
+            accent: _eventsSuccessAccent,
             onTap: () => _resetForensicFilters(resetLane: true),
           ),
       ],
@@ -758,7 +773,7 @@ class _EventsPageState extends State<EventsPage> {
       key: key,
       onPressed: onTap,
       style: TextButton.styleFrom(
-        foregroundColor: selected ? const Color(0xFF08111E) : accent,
+        foregroundColor: selected ? _eventsActionForeground : accent,
         backgroundColor: selected
             ? accent.withValues(alpha: 0.9)
             : accent.withValues(alpha: 0.12),
@@ -833,7 +848,7 @@ class _EventsPageState extends State<EventsPage> {
             _workspaceStatusPill(
               icon: Icons.timeline_outlined,
               label: '${visibleRows.length} Visible',
-              accent: const Color(0xFF63BDFF),
+              accent: _eventsInfoAccent,
             ),
             _workspaceStatusPill(
               icon: Icons.radar_outlined,
@@ -848,19 +863,19 @@ class _EventsPageState extends State<EventsPage> {
             _workspaceStatusPill(
               icon: Icons.flag_outlined,
               label: 'Focus ${selected?.event.eventId ?? 'None'}',
-              accent: selected?.info.color ?? const Color(0xFF94A3B8),
+              accent: selected?.info.color ?? _eventsBlueText,
             ),
             _workspaceStatusPill(
               icon: Icons.link_outlined,
               label: '${relatedRows.length} Linked',
               accent: relatedRows.isEmpty
-                  ? const Color(0xFF94A3B8)
-                  : const Color(0xFF59D79B),
+                  ? _eventsBlueText
+                  : _eventsSuccessAccent,
             ),
             _workspaceStatusPill(
               icon: Icons.schedule_outlined,
               label: _timeWindow.label,
-              accent: const Color(0xFFF6C067),
+              accent: _eventsWarningAccent,
             ),
           ],
         ),
@@ -1086,7 +1101,7 @@ class _EventsPageState extends State<EventsPage> {
                       totalCount: visibleRows.length + hiddenRows,
                       subject: 'event rows',
                       hiddenDescriptor: 'additional rows',
-                      color: const Color(0xFF8FA8CA),
+                      color: _eventsBlueText,
                     ),
                   ],
                 ],
@@ -1104,7 +1119,7 @@ class _EventsPageState extends State<EventsPage> {
                     totalCount: visibleRows.length + hiddenRows,
                     subject: 'event rows',
                     hiddenDescriptor: 'additional rows',
-                    color: const Color(0xFF8FA8CA),
+                    color: _eventsBlueText,
                   ),
                 ],
               ],
@@ -1160,7 +1175,7 @@ class _EventsPageState extends State<EventsPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF89A0BE),
+                          color: _eventsBlueText,
                           fontSize: 9.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1175,14 +1190,14 @@ class _EventsPageState extends State<EventsPage> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0x129FD9FF),
+                      color: _eventsInfoSurface,
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x409FD9FF)),
+                      border: Border.all(color: _eventsInfoBorder),
                     ),
                     child: Text(
                       'FOCUS',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9FD9FF),
+                        color: _eventsInfoAccent,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1373,7 +1388,7 @@ class _EventsPageState extends State<EventsPage> {
                   _forensicRecoveryAction(
                     key: const ValueKey('events-context-chain-open-all-time'),
                     label: 'All Time',
-                    accent: const Color(0xFFF6C067),
+                    accent: _eventsWarningAccent,
                     onTap: () => _setTimeWindow(_TimeWindow.all),
                   ),
                 _forensicRecoveryAction(
@@ -1385,7 +1400,7 @@ class _EventsPageState extends State<EventsPage> {
                 _forensicRecoveryAction(
                   key: const ValueKey('events-context-chain-open-ledger'),
                   label: 'OPEN SOVEREIGN LEDGER',
-                  accent: const Color(0xFFA78BFA),
+                  accent: _eventsAdminAccent,
                   onTap: () => _openLedgerDialog(context),
                 ),
               ],
@@ -1476,14 +1491,14 @@ class _EventsPageState extends State<EventsPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: const Color(0x122FD6A3),
+                color: _eventsSuccessSurface,
                 borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: const Color(0x402FD6A3)),
+                border: Border.all(color: _eventsSuccessBorder),
               ),
               child: Text(
                 _lastActionFeedback,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9AF3D6),
+                  color: _eventsSuccessAccent,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1581,7 +1596,7 @@ class _EventsPageState extends State<EventsPage> {
                 _miniSignalCard(
                   label: 'Linked Rows',
                   value: '${relatedRows.length}',
-                  accent: const Color(0xFF63BDFF),
+                  accent: _eventsInfoAccent,
                 ),
                 _miniSignalCard(
                   label: 'Review Lane',
@@ -1763,12 +1778,12 @@ class _EventsPageState extends State<EventsPage> {
           _miniSignalCard(
             label: 'Detail Rows',
             value: '${details.length}',
-            accent: const Color(0xFF63BDFF),
+            accent: _eventsInfoAccent,
           ),
           _miniSignalCard(
             label: 'Linked Chain',
             value: '${relatedRows.length}',
-            accent: const Color(0xFF59D79B),
+            accent: _eventsSuccessAccent,
           ),
           _miniSignalCard(
             label: 'Scope',
@@ -1828,7 +1843,7 @@ class _EventsPageState extends State<EventsPage> {
           _miniSignalCard(
             label: 'Chain Anchor',
             value: _dispatchIdForEvent(row.event) ?? 'No dispatch',
-            accent: const Color(0xFF63BDFF),
+            accent: _eventsInfoAccent,
           ),
           _miniSignalCard(
             label: 'Evidence Ready',
@@ -1837,7 +1852,7 @@ class _EventsPageState extends State<EventsPage> {
                 : reportEvent != null
                 ? 'Receipt Captured'
                 : 'Metadata Only',
-            accent: const Color(0xFFF6C067),
+            accent: _eventsWarningAccent,
           ),
         ],
       ),
@@ -1936,12 +1951,12 @@ class _EventsPageState extends State<EventsPage> {
           _miniSignalCard(
             label: 'Dispatch Chain',
             value: _dispatchIdForEvent(row.event) ?? 'None',
-            accent: const Color(0xFF63BDFF),
+            accent: _eventsInfoAccent,
           ),
           _miniSignalCard(
             label: 'Linked Rows',
             value: '${relatedRows.length}',
-            accent: const Color(0xFF59D79B),
+            accent: _eventsSuccessAccent,
           ),
         ],
       ),
@@ -2065,9 +2080,9 @@ class _EventsPageState extends State<EventsPage> {
         color: _eventsPanelColor,
         borderRadius: BorderRadius.circular(11),
         border: Border.all(color: _eventsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A081B33),
+            color: _eventsShadowColor,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -2124,9 +2139,9 @@ class _EventsPageState extends State<EventsPage> {
         color: _eventsPanelColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _eventsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A081B33),
+            color: _eventsShadowColor,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -2154,7 +2169,10 @@ class _EventsPageState extends State<EventsPage> {
               TextButton(
                 onPressed: _resetForensicFilters,
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   foregroundColor: _eventsAccentBlue,
@@ -2907,7 +2925,7 @@ class _EventsPageState extends State<EventsPage> {
     if (event is DecisionCreated) {
       return _EventInfo(
         label: 'DECISION',
-        color: const Color(0xFF6BC6FF),
+        color: _eventsInfoAccent,
         summary:
             '${event.clientId}/${event.siteId} dispatch ${event.dispatchId} created',
       );
@@ -2915,9 +2933,7 @@ class _EventsPageState extends State<EventsPage> {
     if (event is ExecutionCompleted) {
       return _EventInfo(
         label: event.success ? 'EXECUTION' : 'FAILED EXECUTION',
-        color: event.success
-            ? const Color(0xFF4ED4A3)
-            : const Color(0xFFFF6676),
+        color: event.success ? _eventsSuccessAccent : _eventsCriticalAccent,
         summary:
             '${event.clientId}/${event.siteId} dispatch ${event.dispatchId}',
       );
@@ -2925,7 +2941,7 @@ class _EventsPageState extends State<EventsPage> {
     if (event is ExecutionDenied) {
       return _EventInfo(
         label: 'DENIED',
-        color: const Color(0xFFFFB44D),
+        color: _eventsWarningAccent,
         summary:
             '${event.clientId}/${event.siteId} dispatch ${event.dispatchId} denied by ${event.operatorId}',
       );
@@ -2933,7 +2949,7 @@ class _EventsPageState extends State<EventsPage> {
     if (event is GuardCheckedIn) {
       return _EventInfo(
         label: 'GUARD CHECK-IN',
-        color: const Color(0xFF2FD6FF),
+        color: _eventsInfoAccent,
         summary:
             '${event.guardId} checked in at ${event.clientId}/${event.siteId}',
       );
@@ -2941,7 +2957,7 @@ class _EventsPageState extends State<EventsPage> {
     if (event is PatrolCompleted) {
       return _EventInfo(
         label: 'PATROL COMPLETED',
-        color: const Color(0xFF65E8CF),
+        color: _eventsSuccessAccent,
         summary:
             '${event.guardId} completed ${event.routeId} in ${event.durationSeconds}s at ${event.siteId}',
       );
@@ -2949,7 +2965,7 @@ class _EventsPageState extends State<EventsPage> {
     if (event is ResponseArrived) {
       return _EventInfo(
         label: 'RESPONSE ARRIVED',
-        color: const Color(0xFF74D1FF),
+        color: _eventsInfoAccent,
         summary:
             '${event.guardId} arrived for ${event.dispatchId} at ${event.siteId}',
       );
@@ -2957,7 +2973,7 @@ class _EventsPageState extends State<EventsPage> {
     if (event is PartnerDispatchStatusDeclared) {
       return _EventInfo(
         label: 'PARTNER DECLARED',
-        color: const Color(0xFF22C55E),
+        color: _eventsSuccessAccent,
         summary:
             '${event.partnerLabel} declared ${event.status.name} for ${event.dispatchId} at ${event.siteId}',
       );
@@ -2970,14 +2986,14 @@ class _EventsPageState extends State<EventsPage> {
           : '${event.vehicleLabel} marked reviewed at ${event.siteId}';
       return _EventInfo(
         label: 'VISIT REVIEW',
-        color: const Color(0xFF38BDF8),
+        color: _eventsInfoAccent,
         summary: summary,
       );
     }
     if (event is IncidentClosed) {
       return _EventInfo(
         label: 'INCIDENT CLOSED',
-        color: const Color(0xFF9FE06A),
+        color: _eventsSuccessAccent,
         summary:
             '${event.dispatchId} closed (${event.resolutionType}) at ${event.siteId}',
       );
@@ -2996,7 +3012,7 @@ class _EventsPageState extends State<EventsPage> {
       final investigationHeadline = _reportInvestigationHeadline(event);
       return _EventInfo(
         label: 'REPORT GENERATED',
-        color: const Color(0xFFAD8DFF),
+        color: _eventsAdminAccent,
         summary:
             '${event.clientId}/${event.siteId} ${event.month} • $configurationSummary${brandingHeadline == null ? '' : ' • $brandingHeadline'}${investigationHeadline == null ? '' : ' • $investigationHeadline'} • hash ${event.contentHash.substring(0, 12)}... range ${event.eventRangeStart}-${event.eventRangeEnd}',
       );
@@ -3004,7 +3020,7 @@ class _EventsPageState extends State<EventsPage> {
     if (event is IntelligenceReceived) {
       return _EventInfo(
         label: 'INTEL RECEIVED',
-        color: const Color(0xFFFFA34D),
+        color: _eventsWarningAccent,
         summary:
             '${event.provider}/${event.externalId} risk ${event.riskScore} at ${event.clientId}/${event.siteId}',
       );
@@ -3012,7 +3028,7 @@ class _EventsPageState extends State<EventsPage> {
 
     return _EventInfo(
       label: 'EVENT',
-      color: const Color(0xFF93A8C9),
+      color: _eventsBlueText,
       summary: event.eventId,
     );
   }
@@ -3075,7 +3091,7 @@ class _EventsPageState extends State<EventsPage> {
                 ? 'The current lane is empty, but scoped forensic rows still exist outside it. Recover the case board by reopening the full stream or pivoting straight into an intelligence-first pass.'
                 : 'The current review scope is empty. Widen the window or reset the full forensic scope so the board can pull a live case file back into focus.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FA4C5),
+              color: _eventsBlueText,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -3090,8 +3106,8 @@ class _EventsPageState extends State<EventsPage> {
                 ? '${filteredRows.length} scoped row${filteredRows.length == 1 ? '' : 's'} remain available outside the active lane. Reopen the full stream or switch to intelligence-first review to anchor the workspace again.'
                 : 'No visible rows remain inside the current window and filter stack. Use the actions below to widen the forensic horizon and restore a selected case file.',
             accent: hasRowsOutsideLane
-                ? const Color(0xFF63BDFF)
-                : const Color(0xFFF6C067),
+                ? _eventsInfoAccent
+                : _eventsWarningAccent,
             actions: [
               if (hasRowsOutsideLane)
                 _forensicRecoveryAction(
@@ -3112,14 +3128,14 @@ class _EventsPageState extends State<EventsPage> {
                 _forensicRecoveryAction(
                   key: const ValueKey('events-empty-detail-open-all-time'),
                   label: 'All Time',
-                  accent: const Color(0xFFF6C067),
+                  accent: _eventsWarningAccent,
                   onTap: () => _setTimeWindow(_TimeWindow.all),
                 ),
               if (canResetScope)
                 _forensicRecoveryAction(
                   key: const ValueKey('events-empty-detail-reset-scope'),
                   label: 'Reset Scope',
-                  accent: const Color(0xFF59D79B),
+                  accent: _eventsSuccessAccent,
                   onTap: () => _resetForensicFilters(resetLane: true),
                 ),
             ],
@@ -3128,7 +3144,7 @@ class _EventsPageState extends State<EventsPage> {
           Text(
             'Selected case boards, evidence posture, and linked-chain context snap back automatically as soon as the rail has a viable row again.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF7289AA),
+              color: _eventsMutedColor,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -3223,9 +3239,9 @@ class _EventsPageState extends State<EventsPage> {
         color: _eventsPanelColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _eventsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A081B33),
+            color: _eventsShadowColor,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -3302,7 +3318,7 @@ class _EventsPageState extends State<EventsPage> {
                   _reportInvestigationContext(reportEvent) != null)
                 _pill(
                   _reportInvestigationContextLabel(reportEvent),
-                  color: const Color(0xFF5DC8FF),
+                  color: _eventsInfoAccent,
                 ),
             ],
           ),
@@ -3427,20 +3443,20 @@ class _EventsPageState extends State<EventsPage> {
 
   Color _reportBrandingAccent(ReportGenerated event) {
     if (!event.brandingConfiguration.isConfigured) {
-      return const Color(0xFF8EA5C6);
+      return _eventsBlueText;
     }
     return event.brandingUsesOverride
-        ? const Color(0xFFF6C067)
-        : const Color(0xFF59D79B);
+        ? _eventsWarningAccent
+        : _eventsSuccessAccent;
   }
 
   Color _reportSectionConfigurationAccent(ReportGenerated event) {
     if (!_hasTrackedReportSectionConfiguration(event)) {
-      return const Color(0xFF8EA5C6);
+      return _eventsBlueText;
     }
     return _omittedReportSectionLabels(event.sectionConfiguration).isEmpty
-        ? const Color(0xFF59D79B)
-        : const Color(0xFFF6C067);
+        ? _eventsSuccessAccent
+        : _eventsWarningAccent;
   }
 }
 
@@ -3528,21 +3544,21 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: hasEvidence
-                      ? const Color(0x162FD6A3)
-                      : const Color(0x16FF8C69),
+                      ? _eventsSuccessSurface
+                      : _eventsCriticalSurface,
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
                     color: hasEvidence
-                        ? const Color(0xFF2FD6A3)
-                        : const Color(0xFFFF8C69),
+                        ? _eventsSuccessAccent
+                        : _eventsCriticalAccent,
                   ),
                 ),
                 child: Text(
                   hasEvidence ? 'READY' : 'EMPTY',
                   style: GoogleFonts.inter(
                     color: hasEvidence
-                        ? const Color(0xFF9AF3D6)
-                        : const Color(0xFFFFB6A1),
+                        ? _eventsSuccessAccent
+                        : _eventsCriticalAccent,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                   ),
@@ -3581,7 +3597,7 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
               onPressed: () => _showIntegrityCertificatePreview(context),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _eventsTitleColor,
-                side: const BorderSide(color: Color(0xFF7EA7D3)),
+                side: const BorderSide(color: _eventsInfoBorder),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10,
@@ -3778,7 +3794,7 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _eventsPanelTint,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFBED2E8)),
+        border: Border.all(color: _eventsInfoBorder),
       ),
       child: Text(
         text,
@@ -3793,11 +3809,11 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
 }
 
 enum _EventLaneFilter {
-  all('All', 'all', Color(0xFF93A8C9)),
-  intelligence('Intelligence', 'intelligence', Color(0xFFFFA34D)),
-  response('Response', 'response', Color(0xFF63BDFF)),
-  field('Field', 'field', Color(0xFF59D79B)),
-  reporting('Reporting', 'reporting', Color(0xFFAD8DFF));
+  all('All', 'all', _eventsBlueText),
+  intelligence('Intelligence', 'intelligence', _eventsWarningAccent),
+  response('Response', 'response', _eventsInfoAccent),
+  field('Field', 'field', _eventsSuccessAccent),
+  reporting('Reporting', 'reporting', _eventsAdminAccent);
 
   final String label;
   final String key;
@@ -3807,9 +3823,9 @@ enum _EventLaneFilter {
 }
 
 enum _EventWorkspaceView {
-  casefile('Case File', 'casefile', Color(0xFF63BDFF)),
-  evidence('Evidence', 'evidence', Color(0xFFF6C067)),
-  chain('Chain', 'chain', Color(0xFF59D79B));
+  casefile('Case File', 'casefile', _eventsInfoAccent),
+  evidence('Evidence', 'evidence', _eventsWarningAccent),
+  chain('Chain', 'chain', _eventsSuccessAccent);
 
   final String label;
   final String key;

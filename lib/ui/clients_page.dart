@@ -15,6 +15,33 @@ import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
 
+const _clientsPanelColor = OnyxColorTokens.backgroundSecondary;
+const _clientsPanelTint = OnyxColorTokens.surfaceElevated;
+const _clientsSelectedPanelColor = OnyxColorTokens.cyanSurface;
+const _clientsBorderColor = OnyxColorTokens.borderSubtle;
+const _clientsStrongBorderColor = OnyxColorTokens.cyanBorder;
+const _clientsTitleColor = OnyxColorTokens.textPrimary;
+const _clientsBodyColor = OnyxColorTokens.textSecondary;
+const _clientsMutedColor = OnyxColorTokens.textMuted;
+const _clientsAccent = OnyxColorTokens.accentPurple;
+const _clientsInfoAccent = OnyxColorTokens.accentSky;
+const _clientsInfoAccentStrong = OnyxColorTokens.accentBlue;
+const _clientsSuccessAccent = OnyxColorTokens.accentGreen;
+const _clientsWarningAccent = OnyxColorTokens.accentAmber;
+const _clientsAlertAccent = OnyxColorTokens.accentRed;
+const _clientsAdminAccent = OnyxColorTokens.accentPurple;
+const _clientsInfoSurface = OnyxColorTokens.cyanSurface;
+const _clientsSuccessSurface = OnyxColorTokens.greenSurface;
+const _clientsWarningSurface = OnyxColorTokens.amberSurface;
+const _clientsAlertSurface = OnyxColorTokens.redSurface;
+const _clientsInfoBorder = OnyxColorTokens.cyanBorder;
+const _clientsSuccessBorder = OnyxColorTokens.greenBorder;
+const _clientsWarningBorder = OnyxColorTokens.amberBorder;
+const _clientsAlertBorder = OnyxColorTokens.redBorder;
+final _clientsShadowColor = OnyxColorTokens.backgroundPrimary.withValues(
+  alpha: 0.07,
+);
+
 class ClientsAgentDraftHandoff {
   final String id;
   final String clientId;
@@ -307,8 +334,8 @@ class _ClientsPageState extends State<ClientsPage> {
 
     if (effectiveTarget == ClientsRouteHandoffTarget.threadContext ||
         effectiveTarget == ClientsRouteHandoffTarget.channelReview) {
-      final resumeTarget = effectiveTarget ==
-              ClientsRouteHandoffTarget.threadContext
+      final resumeTarget =
+          effectiveTarget == ClientsRouteHandoffTarget.threadContext
           ? _DetailedCommsResumeTarget.threadContext
           : _DetailedCommsResumeTarget.channelReview;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -354,8 +381,7 @@ class _ClientsPageState extends State<ClientsPage> {
     final model = widget.usePlaceholderDataWhenEmpty
         ? baseModel
         : _withExplicitRouteScope(baseModel);
-    final clients =
-        model.clients.isEmpty && widget.usePlaceholderDataWhenEmpty
+    final clients = model.clients.isEmpty && widget.usePlaceholderDataWhenEmpty
         ? _fallbackClients
         : model.clients;
     final sites = model.sites.isEmpty && widget.usePlaceholderDataWhenEmpty
@@ -367,7 +393,7 @@ class _ClientsPageState extends State<ClientsPage> {
           child: Text(
             'Client Communications needs a scoped client and site before the workspace can open.',
             style: GoogleFonts.inter(
-              color: const Color(0x80FFFFFF),
+              color: _clientsBodyColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -378,7 +404,8 @@ class _ClientsPageState extends State<ClientsPage> {
     }
 
     final selectedClientId =
-        _selectedClientId != null && clients.any((c) => c.id == _selectedClientId)
+        _selectedClientId != null &&
+            clients.any((c) => c.id == _selectedClientId)
         ? _selectedClientId!
         : clients.first.id;
     var availableSites = sites
@@ -410,8 +437,7 @@ class _ClientsPageState extends State<ClientsPage> {
       selectedClientId: selectedClientId,
       selectedSiteId: selectedSiteId,
     );
-    final rows =
-        feedRows.isEmpty && widget.usePlaceholderDataWhenEmpty
+    final rows = feedRows.isEmpty && widget.usePlaceholderDataWhenEmpty
         ? _fallbackFeed
         : feedRows;
 
@@ -440,12 +466,9 @@ class _ClientsPageState extends State<ClientsPage> {
     final telegramBlocked = pushSyncLower.contains('blocked');
     final smsFallbackActive = pushSyncLower.contains('fallback');
     final voipReady =
-        voipConfigured &&
-        voipStageLower.contains('dialing') ||
-        voipConfigured &&
-        voipStageLower.contains('ready') ||
-        voipConfigured &&
-        voipStageLower.contains('connected');
+        voipConfigured && voipStageLower.contains('dialing') ||
+        voipConfigured && voipStageLower.contains('ready') ||
+        voipConfigured && voipStageLower.contains('connected');
     final voipStaged = voipConfigured && voipStageLower.contains('staged');
     final pushNeedsReview =
         pushSyncLower.contains('retry') || pushSyncLower.contains('review');
@@ -660,7 +683,8 @@ class _ClientsPageState extends State<ClientsPage> {
                 onReject: _rejectQueueItem,
                 onOpenAgentForIncident: widget.onOpenAgentForIncident,
                 selectedTone: _selectedPinnedVoice,
-                onToneChanged: (tone) => setState(() => _selectedPinnedVoice = tone),
+                onToneChanged: (tone) =>
+                    setState(() => _selectedPinnedVoice = tone),
                 messageHistory: const [],
               ),
             );
@@ -693,14 +717,10 @@ class _ClientsPageState extends State<ClientsPage> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: OnyxDesignTokens.cyanInfo.withValues(
-                            alpha: 0.08,
-                          ),
+                          color: _clientsInfoAccent.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: OnyxDesignTokens.cyanInfo.withValues(
-                              alpha: 0.15,
-                            ),
+                            color: _clientsInfoAccent.withValues(alpha: 0.15),
                           ),
                         ),
                         child: Row(
@@ -711,7 +731,7 @@ class _ClientsPageState extends State<ClientsPage> {
                               height: 6,
                               decoration: const BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: OnyxDesignTokens.cyanInfo,
+                                color: _clientsInfoAccent,
                               ),
                             ),
                             const SizedBox(width: 5),
@@ -720,7 +740,7 @@ class _ClientsPageState extends State<ClientsPage> {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
-                                color: OnyxDesignTokens.cyanInfo,
+                                color: _clientsInfoAccent,
                               ),
                             ),
                           ],
@@ -827,9 +847,9 @@ class _ClientsPageState extends State<ClientsPage> {
         icon: const Icon(Icons.visibility_off_rounded, size: 15),
         label: const Text('Hide Detailed Workspace'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF9D4BFF),
-          side: const BorderSide(color: Color(0x4D9D4BFF)),
-          backgroundColor: const Color(0xFF13131E),
+          foregroundColor: _clientsAccent,
+          side: const BorderSide(color: _clientsStrongBorderColor),
+          backgroundColor: _clientsPanelColor,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           textStyle: GoogleFonts.inter(
             fontSize: 11,
@@ -923,7 +943,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     Text(
                       'Pick the thread first. Clear drafts and open rooms from the boards next to it.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9CB2D1),
+                        color: _clientsMutedColor,
                         fontSize: 9,
                         fontWeight: FontWeight.w600,
                         height: 1.35,
@@ -980,12 +1000,12 @@ class _ClientsPageState extends State<ClientsPage> {
           key: key,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: _clientsPanelColor,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0x269D4BFF)),
-            boxShadow: const [
+            border: Border.all(color: _clientsBorderColor),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x120D1726),
+                color: _clientsShadowColor,
                 blurRadius: 12,
                 offset: Offset(0, 8),
               ),
@@ -999,7 +1019,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 Text(
                   title,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE8E8F0),
+                    color: _clientsTitleColor,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1010,7 +1030,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF6A7D93),
+                    color: _clientsMutedColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -1061,7 +1081,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             evidenceReceipt.label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8E8F0),
+              color: _clientsTitleColor,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -1070,7 +1090,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             evidenceReceipt.headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8E8F0),
+              color: _clientsTitleColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -1080,7 +1100,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             evidenceReceipt.detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -1108,7 +1128,7 @@ class _ClientsPageState extends State<ClientsPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131E),
+          color: _clientsPanelColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: evidenceReceipt.accent.withValues(alpha: 0.34),
@@ -1126,7 +1146,7 @@ class _ClientsPageState extends State<ClientsPage> {
         Text(
           'What needs attention',
           style: GoogleFonts.inter(
-            color: const Color(0x80FFFFFF),
+            color: _clientsBodyColor,
             fontSize: 10.5,
             fontWeight: FontWeight.w800,
           ),
@@ -1139,7 +1159,7 @@ class _ClientsPageState extends State<ClientsPage> {
             directUpdates: directUpdates,
           ),
           style: GoogleFonts.inter(
-            color: const Color(0xFFE8E8F0),
+            color: _clientsTitleColor,
             fontSize: 15.5,
             fontWeight: FontWeight.w800,
           ),
@@ -1148,7 +1168,7 @@ class _ClientsPageState extends State<ClientsPage> {
         Text(
           '${currentClient.name} • ${currentSite.name}',
           style: GoogleFonts.inter(
-            color: const Color(0xFF6A7D93),
+            color: _clientsMutedColor,
             fontSize: 10.8,
             fontWeight: FontWeight.w600,
           ),
@@ -1161,7 +1181,7 @@ class _ClientsPageState extends State<ClientsPage> {
             directUpdates: directUpdates,
           ),
           style: GoogleFonts.inter(
-            color: const Color(0xFF6A7D93),
+            color: _clientsMutedColor,
             fontSize: 10.2,
             fontWeight: FontWeight.w600,
             height: 1.4,
@@ -1176,7 +1196,7 @@ class _ClientsPageState extends State<ClientsPage> {
             activeIncidents: activeIncidents,
           ),
           style: GoogleFonts.inter(
-            color: const Color(0x80FFFFFF),
+            color: _clientsBodyColor,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             height: 1.35,
@@ -1190,9 +1210,9 @@ class _ClientsPageState extends State<ClientsPage> {
               key: const ValueKey('clients-workspace-open-agent'),
               onPressed: () => openAgent(agentIncidentReference!.trim()),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF9D4BFF),
-                side: const BorderSide(color: Color(0x4D9D4BFF)),
-                backgroundColor: const Color(0xFF1A1A2E),
+                foregroundColor: _clientsAccent,
+                side: const BorderSide(color: _clientsStrongBorderColor),
+                backgroundColor: _clientsPanelTint,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10,
@@ -1223,9 +1243,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: _clientsPanelTint,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: content,
     );
@@ -1271,9 +1291,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: _clientsPanelTint,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1281,7 +1301,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'What needs attention',
             style: GoogleFonts.inter(
-              color: const Color(0x80FFFFFF),
+              color: _clientsBodyColor,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
             ),
@@ -1294,7 +1314,7 @@ class _ClientsPageState extends State<ClientsPage> {
               directUpdates: directUpdates,
             ),
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8E8F0),
+              color: _clientsTitleColor,
               fontSize: 15.2,
               fontWeight: FontWeight.w800,
             ),
@@ -1303,7 +1323,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             '${currentClient.name} • ${currentSite.name} • $threadStatus',
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 10.6,
               fontWeight: FontWeight.w600,
             ),
@@ -1316,7 +1336,7 @@ class _ClientsPageState extends State<ClientsPage> {
               directUpdates: directUpdates,
             ),
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 10.1,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -1329,9 +1349,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: _clientsPanelTint,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1343,13 +1363,13 @@ class _ClientsPageState extends State<ClientsPage> {
                 width: 46,
                 height: 46,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFE4ECF9),
+                  color: _clientsInfoSurface,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.mark_chat_read_rounded,
-                  color: Color(0xFF9D4BFF),
+                  color: _clientsAccent,
                   size: 22,
                 ),
               ),
@@ -1361,7 +1381,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     Text(
                       'Client Communications',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8E8F0),
+                        color: _clientsTitleColor,
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1370,7 +1390,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     Text(
                       '${currentClient.name} • ${currentSite.name}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF6A7D93),
+                        color: _clientsMutedColor,
                         fontSize: 11.6,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1379,7 +1399,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     Text(
                       'Keep the chat familiar. Read the thread, clear the next draft, and reply without hunting through the UI.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF6A7D93),
+                        color: _clientsMutedColor,
                         fontSize: 11.4,
                         fontWeight: FontWeight.w600,
                         height: 1.4,
@@ -1393,9 +1413,9 @@ class _ClientsPageState extends State<ClientsPage> {
                   key: const ValueKey('clients-open-agent-button'),
                   onPressed: () => openAgent(normalizedAgentIncidentReference),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF9D4BFF),
-                    side: const BorderSide(color: Color(0x4D9D4BFF)),
-                    backgroundColor: const Color(0xFF1A1A2E),
+                    foregroundColor: _clientsAccent,
+                    side: const BorderSide(color: _clientsStrongBorderColor),
+                    backgroundColor: _clientsPanelTint,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
@@ -1570,17 +1590,17 @@ class _ClientsPageState extends State<ClientsPage> {
     );
     final highlightsClientSide = row.type == _FeedType.update;
     final bubbleBackground = highlightsClientSide
-        ? const Color(0x1A9D4BFF)
-        : const Color(0xFF13131E);
+        ? _clientsSelectedPanelColor
+        : _clientsPanelColor;
     final bubbleBorder = highlightsClientSide
-        ? const Color(0x4D9D4BFF)
-        : const Color(0xFFD9E3EE);
+        ? _clientsStrongBorderColor
+        : _clientsBorderColor;
     final labelColor = highlightsClientSide
-        ? const Color(0xFF315A9A)
-        : const Color(0xFF5B708B);
+        ? _clientsInfoAccentStrong
+        : _clientsMutedColor;
     final surfaceTextColor = highlightsClientSide
-        ? const Color(0xFF1E355A)
-        : const Color(0xFFE8E8F0);
+        ? _clientsInfoAccentStrong
+        : _clientsTitleColor;
     return InkWell(
       key: ValueKey('clients-incident-row-${row.title}-${row.timestampLabel}'),
       borderRadius: BorderRadius.circular(9),
@@ -1621,9 +1641,9 @@ class _ClientsPageState extends State<ClientsPage> {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A2E),
+                      color: _clientsPanelTint,
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0x269D4BFF)),
+                      border: Border.all(color: _clientsBorderColor),
                     ),
                     child: Icon(_feedIcon(row.type), color: rowColor, size: 18),
                   ),
@@ -1682,11 +1702,11 @@ class _ClientsPageState extends State<ClientsPage> {
                               onPressed: () =>
                                   openAgent(normalizedIncidentReference),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF9D4BFF),
+                                foregroundColor: _clientsAccent,
                                 side: const BorderSide(
-                                  color: Color(0x4D9D4BFF),
+                                  color: _clientsStrongBorderColor,
                                 ),
-                                backgroundColor: const Color(0xFF1A1A2E),
+                                backgroundColor: _clientsPanelTint,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 8,
@@ -1722,14 +1742,14 @@ class _ClientsPageState extends State<ClientsPage> {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDCE9FF),
+                      color: _clientsInfoSurface,
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFBED0F1)),
+                      border: Border.all(color: _clientsInfoBorder),
                     ),
                     alignment: Alignment.center,
                     child: const Icon(
                       Icons.mark_chat_read_rounded,
-                      color: Color(0xFF9D4BFF),
+                      color: _clientsAccent,
                       size: 18,
                     ),
                   ),
@@ -1757,9 +1777,9 @@ class _ClientsPageState extends State<ClientsPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131E),
+          color: _clientsPanelColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0x269D4BFF)),
+          border: Border.all(color: _clientsBorderColor),
         ),
         child: Row(
           children: [
@@ -1769,9 +1789,7 @@ class _ClientsPageState extends State<ClientsPage> {
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  color: enabled
-                      ? const Color(0xFFE8E8F0)
-                      : const Color(0x80FFFFFF),
+                  color: enabled ? _clientsTitleColor : _clientsBodyColor,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1781,14 +1799,14 @@ class _ClientsPageState extends State<ClientsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0x1AEF4444),
+                  color: _clientsAlertSurface,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0x66EF4444)),
+                  border: Border.all(color: _clientsAlertBorder),
                 ),
                 child: Text(
                   unreadLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFCC5B67),
+                    color: _clientsAlertAccent,
                     fontSize: 9.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1797,7 +1815,7 @@ class _ClientsPageState extends State<ClientsPage> {
             const SizedBox(width: 8),
             const Icon(
               Icons.chevron_right_rounded,
-              color: Color(0x80FFFFFF),
+              color: _clientsBodyColor,
               size: 16,
             ),
           ],
@@ -1867,9 +1885,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: _clientsPanelTint,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1877,7 +1895,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Client chats',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8E8F0),
+              color: _clientsTitleColor,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -1886,7 +1904,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Keep the familiar inbox list on the left. Open one thread and stay in it.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 11.2,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -1896,15 +1914,15 @@ class _ClientsPageState extends State<ClientsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             decoration: BoxDecoration(
-              color: const Color(0xFF13131E),
+              color: _clientsPanelColor,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0x269D4BFF)),
+              border: Border.all(color: _clientsBorderColor),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.search_rounded,
-                  color: Color(0xFF7F93AB),
+                  color: _clientsMutedColor,
                   size: 18,
                 ),
                 const SizedBox(width: 10),
@@ -1914,7 +1932,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: const Color(0x80FFFFFF),
+                      color: _clientsBodyColor,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1953,18 +1971,18 @@ class _ClientsPageState extends State<ClientsPage> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: lane.active
-                          ? const Color(0xFF13131E)
-                          : const Color(0xFF1A1A2E),
+                          ? _clientsPanelColor
+                          : _clientsPanelTint,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: lane.active
-                            ? const Color(0x4D9D4BFF)
-                            : const Color(0x269D4BFF),
+                            ? _clientsStrongBorderColor
+                            : _clientsBorderColor,
                       ),
                       boxShadow: lane.active
-                          ? const [
+                          ? [
                               BoxShadow(
-                                color: Color(0x120E1726),
+                                color: _clientsShadowColor,
                                 blurRadius: 16,
                                 offset: Offset(0, 8),
                               ),
@@ -1979,15 +1997,15 @@ class _ClientsPageState extends State<ClientsPage> {
                           height: 42,
                           decoration: BoxDecoration(
                             color: lane.active
-                                ? const Color(0xFFE5EEFC)
-                                : const Color(0xFFEFF3F8),
+                                ? _clientsInfoSurface
+                                : _clientsInfoSurface,
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             _chatAvatarLabel(lane.client.name),
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF274770),
+                              color: _clientsInfoAccentStrong,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
@@ -2006,7 +2024,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFFE8E8F0),
+                                        color: _clientsTitleColor,
                                         fontSize: 12.8,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -2015,7 +2033,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                   Text(
                                     lane.active ? 'Open' : 'Tap',
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFF6C82A0),
+                                      color: _clientsMutedColor,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -2028,7 +2046,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF5D728C),
+                                  color: _clientsMutedColor,
                                   fontSize: 10.6,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -2039,7 +2057,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF6A7D93),
+                                  color: _clientsMutedColor,
                                   fontSize: 10.8,
                                   fontWeight: FontWeight.w600,
                                   height: 1.35,
@@ -2054,14 +2072,14 @@ class _ClientsPageState extends State<ClientsPage> {
                             width: 24,
                             height: 24,
                             decoration: const BoxDecoration(
-                              color: Color(0xFFE8F1FF),
+                              color: _clientsInfoSurface,
                               shape: BoxShape.circle,
                             ),
                             alignment: Alignment.center,
                             child: Text(
                               badgeLabel,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF9D4BFF),
+                                color: _clientsAccent,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -2104,9 +2122,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: _clientsPanelTint,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2114,7 +2132,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Chat details',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8E8F0),
+              color: _clientsTitleColor,
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
@@ -2122,7 +2140,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Stay in one thread. Switch the client or room only when you need to.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -2203,13 +2221,13 @@ class _ClientsPageState extends State<ClientsPage> {
               final roomCard = _contextPill(
                 label: 'ROOM ID',
                 value: '# $roomId',
-                accent: const Color(0xFFC084FC),
+                accent: _clientsAdminAccent,
                 mono: true,
               );
               final threadCard = _contextPill(
                 label: 'ACTIVE THREAD',
                 value: '# $threadId',
-                accent: const Color(0xFF22D3EE),
+                accent: _clientsInfoAccent,
                 mono: true,
               );
               if (stacked) {
@@ -2231,9 +2249,9 @@ class _ClientsPageState extends State<ClientsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF13131E),
+              color: _clientsPanelColor,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0x269D4BFF)),
+              border: Border.all(color: _clientsBorderColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2241,7 +2259,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 Text(
                   'This chat is live',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9D4BFF),
+                    color: _clientsAccent,
                     fontSize: 11.4,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2250,7 +2268,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 Text(
                   'Replies stay tied to ${currentClient.name}. Use the quick actions only when you need help or want to reopen a queued draft.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF6A7D93),
+                    color: _clientsMutedColor,
                     fontSize: 10.8,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
@@ -2263,9 +2281,9 @@ class _ClientsPageState extends State<ClientsPage> {
                     onPressed: () =>
                         openAgent(normalizedAgentIncidentReference),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF9D4BFF),
-                      side: const BorderSide(color: Color(0x4D9D4BFF)),
-                      backgroundColor: const Color(0xFF1A1A2E),
+                      foregroundColor: _clientsAccent,
+                      side: const BorderSide(color: _clientsStrongBorderColor),
+                      backgroundColor: _clientsPanelTint,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
@@ -2300,9 +2318,9 @@ class _ClientsPageState extends State<ClientsPage> {
                       resumeTarget: _DetailedCommsResumeTarget.threadContext,
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF9D4BFF),
-                      side: const BorderSide(color: Color(0x4D9D4BFF)),
-                      backgroundColor: const Color(0xFF1A1A2E),
+                      foregroundColor: _clientsAccent,
+                      side: const BorderSide(color: _clientsStrongBorderColor),
+                      backgroundColor: _clientsPanelTint,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
@@ -2329,19 +2347,19 @@ class _ClientsPageState extends State<ClientsPage> {
               final children = [
                 _roomButton(
                   'Residents',
-                  const Color(0xFF22D3EE),
+                  _clientsInfoAccent,
                   enabled: roomRoutingAvailable,
                   onTap: () => _openClientRoom('Residents'),
                 ),
                 _roomButton(
                   'Trustees',
-                  const Color(0xFFC084FC),
+                  _clientsAdminAccent,
                   enabled: roomRoutingAvailable,
                   onTap: () => _openClientRoom('Trustees'),
                 ),
                 _roomButton(
                   'Security Desk',
-                  const Color(0xFF10B981),
+                  _clientsSuccessAccent,
                   enabled: roomRoutingAvailable,
                   onTap: () => _openClientRoom('Security Desk'),
                 ),
@@ -2372,7 +2390,7 @@ class _ClientsPageState extends State<ClientsPage> {
             Text(
               'Room switching is view-only in this session.',
               style: GoogleFonts.inter(
-                color: const Color(0x80FFFFFF),
+                color: _clientsBodyColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -2392,9 +2410,9 @@ class _ClientsPageState extends State<ClientsPage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: _clientsPanelColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2402,7 +2420,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
@@ -2412,10 +2430,10 @@ class _ClientsPageState extends State<ClientsPage> {
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              dropdownColor: const Color(0xFF13131E),
-              iconEnabledColor: const Color(0x80FFFFFF),
+              dropdownColor: _clientsPanelColor,
+              iconEnabledColor: _clientsBodyColor,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8E8F0),
+                color: _clientsTitleColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -2438,9 +2456,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: _clientsPanelColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2448,7 +2466,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
@@ -2501,9 +2519,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: _clientsPanelTint,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2511,7 +2529,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Delivery',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8E8F0),
+              color: _clientsTitleColor,
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
@@ -2519,7 +2537,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'What is ready, what is blocked, and what still needs a nudge.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -2534,27 +2552,27 @@ class _ClientsPageState extends State<ClientsPage> {
                 label: telegramBlocked ? 'Telegram blocked' : 'Telegram ready',
                 icon: Icons.check_circle_rounded,
                 foreground: telegramBlocked
-                    ? const Color(0xFFAF4E57)
-                    : const Color(0xFF2D7A5F),
+                    ? _clientsAlertAccent
+                    : _clientsSuccessAccent,
                 background: telegramBlocked
-                    ? const Color(0xFFFFF2F2)
-                    : const Color(0x1A00D4AA),
+                    ? _clientsAlertSurface
+                    : _clientsSuccessSurface,
                 border: telegramBlocked
-                    ? const Color(0x1AFF3B5C)
-                    : const Color(0xFFCFE6DA),
+                    ? _clientsAlertSurface
+                    : _clientsSuccessBorder,
               ),
               _channelChip(
                 label: smsFallbackActive ? 'SMS fallback' : 'SMS idle',
                 icon: Icons.sms_outlined,
                 foreground: smsFallbackActive
-                    ? const Color(0xFF9A6A19)
-                    : const Color(0xFF6A7D93),
+                    ? _clientsWarningAccent
+                    : _clientsMutedColor,
                 background: smsFallbackActive
-                    ? const Color(0x1AF5A623)
-                    : const Color(0xFF13131E),
+                    ? _clientsWarningSurface
+                    : _clientsPanelColor,
                 border: smsFallbackActive
-                    ? const Color(0x4DF5A623)
-                    : const Color(0x269D4BFF),
+                    ? _clientsWarningBorder
+                    : _clientsBorderColor,
               ),
               _channelChip(
                 label: !voipConfigured
@@ -2566,26 +2584,26 @@ class _ClientsPageState extends State<ClientsPage> {
                     : 'VoIP idle',
                 icon: Icons.phone_forwarded_rounded,
                 foreground: !voipConfigured
-                    ? const Color(0xFF6A7D93)
+                    ? _clientsMutedColor
                     : voipStaged
-                    ? const Color(0xFF9A6A19)
+                    ? _clientsWarningAccent
                     : voipReady
-                    ? const Color(0xFF2D7A5F)
-                    : const Color(0xFF6A7D93),
+                    ? _clientsSuccessAccent
+                    : _clientsMutedColor,
                 background: !voipConfigured
-                    ? const Color(0xFF13131E)
+                    ? _clientsPanelColor
                     : voipStaged
-                    ? const Color(0x1AF5A623)
+                    ? _clientsWarningSurface
                     : voipReady
-                    ? const Color(0x1A00D4AA)
-                    : const Color(0xFF13131E),
+                    ? _clientsSuccessSurface
+                    : _clientsPanelColor,
                 border: !voipConfigured
-                    ? const Color(0x269D4BFF)
+                    ? _clientsBorderColor
                     : voipStaged
-                    ? const Color(0x4DF5A623)
+                    ? _clientsWarningBorder
                     : voipReady
-                    ? const Color(0xFFCFE6DA)
-                    : const Color(0x269D4BFF),
+                    ? _clientsSuccessBorder
+                    : _clientsBorderColor,
               ),
               _channelChip(
                 label: pushNeedsReview
@@ -2595,20 +2613,20 @@ class _ClientsPageState extends State<ClientsPage> {
                     : 'Push healthy',
                 icon: Icons.notifications_active_outlined,
                 foreground: pushNeedsReview
-                    ? const Color(0xFF9A6A19)
+                    ? _clientsWarningAccent
                     : pushIdle
-                    ? const Color(0xFF6A7D93)
-                    : const Color(0xFF6A7D93),
+                    ? _clientsMutedColor
+                    : _clientsMutedColor,
                 background: pushNeedsReview
-                    ? const Color(0x1AF5A623)
+                    ? _clientsWarningSurface
                     : pushIdle
-                    ? const Color(0xFF13131E)
-                    : const Color(0xFF13131E),
+                    ? _clientsPanelColor
+                    : _clientsPanelColor,
                 border: pushNeedsReview
-                    ? const Color(0x4DF5A623)
+                    ? _clientsWarningBorder
                     : pushIdle
-                    ? const Color(0x269D4BFF)
-                    : const Color(0x269D4BFF),
+                    ? _clientsBorderColor
+                    : _clientsBorderColor,
               ),
             ],
           ),
@@ -2618,9 +2636,9 @@ class _ClientsPageState extends State<ClientsPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF13131E),
+                color: _clientsPanelColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0x4DF5A623)),
+                border: Border.all(color: _clientsWarningBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2628,7 +2646,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   Text(
                     voipReady ? 'VoIP Call Active' : 'VoIP Call Staged',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9A6A19),
+                      color: _clientsWarningAccent,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2639,7 +2657,7 @@ class _ClientsPageState extends State<ClientsPage> {
                         ? 'Voice call is actively engaging the client escalation path.'
                         : 'Voice call queued for high-priority incident escalation. Ready to dial.',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF7B6947),
+                      color: _clientsMutedColor,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
@@ -2654,7 +2672,7 @@ class _ClientsPageState extends State<ClientsPage> {
                         label: voipReady
                             ? 'Call In Progress'
                             : 'Place Call Now',
-                        accent: const Color(0xFFFBBF24),
+                        accent: _clientsWarningAccent,
                         filled: true,
                         enabled: !voipReady,
                         onTap: voipReady
@@ -2677,7 +2695,7 @@ class _ClientsPageState extends State<ClientsPage> {
                       final cancelStage = _channelActionButton(
                         key: const ValueKey('clients-cancel-stage-action'),
                         label: voipReady ? 'End Call' : 'Cancel Stage',
-                        accent: const Color(0xFF6A7D93),
+                        accent: _clientsMutedColor,
                         filled: false,
                         onTap: () {
                           setState(() {
@@ -2721,13 +2739,13 @@ class _ClientsPageState extends State<ClientsPage> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: backendProbeHealthy
-                  ? const Color(0x1A00D4AA)
-                  : const Color(0xFFFFF2F2),
+                  ? _clientsSuccessSurface
+                  : _clientsAlertSurface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: backendProbeHealthy
-                    ? const Color(0xFFCFE6DA)
-                    : const Color(0x1AFF3B5C),
+                    ? _clientsSuccessBorder
+                    : _clientsAlertSurface,
               ),
             ),
             child: Column(
@@ -2737,8 +2755,8 @@ class _ClientsPageState extends State<ClientsPage> {
                   'Delivery health',
                   style: GoogleFonts.inter(
                     color: backendProbeHealthy
-                        ? const Color(0xFF2D7A5F)
-                        : const Color(0xFFAF4E57),
+                        ? _clientsSuccessAccent
+                        : _clientsAlertAccent,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2750,8 +2768,8 @@ class _ClientsPageState extends State<ClientsPage> {
                       : 'Backend status is $_backendProbeStatus. Push sync is ${_pushSyncStatus.toLowerCase()}.',
                   style: GoogleFonts.inter(
                     color: backendProbeHealthy
-                        ? const Color(0xFF4E816A)
-                        : const Color(0xFF8C5C62),
+                        ? _clientsSuccessAccent
+                        : _clientsAlertAccent,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -2766,12 +2784,12 @@ class _ClientsPageState extends State<ClientsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF13131E),
+                      color: _clientsPanelColor,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: pushRetryAvailable
-                            ? const Color(0x4D9D4BFF)
-                            : const Color(0x269D4BFF),
+                            ? _clientsStrongBorderColor
+                            : _clientsBorderColor,
                       ),
                     ),
                     child: Text(
@@ -2781,8 +2799,8 @@ class _ClientsPageState extends State<ClientsPage> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         color: pushRetryAvailable
-                            ? const Color(0xFF9D4BFF)
-                            : const Color(0x80FFFFFF),
+                            ? _clientsAccent
+                            : _clientsBodyColor,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -2799,15 +2817,15 @@ class _ClientsPageState extends State<ClientsPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A2E),
+                        color: _clientsPanelTint,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0x269D4BFF)),
+                        border: Border.all(color: _clientsBorderColor),
                       ),
                       child: Text(
                         'Redraft with Junior Analyst',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF9D4BFF),
+                          color: _clientsAccent,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2828,15 +2846,15 @@ class _ClientsPageState extends State<ClientsPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF13131E),
+                        color: _clientsPanelColor,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0x4D9D4BFF)),
+                        border: Border.all(color: _clientsStrongBorderColor),
                       ),
                       child: Text(
                         'Open queued draft',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF9D4BFF),
+                          color: _clientsAccent,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2870,23 +2888,23 @@ class _ClientsPageState extends State<ClientsPage> {
         decoration: BoxDecoration(
           color: filled
               ? enabled
-                    ? const Color(0x1A9D4BFF)
-                    : const Color(0xFF1A1A2E)
-              : const Color(0xFF13131E),
+                    ? _clientsSelectedPanelColor
+                    : _clientsPanelTint
+              : _clientsPanelColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: filled
                 ? enabled
-                      ? const Color(0x4D9D4BFF)
-                      : const Color(0x269D4BFF)
-                : const Color(0x269D4BFF),
+                      ? _clientsStrongBorderColor
+                      : _clientsBorderColor
+                : _clientsBorderColor,
           ),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: enabled ? accent : const Color(0x80FFFFFF),
+            color: enabled ? accent : _clientsBodyColor,
             fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
@@ -2945,9 +2963,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: _clientsPanelTint,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2959,14 +2977,14 @@ class _ClientsPageState extends State<ClientsPage> {
                 width: 46,
                 height: 46,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFE4ECF9),
+                  color: _clientsInfoSurface,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   _chatAvatarLabel(currentClient.name),
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF274770),
+                    color: _clientsInfoAccentStrong,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2980,7 +2998,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     Text(
                       currentClient.name,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8E8F0),
+                        color: _clientsTitleColor,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
@@ -2989,7 +3007,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     Text(
                       '${currentSite.name} • $threadStatus',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF667A92),
+                        color: _clientsMutedColor,
                         fontSize: 11.6,
                         fontWeight: FontWeight.w600,
                       ),
@@ -3005,7 +3023,7 @@ class _ClientsPageState extends State<ClientsPage> {
             child: Text(
               rows.isEmpty ? 'No messages yet' : 'Today',
               style: GoogleFonts.inter(
-                color: const Color(0x80FFFFFF),
+                color: _clientsBodyColor,
                 fontSize: 10.4,
                 fontWeight: FontWeight.w700,
               ),
@@ -3017,14 +3035,14 @@ class _ClientsPageState extends State<ClientsPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF13131E),
+                color: _clientsPanelColor,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0x269D4BFF)),
+                border: Border.all(color: _clientsBorderColor),
               ),
               child: Text(
                 'The thread is clear right now. New client messages and drafted replies will land here.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF6A7D93),
+                  color: _clientsMutedColor,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   height: 1.45,
@@ -3060,13 +3078,13 @@ class _ClientsPageState extends State<ClientsPage> {
     return _railCard(
       title: 'Drafts waiting',
       icon: Icons.chat_bubble_outline_rounded,
-      accent: const Color(0xFF4C78B8),
+      accent: _clientsInfoAccentStrong,
       child: Column(
         children: [
           Text(
             '$pendingAsks',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9D4BFF),
+              color: _clientsAccent,
               fontSize: 30,
               fontWeight: FontWeight.w900,
             ),
@@ -3074,7 +3092,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Awaiting review',
             style: GoogleFonts.inter(
-              color: const Color(0xFF6A7D93),
+              color: _clientsMutedColor,
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
             ),
@@ -3092,15 +3110,15 @@ class _ClientsPageState extends State<ClientsPage> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF13131E),
+                color: _clientsPanelColor,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0x4D9D4BFF)),
+                border: Border.all(color: _clientsStrongBorderColor),
               ),
               child: Text(
                 opensQueuedDraft ? 'Open queued draft' : 'Review drafts',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9D4BFF),
+                  color: _clientsAccent,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -3117,15 +3135,15 @@ class _ClientsPageState extends State<ClientsPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E),
+                  color: _clientsPanelTint,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x269D4BFF)),
+                  border: Border.all(color: _clientsBorderColor),
                 ),
                 child: Text(
                   'Ask Junior Analyst',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9D4BFF),
+                    color: _clientsAccent,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -3138,15 +3156,15 @@ class _ClientsPageState extends State<ClientsPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF13131E),
+              color: _clientsPanelColor,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x269D4BFF)),
+              border: Border.all(color: _clientsBorderColor),
             ),
             child: Text(
               '$activeIncidents active thread${activeIncidents == 1 ? '' : 's'}',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                color: const Color(0x80FFFFFF),
+                color: _clientsBodyColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -3157,21 +3175,18 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 
-  Widget _learnedStyleCard({
-    required String label,
-    required String source,
-  }) {
+  Widget _learnedStyleCard({required String label, required String source}) {
     return _railCard(
       title: 'Learned tone',
       icon: Icons.auto_graph_rounded,
-      accent: const Color(0xFF4C78B8),
+      accent: _clientsInfoAccentStrong,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131E),
+          color: _clientsPanelColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0x269D4BFF)),
+          border: Border.all(color: _clientsBorderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3179,7 +3194,7 @@ class _ClientsPageState extends State<ClientsPage> {
             Text(
               label,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8E8F0),
+                color: _clientsTitleColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
               ),
@@ -3188,7 +3203,7 @@ class _ClientsPageState extends State<ClientsPage> {
             Text(
               source,
               style: GoogleFonts.inter(
-                color: const Color(0xFF6A7D93),
+                color: _clientsMutedColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -3203,7 +3218,7 @@ class _ClientsPageState extends State<ClientsPage> {
     return _railCard(
       title: 'Reply tone',
       icon: Icons.shield_outlined,
-      accent: const Color(0xFF4C78B8),
+      accent: _clientsInfoAccentStrong,
       child: Column(
         children: [
           _voiceOption('Auto', selected: _selectedPinnedVoice == 'Auto'),
@@ -3240,17 +3255,17 @@ class _ClientsPageState extends State<ClientsPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
+          color: selected ? _clientsSelectedPanelColor : _clientsPanelColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0x4D9D4BFF) : const Color(0x269D4BFF),
+            color: selected ? _clientsStrongBorderColor : _clientsBorderColor,
           ),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFF9D4BFF) : const Color(0x80FFFFFF),
+            color: selected ? _clientsAccent : _clientsBodyColor,
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
@@ -3269,9 +3284,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: _clientsPanelTint,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _clientsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3286,7 +3301,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE8E8F0),
+                    color: _clientsTitleColor,
                     fontSize: 11.4,
                     fontWeight: FontWeight.w800,
                   ),
@@ -3315,7 +3330,8 @@ class _ClientsPageState extends State<ClientsPage> {
     return <ClientCommsQueueItem>[
           for (final handoff in stagedItems)
             _queueItemFromAgentDraftHandoff(handoff),
-          if (widget.usePlaceholderDataWhenEmpty) ..._seedControllerQueueItems(),
+          if (widget.usePlaceholderDataWhenEmpty)
+            ..._seedControllerQueueItems(),
         ]
         .where((item) => !_resolvedQueueItemIds.contains(item.id))
         .map(
@@ -3690,7 +3706,8 @@ class _ClientsPageState extends State<ClientsPage> {
         code: normalizedClientId,
       );
     }
-    if (normalizedSiteId.isNotEmpty && !sitesById.containsKey(normalizedSiteId)) {
+    if (normalizedSiteId.isNotEmpty &&
+        !sitesById.containsKey(normalizedSiteId)) {
       sitesById[normalizedSiteId] = _SiteOption(
         id: normalizedSiteId,
         name: _humanizeName(normalizedSiteId, prefix: 'SITE-'),
@@ -3760,15 +3777,15 @@ class _ClientsPageState extends State<ClientsPage> {
             }
 
             return AlertDialog(
-              backgroundColor: const Color(0xFF13131E),
+              backgroundColor: _clientsPanelColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
-                side: const BorderSide(color: Color(0x269D4BFF)),
+                side: const BorderSide(color: _clientsBorderColor),
               ),
               title: Text(
                 'Edit Draft',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFE8E8F0),
+                  color: _clientsTitleColor,
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                 ),
@@ -3780,30 +3797,32 @@ class _ClientsPageState extends State<ClientsPage> {
                   maxLines: 8,
                   minLines: 6,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE8E8F0),
+                    color: _clientsTitleColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Refine the outgoing message',
                     hintStyle: GoogleFonts.inter(
-                      color: const Color(0x80FFFFFF),
+                      color: _clientsBodyColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
                     filled: true,
-                    fillColor: const Color(0xFF1A1A2E),
+                    fillColor: _clientsPanelTint,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0x269D4BFF)),
+                      borderSide: const BorderSide(color: _clientsBorderColor),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF253548)),
+                      borderSide: const BorderSide(
+                        color: OnyxColorTokens.backgroundPrimary,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF22D3EE)),
+                      borderSide: const BorderSide(color: _clientsInfoAccent),
                     ),
                   ),
                 ),
@@ -4494,10 +4513,10 @@ IconData _feedIcon(_FeedType type) {
 Color _feedColor(_FeedStatus status) {
   switch (status) {
     case _FeedStatus.info:
-      return const Color(0xFF22D3EE);
+      return _clientsInfoAccent;
     case _FeedStatus.success:
-      return const Color(0xFF10B981);
+      return _clientsSuccessAccent;
     case _FeedStatus.warning:
-      return const Color(0xFFF59E0B);
+      return _clientsWarningAccent;
   }
 }
