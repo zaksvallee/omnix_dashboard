@@ -8,6 +8,7 @@ import '../domain/authority/onyx_route.dart';
 export '../domain/authority/onyx_route.dart';
 
 import 'layout_breakpoints.dart';
+import 'organization_page.dart';
 import 'theme/onyx_design_tokens.dart';
 
 const _appShellBackgroundColor = OnyxDesignTokens.backgroundPrimary;
@@ -872,8 +873,43 @@ class _Sidebar extends StatelessWidget {
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: OnyxColorTokens.divider)),
             ),
-            child: Tooltip(
-              message: operatorLabel.trim().isEmpty ? 'Operator' : operatorLabel,
+            child: PopupMenuButton<String>(
+              key: const ValueKey('app-shell-operator-menu'),
+              tooltip: operatorLabel.trim().isEmpty ? 'Operator' : operatorLabel,
+              position: PopupMenuPosition.over,
+              color: _appShellSurfaceColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: _appShellBorderColor),
+              ),
+              onSelected: (value) {
+                if (value == 'organization') {
+                  openOrganizationPage(context);
+                }
+              },
+              itemBuilder: (context) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'organization',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.account_tree_rounded,
+                        size: 16,
+                        color: OnyxColorTokens.textSecondary,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Organization chart',
+                        style: _appShellTextStyle(
+                          color: _appShellTitleColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               child: Container(
                 width: 32,
                 height: 32,
