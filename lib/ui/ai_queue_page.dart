@@ -153,11 +153,13 @@ class _CctvBoardFeed {
   final String id;
   final String label;
   final bool highlighted;
+  final bool hasAlert;
 
   const _CctvBoardFeed({
     required this.id,
     required this.label,
     this.highlighted = false,
+    this.hasAlert = false,
   });
 }
 
@@ -608,85 +610,51 @@ class _AIQueuePageState extends State<AIQueuePage> {
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'AI Queue',
+                    'CCTV monitoring',
                     style: GoogleFonts.inter(
-                      color: OnyxColorTokens.textPrimary,
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      letterSpacing: -0.2,
+                      color: OnyxColorTokens.textPrimary,
+                      letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: alerts.isNotEmpty
-                          ? OnyxColorTokens.amberSurface
-                          : OnyxColorTokens.greenSurface,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: alerts.isNotEmpty
-                            ? OnyxColorTokens.amberBorder
-                            : OnyxColorTokens.greenBorder,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 5,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: alerts.isNotEmpty
-                                ? OnyxColorTokens.accentAmber
-                                : OnyxColorTokens.accentGreen,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          alerts.isNotEmpty
-                              ? '${alerts.length} alert${alerts.length == 1 ? '' : 's'}'
-                              : 'All clear',
-                          style: GoogleFonts.inter(
-                            color: alerts.isNotEmpty
-                                ? OnyxColorTokens.accentAmber
-                                : OnyxColorTokens.accentGreen,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 2),
+                  Text(
+                    'AI-powered video surveillance and alerts',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: OnyxColorTokens.textSecondary,
                     ),
                   ),
                 ],
               ),
               if (showPinnedCommandReceipt) ...[
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 _workspaceCommandReceiptCard(),
               ],
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               if (singleColumn) ...[
                 _buildCctvAlertPanel(selectedAlert: selectedAlert),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 _buildCctvFeedsPanel(feeds: feeds),
               ] else
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                      width: 354,
+                      width: 360,
                       child: _buildCctvAlertPanel(selectedAlert: selectedAlert),
                     ),
-                    const SizedBox(width: 18),
+                    const SizedBox(width: 16),
                     Expanded(child: _buildCctvFeedsPanel(feeds: feeds)),
                   ],
                 ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               _buildCctvWorkspaceToggle(),
             ],
           );
@@ -709,31 +677,46 @@ class _AIQueuePageState extends State<AIQueuePage> {
   Widget _buildCctvAlertPanel({required _CctvBoardAlert? selectedAlert}) {
     if (selectedAlert == null) {
       return Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131E),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFD6E1EC)),
+          color: OnyxColorTokens.backgroundSecondary,
+          border: Border.all(color: OnyxColorTokens.divider),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              'No AI alerts',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.greenSurface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: OnyxColorTokens.greenBorder),
+              ),
+              child: const Icon(
+                Icons.videocam_rounded,
+                color: OnyxColorTokens.accentGreen,
+                size: 28,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
-              'Live feeds remain available for passive watch while ONYX keeps monitoring in the background.',
+              'No active AI alerts',
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                height: 1.45,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: OnyxColorTokens.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'All cameras nominal',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: OnyxColorTokens.textSecondary,
               ),
             ),
           ],
@@ -741,81 +724,80 @@ class _AIQueuePageState extends State<AIQueuePage> {
       );
     }
 
-    final priorityStyle = _priorityStyle(selectedAlert.priority);
     final dispatched = _dispatchedCctvAlertIds.contains(selectedAlert.id);
     final agentIncidentReference = _incidentReferenceForAlert(selectedAlert);
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: priorityStyle.border),
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(12),
+        border: const Border(
+          left: BorderSide(color: OnyxColorTokens.accentAmber, width: 3),
+          top: BorderSide(color: OnyxColorTokens.divider),
+          right: BorderSide(color: OnyxColorTokens.divider),
+          bottom: BorderSide(color: OnyxColorTokens.divider),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-            decoration: BoxDecoration(
-              color: priorityStyle.background,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(17),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: const BoxDecoration(
+              color: OnyxColorTokens.amberSurface,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
-              border: Border(bottom: BorderSide(color: priorityStyle.border)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: OnyxColorTokens.accentAmber,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Text(
                   'AI ALERT',
                   style: GoogleFonts.inter(
-                    color: priorityStyle.foreground,
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
+                    color: OnyxColorTokens.accentAmber,
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  selectedAlert.headline,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF172638),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    height: 0.96,
+                const Spacer(),
+                Flexible(
+                  child: Text(
+                    selectedAlert.headline,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: OnyxColorTokens.textSecondary,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A2E),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0x269D4BFF)),
-                  ),
-                  child: Text(
-                    '${selectedAlert.siteLabel}  ·  ${selectedAlert.cameraLabel}  ·  ${selectedAlert.occurredLabel}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF8AA2C0),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                _alertField('SITE', selectedAlert.siteLabel),
+                const SizedBox(height: 10),
+                _alertField('CAMERA', selectedAlert.cameraLabel),
+                const SizedBox(height: 10),
+                _alertField('TIME', selectedAlert.occurredLabel),
                 if (dispatched) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
@@ -823,111 +805,126 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0x1A22D3EE),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0x6622D3EE)),
+                      color: OnyxColorTokens.cyanSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: OnyxColorTokens.cyanBorder),
                     ),
                     child: Text(
                       'Guard dispatch staged. Keep this camera pinned until the scene is verified.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF176087),
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w500,
+                        color: OnyxColorTokens.textSecondary,
                         height: 1.35,
                       ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.tonalIcon(
-                      key: const ValueKey('ai-queue-action-view-camera'),
-                      onPressed: () => _viewCctvAlert(selectedAlert),
-                      icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                      label: const Text('View Camera'),
-                      style: FilledButton.styleFrom(
-                        foregroundColor: const Color(0xFF78DAFF),
-                        backgroundColor: const Color(0x1A22D3EE),
-                        minimumSize: const Size(0, 34),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        textStyle: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    key: const ValueKey('ai-queue-action-view-camera'),
+                    icon: const Icon(Icons.fullscreen_rounded, size: 16),
+                    label: const Text('View camera'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: OnyxColorTokens.brand,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 40),
+                      elevation: 0,
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    if (widget.onOpenAgentForIncident != null &&
-                        agentIncidentReference.isNotEmpty)
-                      FilledButton.tonalIcon(
-                        key: const ValueKey('ai-queue-action-open-agent'),
-                        onPressed: () => widget.onOpenAgentForIncident!(
-                          agentIncidentReference,
-                        ),
-                        icon: const Icon(Icons.psychology_alt_rounded, size: 14),
-                        label: const Text('Ask Agent'),
-                        style: FilledButton.styleFrom(
-                          foregroundColor: const Color(0xFFE9D5FF),
-                          backgroundColor: const Color(0x332D1B69),
-                          minimumSize: const Size(0, 34),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          textStyle: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                    onPressed: () => _viewCctvAlert(selectedAlert),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    key: const ValueKey('ai-queue-action-dispatch-guard'),
+                    icon: const Icon(Icons.warning_amber_rounded, size: 16),
+                    label: Text(
+                      dispatched ? 'Guard dispatched' : 'Dispatch guard',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: OnyxColorTokens.accentRed,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          OnyxColorTokens.accentRed.withValues(alpha: 0.35),
+                      disabledForegroundColor:
+                          Colors.white.withValues(alpha: 0.7),
+                      minimumSize: const Size(double.infinity, 40),
+                      elevation: 0,
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
-                    FilledButton.tonalIcon(
-                      key: const ValueKey('ai-queue-action-dispatch-guard'),
-                      onPressed: dispatched
-                          ? null
-                          : () => _dispatchCctvAlert(selectedAlert),
-                      icon: const Icon(Icons.local_shipping_outlined, size: 14),
-                      label: Text(
-                        dispatched ? 'Guard Dispatched' : 'Dispatch Guard',
-                      ),
-                      style: FilledButton.styleFrom(
-                        foregroundColor: const Color(0xFFFF8B8B),
-                        backgroundColor: const Color(0x22EF4444),
-                        disabledBackgroundColor: const Color(0x1AFFFFFF),
-                        disabledForegroundColor: const Color(0x66FFFFFF),
-                        minimumSize: const Size(0, 34),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        textStyle: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    OutlinedButton(
-                      onPressed: () => _dismissCctvAlert(selectedAlert),
+                    onPressed: dispatched
+                        ? null
+                        : () => _dispatchCctvAlert(selectedAlert),
+                  ),
+                ),
+                if (widget.onOpenAgentForIncident != null &&
+                    agentIncidentReference.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('ai-queue-action-open-agent'),
+                      icon: const Icon(
+                        Icons.psychology_alt_rounded,
+                        size: 16,
+                      ),
+                      label: const Text('Ask agent'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF8AA2C0),
-                        side: const BorderSide(color: Color(0x269D4BFF)),
-                        minimumSize: const Size(0, 34),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        foregroundColor: OnyxColorTokens.accentPurple,
+                        side: const BorderSide(
+                          color: OnyxColorTokens.purpleBorder,
+                        ),
+                        minimumSize: const Size(double.infinity, 40),
                         textStyle: GoogleFonts.inter(
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w500,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text('Dismiss'),
+                      onPressed: () => widget.onOpenAgentForIncident!(
+                        agentIncidentReference,
+                      ),
                     ),
-                  ],
+                  ),
+                ],
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: OnyxColorTokens.textSecondary,
+                      side: const BorderSide(color: OnyxColorTokens.divider),
+                      minimumSize: const Size(double.infinity, 40),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: () => _dismissCctvAlert(selectedAlert),
+                    child: const Text('Dismiss'),
+                  ),
                 ),
               ],
             ),
@@ -937,92 +934,164 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
   }
 
-  Widget _buildCctvFeedsPanel({required List<_CctvBoardFeed> feeds}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'LIVE FEEDS',
+  Widget _alertField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: OnyxColorTokens.textMuted,
+            letterSpacing: 0.7,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.backgroundPrimary,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: OnyxColorTokens.divider),
+          ),
+          child: Text(
+            value,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: OnyxColorTokens.textPrimary,
             ),
           ),
-          const SizedBox(height: 14),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.3,
-            ),
-            itemCount: feeds.length,
-            itemBuilder: (context, index) {
-              final feed = feeds[index];
-              return _buildCctvFeedTile(feed: feed);
-            },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCctvFeedsPanel({required List<_CctvBoardFeed> feeds}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'LIVE FEEDS',
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: OnyxColorTokens.textMuted,
+            letterSpacing: 0.7,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 16 / 10,
+          ),
+          itemCount: feeds.length,
+          itemBuilder: (context, index) => _buildCctvFeedTile(feed: feeds[index]),
+        ),
+      ],
     );
   }
 
   Widget _buildCctvFeedTile({required _CctvBoardFeed feed}) {
     final selected = feed.highlighted;
+    final hasAlert = feed.hasAlert;
+    final borderColor = hasAlert
+        ? OnyxColorTokens.accentAmber
+        : (selected ? OnyxColorTokens.brand : OnyxColorTokens.divider);
+    final borderWidth = hasAlert ? 1.5 : (selected ? 1.5 : 1.0);
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(8),
       onTap: () {
         setState(() {
           _selectedCctvFeedId = feed.id;
         });
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+      child: Container(
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF1A1A2E),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? const Color(0xFF8FCBFF) : const Color(0xFFD4DFEA),
-            width: selected ? 1.4 : 1,
-          ),
+          color: OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor, width: borderWidth),
         ),
         child: Stack(
           children: [
             Center(
-              child: Icon(
-                Icons.play_circle_outline_rounded,
-                color: selected
-                    ? const Color(0xFF315A86)
-                    : const Color(0x556C8198),
-                size: 34,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.play_circle_outline_rounded,
+                    size: 28,
+                    color: OnyxColorTokens.textMuted,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    feed.label,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: OnyxColorTokens.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
             Positioned(
-              left: 12,
-              bottom: 12,
-              child: Text(
-                feed.label,
-                style: GoogleFonts.inter(
-                  color: selected
-                      ? const Color(0xFF172638)
-                      : const Color(0xFF6E7F96),
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.transparent,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(7),
+                    bottomRight: Radius.circular(7),
+                  ),
+                ),
+                child: Text(
+                  feed.label,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
+            if (hasAlert)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: OnyxColorTokens.accentAmber,
+                    boxShadow: [
+                      BoxShadow(
+                        color: OnyxColorTokens.accentAmber
+                            .withValues(alpha: 0.5),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1039,19 +1108,19 @@ class _AIQueuePageState extends State<AIQueuePage> {
             _showDetailedWorkspace = true;
           });
         },
-        icon: const Icon(Icons.open_in_new_rounded, size: 15),
-        label: const Text('Open Detailed Workspace'),
+        icon: const Icon(Icons.open_in_new_rounded, size: 14),
+        label: const Text('Open detailed workspace'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF9D4BFF),
-          side: const BorderSide(color: Color(0x4D9D4BFF)),
-          backgroundColor: const Color(0xFF13131E),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          foregroundColor: OnyxColorTokens.textSecondary,
+          side: const BorderSide(color: OnyxColorTokens.divider),
+          minimumSize: const Size(0, 34),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           textStyle: GoogleFonts.inter(
             fontSize: 11,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w500,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
@@ -1101,12 +1170,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 selectedAlert?.feedId ??
                 '')
             .trim();
+    final alertFeedId = selectedAlert?.feedId.trim() ?? '';
     return List<_CctvBoardFeed>.generate(9, (index) {
       final id = 'CAM-${(index + 1).toString().padLeft(2, '0')}';
       return _CctvBoardFeed(
         id: id,
         label: id,
         highlighted: id == selectedFeedId,
+        hasAlert: alertFeedId.isNotEmpty && id == alertFeedId,
       );
     }, growable: false);
   }
