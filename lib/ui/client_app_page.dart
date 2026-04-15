@@ -23,7 +23,35 @@ const _clientStrongBorderColor = OnyxColorTokens.cyanBorder;
 const _clientTitleColor = OnyxColorTokens.textPrimary;
 const _clientBodyColor = OnyxColorTokens.textSecondary;
 const _clientMutedColor = OnyxColorTokens.textMuted;
-const _clientAccentBlue = OnyxColorTokens.brand;
+const _clientAccentBlue = OnyxColorTokens.accentPurple;
+const _clientInfoAccent = OnyxColorTokens.accentSky;
+const _clientInfoAccentStrong = OnyxColorTokens.accentCyanTrue;
+const _clientInfoBorder = OnyxColorTokens.accentBlue;
+const _clientInfoBorderSoft = OnyxColorTokens.cyanBorder;
+const _clientInfoSurface = OnyxColorTokens.cyanSurface;
+const _clientWarningAccent = OnyxColorTokens.accentAmber;
+const _clientWarningBorder = OnyxColorTokens.amberBorder;
+const _clientWarningSurface = OnyxColorTokens.amberSurface;
+const _clientSuccessAccent = OnyxColorTokens.accentGreen;
+const _clientSuccessBorder = OnyxColorTokens.greenBorder;
+const _clientSuccessSurface = OnyxColorTokens.greenSurface;
+const _clientAdminAccent = OnyxColorTokens.accentPurple;
+const _clientAdminBorder = OnyxColorTokens.purpleBorder;
+const _clientAdminSurface = OnyxColorTokens.purpleSurface;
+const _clientPriorityAccent = OnyxColorTokens.accentRed;
+const _clientPriorityBorder = OnyxColorTokens.redBorder;
+const _clientActionSurface = OnyxColorTokens.surfaceElevated;
+const _clientActionSurfaceStrong = OnyxColorTokens.backgroundSecondary;
+const _clientActionBorder = OnyxColorTokens.borderSubtle;
+const _clientActionBorderStrong = OnyxColorTokens.cyanBorder;
+const _clientActionMuted = OnyxColorTokens.textSecondary;
+const _clientActionDisabled = OnyxColorTokens.textDisabled;
+final _clientShadowColor = OnyxColorTokens.backgroundPrimary.withValues(
+  alpha: 0.08,
+);
+final _clientShadowStrongColor = OnyxColorTokens.backgroundPrimary.withValues(
+  alpha: 0.12,
+);
 
 enum ClientAppLocale { en, zu, af }
 
@@ -264,7 +292,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
     message: 'Thread handoffs and delivery actions stay pinned in this rail.',
     detail:
         'Open-thread pivots keep reporting whether a scoped incident is available so operators never hit dead chrome.',
-    accent: Color(0xFF8FD1FF),
+    accent: _clientInfoAccent,
   );
 
   final TextEditingController _chatController = TextEditingController();
@@ -487,7 +515,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       detail: prefill.commandDetail.trim().isEmpty
           ? 'Review, adapt, and send from the live scoped lane without leaving the controller flow.'
           : prefill.commandDetail.trim(),
-      accent: const Color(0xFF67E8F9),
+      accent: _clientInfoAccentStrong,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -619,9 +647,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ? OnyxColorTokens.borderSubtle
                 : _clientBorderColor,
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x0A081B33),
+              color: _clientShadowColor,
               blurRadius: 12,
               offset: Offset(0, 4),
             ),
@@ -719,7 +747,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 child: _metricCard(
                   _viewerRole.alertsMetricLabelForLocale(widget.locale),
                   unreadNotifications.toString(),
-                  const Color(0xFFFFD6A5),
+                  _clientWarningAccent,
                 ),
               ),
               SizedBox(
@@ -727,7 +755,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 child: _metricCard(
                   _localizedActiveIncidentsLabel,
                   activeDispatches.toString(),
-                  const Color(0xFFFFA7B8),
+                  _clientPriorityAccent,
                 ),
               ),
               SizedBox(
@@ -735,7 +763,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 child: _metricCard(
                   _localizedEstateRoomsLabel,
                   rooms.length.toString(),
-                  const Color(0xFF9FD8AC),
+                  _clientSuccessAccent,
                 ),
               ),
               SizedBox(
@@ -743,7 +771,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 child: _metricCard(
                   _viewerRole.chatMetricLabelForLocale(widget.locale),
                   '${chatMessages.length} updates',
-                  const Color(0xFF8FD1FF),
+                  _clientInfoAccent,
                 ),
               ),
               SizedBox(
@@ -751,7 +779,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 child: _metricCard(
                   _viewerRole.pendingMetricLabelForLocale(widget.locale),
                   pendingAcknowledgements.toString(),
-                  const Color(0xFFC9B8FF),
+                  _clientAdminAccent,
                 ),
               ),
               SizedBox(
@@ -759,7 +787,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 child: _metricCard(
                   _localizedPushQueueReadyLabel,
                   pushReadyCount.toString(),
-                  const Color(0xFFFFB5C6),
+                  _clientPriorityAccent,
                 ),
               ),
             ],
@@ -952,9 +980,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         color: _clientPanelColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _clientBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A081B33),
+            color: _clientShadowColor,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -1004,7 +1032,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         gradient: LinearGradient(
           colors: [
             receipt.accent.withValues(alpha: 0.18),
-            const Color(0xFFFFFFFF),
+            _clientActionSurface,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1072,14 +1100,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
               color: selected ? _clientSelectedPanelColor : _clientPanelColor,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: selected
-                    ? _clientStrongBorderColor
-                    : _clientBorderColor,
+                color: selected ? _clientStrongBorderColor : _clientBorderColor,
               ),
               boxShadow: selected
-                  ? const [
+                  ? [
                       BoxShadow(
-                        color: Color(0x0A000000),
+                        color: _clientShadowColor,
                         blurRadius: 8,
                         offset: Offset(0, 2),
                       ),
@@ -1128,9 +1154,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         color: _clientPanelColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _clientBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A081B33),
+            color: _clientShadowColor,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -1484,9 +1510,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _clientStrongBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x100D1726),
+            color: _clientShadowStrongColor,
             blurRadius: 18,
             offset: Offset(0, 10),
           ),
@@ -1512,7 +1538,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             label: selectedIncidentGroup == null
                 ? 'Open first thread'
                 : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-            accent: const Color(0xFF8FD1FF),
+            accent: _clientInfoAccent,
             onTap: selectedIncidentGroup == null
                 ? () => _openFirstAvailableIncidentThread(incidentFeed)
                 : () => _reopenSelectedIncidentThread(incidentFeed),
@@ -1520,7 +1546,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           final composerAction = _bannerActionChip(
             key: const ValueKey('client-comms-banner-focus-composer'),
             label: 'Jump to Composer',
-            accent: const Color(0xFFC9B8FF),
+            accent: _clientAdminAccent,
             onTap: _focusChatComposer,
           );
           final scopeAction = _bannerActionChip(
@@ -1528,7 +1554,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             label: showAllRoomItems
                 ? _localizedShowPendingLabel
                 : _localizedShowAllLabel,
-            accent: const Color(0xFFFFD6A5),
+            accent: _clientWarningAccent,
             selected: showAllRoomItems,
             onTap: _toggleShowAllRoomItems,
           );
@@ -1537,7 +1563,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               : _bannerActionChip(
                   key: const ValueKey('client-comms-banner-view-sent-message'),
                   label: _viewSentMessageLabel(),
-                  accent: const Color(0xFF9FD8AC),
+                  accent: _clientSuccessAccent,
                   onTap: _showSentMessageInThread,
                 );
           final actionPivots = summaryOnly
@@ -1594,24 +1620,24 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 children: [
                   _pill(
                     'Unread $unreadNotifications',
-                    const Color(0xFFFFD6A5),
-                    const Color(0xFF8A5A1C),
+                    _clientWarningAccent,
+                    _clientWarningBorder,
                   ),
                   _pill(
                     'Pending $pendingAcknowledgements',
-                    const Color(0xFFC9B8FF),
-                    const Color(0xFF6352A3),
+                    _clientAdminAccent,
+                    _clientAdminBorder,
                   ),
                   _pill(
                     'Push Ready $pushReadyCount',
-                    const Color(0xFFFFB5C6),
-                    const Color(0xFF8A3D4A),
+                    _clientPriorityAccent,
+                    _clientPriorityBorder,
                   ),
                   if (selectedIncidentGroup != null)
                     _pill(
                       'Thread ${selectedIncidentGroup.referenceLabel}',
-                      const Color(0xFFB9D9FF),
-                      const Color(0xFF2A5D91),
+                      _clientInfoAccent,
+                      _clientInfoBorder,
                     ),
                 ],
               ),
@@ -1647,7 +1673,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
     final accent = selected
         ? _clientAccentBlue
         : room.unread > 0
-        ? const Color(0xFF8A5A1C)
+        ? _clientWarningBorder
         : _clientBodyColor;
     return InkWell(
       key: ValueKey('client-comms-banner-room-${room.key}'),
@@ -2008,24 +2034,24 @@ class _ClientAppPageState extends State<ClientAppPage> {
           children: [
             _pill(
               'Queue ${pushQueue.length}',
-              const Color(0xFFFFD6A5),
-              const Color(0xFF8A5A1C),
+              _clientWarningAccent,
+              _clientWarningBorder,
             ),
             _pill(
               'Ready $pushReadyCount',
-              const Color(0xFFFFB5C6),
-              const Color(0xFF8A3D4A),
+              _clientPriorityAccent,
+              _clientPriorityBorder,
             ),
             _pill(
               'Incidents ${incidentFeed.length}',
-              const Color(0xFFB9D9FF),
-              const Color(0xFF2A5D91),
+              _clientInfoAccent,
+              _clientInfoBorder,
             ),
             if (selectedIncidentGroup != null)
               _pill(
                 'Thread ${selectedIncidentGroup.referenceLabel}',
-                const Color(0xFFC9B8FF),
-                const Color(0xFF6352A3),
+                _clientAdminAccent,
+                _clientAdminBorder,
               ),
           ],
         ),
@@ -2038,7 +2064,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               _bannerActionChip(
                 key: const ValueKey('client-delivery-workspace-retry-sync'),
                 label: 'Retry Push Sync',
-                accent: const Color(0xFF8FD1FF),
+                accent: _clientInfoAccent,
                 onTap: widget.onRetryPushSync == null
                     ? null
                     : () {
@@ -2048,7 +2074,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               _bannerActionChip(
                 key: const ValueKey('client-delivery-workspace-run-probe'),
                 label: 'Run Backend Probe',
-                accent: const Color(0xFF9FD8AC),
+                accent: _clientSuccessAccent,
                 onTap: widget.onRunBackendProbe == null
                     ? null
                     : () {
@@ -2060,7 +2086,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 label: selectedIncidentGroup == null
                     ? 'Open first incident'
                     : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-                accent: const Color(0xFFC9B8FF),
+                accent: _clientAdminAccent,
                 onTap: selectedIncidentGroup == null
                     ? () => _openFirstAvailableIncidentThread(incidentFeed)
                     : () => _reopenSelectedIncidentThread(incidentFeed),
@@ -2088,9 +2114,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _clientStrongBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x100D1726),
+            color: _clientShadowStrongColor,
             blurRadius: 16,
             offset: Offset(0, 10),
           ),
@@ -2159,7 +2185,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             children: [
               TextButton(
                 onPressed: () => _reopenSelectedIncidentThread(incidentFeed),
-                style: _inlineHandoffButtonStyle(const Color(0xFF8FD1FF)),
+                style: _inlineHandoffButtonStyle(_clientInfoAccent),
                 child: Wrap(
                   spacing: 6,
                   runSpacing: 4,
@@ -2183,7 +2209,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 onPressed: () => _toggleIncidentFeedExpansion(
                   selectedIncidentGroup.referenceLabel,
                 ),
-                style: _inlineHandoffButtonStyle(const Color(0xFFC9B8FF)),
+                style: _inlineHandoffButtonStyle(_clientAdminAccent),
                 child: Text(
                   _viewerRole.incidentToggleActionLabel(selectedExpanded),
                   style: GoogleFonts.inter(
@@ -2196,7 +2222,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           )
         : TextButton(
             onPressed: () => _reopenSelectedIncidentThread(incidentFeed),
-            style: _inlineHandoffButtonStyle(const Color(0xFF8FD1FF)),
+            style: _inlineHandoffButtonStyle(_clientInfoAccent),
             child: Wrap(
               spacing: 6,
               runSpacing: 4,
@@ -2220,8 +2246,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
             key: const ValueKey('incident-feed-open-first-action'),
             onPressed: () => _openFirstAvailableIncidentThread(incidentFeed),
             style: _inlineHandoffButtonStyle(
-              const Color(0xFF8FD1FF),
-              disabledForegroundColor: const Color(0xFF5B7294),
+              _clientInfoAccent,
+              disabledForegroundColor: _clientActionDisabled,
             ),
             child: Text(
               _viewerRole.noSelectedIncidentLabel,
@@ -2367,27 +2393,27 @@ class _ClientAppPageState extends State<ClientAppPage> {
           children: [
             _pill(
               'Lane ${_roomDisplayNameForKey(roomKey)}',
-              const Color(0xFFB9D9FF),
-              const Color(0xFF2A5D91),
+              _clientInfoAccent,
+              _clientInfoBorder,
             ),
             if (!shellless)
               _pill(
                 showAllRoomItems
                     ? _localizedShowAllLabel
                     : _localizedShowPendingLabel,
-                const Color(0xFFFFD6A5),
-                const Color(0xFF8A5A1C),
+                _clientWarningAccent,
+                _clientWarningBorder,
               ),
             _pill(
               'Threads ${incidentFeed.length}',
-              const Color(0xFFC9B8FF),
-              const Color(0xFF6352A3),
+              _clientAdminAccent,
+              _clientAdminBorder,
             ),
             if (selectedIncidentGroup != null)
               _pill(
                 'Focus ${selectedIncidentGroup.referenceLabel}',
-                const Color(0xFFFFB5C6),
-                const Color(0xFF8A3D4A),
+                _clientPriorityAccent,
+                _clientPriorityBorder,
               ),
           ],
         ),
@@ -2416,7 +2442,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   label: selectedIncidentGroup == null
                       ? 'Open first incident'
                       : _viewerRole.incidentFeedActionLabel,
-                  accent: const Color(0xFF8FD1FF),
+                  accent: _clientInfoAccent,
                   onTap: selectedIncidentGroup == null
                       ? () => _openFirstAvailableIncidentThread(incidentFeed)
                       : () => _showIncidentFeedDetail(selectedIncidentGroup),
@@ -2429,7 +2455,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   label: selectedExpanded
                       ? _viewerRole.incidentToggleActionLabel(true)
                       : _viewerRole.incidentToggleActionLabel(false),
-                  accent: const Color(0xFFC9B8FF),
+                  accent: _clientAdminAccent,
                   selected: selectedExpanded,
                   onTap: () => _toggleIncidentFeedExpansion(
                     selectedIncidentGroup.referenceLabel,
@@ -2439,7 +2465,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 _bannerActionChip(
                   key: const ValueKey('client-incident-command-focus-composer'),
                   label: 'Jump to Composer',
-                  accent: const Color(0xFF9FD8AC),
+                  accent: _clientSuccessAccent,
                   onTap: _focusChatComposer,
                 ),
                 _bannerActionChip(
@@ -2447,7 +2473,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   label: showAllRoomItems
                       ? _localizedShowPendingLabel
                       : _localizedShowAllLabel,
-                  accent: const Color(0xFFFFD6A5),
+                  accent: _clientWarningAccent,
                   selected: showAllRoomItems,
                   onTap: _toggleShowAllRoomItems,
                 ),
@@ -2483,13 +2509,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
         title: 'No delivery is hot right now.',
         summary:
             'The queue is quiet. Retry sync, run a probe, or reopen the linked incident thread from here.',
-        accent: const Color(0xFFFFD6A5),
+        accent: _clientWarningAccent,
         metrics: [
-          _pill('Queue 0', const Color(0xFFFFD6A5), const Color(0xFF8A5A1C)),
+          _pill('Queue 0', _clientWarningAccent, _clientWarningBorder),
           _pill(
             'Incidents ${incidentFeed.length}',
-            const Color(0xFFB9D9FF),
-            const Color(0xFF2A5D91),
+            _clientInfoAccent,
+            _clientInfoBorder,
           ),
         ],
         actions: _deliveryRecoveryActions(
@@ -2537,7 +2563,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             visibleCount: visibleItems.length,
             totalCount: items.length,
             subject: 'queue rows',
-            color: const Color(0xFF87A5C8),
+            color: _clientActionMuted,
           ),
       ],
     );
@@ -2572,9 +2598,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         ? _notificationSendNowLabelFor(selectedNotification.systemType)
         : _notificationActionLabelFor(selectedNotification.systemType);
     final primaryAccent = selectedNotification == null
-        ? const Color(0xFF8FD1FF)
+        ? _clientInfoAccent
         : canSendNow
-        ? const Color(0xFF9FD8AC)
+        ? _clientSuccessAccent
         : selectedNotification.systemType.textColor;
 
     final content = Column(
@@ -2584,7 +2610,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'Priority',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8A5A1C),
+              color: _clientWarningBorder,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -2610,32 +2636,28 @@ class _ClientAppPageState extends State<ClientAppPage> {
           spacing: 6,
           runSpacing: 6,
           children: [
-            _pill(
-              'Queue $totalCount',
-              const Color(0xFFC9B8FF),
-              const Color(0xFF6352A3),
-            ),
+            _pill('Queue $totalCount', _clientAdminAccent, _clientAdminBorder),
             _pill(
               'Queued $queuedCount',
-              const Color(0xFFFFD6A5),
-              const Color(0xFF8A5A1C),
+              _clientWarningAccent,
+              _clientWarningBorder,
             ),
             _pill(
               'Delivered $deliveredCount',
-              const Color(0xFF9FD8AC),
-              const Color(0xFF235C47),
+              _clientSuccessAccent,
+              _clientSuccessBorder,
             ),
             if (selectedDelivery != null)
               _pill(
                 selectedDelivery.targetChannel.displayLabel,
-                const Color(0xFFB9D9FF),
-                const Color(0xFF2A5D91),
+                _clientInfoAccent,
+                _clientInfoBorder,
               ),
             if (selectedIncidentGroup != null)
               _pill(
                 'Thread ${selectedIncidentGroup.referenceLabel}',
-                const Color(0xFFFFB5C6),
-                const Color(0xFF8A3D4A),
+                _clientPriorityAccent,
+                _clientPriorityBorder,
               ),
           ],
         ),
@@ -2644,7 +2666,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'NEXT MOVE',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8A5A1C),
+              color: _clientWarningBorder,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -2670,14 +2692,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 label: selectedIncidentGroup == null
                     ? 'Open first incident'
                     : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-                accent: const Color(0xFF8FD1FF),
+                accent: _clientInfoAccent,
                 onTap: openThread,
               ),
               if (widget.onRetryPushSync != null)
                 _bannerActionChip(
                   key: const ValueKey('client-delivery-queue-retry-sync'),
                   label: _localizedRetryPushSyncLabel,
-                  accent: const Color(0xFFB9D9FF),
+                  accent: _clientInfoAccent,
                   onTap: () {
                     unawaited(_retryPushSyncSafely());
                   },
@@ -2686,7 +2708,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 _bannerActionChip(
                   key: const ValueKey('client-delivery-queue-run-probe'),
                   label: _localizedRunBackendProbeLabel,
-                  accent: const Color(0xFF9FD8AC),
+                  accent: _clientSuccessAccent,
                   onTap: () {
                     unawaited(_runBackendProbeSafely());
                   },
@@ -2715,8 +2737,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
     required _ClientNotification? selectedNotification,
   }) {
     final accent = item.status == ClientPushDeliveryStatus.queued
-        ? const Color(0xFFFFB5C6)
-        : const Color(0xFF9FD8AC);
+        ? _clientPriorityAccent
+        : _clientSuccessAccent;
     return InkWell(
       key: ValueKey('client-delivery-queue-item-${item.messageKey}'),
       onTap: () => _selectPushDeliveryItem(item.messageKey),
@@ -2729,9 +2751,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
           border: Border.all(
             color: isSelected ? _clientStrongBorderColor : _clientBorderColor,
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x100D1726),
+              color: _clientShadowStrongColor,
               blurRadius: 10,
               offset: Offset(0, 6),
             ),
@@ -2750,24 +2772,20 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       ? _localizedQueuedStatus
                       : _localizedDeliveredStatus,
                   accent,
-                  const Color(0xFF223244),
+                  _clientBorderColor,
                 ),
                 _pill(
                   item.targetChannel.displayLabel,
-                  const Color(0xFFB9D9FF),
-                  const Color(0xFF223244),
+                  _clientInfoAccent,
+                  _clientBorderColor,
                 ),
                 _pill(
                   _localizedDeliveryProviderLabel(item.deliveryProvider),
-                  const Color(0xFFC9B8FF),
-                  const Color(0xFF6352A3),
+                  _clientAdminAccent,
+                  _clientAdminBorder,
                 ),
                 if (isSelected && !_desktopEmbeddedScroll)
-                  _pill(
-                    'Current focus',
-                    const Color(0xFF8FD1FF),
-                    const Color(0xFF2A5D91),
-                  ),
+                  _pill('Current focus', _clientInfoAccent, _clientInfoBorder),
                 Text(
                   item.timeLabel,
                   style: GoogleFonts.inter(
@@ -2803,7 +2821,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ? 'Recommended next move: reopen the linked incident thread from the queue rail.'
                     : 'Recommended next move: ${_canSendNotificationActionNow(selectedNotification.systemType) ? _notificationSendNowLabelFor(selectedNotification.systemType) : _notificationActionLabelFor(selectedNotification.systemType)}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8A5A1C),
+                  color: _clientWarningBorder,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   height: 1.35,
@@ -2901,7 +2919,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'SELECTED DELIVERY',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientInfoAccent,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -2925,23 +2943,23 @@ class _ClientAppPageState extends State<ClientAppPage> {
             title: 'Nothing is pinned right now.',
             summary:
                 'Delivery telemetry is live. Reopen a thread, retry sync, run a probe, or jump back into the composer.',
-            accent: const Color(0xFF8FD1FF),
+            accent: _clientInfoAccent,
             metrics: [
               _pill(
                 'Queue ${pushQueue.length}',
-                const Color(0xFFFFD6A5),
-                const Color(0xFF8A5A1C),
+                _clientWarningAccent,
+                _clientWarningBorder,
               ),
               _pill(
                 'Incidents ${incidentFeed.length}',
-                const Color(0xFFB9D9FF),
-                const Color(0xFF2A5D91),
+                _clientInfoAccent,
+                _clientInfoBorder,
               ),
               if (selectedIncidentGroup != null)
                 _pill(
                   'Thread ${selectedIncidentGroup.referenceLabel}',
-                  const Color(0xFFC9B8FF),
-                  const Color(0xFF6352A3),
+                  _clientAdminAccent,
+                  _clientAdminBorder,
                 ),
             ],
             actions: _deliveryRecoveryActions(
@@ -2976,29 +2994,29 @@ class _ClientAppPageState extends State<ClientAppPage> {
             children: [
               _pill(
                 selectedDelivery.targetChannel.displayLabel,
-                const Color(0xFFB9D9FF),
-                const Color(0xFF223244),
+                _clientInfoAccent,
+                _clientBorderColor,
               ),
               _pill(
                 _localizedDeliveryProviderLabel(
                   selectedDelivery.deliveryProvider,
                 ),
-                const Color(0xFFC9B8FF),
-                const Color(0xFF6352A3),
+                _clientAdminAccent,
+                _clientAdminBorder,
               ),
               _pill(
                 selectedDelivery.status == ClientPushDeliveryStatus.queued
                     ? _localizedQueuedStatus
                     : _localizedDeliveredStatus,
                 selectedDelivery.status == ClientPushDeliveryStatus.queued
-                    ? const Color(0xFFFFB5C6)
-                    : const Color(0xFF9FD8AC),
-                const Color(0xFF223244),
+                    ? _clientPriorityAccent
+                    : _clientSuccessAccent,
+                _clientBorderColor,
               ),
               _pill(
                 selectedDelivery.timeLabel,
-                const Color(0xFFFFD6A5),
-                const Color(0xFF8A5A1C),
+                _clientWarningAccent,
+                _clientWarningBorder,
               ),
             ],
           ),
@@ -3186,7 +3204,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         label: selectedIncidentGroup == null
             ? 'Open first incident'
             : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-        accent: const Color(0xFF8FD1FF),
+        accent: _clientInfoAccent,
         onTap: selectedIncidentGroup == null
             ? () => _openFirstAvailableIncidentThread(incidentFeed)
             : () => _reopenSelectedIncidentThread(incidentFeed),
@@ -3195,7 +3213,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         _bannerActionChip(
           key: const ValueKey('client-delivery-recovery-retry-sync'),
           label: 'Retry Push Sync',
-          accent: const Color(0xFFFFD6A5),
+          accent: _clientWarningAccent,
           onTap: () {
             unawaited(_retryPushSyncSafely());
           },
@@ -3204,7 +3222,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         _bannerActionChip(
           key: const ValueKey('client-delivery-recovery-run-probe'),
           label: 'Run Backend Probe',
-          accent: const Color(0xFF9FD8AC),
+          accent: _clientSuccessAccent,
           onTap: () {
             unawaited(_runBackendProbeSafely());
           },
@@ -3213,7 +3231,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         _bannerActionChip(
           key: const ValueKey('client-delivery-recovery-focus-composer'),
           label: 'Jump to Composer',
-          accent: const Color(0xFFC9B8FF),
+          accent: _clientAdminAccent,
           onTap: _focusChatComposer,
         ),
     ];
@@ -3232,7 +3250,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
+          color: _clientActionSurface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: _clientBorderColor),
         ),
@@ -3256,7 +3274,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
     String message, {
     String label = 'INCIDENT HANDOFF',
     String? detail,
-    Color accent = const Color(0xFF8FD1FF),
+    Color accent = _clientInfoAccent,
   }) {
     if (!mounted) {
       return;
@@ -3289,7 +3307,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         label: 'DELIVERY RECOVERY',
         detail:
             'The current delivery lane stayed open. Retry the sync again without losing the selected incident context.',
-        accent: const Color(0xFFFFD6A5),
+        accent: _clientWarningAccent,
       );
     }
   }
@@ -3310,7 +3328,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         label: 'DELIVERY RECOVERY',
         detail:
             'The workspace stayed in place. Retry the backend probe again without resetting the current delivery rail.',
-        accent: const Color(0xFFFFD6A5),
+        accent: _clientWarningAccent,
       );
     }
   }
@@ -3405,25 +3423,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
         title: _viewerRole.notificationsEmptyLabel,
         summary:
             'This lane is quiet right now. Widen scope, reopen an incident thread, or jump back into drafting from here.',
-        accent: const Color(0xFFFFD6A5),
+        accent: _clientWarningAccent,
         metrics: [
-          _pill(
-            'Lane $roomDisplayName',
-            const Color(0xFFB9D9FF),
-            const Color(0xFF2A5D91),
-          ),
+          _pill('Lane $roomDisplayName', _clientInfoAccent, _clientInfoBorder),
           _pill(
             showAllRoomItems
                 ? _localizedShowAllLabel
                 : _localizedShowPendingLabel,
-            const Color(0xFFFFD6A5),
-            const Color(0xFF8A5A1C),
+            _clientWarningAccent,
+            _clientWarningBorder,
           ),
-          _pill(
-            'Alerts $totalCount',
-            const Color(0xFFC9B8FF),
-            const Color(0xFF6352A3),
-          ),
+          _pill('Alerts $totalCount', _clientAdminAccent, _clientAdminBorder),
         ],
         actions: _communicationsRecoveryActions(
           prefix: 'client-notifications-empty',
@@ -3471,7 +3481,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 visibleCount: items.length,
                 totalCount: totalCount,
                 subject: 'notifications',
-                color: const Color(0xFF87A5C8),
+                color: _clientActionMuted,
               ),
             ],
           ],
@@ -3498,7 +3508,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             visibleCount: items.length,
             totalCount: totalCount,
             subject: 'notifications',
-            color: const Color(0xFF87A5C8),
+            color: _clientActionMuted,
           ),
         ],
       ],
@@ -3529,7 +3539,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'Priority',
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFD6A5),
+              color: _clientWarningAccent,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -3563,37 +3573,37 @@ class _ClientAppPageState extends State<ClientAppPage> {
               _pill(
                 selectedNotification.priority ? 'Priority' : 'Info',
                 selectedNotification.priority
-                    ? const Color(0xFFFFD3D8)
-                    : const Color(0xFFB9D9FF),
+                    ? _clientPriorityAccent
+                    : _clientInfoAccent,
                 selectedNotification.priority
-                    ? const Color(0xFF8A3D4A)
-                    : const Color(0xFF223244),
+                    ? _clientPriorityBorder
+                    : _clientBorderColor,
               ),
             if (!shellless)
               _pill(
                 'Alerts $totalCount',
-                const Color(0xFFC9B8FF),
-                const Color(0xFF6352A3),
+                _clientAdminAccent,
+                _clientAdminBorder,
               ),
             if (!shellless)
               _pill(
                 showAllRoomItems
                     ? _localizedShowAllLabel
                     : _localizedShowPendingLabel,
-                const Color(0xFFFFD6A5),
-                const Color(0xFF8A5A1C),
+                _clientWarningAccent,
+                _clientWarningBorder,
               ),
             if (!shellless)
               _pill(
                 _notificationTargetBadgeLabel(),
-                const Color(0xFFCBE6FF),
-                const Color(0xFF35679B),
+                _clientInfoAccent,
+                _clientInfoBorder,
               ),
             if (hiddenCount > 0 && !shellless)
               _pill(
                 'Hidden $hiddenCount',
-                const Color(0xFF9FD8AC),
-                const Color(0xFF235C47),
+                _clientSuccessAccent,
+                _clientSuccessBorder,
               ),
           ],
         ),
@@ -3602,7 +3612,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'NEXT MOVE',
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFD6A5),
+              color: _clientWarningAccent,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -3623,7 +3633,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         selectedNotification.systemType,
                       ),
                 accent: canSendNow
-                    ? const Color(0xFF9FD8AC)
+                    ? _clientSuccessAccent
                     : selectedNotification.systemType.textColor,
                 onTap: canSendNow
                     ? () => _sendNotificationAction(selectedNotification)
@@ -3634,7 +3644,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 label: selectedIncidentGroup == null
                     ? 'Open first incident'
                     : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-                accent: const Color(0xFF8FD1FF),
+                accent: _clientInfoAccent,
                 onTap: selectedIncidentGroup == null
                     ? () => _openFirstAvailableIncidentThread(incidentFeed)
                     : () => _reopenSelectedIncidentThread(incidentFeed),
@@ -3644,7 +3654,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 label: showAllRoomItems
                     ? _localizedShowPendingLabel
                     : _localizedShowAllLabel,
-                accent: const Color(0xFFFFD6A5),
+                accent: _clientWarningAccent,
                 selected: showAllRoomItems,
                 onTap: _toggleShowAllRoomItems,
               ),
@@ -3673,9 +3683,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         color: _clientPanelTint,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _clientBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A081B33),
+            color: _clientShadowColor,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -3705,9 +3715,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ? item.systemType.priorityBorderColor
                 : _clientBorderColor,
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x0A081B33),
+              color: _clientShadowColor,
               blurRadius: 12,
               offset: Offset(0, 4),
             ),
@@ -3728,24 +3738,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ),
                 _pill(
                   item.priority ? 'Priority' : 'Info',
-                  item.priority
-                      ? const Color(0xFFFFD3D8)
-                      : const Color(0xFFB9D9FF),
-                  item.priority
-                      ? const Color(0xFF8A3D4A)
-                      : const Color(0xFF223244),
+                  item.priority ? _clientPriorityAccent : _clientInfoAccent,
+                  item.priority ? _clientPriorityBorder : _clientBorderColor,
                 ),
                 _pill(
                   _notificationTargetBadgeLabel(),
-                  const Color(0xFFCBE6FF),
-                  const Color(0xFF35679B),
+                  _clientInfoAccent,
+                  _clientInfoBorder,
                 ),
                 if (selected && !_desktopEmbeddedScroll)
-                  _pill(
-                    'Current focus',
-                    const Color(0xFF8FD1FF),
-                    const Color(0xFF2A5D91),
-                  ),
+                  _pill('Current focus', _clientInfoAccent, _clientInfoBorder),
                 Text(
                   item.timeLabel,
                   style: GoogleFonts.inter(
@@ -3813,7 +3815,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     Text(
                       _notificationSentLabelFor(item.systemType),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB9E2FF),
+                        color: _clientInfoAccent,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -3859,7 +3861,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     Text(
                       _draftOpenedLabelFor(item.systemType),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB9E2FF),
+                        color: _clientInfoAccent,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -3887,7 +3889,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         label: selectedIncidentGroup == null
             ? 'Open first incident'
             : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-        accent: const Color(0xFF8FD1FF),
+        accent: _clientInfoAccent,
         onTap: selectedIncidentGroup == null
             ? () => _openFirstAvailableIncidentThread(incidentFeed)
             : () => _reopenSelectedIncidentThread(incidentFeed),
@@ -3895,7 +3897,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       _bannerActionChip(
         key: ValueKey('$prefix-focus-composer'),
         label: 'Jump to Composer',
-        accent: const Color(0xFFC9B8FF),
+        accent: _clientAdminAccent,
         onTap: _focusChatComposer,
       ),
       _bannerActionChip(
@@ -3903,7 +3905,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         label: _showAllRoomItemsFor(_viewerRole)
             ? _localizedShowPendingLabel
             : _localizedShowAllLabel,
-        accent: const Color(0xFFFFD6A5),
+        accent: _clientWarningAccent,
         selected: _showAllRoomItemsFor(_viewerRole),
         onTap: _toggleShowAllRoomItems,
       ),
@@ -3911,7 +3913,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         _bannerActionChip(
           key: ValueKey('$prefix-reset-filters'),
           label: 'Reset Filters',
-          accent: const Color(0xFF9FD8AC),
+          accent: _clientSuccessAccent,
           onTap: _resetChatFilters,
         ),
     ];
@@ -3933,7 +3935,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         _bannerActionChip(
           key: const ValueKey('client-delivery-telemetry-retry-sync'),
           label: _localizedRetryPushSyncLabel,
-          accent: const Color(0xFF8FD1FF),
+          accent: _clientInfoAccent,
           onTap: () {
             unawaited(_retryPushSyncSafely());
           },
@@ -3942,7 +3944,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         _bannerActionChip(
           key: const ValueKey('client-delivery-telemetry-run-probe'),
           label: _localizedRunBackendProbeLabel,
-          accent: const Color(0xFF9FD8AC),
+          accent: _clientSuccessAccent,
           onTap: () {
             unawaited(_runBackendProbeSafely());
           },
@@ -3951,7 +3953,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         _bannerActionChip(
           key: const ValueKey('client-delivery-telemetry-clear-probe'),
           label: _localizedClearProbeHistoryButton,
-          accent: const Color(0xFFFFD6A5),
+          accent: _clientWarningAccent,
           onTap: _confirmClearBackendProbeHistory,
         ),
     ];
@@ -3962,7 +3964,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'DELIVERY TELEMETRY',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientInfoAccent,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -3988,23 +3990,23 @@ class _ClientAppPageState extends State<ClientAppPage> {
           children: [
             _pill(
               'Telegram ${widget.telegramHealthLabel.toUpperCase()}',
-              const Color(0xFFB9D9FF),
-              const Color(0xFF2A5D91),
+              _clientInfoAccent,
+              _clientInfoBorder,
             ),
             _pill(
               'Sync ${_humanizedPushSyncStatusLabel(widget.pushSyncStatusLabel)}',
-              const Color(0xFFFFD6A5),
-              const Color(0xFF8A5A1C),
+              _clientWarningAccent,
+              _clientWarningBorder,
             ),
             _pill(
               'Retries ${widget.pushSyncRetryCount}',
-              const Color(0xFFC9B8FF),
-              const Color(0xFF6352A3),
+              _clientAdminAccent,
+              _clientAdminBorder,
             ),
             _pill(
               'Probe ${widget.backendProbeStatusLabel}',
-              const Color(0xFF9FD8AC),
-              const Color(0xFF235C47),
+              _clientSuccessAccent,
+              _clientSuccessBorder,
             ),
           ],
         ),
@@ -4014,7 +4016,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             widget.telegramHealthLabel.toUpperCase(),
           ),
           style: GoogleFonts.inter(
-            color: const Color(0xFF8FD1FF),
+            color: _clientInfoAccent,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -4024,7 +4026,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             _localizedTelegramFallbackActive,
             style: GoogleFonts.inter(
-              color: const Color(0xFFF7D58D),
+              color: _clientWarningAccent,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -4047,7 +4049,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             _humanizedPushSyncStatusLabel(widget.pushSyncStatusLabel),
           ),
           style: GoogleFonts.inter(
-            color: const Color(0xFF8FD1FF),
+            color: _clientInfoAccent,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -4081,7 +4083,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             _localizedFailureLine(humanizedFailureReason),
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFB5C6),
+              color: _clientPriorityAccent,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -4092,7 +4094,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             _localizedProbeFailureLine(probeFailureReason),
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFB5C6),
+              color: _clientPriorityAccent,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -4118,9 +4120,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         color: _clientPanelColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _clientBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A081B33),
+            color: _clientShadowColor,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -4162,7 +4164,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               child: Text(
                 _localizedCancelLabel,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8FD1FF),
+                  color: _clientInfoAccent,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -4174,7 +4176,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               child: Text(
                 _localizedClearLabel,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFFFD6A5),
+                  color: _clientWarningAccent,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -4200,17 +4202,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
         title: _localizedPushSyncHistoryEmpty,
         summary:
             'No sync attempts are recorded yet. Force a sync cycle or run a backend probe from here.',
-        accent: const Color(0xFF8FD1FF),
+        accent: _clientInfoAccent,
         metrics: [
           _pill(
             'Sync ${_humanizedPushSyncStatusLabel(widget.pushSyncStatusLabel)}',
-            const Color(0xFFFFD6A5),
-            const Color(0xFF8A5A1C),
+            _clientWarningAccent,
+            _clientWarningBorder,
           ),
           _pill(
             'Retries ${widget.pushSyncRetryCount}',
-            const Color(0xFFC9B8FF),
-            const Color(0xFF6352A3),
+            _clientAdminAccent,
+            _clientAdminBorder,
           ),
         ],
         actions: [
@@ -4218,7 +4220,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             _bannerActionChip(
               key: const ValueKey('client-delivery-push-sync-empty-retry-sync'),
               label: _localizedRetryPushSyncLabel,
-              accent: const Color(0xFF8FD1FF),
+              accent: _clientInfoAccent,
               onTap: () {
                 unawaited(_retryPushSyncSafely());
               },
@@ -4227,7 +4229,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             _bannerActionChip(
               key: const ValueKey('client-delivery-push-sync-empty-run-probe'),
               label: _localizedRunBackendProbeLabel,
-              accent: const Color(0xFF9FD8AC),
+              accent: _clientSuccessAccent,
               onTap: () {
                 unawaited(_runBackendProbeSafely());
               },
@@ -4244,7 +4246,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             _localizedPushSyncHistoryTitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientInfoAccent,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -4257,7 +4259,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             child: Text(
               _pushSyncHistorySummaryLine(attempt),
               style: GoogleFonts.inter(
-                color: const Color(0xFF9DB3CF),
+                color: _clientActionMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -4269,7 +4271,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             visibleCount: rows.length,
             totalCount: history.length,
             subject: 'sync attempts',
-            color: const Color(0xFF7FA2C9),
+            color: _clientActionMuted,
           ),
       ],
     );
@@ -4331,19 +4333,19 @@ class _ClientAppPageState extends State<ClientAppPage> {
         title: _localizedBackendProbeHistoryEmpty,
         summary:
             'No probe runs are recorded yet. Start a backend probe to validate delivery health or clear stale notes.',
-        accent: const Color(0xFF9FD8AC),
+        accent: _clientSuccessAccent,
         metrics: [
           _pill(
             'Probe ${widget.backendProbeStatusLabel}',
-            const Color(0xFF9FD8AC),
-            const Color(0xFF235C47),
+            _clientSuccessAccent,
+            _clientSuccessBorder,
           ),
           _pill(
             widget.backendProbeLastRunAtUtc == null
                 ? 'Last none'
                 : 'Last ${_timeLabel(widget.backendProbeLastRunAtUtc!.toUtc())}',
-            const Color(0xFFC9B8FF),
-            const Color(0xFF6352A3),
+            _clientAdminAccent,
+            _clientAdminBorder,
           ),
         ],
         actions: [
@@ -4353,7 +4355,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 'client-delivery-backend-probe-empty-run-probe',
               ),
               label: _localizedRunBackendProbeLabel,
-              accent: const Color(0xFF9FD8AC),
+              accent: _clientSuccessAccent,
               onTap: () {
                 unawaited(_runBackendProbeSafely());
               },
@@ -4364,7 +4366,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 'client-delivery-backend-probe-empty-clear-history',
               ),
               label: _localizedClearProbeHistoryButton,
-              accent: const Color(0xFFFFD6A5),
+              accent: _clientWarningAccent,
               onTap: _confirmClearBackendProbeHistory,
             ),
         ],
@@ -4379,7 +4381,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             _localizedBackendProbeHistoryTitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9FD8AC),
+              color: _clientSuccessAccent,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -4392,7 +4394,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             child: Text(
               attempt.summaryLine,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9DB3CF),
+                color: _clientActionMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -4404,7 +4406,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             visibleCount: rows.length,
             totalCount: history.length,
             subject: 'backend probes',
-            color: const Color(0xFF7FA2C9),
+            color: _clientActionMuted,
           ),
       ],
     );
@@ -4453,9 +4455,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
               border: Border.all(
                 color: selected ? _clientStrongBorderColor : _clientBorderColor,
               ),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x100D1726),
+                  color: _clientShadowStrongColor,
                   blurRadius: 10,
                   offset: Offset(0, 6),
                 ),
@@ -4478,8 +4480,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ),
                     _pill(
                       '${room.unread} unread',
-                      const Color(0xFFB9D9FF),
-                      const Color(0xFF223244),
+                      _clientInfoAccent,
+                      _clientBorderColor,
                     ),
                   ],
                 ),
@@ -4500,13 +4502,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     _pill(
                       room.acknowledgementChannel.displayLabel,
                       _roomChannelAccent(room.acknowledgementChannel),
-                      const Color(0xFF223244),
+                      _clientBorderColor,
                     ),
                     if (selected && !_desktopEmbeddedScroll)
                       _pill(
                         'Current focus',
-                        const Color(0xFF8FD1FF),
-                        const Color(0xFF2A5D91),
+                        _clientInfoAccent,
+                        _clientInfoBorder,
                       ),
                   ],
                 ),
@@ -4515,7 +4517,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   Text(
                     'Recommended next move',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF8FD1FF),
+                      color: _clientInfoAccent,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.8,
@@ -4531,7 +4533,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         label: selectedIncidentGroup == null
                             ? 'Open first incident'
                             : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-                        accent: const Color(0xFF8FD1FF),
+                        accent: _clientInfoAccent,
                         onTap: selectedIncidentGroup == null
                             ? () => _openFirstAvailableIncidentThread(
                                 incidentFeed,
@@ -4543,7 +4545,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         label: showAllRoomItems
                             ? _localizedShowPendingLabel
                             : _localizedShowAllLabel,
-                        accent: const Color(0xFFFFD6A5),
+                        accent: _clientWarningAccent,
                         selected: showAllRoomItems,
                         onTap: _toggleShowAllRoomItems,
                       ),
@@ -4571,7 +4573,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 totalCount: rooms.length,
                 subject: 'rooms',
                 hiddenDescriptor: 'additional rooms',
-                color: const Color(0xFF87A5C8),
+                color: _clientActionMuted,
               ),
             ],
           ],
@@ -4598,7 +4600,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             totalCount: rooms.length,
             subject: 'rooms',
             hiddenDescriptor: 'additional rooms',
-            color: const Color(0xFF87A5C8),
+            color: _clientActionMuted,
           ),
         ],
       ],
@@ -4644,28 +4646,24 @@ class _ClientAppPageState extends State<ClientAppPage> {
           spacing: 6,
           runSpacing: 6,
           children: [
-            _pill(
-              'Rooms $roomCount',
-              const Color(0xFFB9D9FF),
-              const Color(0xFF2A5D91),
-            ),
+            _pill('Rooms $roomCount', _clientInfoAccent, _clientInfoBorder),
             _pill(
               'Unread ${activeRoom.unread}',
               _roomChannelAccent(activeRoom.acknowledgementChannel),
-              const Color(0xFF223244),
+              _clientBorderColor,
             ),
             _pill(
               showAllRoomItems
                   ? _localizedShowAllLabel
                   : _localizedShowPendingLabel,
-              const Color(0xFFFFD6A5),
-              const Color(0xFF8A5A1C),
+              _clientWarningAccent,
+              _clientWarningBorder,
             ),
             if (selectedIncidentGroup != null)
               _pill(
                 'Thread ${selectedIncidentGroup.referenceLabel}',
-                const Color(0xFFC9B8FF),
-                const Color(0xFF6352A3),
+                _clientAdminAccent,
+                _clientAdminBorder,
               ),
           ],
         ),
@@ -4679,7 +4677,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               label: selectedIncidentGroup == null
                   ? 'Open first incident'
                   : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-              accent: const Color(0xFF8FD1FF),
+              accent: _clientInfoAccent,
               onTap: selectedIncidentGroup == null
                   ? () => _openFirstAvailableIncidentThread(incidentFeed)
                   : () => _reopenSelectedIncidentThread(incidentFeed),
@@ -4687,7 +4685,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             _bannerActionChip(
               key: const ValueKey('client-room-rail-focus-composer'),
               label: 'Jump to Composer',
-              accent: const Color(0xFFC9B8FF),
+              accent: _clientAdminAccent,
               onTap: _focusChatComposer,
             ),
             _bannerActionChip(
@@ -4695,7 +4693,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               label: showAllRoomItems
                   ? _localizedShowPendingLabel
                   : _localizedShowAllLabel,
-              accent: const Color(0xFFFFD6A5),
+              accent: _clientWarningAccent,
               selected: showAllRoomItems,
               onTap: _toggleShowAllRoomItems,
             ),
@@ -4806,15 +4804,15 @@ class _ClientAppPageState extends State<ClientAppPage> {
                             group.referenceLabel,
                           ),
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFB9D9FF),
+                            color: _clientInfoAccent,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         _pill(
                           _viewerRole.incidentCountLabel(group.entries.length),
-                          const Color(0xFFC9B8FF),
-                          const Color(0xFF6950A8),
+                          _clientAdminAccent,
+                          _clientAdminBorder,
                         ),
                       ] else
                         _pill(
@@ -4822,26 +4820,26 @@ class _ClientAppPageState extends State<ClientAppPage> {
                             group.referenceLabel,
                             group.entries.length,
                           ),
-                          const Color(0xFFC9B8FF),
-                          const Color(0xFF6950A8),
+                          _clientAdminAccent,
+                          _clientAdminBorder,
                         ),
                       if (selected)
                         _pill(
                           _viewerRole.selectedIncidentLabel,
-                          const Color(0xFFAEDBFF),
-                          const Color(0xFF4A86C7),
+                          _clientInfoAccent,
+                          _clientInfoBorderSoft,
                         ),
                       if (expanded)
                         _pill(
                           _viewerRole.expandedIncidentLabel,
-                          const Color(0xFFD7CCFF),
-                          const Color(0xFF5F4AA8),
+                          _clientAdminAccent,
+                          _clientAdminBorder,
                         ),
                       if (focused)
                         _pill(
                           _viewerRole.focusedIncidentLabel,
-                          const Color(0xFFD7F0FF),
-                          const Color(0xFF5EA8FF),
+                          _clientInfoAccent,
+                          _clientInfoAccentStrong,
                         ),
                       Text(
                         _viewerRole.incidentTimeDisplayLabel(item.timeLabel),
@@ -4967,29 +4965,29 @@ class _ClientAppPageState extends State<ClientAppPage> {
             summary: messages.isEmpty
                 ? 'This lane is quiet, but the thread shell stays hot so you can reopen incident context, widen scope, or jump straight into composition.'
                 : 'The current source/provider filters narrowed this thread to zero rows. Reset filters or widen lane scope to bring the thread back into view.',
-            accent: const Color(0xFF8FD1FF),
+            accent: _clientInfoAccent,
             metrics: [
               _pill(
                 'Lane $roomDisplayName',
-                const Color(0xFFB9D9FF),
-                const Color(0xFF2A5D91),
+                _clientInfoAccent,
+                _clientInfoBorder,
               ),
               _pill(
                 _showAllRoomItemsFor(_viewerRole)
                     ? _localizedShowAllLabel
                     : _localizedShowPendingLabel,
-                const Color(0xFFFFD6A5),
-                const Color(0xFF8A5A1C),
+                _clientWarningAccent,
+                _clientWarningBorder,
               ),
               _pill(
                 'Source ${_messageSourceLabel(selectedSource)}',
-                const Color(0xFFC9B8FF),
-                const Color(0xFF6352A3),
+                _clientAdminAccent,
+                _clientAdminBorder,
               ),
               _pill(
                 'Provider ${_messageProviderLabel(selectedProvider)}',
-                const Color(0xFF9FD8AC),
-                const Color(0xFF235C47),
+                _clientSuccessAccent,
+                _clientSuccessBorder,
               ),
             ],
             actions: _communicationsRecoveryActions(
@@ -5193,8 +5191,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
             alignment: Alignment.centerLeft,
             child: _pill(
               _threadJumpedLabel(),
-              const Color(0xFFB9E2FF),
-              const Color(0xFF8FD1FF),
+              _clientInfoAccent,
+              _clientInfoAccent,
             ),
           ),
         ],
@@ -5263,9 +5261,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         ? null
                         : _aiAssistClientMessage,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF365E94),
-                      side: const BorderSide(color: Color(0xFFBFD0EA)),
-                      backgroundColor: const Color(0xFFF7FAFE),
+                      foregroundColor: _clientInfoBorder,
+                      side: const BorderSide(color: _clientActionBorder),
+                      backgroundColor: _clientActionSurface,
                       minimumSize: Size(0, _phoneLayout ? 44 : 38),
                       padding: _phoneLayout
                           ? const EdgeInsets.symmetric(
@@ -5297,8 +5295,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   key: const ValueKey('client-chat-send-action'),
                   onPressed: _sendClientMessage,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1F66FF),
-                    foregroundColor: const Color(0xFFEAF3FF),
+                    backgroundColor: _clientInfoAccentStrong,
+                    foregroundColor: _clientTitleColor,
                     minimumSize: Size(0, _phoneLayout ? 44 : 38),
                     padding: _phoneLayout
                         ? const EdgeInsets.symmetric(
@@ -5316,7 +5314,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         ? VisualDensity.standard
                         : VisualDensity.compact,
                     elevation: 0,
-                    shadowColor: const Color(0x0A000000),
+                    shadowColor: _clientShadowColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -5381,8 +5379,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
         ? _chatSendButtonLabel()
         : 'Load recommended draft';
     final primaryActionAccent = hasDraftText
-        ? const Color(0xFF9FD8AC)
-        : const Color(0xFF8FD1FF);
+        ? _clientSuccessAccent
+        : _clientInfoAccent;
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -5391,7 +5389,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'COMPOSER COMMAND DECK',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientInfoAccent,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -5419,25 +5417,25 @@ class _ClientAppPageState extends State<ClientAppPage> {
           children: [
             _pill(
               'Lane $roomDisplayName',
-              const Color(0xFFB9D9FF),
-              const Color(0xFF2A5D91),
+              _clientInfoAccent,
+              _clientInfoBorder,
             ),
             _pill(
               showAllRoomItems
                   ? _localizedShowAllLabel
                   : _localizedShowPendingLabel,
-              const Color(0xFFFFD6A5),
-              const Color(0xFF8A5A1C),
+              _clientWarningAccent,
+              _clientWarningBorder,
             ),
             _pill(
               'Source $selectedSourceLabel',
-              const Color(0xFFC9B8FF),
-              const Color(0xFF6352A3),
+              _clientAdminAccent,
+              _clientAdminBorder,
             ),
             _pill(
               'Provider $selectedProviderLabel',
-              const Color(0xFF9FD8AC),
-              const Color(0xFF235C47),
+              _clientSuccessAccent,
+              _clientSuccessBorder,
             ),
             _pill(
               'Posture ${composedType.label}',
@@ -5448,8 +5446,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
             if (selectedIncidentGroup != null)
               _pill(
                 'Thread ${selectedIncidentGroup.referenceLabel}',
-                const Color(0xFFFFB5C6),
-                const Color(0xFF8A3D4A),
+                _clientPriorityAccent,
+                _clientPriorityBorder,
               ),
           ],
         ),
@@ -5458,7 +5456,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'Recommended next move',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientInfoAccent,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -5488,7 +5486,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 label: selectedIncidentGroup == null
                     ? 'Open first incident'
                     : 'Reopen ${selectedIncidentGroup.referenceLabel}',
-                accent: const Color(0xFFC9B8FF),
+                accent: _clientAdminAccent,
                 onTap: selectedIncidentGroup == null
                     ? () => _openFirstAvailableIncidentThread(incidentFeed)
                     : () => _reopenSelectedIncidentThread(incidentFeed),
@@ -5497,7 +5495,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               _bannerActionChip(
                 key: const ValueKey('client-chat-command-deck-focus-composer'),
                 label: 'Jump to Composer',
-                accent: const Color(0xFFB9D9FF),
+                accent: _clientInfoAccent,
                 onTap: _focusChatComposer,
               ),
             if (!shellless)
@@ -5506,7 +5504,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 label: showAllRoomItems
                     ? _localizedShowPendingLabel
                     : _localizedShowAllLabel,
-                accent: const Color(0xFFFFD6A5),
+                accent: _clientWarningAccent,
                 selected: showAllRoomItems,
                 onTap: _toggleShowAllRoomItems,
               ),
@@ -5585,9 +5583,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         color: _clientPanelTint,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _clientBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A081B33),
+            color: _clientShadowColor,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -5626,7 +5624,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               const Icon(
                 Icons.tune_rounded,
                 size: 15,
-                color: Color(0xFF8FD1FF),
+                color: _clientInfoAccent,
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -5645,7 +5643,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Color(0xFF8FD1FF),
+                    color: _clientInfoAccent,
                   ),
                 ),
             ],
@@ -5678,20 +5676,20 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 _laneVoiceStatusChip(
                   icon: Icons.tune_rounded,
                   label: 'Pinned voice ${widget.laneVoiceProfileLabel}',
-                  accent: const Color(0xFF8FD1FF),
+                  accent: _clientInfoAccent,
                 ),
               if (hasLearnedStyle)
                 _laneVoiceStatusChip(
                   icon: Icons.school_rounded,
                   label:
                       'Learned approvals (${widget.learnedApprovalStyleCount})',
-                  accent: const Color(0xFF67E8F9),
+                  accent: _clientInfoAccentStrong,
                 ),
               if (!hasPinnedVoice && !hasLearnedStyle)
                 _laneVoiceStatusChip(
                   icon: Icons.auto_mode_rounded,
                   label: 'No pinned or learned override active',
-                  accent: const Color(0xFF8EA7C8),
+                  accent: _clientMutedColor,
                 ),
             ],
           ),
@@ -5739,8 +5737,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   ? null
                   : _clearLearnedLaneStyle,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF9EDCF0),
-                side: const BorderSide(color: Color(0xFF245B72)),
+                foregroundColor: _clientInfoAccent,
+                side: const BorderSide(color: _clientActionBorderStrong),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 8,
@@ -5752,7 +5750,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFF9EDCF0),
+                        color: _clientInfoAccent,
                       ),
                     )
                   : const Icon(Icons.refresh_rounded, size: 14),
@@ -5787,7 +5785,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     onSelected: !canAdjust || _laneVoiceProfileBusy
                         ? null
                         : (_) => _setLaneVoiceProfile(option.signal),
-                    selectedColor: const Color(0xFFEAF7FF),
+                    selectedColor: _clientInfoSurface,
                     side: BorderSide(
                       color: selected
                           ? _clientStrongBorderColor
@@ -6016,7 +6014,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               const Icon(
                 Icons.school_rounded,
                 size: 14,
-                color: Color(0xFF67E8F9),
+                color: _clientInfoAccentStrong,
               ),
               const SizedBox(width: 6),
               Text(
@@ -6186,7 +6184,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       '${acknowledgement.displayLabel} by ${acknowledgement.acknowledgedBy} at '
       '${_timeLabel(acknowledgement.acknowledgedAt)}',
       style: GoogleFonts.inter(
-        color: const Color(0xFFBFF0C8),
+        color: _clientSuccessAccent,
         fontSize: 11,
         fontWeight: FontWeight.w700,
       ),
@@ -6320,7 +6318,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         tapTargetSize: _phoneLayout
             ? MaterialTapTargetSize.padded
             : MaterialTapTargetSize.shrinkWrap,
-        foregroundColor: const Color(0xFF8FD1FF),
+        foregroundColor: _clientInfoAccent,
       ),
       child: Text(
         label,
@@ -6338,7 +6336,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       style: OutlinedButton.styleFrom(
         foregroundColor: item.systemType.textColor,
         side: BorderSide(color: item.systemType.borderColor),
-        backgroundColor: Colors.white,
+        backgroundColor: _clientActionSurface,
         minimumSize: Size(0, _phoneLayout ? 42 : 36),
         padding: _phoneLayout
             ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
@@ -6398,7 +6396,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           label: 'LEARNING RETRY',
           detail:
               'The message still went out. Retry the learning pass later without blocking the active lane.',
-          accent: const Color(0xFFFFD6A5),
+          accent: _clientWarningAccent,
         );
       }
     }
@@ -6444,7 +6442,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         label: 'AI ASSIST',
         detail:
             'The current draft stayed in the composer unchanged so you can edit or send it manually.',
-        accent: const Color(0xFFFFD6A5),
+        accent: _clientWarningAccent,
       );
     } finally {
       if (mounted) {
@@ -6655,7 +6653,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
   Color _chatComposerFocusedBorderColor() {
     return _showComposerLandingHighlight
         ? _clientAccentBlue
-        : const Color(0xFF7EA7D3);
+        : _clientActionBorderStrong;
   }
 
   Color _threadLandingBubbleFillColor() {
@@ -6693,16 +6691,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
       }),
       backgroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return const Color(0xFFF3F6FA);
+          return _clientActionSurfaceStrong;
         }
         if (states.contains(WidgetState.pressed)) {
-          return const Color(0xFFEAF6FF);
+          return _clientInfoSurface;
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return const Color(0xFFF5F8FC);
+          return _clientActionSurface;
         }
-        return Colors.white;
+        return _clientActionSurface;
       }),
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
@@ -6710,17 +6708,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return const Color(0xFFF5F8FC);
+          return _clientActionSurface;
         }
         if (states.contains(WidgetState.pressed)) {
-          return const Color(0xFFEAF6FF);
+          return _clientInfoSurface;
         }
         return null;
       }),
       shape: WidgetStateProperty.all(
         RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0xFFD4DFEA)),
+          side: const BorderSide(color: _clientActionBorder),
         ),
       ),
     );
@@ -6747,7 +6745,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           : VisualDensity.compact,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 0,
-      shadowColor: const Color(0x08000000),
+      shadowColor: _clientShadowColor,
     );
   }
 
@@ -6827,7 +6825,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               child: Text(
                 _localizedCloseLabel,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8FD1FF),
+                  color: _clientInfoAccent,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -6935,7 +6933,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               padding: EdgeInsets.zero,
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              foregroundColor: const Color(0xFF8FD1FF),
+              foregroundColor: _clientInfoAccent,
             ),
             child: Text(
               _viewerRole.incidentFeedActionLabel,
@@ -6978,7 +6976,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             width: 1,
             height: 14,
             margin: const EdgeInsets.symmetric(horizontal: 2),
-            color: const Color(0xFF223244),
+            color: _clientBorderColor,
           ),
           TextButton(
             onPressed: () => _showIncidentFeedDetail(group),
@@ -6986,7 +6984,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              foregroundColor: const Color(0xFF8FD1FF),
+              foregroundColor: _clientInfoAccent,
             ),
             child: Text(
               _viewerRole.incidentFeedActionLabel,
@@ -7052,20 +7050,20 @@ class _ClientAppPageState extends State<ClientAppPage> {
             children: [
               _pill(
                 'Lane ${_roomDisplayNameForKey(roomKey)}',
-                const Color(0xFFB9D9FF),
-                const Color(0xFF2A5D91),
+                _clientInfoAccent,
+                _clientInfoBorder,
               ),
               _pill(
                 showAllRoomItems
                     ? _localizedShowAllLabel
                     : _localizedShowPendingLabel,
-                const Color(0xFFFFD6A5),
-                const Color(0xFF8A5A1C),
+                _clientWarningAccent,
+                _clientWarningBorder,
               ),
               _pill(
                 'Threads ${items.length}',
-                const Color(0xFFC9B8FF),
-                const Color(0xFF6352A3),
+                _clientAdminAccent,
+                _clientAdminBorder,
               ),
             ],
           ),
@@ -7077,7 +7075,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               _bannerActionChip(
                 key: const ValueKey('client-incident-feed-empty-open-first'),
                 label: 'Open first incident',
-                accent: const Color(0xFF8FD1FF),
+                accent: _clientInfoAccent,
                 onTap: () => _openFirstAvailableIncidentThread(items),
               ),
               _bannerActionChip(
@@ -7085,7 +7083,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   'client-incident-feed-empty-focus-composer',
                 ),
                 label: 'Jump to Composer',
-                accent: const Color(0xFFC9B8FF),
+                accent: _clientAdminAccent,
                 onTap: _focusChatComposer,
               ),
               _bannerActionChip(
@@ -7093,7 +7091,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 label: showAllRoomItems
                     ? _localizedShowPendingLabel
                     : _localizedShowAllLabel,
-                accent: const Color(0xFFFFD6A5),
+                accent: _clientWarningAccent,
                 selected: showAllRoomItems,
                 onTap: _toggleShowAllRoomItems,
               ),
@@ -7110,18 +7108,18 @@ class _ClientAppPageState extends State<ClientAppPage> {
     required bool focused,
   }) {
     if (_viewerRole == ClientAppViewerRole.client) {
-      return const Color(0xFF223244);
+      return _clientBorderColor;
     }
     if (focused) {
-      return const Color(0xFF5EA8FF);
+      return _clientInfoAccentStrong;
     }
     if (selected) {
-      return const Color(0xFF4A86C7);
+      return _clientInfoBorderSoft;
     }
     if (expanded) {
-      return const Color(0xFF35679B);
+      return _clientInfoBorder;
     }
-    return const Color(0xFF223244);
+    return _clientBorderColor;
   }
 
   String _threadJumpedLabel() {
@@ -7846,8 +7844,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
               detail: notification.body,
               occurredAt: event.occurredAt,
               statusLabel: 'Opened',
-              accent: const Color(0xFFB9D9FF),
-              borderColor: const Color(0xFF2A5D91),
+              accent: _clientInfoAccent,
+              borderColor: _clientInfoBorder,
             ),
           );
         case ResponseArrived():
@@ -7859,8 +7857,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
               detail: notification.body,
               occurredAt: event.occurredAt,
               statusLabel: 'On Site',
-              accent: const Color(0xFF9FD8AC),
-              borderColor: const Color(0xFF2E6A3C),
+              accent: _clientSuccessAccent,
+              borderColor: _clientSuccessBorder,
             ),
           );
         case IncidentClosed():
@@ -7872,8 +7870,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
               detail: notification.body,
               occurredAt: event.occurredAt,
               statusLabel: 'Closed',
-              accent: const Color(0xFFFFD6A5),
-              borderColor: const Color(0xFF8C5B23),
+              accent: _clientWarningAccent,
+              borderColor: _clientWarningBorder,
             ),
           );
         case IntelligenceReceived():
@@ -7885,11 +7883,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
               occurredAt: event.occurredAt,
               statusLabel: event.riskScore >= 70 ? 'Advisory' : 'Intel',
               accent: event.riskScore >= 70
-                  ? const Color(0xFFFFD3D8)
-                  : const Color(0xFFC9B8FF),
+                  ? _clientPriorityAccent
+                  : _clientAdminAccent,
               borderColor: event.riskScore >= 70
-                  ? const Color(0xFF8A3D4A)
-                  : const Color(0xFF6950A8),
+                  ? _clientPriorityBorder
+                  : _clientAdminBorder,
             ),
           );
         default:
@@ -8014,26 +8012,26 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
   Color _manualIncidentAccentFor(String statusLabel, String author) {
     return switch (statusLabel) {
-      'Advisory' => const Color(0xFFFFD3D8),
-      'Closed' => const Color(0xFFFFD6A5),
-      'Opened' => const Color(0xFFB9D9FF),
+      'Advisory' => _clientPriorityAccent,
+      'Closed' => _clientWarningAccent,
+      'Opened' => _clientInfoAccent,
       _ => switch (author) {
-        'Control' => const Color(0xFF9FD8AC),
-        'Resident' => const Color(0xFFFFD6A5),
-        _ => const Color(0xFFB9D9FF),
+        'Control' => _clientSuccessAccent,
+        'Resident' => _clientWarningAccent,
+        _ => _clientInfoAccent,
       },
     };
   }
 
   Color _manualIncidentBorderColorFor(String statusLabel, String author) {
     return switch (statusLabel) {
-      'Advisory' => const Color(0xFF8A3D4A),
-      'Closed' => const Color(0xFF8C5B23),
-      'Opened' => const Color(0xFF2A5D91),
+      'Advisory' => _clientPriorityBorder,
+      'Closed' => _clientWarningBorder,
+      'Opened' => _clientInfoBorder,
       _ => switch (author) {
-        'Control' => const Color(0xFF2E6A3C),
-        'Resident' => const Color(0xFF8C5B23),
-        _ => const Color(0xFF2A5D91),
+        'Control' => _clientSuccessBorder,
+        'Resident' => _clientWarningBorder,
+        _ => _clientInfoBorder,
       },
     };
   }
@@ -8087,9 +8085,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
   Color _roomChannelAccent(ClientAppAcknowledgementChannel channel) {
     return switch (channel) {
-      ClientAppAcknowledgementChannel.client => const Color(0xFFC9B8FF),
-      ClientAppAcknowledgementChannel.control => const Color(0xFF8FD1FF),
-      ClientAppAcknowledgementChannel.resident => const Color(0xFFFFD6A5),
+      ClientAppAcknowledgementChannel.client => _clientAdminAccent,
+      ClientAppAcknowledgementChannel.control => _clientInfoAccent,
+      ClientAppAcknowledgementChannel.resident => _clientWarningAccent,
     };
   }
 
@@ -8258,7 +8256,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       label: 'THREAD REOPEN',
       detail:
           'The selected incident remains pinned across the comms and delivery rails while the detail dialog opens.',
-      accent: const Color(0xFF8FD1FF),
+      accent: _clientInfoAccent,
     );
     return _showIncidentFeedDetail(group);
   }
@@ -8276,7 +8274,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         label: 'INCIDENT HANDOFF',
         detail:
             'Open-thread controls stay live so operators can confirm when the current lane does not have a scoped incident available.',
-        accent: const Color(0xFFC9B8FF),
+        accent: _clientAdminAccent,
       );
       return Future<void>.value();
     }
@@ -8302,7 +8300,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       label: 'INCIDENT HANDOFF',
       detail:
           'The first scoped incident is now pinned for both the comms shell and the delivery workspace.',
-      accent: const Color(0xFF8FD1FF),
+      accent: _clientInfoAccent,
     );
     return _showIncidentFeedDetail(first);
   }
@@ -9258,7 +9256,8 @@ class ClientPushSyncState {
   factory ClientPushSyncState.fromJson(Map<String, Object?> json) {
     final rawHistory = json['history'];
     final rawBackendProbeHistory = json['backendProbeHistory'];
-    final rawTelegramDeliveredMessageKeys = json['telegramDeliveredMessageKeys'];
+    final rawTelegramDeliveredMessageKeys =
+        json['telegramDeliveredMessageKeys'];
     return ClientPushSyncState(
       statusLabel: json['status']?.toString().trim().isNotEmpty == true
           ? json['status']!.toString()
@@ -9330,38 +9329,38 @@ enum _ClientSystemMessageType {
   dispatch(
     'Dispatch',
     Icons.flash_on_rounded,
-    Color(0xFF2A5D91),
-    Color(0xFF2A5D91),
-    Color(0xFFEAF4FF),
-    Color(0xFF2F5F94),
-    Color(0xFF8A3D4A),
+    _clientInfoBorder,
+    _clientInfoBorder,
+    _clientInfoSurface,
+    _clientInfoBorder,
+    _clientPriorityBorder,
   ),
   advisory(
     'Advisory',
     Icons.campaign_rounded,
-    Color(0xFF8A5A1C),
-    Color(0xFF8A5A1C),
-    Color(0xFFFFF5E8),
-    Color(0xFF8A5A1C),
-    Color(0xFFA85A1F),
+    _clientWarningBorder,
+    _clientWarningBorder,
+    _clientWarningSurface,
+    _clientWarningBorder,
+    _clientWarningBorder,
   ),
   closure(
     'Closure',
     Icons.check_circle_rounded,
-    Color(0xFF2E7D4E),
-    Color(0xFF2E7D4E),
-    Color(0xFFEFFAF4),
-    Color(0xFF2E7D4E),
-    Color(0xFF2E7D4E),
+    _clientSuccessBorder,
+    _clientSuccessBorder,
+    _clientSuccessSurface,
+    _clientSuccessBorder,
+    _clientSuccessBorder,
   ),
   update(
     'Update',
     Icons.sync_rounded,
-    Color(0xFF6352A3),
-    Color(0xFF6352A3),
-    Color(0xFFF3EEFF),
-    Color(0xFF6352A3),
-    Color(0xFF7D57C5),
+    _clientAdminBorder,
+    _clientAdminBorder,
+    _clientAdminSurface,
+    _clientAdminBorder,
+    _clientAdminBorder,
   );
 
   final String label;
@@ -10135,25 +10134,25 @@ enum ClientAppViewerRole {
 
   Color get outgoingBubbleFillColor {
     return switch (this) {
-      ClientAppViewerRole.client => const Color(0xFFEAF4FF),
-      ClientAppViewerRole.control => const Color(0xFFEFFAF4),
-      ClientAppViewerRole.resident => const Color(0xFFFFF4E8),
+      ClientAppViewerRole.client => _clientInfoSurface,
+      ClientAppViewerRole.control => _clientSuccessSurface,
+      ClientAppViewerRole.resident => _clientWarningSurface,
     };
   }
 
   Color get outgoingBubbleBorderColor {
     return switch (this) {
-      ClientAppViewerRole.client => const Color(0xFF3E7BFF),
-      ClientAppViewerRole.control => const Color(0xFF39C98A),
-      ClientAppViewerRole.resident => const Color(0xFFF0A35A),
+      ClientAppViewerRole.client => _clientInfoAccentStrong,
+      ClientAppViewerRole.control => _clientSuccessAccent,
+      ClientAppViewerRole.resident => _clientWarningAccent,
     };
   }
 
   Color get outgoingBubbleMetaColor {
     return switch (this) {
-      ClientAppViewerRole.client => const Color(0xFF2F6AA3),
-      ClientAppViewerRole.control => const Color(0xFF2E7D4E),
-      ClientAppViewerRole.resident => const Color(0xFF9A5B20),
+      ClientAppViewerRole.client => _clientInfoBorder,
+      ClientAppViewerRole.control => _clientSuccessBorder,
+      ClientAppViewerRole.resident => _clientWarningBorder,
     };
   }
 
