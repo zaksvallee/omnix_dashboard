@@ -1002,7 +1002,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Shadow validation: ${syntheticScopeSummary.shadowValidationSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF93C5FD),
+                      color: OnyxColorTokens.accentSky.withValues(alpha: 0.75),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1089,7 +1089,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     syntheticScopeSummary.shadowMemorySummary,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF93C5FD),
+                      color: OnyxColorTokens.accentSky.withValues(alpha: 0.75),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1180,8 +1180,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0x338B5CF6)),
-                      color: const Color(0xFFF6F0FF),
+                      border: Border.all(color: OnyxColorTokens.borderSubtle),
+                      color: OnyxColorTokens.purpleSurface,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1252,7 +1252,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               'Shadow validation: ${point.shadowValidationSummary}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF93C5FD),
+                                color: OnyxColorTokens.accentSky.withValues(alpha: 0.75),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1366,9 +1366,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x141E40AF),
+              color: OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x445B8CFF)),
+              border: Border.all(color: OnyxColorTokens.borderSubtle),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1385,7 +1385,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   shadowScopeSummary.summaryLine,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFB8D7FF),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1486,7 +1486,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     Text(
                       '${point.date} • ${point.summaryLine}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8FA8C5),
+                        color: OnyxColorTokens.textMuted,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1600,9 +1600,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x1422D3EE),
+              color: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x4422D3EE)),
+              border: Border.all(color: OnyxColorTokens.accentCyan.withValues(alpha: 0.27)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1631,7 +1631,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Flagged: ${activityScopeSummary.topFlaggedIdentitySummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDA4AF),
+                      color: OnyxColorTokens.accentRed.withValues(alpha: 0.75),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1657,7 +1657,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Guard note: ${activityScopeSummary.topGuardInteractionSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF93C5FD),
+                      color: OnyxColorTokens.accentSky.withValues(alpha: 0.75),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1681,8 +1681,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0x3322D3EE)),
-                      color: const Color(0xFFF0FAFF),
+                      border: Border.all(color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20)),
+                      color: OnyxColorTokens.surfaceInset,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1752,9 +1752,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x1422D3EE),
+              color: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x4422D3EE)),
+              border: Border.all(color: OnyxColorTokens.accentCyan.withValues(alpha: 0.27)),
             ),
             child: Text(
               'Events Scope narrowed to ${scopedEventIds.length} linked event${scopedEventIds.length == 1 ? '' : 's'} for this visit.',
@@ -2010,9 +2010,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2020,7 +2020,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -2086,9 +2086,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: bannerContent,
     );
@@ -2111,12 +2111,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFF13131E),
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.5)
-                : const Color(0xFFD6E1EC),
+                : OnyxColorTokens.divider,
           ),
         ),
         child: Text(
@@ -2148,9 +2148,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: OnyxColorTokens.backgroundSecondary,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFD6E1EC)),
+            border: Border.all(color: OnyxColorTokens.divider),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2158,7 +2158,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               Text(
                 selected == null ? 'Pick one event.' : _eventSummary(selected),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -2232,9 +2232,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: RichText(
         text: TextSpan(
@@ -2242,7 +2242,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             TextSpan(
               text: '$label: ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF7A8FA4),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -2250,7 +2250,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w800,
               ),
@@ -4175,9 +4175,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   Color _visitTimelineStatusColor(_VisitTimelineStatus status) {
     return switch (status) {
-      _VisitTimelineStatus.completed => const Color(0xFF10B981),
-      _VisitTimelineStatus.active => const Color(0xFF22D3EE),
-      _VisitTimelineStatus.incomplete => const Color(0xFFF59E0B),
+      _VisitTimelineStatus.completed => OnyxColorTokens.accentGreen,
+      _VisitTimelineStatus.active => OnyxColorTokens.accentCyan,
+      _VisitTimelineStatus.incomplete => OnyxColorTokens.accentAmber,
     };
   }
 
@@ -4206,9 +4206,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4221,7 +4221,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 children: [
                   const Icon(
                     Icons.filter_alt_outlined,
-                    color: Color(0xFF556B80),
+                    color: OnyxColorTokens.textMuted,
                     size: 16,
                   ),
                   const SizedBox(width: 8),
@@ -4248,16 +4248,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF13131E),
+                    color: OnyxColorTokens.backgroundSecondary,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFD6E1EC)),
+                    border: Border.all(color: OnyxColorTokens.divider),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.replay_rounded,
-                        color: Color(0xFF7A8FA4),
+                        color: OnyxColorTokens.textMuted,
                         size: 13,
                       ),
                       const SizedBox(width: 6),
@@ -4380,9 +4380,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: events.isEmpty
           ? const OnyxEmptyState(label: 'No events match the current filters.')
@@ -4408,10 +4408,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         decoration: BoxDecoration(
           color: selected
               ? typeColor.withValues(alpha: 0.12)
-              : const Color(0xFF1A1A2E),
+              : OnyxColorTokens.surfaceElevated,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFF1B9CB7) : const Color(0xFFD6E1EC),
+            color: selected ? OnyxColorTokens.accentCyan : OnyxColorTokens.divider,
           ),
         ),
         child: Row(
@@ -4425,14 +4425,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     width: 30,
                     height: 30,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFEAF1F8),
+                      color: OnyxColorTokens.surfaceInset,
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       '${event.sequence}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF172638),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4443,7 +4443,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       margin: const EdgeInsets.only(top: 5),
                       width: 1,
                       height: 26,
-                      color: const Color(0x332A374A),
+                      color: OnyxColorTokens.divider.withValues(alpha: 0.20),
                     ),
                 ],
               ),
@@ -4468,7 +4468,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         _clock12(event.occurredAt),
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF7A8FA4),
+                          color: OnyxColorTokens.textMuted,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -4479,7 +4479,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     _eventSummary(event),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF172638),
+                      color: OnyxColorTokens.textPrimary,
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4500,8 +4500,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             Icon(
               Icons.chevron_right_rounded,
               color: selected
-                  ? const Color(0xFF22D3EE)
-                  : const Color(0xFF9FB2C3),
+                  ? OnyxColorTokens.accentCyan
+                  : OnyxColorTokens.textSecondary,
               size: 18,
             ),
           ],
@@ -4524,9 +4524,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ? const ValueKey('events-detail-empty')
           : ValueKey('events-detail-${selected.eventId}'),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: bounded
           ? SingleChildScrollView(
@@ -4561,7 +4561,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Text(
           'EVENT DETAIL',
           style: GoogleFonts.inter(
-            color: const Color(0xFF7A8FA4),
+            color: OnyxColorTokens.textMuted,
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
@@ -4584,7 +4584,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   'PARTNER DISPATCH CHAIN',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7A8FA4),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.7,
@@ -4686,7 +4686,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   'VISIT TIMELINE',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7A8FA4),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.7,
@@ -4771,7 +4771,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               Text(
                 'CONTEXT',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF7A8FA4),
+                  color: OnyxColorTokens.textMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
@@ -4826,7 +4826,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   'SCENE REVIEW',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7A8FA4),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.7,
@@ -4861,7 +4861,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               Text(
                 'PAYLOAD DATA',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF7A8FA4),
+                  color: OnyxColorTokens.textMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
@@ -4872,16 +4872,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E),
+                  color: OnyxColorTokens.surfaceElevated,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFD6E1EC)),
+                  border: Border.all(color: OnyxColorTokens.divider),
                 ),
                 child: Text(
                   const JsonEncoder.withIndent(
                     '  ',
                   ).convert(_eventPayload(selected)),
                   style: GoogleFonts.robotoMono(
-                    color: const Color(0xFF172638),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -4898,7 +4898,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               Text(
                 'VERSION INFO',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF7A8FA4),
+                  color: OnyxColorTokens.textMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
@@ -4910,7 +4910,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               _contextRow(
                 'Chain Position',
                 'Verified',
-                valueColor: const Color(0xFF10B981),
+                valueColor: OnyxColorTokens.accentGreen,
               ),
             ],
           ),
@@ -4943,7 +4943,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Text(
           'Selected Event',
           style: GoogleFonts.inter(
-            color: const Color(0xFF7A8FA4),
+            color: OnyxColorTokens.textMuted,
             fontSize: 10,
             fontWeight: FontWeight.w600,
           ),
@@ -4954,7 +4954,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             _lastActionFeedback,
             key: const ValueKey('events-last-action-feedback'),
             style: GoogleFonts.inter(
-              color: const Color(0xFF63BDFF),
+              color: OnyxColorTokens.accentSky,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -4982,7 +4982,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.12), const Color(0xFF13131E)],
+          colors: [accent.withValues(alpha: 0.12), OnyxColorTokens.backgroundSecondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -5023,7 +5023,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       selected.eventId,
                       key: const ValueKey('events-selected-event-id'),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF172638),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         height: 0.95,
@@ -5055,7 +5055,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           Text(
             _eventSummary(selected),
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.3,
@@ -5117,8 +5117,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   label: 'GOVERNANCE DESK',
                   selected: onOpenGovernanceScope != null,
                   accent: onOpenGovernanceScope != null
-                      ? const Color(0xFF22D3EE)
-                      : const Color(0xFF94A3B8),
+                      ? OnyxColorTokens.accentCyan
+                      : OnyxColorTokens.textMuted,
                   onTap:
                       onOpenGovernanceScope ??
                       () {
@@ -5132,8 +5132,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   label: 'SOVEREIGN LEDGER',
                   selected: widget.onOpenLedger != null,
                   accent: widget.onOpenLedger != null
-                      ? const Color(0xFFA78BFA)
-                      : const Color(0xFF94A3B8),
+                      ? OnyxColorTokens.accentPurple
+                      : OnyxColorTokens.textMuted,
                   onTap: () {
                     logUiAction(
                       'events.focus_card_open_ledger',
@@ -5159,7 +5159,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   key: const ValueKey('events-selected-focus-export'),
                   label: 'Export',
                   selected: false,
-                  accent: const Color(0xFFF1B872),
+                  accent: OnyxColorTokens.accentAmber,
                   onTap: () => _exportEventData(selected),
                 ),
               ],
@@ -5174,9 +5174,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: child,
     );
@@ -5189,7 +5189,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Text(
           label,
           style: GoogleFonts.inter(
-            color: const Color(0xFF7A8FA4),
+            color: OnyxColorTokens.textMuted,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -5198,7 +5198,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Text(
           value,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontSize: 30,
             height: 0.95,
             fontWeight: FontWeight.w700,
@@ -5219,7 +5219,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             child: Text(
               key,
               style: GoogleFonts.inter(
-                color: const Color(0xFF7A8FA4),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -5231,7 +5231,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               value,
               textAlign: TextAlign.right,
               style: GoogleFonts.inter(
-                color: valueColor ?? const Color(0xFF172638),
+                color: valueColor ?? OnyxColorTokens.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -5255,15 +5255,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131E),
+          color: OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFD6E1EC)),
+          border: Border.all(color: OnyxColorTokens.divider),
         ),
         child: Text(
           text,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.3,
@@ -5296,10 +5296,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         decoration: BoxDecoration(
           color: selected
               ? typeColor.withValues(alpha: 0.12)
-              : const Color(0xFF1A1A2E),
+              : OnyxColorTokens.surfaceElevated,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFF22D3EE) : const Color(0xFFD6E1EC),
+            color: selected ? OnyxColorTokens.accentCyan : OnyxColorTokens.divider,
           ),
         ),
         child: Row(
@@ -5313,14 +5313,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     width: 30,
                     height: 30,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF1F8),
+                      color: OnyxColorTokens.surfaceInset,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       '${event.sequence}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFD9E7FA),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),
@@ -5331,7 +5331,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       margin: const EdgeInsets.only(top: 5),
                       width: 1,
                       height: 22,
-                      color: const Color(0x332A374A),
+                      color: OnyxColorTokens.divider.withValues(alpha: 0.20),
                     ),
                 ],
               ),
@@ -5364,7 +5364,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         _clock12(event.occurredAt),
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF7A8FA4),
+                          color: OnyxColorTokens.textMuted,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -5375,7 +5375,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     _eventSummary(event),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF172638),
+                      color: OnyxColorTokens.textPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -5410,9 +5410,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       key: key,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Text(
         label,
@@ -5432,16 +5432,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final reached = timestamp != null;
     final color = reached
         ? _partnerStatusColor(status)
-        : const Color(0xFF64748B);
+        : OnyxColorTokens.textMuted;
     return Container(
       key: ValueKey<String>('events-partner-milestone-${status.name}'),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: reached
             ? color.withValues(alpha: 0.14)
-            : const Color(0xFF1A1A2E),
+            : OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: reached ? color : const Color(0xFFD6E1EC)),
+        border: Border.all(color: reached ? color : OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5461,8 +5461,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             reached ? _clock12(timestamp) : 'Pending',
             style: GoogleFonts.inter(
               color: reached
-                  ? const Color(0xFF172638)
-                  : const Color(0xFF7A8FA4),
+                  ? OnyxColorTokens.textPrimary
+                  : OnyxColorTokens.textMuted,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -6257,16 +6257,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF13131E),
+        backgroundColor: OnyxColorTokens.backgroundSecondary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFFD6E1EC)),
+          side: const BorderSide(color: OnyxColorTokens.divider),
         ),
         content: Text(
           message,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -6312,16 +6312,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
+          color: selected ? OnyxColorTokens.accentPurple.withValues(alpha: 0.10) : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: selected ? const Color(0x669D4BFF) : const Color(0x269D4BFF),
+            color: selected ? OnyxColorTokens.borderStrong : OnyxColorTokens.borderSubtle,
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFF22D3EE) : OnyxColorTokens.textSecondary,
+            color: selected ? OnyxColorTokens.accentCyan : OnyxColorTokens.textSecondary,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -6596,11 +6596,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   Color _partnerTrendColor(String trendLabel) {
     return switch (trendLabel) {
-      'IMPROVING' => const Color(0xFF34D399),
-      'STABLE' => const Color(0xFF8FA7C8),
-      'SLIPPING' => const Color(0xFFF97316),
-      'NEW' => const Color(0xFF38BDF8),
-      _ => const Color(0xFF8FA7C8),
+      'IMPROVING' => OnyxColorTokens.accentGreen,
+      'STABLE' => OnyxColorTokens.textSecondary,
+      'SLIPPING' => OnyxColorTokens.accentAmber,
+      'NEW' => OnyxColorTokens.accentCyan,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 }
@@ -7108,11 +7108,11 @@ String _partnerStatusLabel(PartnerDispatchStatus status) {
 
 Color _partnerStatusColor(PartnerDispatchStatus status) {
   return switch (status) {
-    PartnerDispatchStatus.unknown => const Color(0xFF94A3B8),
-    PartnerDispatchStatus.accepted => const Color(0xFF38BDF8),
-    PartnerDispatchStatus.onSite => const Color(0xFFF59E0B),
-    PartnerDispatchStatus.allClear => const Color(0xFF10B981),
-    PartnerDispatchStatus.cancelled => const Color(0xFFEF4444),
+    PartnerDispatchStatus.unknown => OnyxColorTokens.textMuted,
+    PartnerDispatchStatus.accepted => OnyxColorTokens.accentCyan,
+    PartnerDispatchStatus.onSite => OnyxColorTokens.accentAmber,
+    PartnerDispatchStatus.allClear => OnyxColorTokens.accentGreen,
+    PartnerDispatchStatus.cancelled => OnyxColorTokens.accentRed,
   };
 }
 
@@ -7249,17 +7249,17 @@ String _eventMetaLine(DispatchEvent event) {
 }
 
 Color _eventColor(DispatchEvent event) {
-  if (event is _SeededDispatchEvent) return const Color(0xFF5FAAFF);
-  if (event is DecisionCreated) return const Color(0xFFEF4444);
-  if (event is ExecutionCompleted) return const Color(0xFF10B981);
-  if (event is ResponseArrived) return const Color(0xFF22D3EE);
-  if (event is PartnerDispatchStatusDeclared) return const Color(0xFF06B6D4);
-  if (event is VehicleVisitReviewRecorded) return const Color(0xFF38BDF8);
-  if (event is GuardCheckedIn) return const Color(0xFF3B82F6);
-  if (event is ExecutionDenied) return const Color(0xFFF59E0B);
-  if (event is IntelligenceReceived) return const Color(0xFFC084FC);
-  if (event is IncidentClosed) return const Color(0xFF10B981);
-  return const Color(0xFF9BB0CE);
+  if (event is _SeededDispatchEvent) return OnyxColorTokens.accentSky;
+  if (event is DecisionCreated) return OnyxColorTokens.accentRed;
+  if (event is ExecutionCompleted) return OnyxColorTokens.accentGreen;
+  if (event is ResponseArrived) return OnyxColorTokens.accentCyan;
+  if (event is PartnerDispatchStatusDeclared) return OnyxColorTokens.accentCyan;
+  if (event is VehicleVisitReviewRecorded) return OnyxColorTokens.accentCyan;
+  if (event is GuardCheckedIn) return OnyxColorTokens.accentSky;
+  if (event is ExecutionDenied) return OnyxColorTokens.accentAmber;
+  if (event is IntelligenceReceived) return OnyxColorTokens.accentPurple;
+  if (event is IncidentClosed) return OnyxColorTokens.accentGreen;
+  return OnyxColorTokens.textMuted;
 }
 
 String _guardLabel(DispatchEvent event) {
