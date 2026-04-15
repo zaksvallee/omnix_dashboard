@@ -8,30 +8,13 @@ import 'theme/onyx_design_tokens.dart';
 
 const _intelSurfaceColor = Color(0xFF13131E);
 const _intelSurfaceAltColor = Color(0xFF1A1A2E);
-const _intelSurfaceTintColor = Color(0x1A9D4BFF);
 const _intelBorderColor = Color(0x269D4BFF);
-const _intelStrongBorderColor = Color(0x4D9D4BFF);
 const _intelTitleColor = Color(0xFFE8E8F0);
 const _intelBodyColor = Color(0x80FFFFFF);
 const _intelMutedColor = Color(0x4DFFFFFF);
 
 String _intelKeySegment(String value) =>
     value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-
-int _riskIntelLevelRank(String level) {
-  switch (level.trim().toUpperCase()) {
-    case 'CRITICAL':
-      return 4;
-    case 'HIGH':
-      return 3;
-    case 'MEDIUM':
-      return 2;
-    case 'LOW':
-      return 1;
-    default:
-      return 0;
-  }
-}
 
 class RiskIntelAreaSummary {
   final String title;
@@ -299,11 +282,306 @@ class RiskIntelligencePage extends StatelessWidget {
     );
   }
 
+  void _addManualIntel(BuildContext context) {
+    if (onAddManualIntel != null) {
+      onAddManualIntel!.call();
+      return;
+    }
+    _showManualIntelComposer(context);
+  }
+
+  void _viewAreaIntel(BuildContext context, RiskIntelAreaSummary area) {
+    if (onViewAreaIntel != null && area.eventIds.isNotEmpty) {
+      onViewAreaIntel!(area);
+      return;
+    }
+    _showAreaIntelDialog(context, area);
+  }
+
+  void _viewIntelDetail(BuildContext context, RiskIntelFeedItem item) {
+    if (onViewRecentIntel != null) {
+      onViewRecentIntel!(item);
+      return;
+    }
+    _showRecentIntelDialog(context, item);
+  }
+
+  Color _sourceColor(String source) {
+    return switch (source.toLowerCase()) {
+      'twitter' => OnyxColorTokens.accentSky,
+      'news24' || 'news' => OnyxColorTokens.accentGreen,
+      'police scanner' || 'police-scanner' || 'police' =>
+          OnyxColorTokens.accentRed,
+      'manual' => OnyxColorTokens.brand,
+      _ => OnyxColorTokens.textSecondary,
+    };
+  }
+
+  Widget _areaRiskCard(
+      BuildContext context, RiskIntelAreaSummary area) {
+    final level = area.level.trim().toUpperCase();
+    final isHigh = level == 'CRITICAL' || level == 'HIGH';
+    final isMed = level == 'MEDIUM' || level == 'MED';
+    final dotColor = isHigh
+        ? OnyxColorTokens.accentRed
+        : isMed
+            ? OnyxColorTokens.accentAmber
+            : OnyxColorTokens.accentGreen;
+    final borderColor = isHigh
+        ? OnyxColorTokens.redBorder
+        : isMed
+            ? OnyxColorTokens.amberBorder
+            : OnyxColorTokens.divider;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: isHigh
+                ? OnyxColorTokens.accentRed
+                : isMed
+                    ? OnyxColorTokens.accentAmber
+                    : Colors.transparent,
+            width: 2,
+          ),
+          bottom: BorderSide(color: OnyxColorTokens.divider),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dotColor,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  area.title,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: OnyxColorTokens.textPrimary,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: dotColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border:
+                      Border.all(color: dotColor.withValues(alpha: 0.25)),
+                ),
+                child: Text(
+                  level,
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: dotColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'RISK LEVEL',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: OnyxColorTokens.textMuted,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => _viewAreaIntel(context, area),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: OnyxColorTokens.textSecondary,
+              side: BorderSide(color: borderColor),
+              minimumSize: const Size(double.infinity, 32),
+              textStyle: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            child: const Text('View intel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _intelFeedCard(BuildContext context, RiskIntelFeedItem item) {
+    final source = item.sourceLabel.isNotEmpty ? item.sourceLabel : item.provider;
+    final sourceColor = _sourceColor(source);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                item.timeLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: OnyxColorTokens.textMuted,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: sourceColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                      color: sourceColor.withValues(alpha: 0.25)),
+                ),
+                child: Text(
+                  source.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: sourceColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            item.summary,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: OnyxColorTokens.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () => _viewIntelDetail(context, item),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: OnyxColorTokens.textSecondary,
+              side: BorderSide(color: OnyxColorTokens.divider),
+              minimumSize: const Size(0, 30),
+              textStyle: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            child: const Text('View details'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAreaPanel(BuildContext context, {double? width}) {
+    return Container(
+      width: width,
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border.all(color: OnyxColorTokens.divider),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.location_on_rounded,
+                  size: 14,
+                  color: OnyxColorTokens.brand,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'AREA RISK LEVELS',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: OnyxColorTokens.textMuted,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(color: OnyxColorTokens.divider, height: 1),
+          for (final area in areas) _areaRiskCard(context, area),
+          Divider(color: OnyxColorTokens.divider, height: 1),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.add, size: 14),
+              label: const Text('Add manual intel'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: OnyxColorTokens.brand,
+                side: BorderSide(color: OnyxColorTokens.borderSubtle),
+                minimumSize: const Size(double.infinity, 36),
+                textStyle: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              onPressed: () => _addManualIntel(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedPanel(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.trending_up_rounded,
+              size: 14,
+              color: OnyxColorTokens.brand,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'RECENT INTELLIGENCE',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: OnyxColorTokens.textMuted,
+                letterSpacing: 0.7,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (final item in recentItems) _intelFeedCard(context, item),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hottestArea = _highestPriorityArea(areas);
-    final leadItem = recentItems.isEmpty ? null : recentItems.first;
-
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -317,7 +595,7 @@ class RiskIntelligencePage extends StatelessWidget {
             viewportWidth: constraints.maxWidth,
             widescreenFillFactor: ultrawideSurface ? 1 : 0.95,
           );
-          final singleColumn = constraints.maxWidth < 1280;
+          final narrow = constraints.maxWidth < 900;
 
           return Align(
             alignment: Alignment.topCenter,
@@ -330,226 +608,40 @@ class RiskIntelligencePage extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'Risk Intelligence',
-                          style: GoogleFonts.inter(
-                            color: OnyxColorTokens.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Builder(
-                          builder: (context) {
-                            final level = (hottestArea?.level ?? '')
-                                .trim()
-                                .toUpperCase();
-                            final isHigh =
-                                level == 'CRITICAL' || level == 'HIGH';
-                            final isMed =
-                                level == 'MEDIUM' || level == 'MED';
-                            final dotColor = isHigh
-                                ? OnyxColorTokens.statusCritical
-                                : isMed
-                                    ? OnyxColorTokens.statusWarning
-                                    : OnyxColorTokens.accentGreen;
-                            final surfaceColor = isHigh
-                                ? OnyxColorTokens.redSurface
-                                : isMed
-                                    ? OnyxColorTokens.amberSurface
-                                    : OnyxColorTokens.greenSurface;
-                            final borderColor = isHigh
-                                ? OnyxColorTokens.redBorder
-                                : isMed
-                                    ? OnyxColorTokens.amberBorder
-                                    : OnyxColorTokens.greenBorder;
-                            final label = isHigh
-                                ? 'Threat: High'
-                                : isMed
-                                    ? 'Threat: Med'
-                                    : level == 'LOW'
-                                        ? 'Threat: Low'
-                                        : 'Threat unknown';
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: surfaceColor,
-                                borderRadius: BorderRadius.circular(999),
-                                border:
-                                    Border.all(color: borderColor),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Risk intelligence',
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: OnyxColorTokens.textPrimary,
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 5,
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      color: dotColor,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    label,
-                                    style: GoogleFonts.inter(
-                                      color: dotColor,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                            ),
+                            Text(
+                              'Area threat assessment and news monitoring',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: OnyxColorTokens.textSecondary,
                               ),
-                            );
-                          },
+                            ),
+                          ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 18),
-                    _IntelStatusStrip(areas: areas),
-                    const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F4FF),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFFBED8F2)),
-                      ),
-                      child: Text(
-                        'Command Board',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF2A6F8A),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Risk Intelligence',
-                      style: GoogleFonts.inter(
-                        color: _intelTitleColor,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        height: 0.92,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'AI flags what can hurt tonight and points to the next check.',
-                      style: GoogleFonts.inter(
-                        color: _intelBodyColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    _IntelPriorityPanel(
-                      priorityArea: hottestArea,
-                      priorityItem: leadItem,
-                      onOpenArea: hottestArea == null
-                          ? null
-                          : () {
-                              if (onViewAreaIntel != null &&
-                                  hottestArea.eventIds.isNotEmpty) {
-                                onViewAreaIntel!(hottestArea);
-                                return;
-                              }
-                              _showAreaIntelDialog(context, hottestArea);
-                            },
-                      onOpenItem: leadItem == null
-                          ? null
-                          : () {
-                              if (onViewRecentIntel != null) {
-                                onViewRecentIntel!(leadItem);
-                                return;
-                              }
-                              _showRecentIntelDialog(context, leadItem);
-                            },
-                    ),
-                    if (latestAutoAuditReceipt != null) ...[
-                      const SizedBox(height: 14),
-                      _IntelAuditReceipt(
-                        receipt: latestAutoAuditReceipt!,
-                        onOpenLatestAudit: onOpenLatestAudit,
-                      ),
-                    ],
-                    const SizedBox(height: 18),
-                    if (singleColumn) ...[
-                      _IntelAreaPanel(
-                        areas: areas,
-                        onAddManualIntel: () {
-                          if (onAddManualIntel != null) {
-                            onAddManualIntel!.call();
-                            return;
-                          }
-                          _showManualIntelComposer(context);
-                        },
-                        onViewAreaIntel: (area) {
-                          if (onViewAreaIntel != null &&
-                              area.eventIds.isNotEmpty) {
-                            onViewAreaIntel!(area);
-                            return;
-                          }
-                          _showAreaIntelDialog(context, area);
-                        },
-                      ),
+                    if (narrow) ...[
+                      _buildAreaPanel(context),
                       const SizedBox(height: 18),
-                      _IntelRecentPanel(
-                        items: recentItems,
-                        onViewRecentIntel: (item) {
-                          if (onViewRecentIntel != null) {
-                            onViewRecentIntel!(item);
-                            return;
-                          }
-                          _showRecentIntelDialog(context, item);
-                        },
-                      ),
+                      _buildFeedPanel(context),
                     ] else
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            flex: 4,
-                            child: _IntelAreaPanel(
-                              areas: areas,
-                              onAddManualIntel: () {
-                                if (onAddManualIntel != null) {
-                                  onAddManualIntel!.call();
-                                  return;
-                                }
-                                _showManualIntelComposer(context);
-                              },
-                              onViewAreaIntel: (area) {
-                                if (onViewAreaIntel != null &&
-                                    area.eventIds.isNotEmpty) {
-                                  onViewAreaIntel!(area);
-                                  return;
-                                }
-                                _showAreaIntelDialog(context, area);
-                              },
-                            ),
-                          ),
+                          _buildAreaPanel(context, width: 320),
                           const SizedBox(width: 18),
-                          Expanded(
-                            flex: 8,
-                            child: _IntelRecentPanel(
-                              items: recentItems,
-                              onViewRecentIntel: (item) {
-                                if (onViewRecentIntel != null) {
-                                  onViewRecentIntel!(item);
-                                  return;
-                                }
-                                _showRecentIntelDialog(context, item);
-                              },
-                            ),
-                          ),
+                          Expanded(child: _buildFeedPanel(context)),
                         ],
                       ),
                   ],
@@ -562,791 +654,7 @@ class RiskIntelligencePage extends StatelessWidget {
     );
   }
 
-  RiskIntelAreaSummary? _highestPriorityArea(List<RiskIntelAreaSummary> areas) {
-    final withSignals = areas
-        .where((area) => area.signalCount > 0)
-        .toList(growable: false);
-    if (withSignals.isEmpty) {
-      return null;
-    }
-    final sorted = withSignals.toList()
-      ..sort((left, right) {
-        final levelCompare =
-            _riskIntelLevelRank(right.level) - _riskIntelLevelRank(left.level);
-        if (levelCompare != 0) {
-          return levelCompare;
-        }
-        return right.signalCount.compareTo(left.signalCount);
-      });
-    return sorted.first;
-  }
 }
-
-class _IntelAuditReceipt extends StatelessWidget {
-  final RiskIntelAutoAuditReceipt receipt;
-  final VoidCallback? onOpenLatestAudit;
-
-  const _IntelAuditReceipt({required this.receipt, this.onOpenLatestAudit});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('intel-latest-audit-panel'),
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: _intelSurfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _intelBorderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x140F172A),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'LATEST COMMAND',
-            style: GoogleFonts.inter(
-              color: _intelMutedColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.9,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: receipt.accent.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: receipt.accent.withValues(alpha: 0.45)),
-            ),
-            child: Text(
-              receipt.label,
-              style: GoogleFonts.inter(
-                color: receipt.accent,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.8,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            receipt.headline,
-            style: GoogleFonts.inter(
-              color: _intelTitleColor,
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              height: 0.96,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            receipt.detail,
-            style: GoogleFonts.inter(
-              color: _intelBodyColor,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w500,
-              height: 1.45,
-            ),
-          ),
-          if (onOpenLatestAudit != null) ...[
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              key: const ValueKey('intel-view-latest-audit-button'),
-              onPressed: onOpenLatestAudit,
-              icon: const Icon(Icons.verified_rounded, size: 16),
-              label: const Text('View Audit'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF63E6A1),
-                side: const BorderSide(color: Color(0xFF63E6A1)),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _IntelStatusStrip extends StatelessWidget {
-  final List<RiskIntelAreaSummary> areas;
-
-  const _IntelStatusStrip({required this.areas});
-
-  @override
-  Widget build(BuildContext context) {
-    final highestRank = areas
-        .map((area) => _riskIntelLevelRank(area.level))
-        .fold<int>(0, (current, value) => value > current ? value : current);
-    final status = switch (highestRank) {
-      >= 3 => (
-        'RED',
-        'Check the hottest lane right now.',
-        const Color(0xFFD9485F),
-        const Color(0xFFFFE8EC),
-        const Color(0xFFF1C5CD),
-      ),
-      2 => (
-        'AMBER',
-        'Keep dispatch and events ready.',
-        const Color(0xFFB7791F),
-        const Color(0xFFFFF4DE),
-        const Color(0xFFF0D39A),
-      ),
-      _ => (
-        'GREEN',
-        'Board quiet. Hold watch.',
-        const Color(0xFF218B5A),
-        const Color(0xFFE9F8EF),
-        const Color(0xFFC1E1CE),
-      ),
-    };
-
-    return Container(
-      key: const ValueKey('intel-status-strip'),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: status.$4,
-        border: Border.all(color: status.$5),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.trending_up_rounded, color: status.$3, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  status.$1,
-                  style: GoogleFonts.inter(
-                    color: _intelTitleColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  status.$2,
-                  style: GoogleFonts.inter(
-                    color: _intelBodyColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IntelPriorityPanel extends StatelessWidget {
-  final RiskIntelAreaSummary? priorityArea;
-  final RiskIntelFeedItem? priorityItem;
-  final VoidCallback? onOpenArea;
-  final VoidCallback? onOpenItem;
-
-  const _IntelPriorityPanel({
-    required this.priorityArea,
-    required this.priorityItem,
-    this.onOpenArea,
-    this.onOpenItem,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final showArea = priorityArea != null;
-    final accent = showArea
-        ? priorityArea!.accent
-        : (priorityItem?.iconColor ?? const Color(0xFF54C8FF));
-    final title = showArea
-        ? 'Watch ${priorityArea!.title} now'
-        : 'Check the latest AI call';
-    final summary = showArea
-        ? priorityArea!.signalCount == 1
-              ? '1 live signal is clustered in ${priorityArea!.title}.'
-              : '${priorityArea!.signalCount} live signals are clustered in ${priorityArea!.title}.'
-        : (priorityItem?.summary ?? 'Board quiet. Keep passive watch armed.');
-    final actionLabel = showArea ? 'OPEN EVENTS SCOPE' : 'VIEW INTEL ITEM';
-    final meta = showArea
-        ? '${priorityArea!.level} RISK'
-        : '${priorityItem?.sourceLabel ?? 'INTEL'}  ${priorityItem?.timeLabel ?? ''}'
-              .trim();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-      decoration: BoxDecoration(
-        color: Color.lerp(_intelSurfaceColor, accent, 0.14),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accent.withValues(alpha: 0.32)),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'AI OPINION',
-            style: GoogleFonts.inter(
-              color: accent,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              color: _intelTitleColor,
-              fontSize: 30,
-              fontWeight: FontWeight.w700,
-              height: 0.96,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            summary,
-            style: GoogleFonts.inter(
-              color: _intelBodyColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            decoration: BoxDecoration(
-              color: _intelSurfaceColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _intelStrongBorderColor),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  'Priority',
-                  style: GoogleFonts.inter(
-                    color: accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  meta,
-                  style: GoogleFonts.inter(
-                    color: _intelMutedColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              key: const ValueKey('intel-priority-action-button'),
-              onPressed: showArea ? onOpenArea : onOpenItem,
-              style: FilledButton.styleFrom(
-                backgroundColor: accent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.3,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(actionLabel),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IntelAreaPanel extends StatelessWidget {
-  final List<RiskIntelAreaSummary> areas;
-  final VoidCallback onAddManualIntel;
-  final ValueChanged<RiskIntelAreaSummary> onViewAreaIntel;
-
-  const _IntelAreaPanel({
-    required this.areas,
-    required this.onAddManualIntel,
-    required this.onViewAreaIntel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('intel-area-panel'),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: _intelSurfaceColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _intelBorderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: _intelBorderColor)),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.place_outlined,
-                  color: Color(0xFF54C8FF),
-                  size: 18,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'WATCH HOTSPOTS',
-                  style: GoogleFonts.inter(
-                    color: _intelTitleColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.9,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              children: [
-                for (var i = 0; i < areas.length; i++) ...[
-                  _IntelAreaCard(
-                    area: areas[i],
-                    onViewIntel: () => onViewAreaIntel(areas[i]),
-                  ),
-                  if (i != areas.length - 1) const SizedBox(height: 10),
-                ],
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            child: OutlinedButton.icon(
-              key: const ValueKey('intel-add-manual-button'),
-              onPressed: onAddManualIntel,
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('OPEN INTEL INTAKE'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF2A6F8A),
-                side: const BorderSide(color: Color(0xFFBED8F2)),
-                backgroundColor: _intelSurfaceTintColor,
-                minimumSize: const Size.fromHeight(48),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IntelAreaCard extends StatelessWidget {
-  final RiskIntelAreaSummary area;
-  final VoidCallback onViewIntel;
-
-  const _IntelAreaCard({required this.area, required this.onViewIntel});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      decoration: BoxDecoration(
-        color: Color.lerp(_intelSurfaceColor, area.accent, 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: area.accent.withValues(alpha: 0.28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: area.accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  area.signalCount == 0 ? 'WATCH' : 'HOT',
-                  style: GoogleFonts.inter(
-                    color: area.accent,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  area.title,
-                  style: GoogleFonts.inter(
-                    color: _intelTitleColor,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    height: 0.96,
-                  ),
-                ),
-              ),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: area.accent,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Text(
-                'NOW',
-                style: GoogleFonts.inter(
-                  color: _intelMutedColor,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                area.level,
-                style: GoogleFonts.inter(
-                  color: area.accent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            area.signalCount == 0
-                ? 'Board quiet here. Keep passive watch armed.'
-                : area.signalCount == 1
-                ? '1 live signal is pushing this lane.'
-                : '${area.signalCount} live signals are pushing this lane.',
-            style: GoogleFonts.inter(
-              color: _intelBodyColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonal(
-              key: ValueKey(
-                'intel-area-${_intelKeySegment(area.title)}-button',
-              ),
-              onPressed: onViewIntel,
-              style: FilledButton.styleFrom(
-                foregroundColor: _intelTitleColor,
-                backgroundColor: _intelSurfaceTintColor,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                area.signalCount == 0 ? 'CHECK AREA' : 'OPEN EVENTS SCOPE',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IntelRecentPanel extends StatelessWidget {
-  final List<RiskIntelFeedItem> items;
-  final ValueChanged<RiskIntelFeedItem> onViewRecentIntel;
-
-  const _IntelRecentPanel({
-    required this.items,
-    required this.onViewRecentIntel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('intel-recent-panel'),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: _intelSurfaceColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _intelBorderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: _intelBorderColor)),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.trending_up_rounded,
-                  color: Color(0xFFC084FC),
-                  size: 18,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'AI OPINION FEED',
-                  style: GoogleFonts.inter(
-                    color: _intelTitleColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.9,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              children: [
-                for (var i = 0; i < items.length; i++) ...[
-                  _IntelItemCard(
-                    item: items[i],
-                    onViewDetails: () => onViewRecentIntel(items[i]),
-                  ),
-                  if (i != items.length - 1) const SizedBox(height: 12),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IntelItemCard extends StatelessWidget {
-  final RiskIntelFeedItem item;
-  final VoidCallback onViewDetails;
-
-  const _IntelItemCard({required this.item, required this.onViewDetails});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      decoration: BoxDecoration(
-        color: Color.lerp(_intelSurfaceColor, item.iconColor, 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: item.iconColor.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _intelSurfaceTintColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(item.icon, color: item.iconColor, size: 18),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: item.iconColor.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'AI CALL',
-                        style: GoogleFonts.inter(
-                          color: item.iconColor,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      item.timeLabel,
-                      style: GoogleFonts.robotoMono(
-                        color: _intelMutedColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      item.sourceLabel,
-                      style: GoogleFonts.inter(
-                        color: _intelMutedColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  item.summary,
-                  style: GoogleFonts.inter(
-                    color: _intelTitleColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'NEXT MOVE',
-                  style: GoogleFonts.inter(
-                    color: item.iconColor,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Check the call, verify the source, then decide whether Events Scope or Dispatch moves next.',
-                  style: GoogleFonts.inter(
-                    color: _intelBodyColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  key: ValueKey(
-                    'intel-detail-${_intelKeySegment(item.sourceLabel)}-button',
-                  ),
-                  onPressed: onViewDetails,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2A6F8A),
-                    side: const BorderSide(color: Color(0xFFBED8F2)),
-                    backgroundColor: _intelSurfaceTintColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    textStyle: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text('OPEN EVENTS SCOPE'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _IntelDialogFrame extends StatelessWidget {
   final Key? dialogKey;
   final String title;
