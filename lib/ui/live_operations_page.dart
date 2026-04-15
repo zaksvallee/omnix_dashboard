@@ -75,7 +75,9 @@ const _commandBorderStrongColor = OnyxDesignTokens.borderStrong;
 const _commandTitleColor = OnyxDesignTokens.textPrimary;
 const _commandBodyColor = OnyxDesignTokens.textSecondary;
 const _commandMutedColor = OnyxDesignTokens.textMuted;
-const _commandShadowColor = Color(0x33000000);
+final _commandShadowColor = OnyxColorTokens.backgroundPrimary.withValues(
+  alpha: 0.2,
+);
 
 typedef LiveOpsStageClientDraftCallback =
     void Function({
@@ -151,7 +153,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
     final maxDialogHeight = MediaQuery.sizeOf(context).height - 48;
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      backgroundColor: const Color(0xFFF8FBFF),
+      backgroundColor: OnyxColorTokens.surfaceElevated,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 1180, maxHeight: maxDialogHeight),
         child: SingleChildScrollView(
@@ -170,7 +172,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
                         Text(
                           'STREAM RELAY PLAYER',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF0F766E),
+                            color: OnyxColorTokens.accentTeal,
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.4,
@@ -180,7 +182,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
                         Text(
                           siteReference,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF172638),
+                            color: OnyxColorTokens.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
@@ -189,7 +191,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
                         Text(
                           'Operator-only MJPEG relay over the temporary local Hikvision bridge. This helps the control room watch current video in-browser without claiming a native recorder live stream to residents.',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
+                            color: OnyxColorTokens.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             height: 1.3,
@@ -202,7 +204,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
                     key: const ValueKey('client-lane-stream-relay-close-icon'),
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close_rounded),
-                    color: const Color(0xFF4D657C),
+                    color: OnyxColorTokens.textMuted,
                   ),
                 ],
               ),
@@ -220,13 +222,13 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
                     _LiveViewInfoChip(
                       icon: Icons.videocam_rounded,
                       label: cameraId!.trim(),
-                      accent: const Color(0xFF67E8F9),
+                      accent: OnyxColorTokens.accentCyanTrue,
                     ),
                   if (verificationLabel.trim().isNotEmpty)
                     _LiveViewInfoChip(
                       icon: Icons.image_rounded,
                       label: verificationLabel.trim(),
-                      accent: const Color(0xFF8FD1FF),
+                      accent: OnyxColorTokens.accentSky,
                     ),
                 ],
               ),
@@ -234,7 +236,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
               Text(
                 relayStatusSummary,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 11.4,
                   fontWeight: FontWeight.w600,
                   height: 1.3,
@@ -245,7 +247,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
                 Text(
                   relayIssue.trim(),
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7A3A3A),
+                    color: OnyxColorTokens.redBorder,
                     fontSize: 11.2,
                     fontWeight: FontWeight.w600,
                     height: 1.3,
@@ -256,7 +258,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  color: const Color(0xFF08111B),
+                  color: OnyxColorTokens.backgroundPrimary,
                   constraints: const BoxConstraints(minHeight: 360),
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
@@ -273,7 +275,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
               Text(
                 'Player URL: ${playerUri.toString()}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   height: 1.3,
@@ -283,7 +285,7 @@ class _ClientLaneStreamRelayDialog extends StatelessWidget {
               Text(
                 'Relay URL: ${streamUri.toString()}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   height: 1.3,
@@ -405,7 +407,7 @@ class _ClientLaneLiveViewDialogState extends State<_ClientLaneLiveViewDialog> {
     final maxDialogHeight = MediaQuery.sizeOf(context).height - 48;
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      backgroundColor: const Color(0xFFF8FBFF),
+      backgroundColor: OnyxColorTokens.surfaceElevated,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 1100, maxHeight: maxDialogHeight),
         child: SingleChildScrollView(
@@ -424,7 +426,7 @@ class _ClientLaneLiveViewDialogState extends State<_ClientLaneLiveViewDialog> {
                         Text(
                           'LIVE VIEW (REFRESHING STILLS)',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF2E6EA8),
+                            color: OnyxColorTokens.accentBlue,
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.4,
@@ -434,7 +436,7 @@ class _ClientLaneLiveViewDialogState extends State<_ClientLaneLiveViewDialog> {
                         Text(
                           widget.siteReference,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF172638),
+                            color: OnyxColorTokens.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
@@ -443,7 +445,7 @@ class _ClientLaneLiveViewDialogState extends State<_ClientLaneLiveViewDialog> {
                         Text(
                           'Operator-only browser preview using refreshing stills. This is not a continuous stream.',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
+                            color: OnyxColorTokens.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             height: 1.3,
@@ -456,7 +458,7 @@ class _ClientLaneLiveViewDialogState extends State<_ClientLaneLiveViewDialog> {
                     key: const ValueKey('client-lane-live-view-close-icon'),
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close_rounded),
-                    color: const Color(0xFF4D657C),
+                    color: OnyxColorTokens.textMuted,
                   ),
                 ],
               ),
@@ -473,26 +475,26 @@ class _ClientLaneLiveViewDialogState extends State<_ClientLaneLiveViewDialog> {
                         ? 'Refreshing every ${_refreshInterval.inSeconds}s'
                         : 'Manual refresh only',
                     accent: _autoRefresh
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFFF59E0B),
+                        ? OnyxColorTokens.accentGreen
+                        : OnyxColorTokens.accentAmber,
                   ),
                   if ((widget.cameraId ?? '').trim().isNotEmpty)
                     _LiveViewInfoChip(
                       icon: Icons.videocam_rounded,
                       label: widget.cameraId!.trim(),
-                      accent: const Color(0xFF67E8F9),
+                      accent: OnyxColorTokens.accentCyanTrue,
                     ),
                   if (widget.verificationLabel.trim().isNotEmpty)
                     _LiveViewInfoChip(
                       icon: Icons.image_rounded,
                       label: widget.verificationLabel.trim(),
-                      accent: const Color(0xFF8FD1FF),
+                      accent: OnyxColorTokens.accentSky,
                     ),
                   if (widget.streamRelayReady)
                     const _LiveViewInfoChip(
                       icon: Icons.stream_rounded,
                       label: 'Stream relay ready',
-                      accent: Color(0xFF34D399),
+                      accent: OnyxColorTokens.accentGreen,
                     ),
                 ],
               ),
@@ -507,14 +509,14 @@ class _ClientLaneLiveViewDialogState extends State<_ClientLaneLiveViewDialog> {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        color: const Color(0xFFEFF5FA),
+                        color: OnyxColorTokens.surfaceElevated,
                         alignment: Alignment.center,
                         padding: const EdgeInsets.all(24),
                         child: Text(
                           'The latest frame could not be rendered here. Refresh the frame or copy the URL for direct inspection.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
+                            color: OnyxColorTokens.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             height: 1.3,
@@ -637,7 +639,7 @@ class _LiveViewInfoChip extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -1287,7 +1289,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   _replayHistoryMemoryByScopeThisSession =
       <String, _LiveOpsReplayHistoryMemory>{};
   static const _defaultCommandReceipt = _LiveOpsCommandReceipt(
-    accent: Color(0xFF8FD1FF),
+    accent: OnyxColorTokens.accentSky,
     continuityView: OnyxCommandSurfaceContinuityView(
       commandReceipt: OnyxCommandSurfaceReceiptMemory(
         label: 'LIVE COMMAND',
@@ -1464,7 +1466,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'CAMERA CHECK',
       detail:
           'Use current visual confirmation when it is available, and keep event-only telemetry separate from visual claims.',
-      accent: const Color(0xFF67E8F9),
+      accent: OnyxColorTokens.accentCyanTrue,
     );
   }
 
@@ -1484,7 +1486,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'CAMERA CHECK',
       detail:
           'The copied URL points to the latest verified proxy-backed frame for the selected scope.',
-      accent: const Color(0xFF8FD1FF),
+      accent: OnyxColorTokens.accentSky,
     );
   }
 
@@ -1510,7 +1512,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         label: 'CAMERA CHECK',
         detail:
             'This browser page is an operator-only relay over the temporary local bridge, not a resident-facing proof of a native recorder live stream.',
-        accent: const Color(0xFF34D399),
+        accent: OnyxColorTokens.accentGreen,
       );
       return;
     }
@@ -1523,7 +1525,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'CAMERA CHECK',
       detail:
           'Open the copied URL in a browser to view the operator-only stream relay.',
-      accent: const Color(0xFF8FD1FF),
+      accent: OnyxColorTokens.accentSky,
     );
   }
 
@@ -1543,7 +1545,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'CAMERA CHECK',
       detail:
           'The copied URL opens the operator-only relay player for the selected scope.',
-      accent: const Color(0xFF8FD1FF),
+      accent: OnyxColorTokens.accentSky,
     );
   }
 
@@ -1880,7 +1882,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'PENDING ACTIONS',
       detail:
           'Live Ops kept the action ladder centered and reset queue-only filters while the control inbox snapshot reconnects.',
-      accent: const Color(0xFFF59E0B),
+      accent: OnyxColorTokens.accentAmber,
     );
   }
 
@@ -1919,7 +1921,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       detail: snapshot == null
           ? 'Live Ops kept the selected incident and VoIP readiness visible while the Client Comms watch reconnects.'
           : 'The separate Client Comms handoff was unavailable, so the scoped comms posture stayed active in the current workspace.',
-      accent: const Color(0xFF22D3EE),
+      accent: OnyxColorTokens.accentCyanTrue,
     );
   }
 
@@ -2200,14 +2202,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _controlInboxDraftCueChipAccent(_ControlInboxDraftCueKind kind) {
     return switch (kind) {
-      _ControlInboxDraftCueKind.timing => const Color(0xFFF59E0B),
-      _ControlInboxDraftCueKind.sensitive => const Color(0xFFEF4444),
-      _ControlInboxDraftCueKind.detail => const Color(0xFF60A5FA),
-      _ControlInboxDraftCueKind.validation => const Color(0xFF22D3EE),
-      _ControlInboxDraftCueKind.reassurance => const Color(0xFF34D399),
-      _ControlInboxDraftCueKind.formal => const Color(0xFF4B6B8F),
-      _ControlInboxDraftCueKind.concise => const Color(0xFF8B5CF6),
-      _ControlInboxDraftCueKind.defaultReassurance => const Color(0xFF9AB1CF),
+      _ControlInboxDraftCueKind.timing => OnyxColorTokens.accentAmber,
+      _ControlInboxDraftCueKind.sensitive => OnyxColorTokens.accentRed,
+      _ControlInboxDraftCueKind.detail => OnyxColorTokens.accentSky,
+      _ControlInboxDraftCueKind.validation => OnyxColorTokens.accentCyanTrue,
+      _ControlInboxDraftCueKind.reassurance => OnyxColorTokens.accentGreen,
+      _ControlInboxDraftCueKind.formal => OnyxColorTokens.textSecondary,
+      _ControlInboxDraftCueKind.concise => OnyxColorTokens.accentPurple,
+      _ControlInboxDraftCueKind.defaultReassurance =>
+        OnyxColorTokens.textSecondary,
     };
   }
 
@@ -2304,10 +2307,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
     if (_controlInboxPriorityOnly) {
       return hasSensitivePriorityDraft
-          ? const Color(0xFFEF4444)
-          : const Color(0xFFF59E0B);
+          ? OnyxColorTokens.accentRed
+          : OnyxColorTokens.accentAmber;
     }
-    return const Color(0xFF9AB1CF);
+    return OnyxColorTokens.textSecondary;
   }
 
   Color _controlInboxTopBarQueueStateBackground(
@@ -2321,10 +2324,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
     if (_controlInboxPriorityOnly) {
       return hasSensitivePriorityDraft
-          ? const Color(0x33EF4444)
-          : const Color(0x33F59E0B);
+          ? OnyxColorTokens.accentRed.withValues(alpha: 0.2)
+          : OnyxColorTokens.accentAmber.withValues(alpha: 0.2);
     }
-    return const Color(0x334B6B8F);
+    return OnyxColorTokens.textSecondary.withValues(alpha: 0.2);
   }
 
   Color _controlInboxTopBarQueueStateBorder(bool hasSensitivePriorityDraft) {
@@ -2336,10 +2339,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
     if (_controlInboxPriorityOnly) {
       return hasSensitivePriorityDraft
-          ? const Color(0x66EF4444)
-          : const Color(0x66F59E0B);
+          ? OnyxColorTokens.accentRed.withValues(alpha: 0.4)
+          : OnyxColorTokens.amberBorder;
     }
-    return const Color(0x664B6B8F);
+    return OnyxColorTokens.textSecondary.withValues(alpha: 0.4);
   }
 
   IconData _controlInboxTopBarQueueStateIcon(bool hasSensitivePriorityDraft) {
@@ -2799,7 +2802,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final target = continuityView.target;
     return _LiveOpsCommandReceipt(
       accent: target == null
-          ? const Color(0xFF8FD1FF)
+          ? OnyxColorTokens.accentSky
           : _commandRecommendationAccent(target),
       continuityView: continuityView,
     );
@@ -2808,10 +2811,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   /// Replace all SITE-XX-YY and CLIENT-XX-YY patterns inside a free-text string.
   String _humaniseSiteIdsInText(String text) {
     return text.replaceAllMapped(
-      RegExp(
-        r'(?:SITE|CLIENT)-[A-Z0-9]+(?:-[A-Z0-9]+)*',
-        caseSensitive: false,
-      ),
+      RegExp(r'(?:SITE|CLIENT)-[A-Z0-9]+(?:-[A-Z0-9]+)*', caseSensitive: false),
       (m) => _humaniseSiteId(m.group(0)!),
     );
   }
@@ -3085,7 +3085,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         .where((i) => i.status != _IncidentStatus.resolved)
         .length;
     final guardCount = _vigilance.length;
-    final guardAlert = widget.guardRosterSignalNeedsAttention &&
+    final guardAlert =
+        widget.guardRosterSignalNeedsAttention &&
         (widget.guardRosterSignalHeadline ?? '').trim().isNotEmpty;
     final allNominal = unresolvedCount == 0;
     final scopeSiteId = (widget.initialScopeSiteId ?? '').trim();
@@ -3102,35 +3103,32 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
     // ── Status pill ───────────────────────────────────────────────────────
     Widget heroPill(String label, Color color) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withValues(alpha: 0.15)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                ),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: color,
-                ),
-              ),
-            ],
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
           ),
-        );
+        ],
+      ),
+    );
 
     // ── Large stat card ───────────────────────────────────────────────────
     Widget heroStatCard(_CommandCenterModule m, {EdgeInsets? margin}) {
@@ -3142,7 +3140,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? _commandTitleColor
           : m.accent;
       // Alerting = any accent that is not nominal green, teal, or muted.
-      final isAlerting = m.accent != OnyxDesignTokens.textMuted &&
+      final isAlerting =
+          m.accent != OnyxDesignTokens.textMuted &&
           m.accent != OnyxDesignTokens.greenNominal &&
           m.accent != OnyxDesignTokens.accentTeal;
       final cardBg = isAlerting
@@ -3285,20 +3284,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? 'All sites nominal'
                     : '$unresolvedCount ${unresolvedCount == 1 ? 'site' : 'sites'} at risk',
                 allNominal
-                    ? OnyxDesignTokens.greenSpec
+                    ? OnyxColorTokens.accentGreen
                     : OnyxDesignTokens.redCritical,
               ),
               heroPill(
                 guardAlert
                     ? (widget.guardRosterSignalLabel ?? 'Guard alert')
                     : guardCount > 0
-                        ? '$guardCount guard${guardCount == 1 ? '' : 's'} on duty'
-                        : 'No guards on duty',
+                    ? '$guardCount guard${guardCount == 1 ? '' : 's'} on duty'
+                    : 'No guards on duty',
                 guardAlert || guardCount == 0
                     ? OnyxDesignTokens.amberWarning
-                    : OnyxDesignTokens.greenSpec,
+                    : OnyxColorTokens.accentGreen,
               ),
-              heroPill('DVR online', OnyxDesignTokens.greenSpec),
+              heroPill('DVR online', OnyxColorTokens.accentGreen),
             ],
           ),
           const SizedBox(height: 12),
@@ -3374,7 +3373,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               client: 'Ms Vallee',
               nominal: unresolvedCount == 0,
             ),
-            (name: 'Sandton Estate North', client: 'Sandton Corp', nominal: true),
+            (
+              name: 'Sandton Estate North',
+              client: 'Sandton Corp',
+              nominal: true,
+            ),
             (
               name: 'Blue Ridge Office Park',
               client: 'Sandton Corp',
@@ -3384,7 +3387,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
     return sites.map((site) {
       final dotColor = site.nominal
-          ? OnyxDesignTokens.greenSpec
+          ? OnyxColorTokens.accentGreen
           : OnyxDesignTokens.amberWarning;
       return Container(
         margin: const EdgeInsets.only(bottom: 5),
@@ -3570,9 +3573,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(15),
               ),
-              border: Border(
-                bottom: BorderSide(color: _commandBorderColor),
-              ),
+              border: Border(bottom: BorderSide(color: _commandBorderColor)),
             ),
             child: Row(
               children: [
@@ -3580,7 +3581,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: OnyxDesignTokens.accentPurple.withValues(alpha: 0.14),
+                    color: OnyxDesignTokens.accentPurple.withValues(
+                      alpha: 0.14,
+                    ),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(
@@ -3713,7 +3716,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
-                  color: OnyxDesignTokens.cyanInteractive,
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
               ),
             ),
@@ -3728,7 +3731,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             label: const Text('Route'),
             style: FilledButton.styleFrom(
               backgroundColor: OnyxDesignTokens.cyanSurface,
-              foregroundColor: OnyxDesignTokens.cyanInteractive,
+              foregroundColor: OnyxColorTokens.accentCyanTrue,
               side: const BorderSide(color: OnyxDesignTokens.cyanBorder),
               minimumSize: const Size(0, 36),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -3753,7 +3756,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   Text(
                     'TELL ONYX',
                     style: GoogleFonts.inter(
-                      color: OnyxDesignTokens.cyanInteractive,
+                      color: OnyxColorTokens.accentCyanTrue,
                       fontSize: 9.6,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.82,
@@ -3811,7 +3814,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       Text(
                         preview.eyebrow,
                         style: GoogleFonts.inter(
-                          color: OnyxDesignTokens.cyanInteractive,
+                          color: OnyxColorTokens.accentCyanTrue,
                           fontSize: 9.1,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.74,
@@ -3837,7 +3840,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         Text(
                           previewStatusLines.first,
                           style: GoogleFonts.inter(
-                            color: OnyxDesignTokens.cyanInteractive,
+                            color: OnyxColorTokens.accentCyanTrue,
                             fontSize: 9.8,
                             fontWeight: FontWeight.w800,
                           ),
@@ -3912,7 +3915,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final focusAccent = rosterAttentionFocus
         ? rosterAccent
         : activeIncident == null
-        ? OnyxDesignTokens.cyanInteractive
+        ? OnyxColorTokens.accentCyanTrue
         : _priorityStyle(activeIncident.priority).foreground;
     final focusBackground = rosterAttentionFocus
         ? Color.alphaBlend(
@@ -4178,7 +4181,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             Text(
               commandBrainLine,
               style: GoogleFonts.inter(
-                color: OnyxDesignTokens.cyanInteractive,
+                color: OnyxColorTokens.accentCyanTrue,
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
               ),
@@ -4237,8 +4240,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   : activeIncident == null
                   ? OnyxDesignTokens.redSurface
                   : primaryActionAccent.withValues(
-                      alpha:
-                          primaryActionAccent == OnyxDesignTokens.redCritical
+                      alpha: primaryActionAccent == OnyxDesignTokens.redCritical
                           ? 1
                           : 0.94,
                     ),
@@ -4312,7 +4314,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: const Text('Client Comms'),
                     style: FilledButton.styleFrom(
                       backgroundColor: OnyxDesignTokens.cyanSurface,
-                      foregroundColor: OnyxDesignTokens.cyanInteractive,
+                      foregroundColor: OnyxColorTokens.accentCyanTrue,
                       side: const BorderSide(
                         color: OnyxDesignTokens.cyanBorder,
                       ),
@@ -5097,7 +5099,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }) {
     final (accent, surface, _, _) = _commandDecisionTone(severity);
     final foreground = count > 0 ? accent : _commandMutedColor;
-    final activeSurface = Color.alphaBlend(accent.withValues(alpha: 0.14), surface);
+    final activeSurface = Color.alphaBlend(
+      accent.withValues(alpha: 0.14),
+      surface,
+    );
     return Container(
       constraints: const BoxConstraints(minWidth: 82),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -5284,7 +5289,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           await _openIncidentQueueQueueFocus();
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: OnyxDesignTokens.cyanInteractive,
+                          foregroundColor: OnyxColorTokens.accentCyanTrue,
                           side: const BorderSide(
                             color: _commandBorderStrongColor,
                           ),
@@ -5411,9 +5416,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     decoration: BoxDecoration(
                       color: accent,
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: accent.withValues(alpha: 0.92),
-                      ),
+                      border: Border.all(color: accent.withValues(alpha: 0.92)),
                     ),
                     child: Text(
                       'Priority',
@@ -5627,9 +5630,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           fontSize: highEmphasis ? 13 : 11,
           fontWeight: highEmphasis ? FontWeight.w700 : FontWeight.w600,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
@@ -5660,7 +5661,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       'Ledger',
                       style: GoogleFonts.inter(
-                        color: OnyxDesignTokens.cyanInteractive,
+                        color: OnyxColorTokens.accentCyanTrue,
                         fontSize: 8.6,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.82,
@@ -5752,7 +5753,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   Text(
                     'COMMAND BRAIN REPLAY',
                     style: GoogleFonts.inter(
-                      color: OnyxDesignTokens.cyanInteractive,
+                      color: OnyxColorTokens.accentCyanTrue,
                       fontSize: 8.4,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.72,
@@ -5791,7 +5792,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   Text(
                     'REPLAY CONTINUITY',
                     style: GoogleFonts.inter(
-                      color: OnyxDesignTokens.cyanInteractive,
+                      color: OnyxColorTokens.accentCyanTrue,
                       fontSize: 8.4,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.72,
@@ -5845,8 +5846,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         _LedgerType.escalation => 'DISPATCH',
                       };
                       final accent = switch (entry.type) {
-                        _LedgerType.aiAction =>
-                          OnyxDesignTokens.cyanInteractive,
+                        _LedgerType.aiAction => OnyxColorTokens.accentCyanTrue,
                         _LedgerType.humanOverride =>
                           OnyxDesignTokens.purpleAdmin,
                         _LedgerType.systemEvent => OnyxDesignTokens.textMuted,
@@ -5931,7 +5931,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             key: const ValueKey('live-operations-command-verify-ledger'),
             onPressed: ledger.isEmpty ? null : () => _verifyLedgerChain(ledger),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF2E6EA8),
+              foregroundColor: OnyxColorTokens.accentBlue,
               side: const BorderSide(color: _commandBorderStrongColor),
               backgroundColor: _commandPanelColor,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -6019,7 +6019,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               label: 'Track',
               icon: Icons.near_me_rounded,
-              accent: OnyxDesignTokens.cyanInteractive,
+              accent: OnyxColorTokens.accentCyanTrue,
               onPressed: () async {
                 await _openCommandTrackBoard(incident);
               },
@@ -6104,7 +6104,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               label: 'Call',
               icon: Icons.call_rounded,
-              accent: OnyxDesignTokens.cyanInteractive,
+              accent: OnyxColorTokens.accentCyanTrue,
               onPressed: () async {
                 if (widget.onOpenGuards != null) {
                   widget.onOpenGuards!.call();
@@ -6176,7 +6176,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           context:
               '${_hhmm(liveClientAsk.occurredAtUtc.toLocal())} • ${liveClientAsk.author}',
           icon: Icons.call_rounded,
-          accent: OnyxDesignTokens.cyanInteractive,
+          accent: OnyxColorTokens.accentCyanTrue,
           onTap: () => _openCommandClientLane(
             clientId: liveClientAsk.clientId,
             siteId: liveClientAsk.siteId,
@@ -6189,7 +6189,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               label: 'OPEN CLIENT COMMS',
               icon: Icons.mark_chat_read_rounded,
-              accent: OnyxDesignTokens.cyanInteractive,
+              accent: OnyxColorTokens.accentCyanTrue,
               onPressed: () async {
                 await _openCommandClientLane(
                   clientId: liveClientAsk.clientId,
@@ -6201,7 +6201,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             _CommandDecisionAction(
               label: 'Log to Ledger',
               icon: Icons.edit_note_rounded,
-              accent: OnyxDesignTokens.cyanInteractive,
+              accent: OnyxColorTokens.accentCyanTrue,
               onPressed: () async {
                 _appendCommandLedgerEntry(
                   'Client update note saved for $scopeLabel',
@@ -6212,7 +6212,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: 'LEDGER NOTE',
                   detail:
                       'Client Comms and the shift story stay synchronized without reopening the full workspace.',
-                  accent: OnyxDesignTokens.cyanInteractive,
+                  accent: OnyxColorTokens.accentCyanTrue,
                 );
               },
             ),
@@ -6242,7 +6242,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             context:
                 '${_hhmm(pendingDraft.createdAtUtc.toLocal())} • ${pendingDraft.providerLabel}',
             icon: Icons.mark_chat_read_rounded,
-            accent: OnyxDesignTokens.cyanInteractive,
+            accent: OnyxColorTokens.accentCyanTrue,
             onTap: () => _openCommandClientLane(
               clientId: pendingDraft.clientId,
               siteId: pendingDraft.siteId,
@@ -6255,7 +6255,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 label: 'OPEN CLIENT COMMS',
                 icon: Icons.mark_chat_read_rounded,
-                accent: OnyxDesignTokens.cyanInteractive,
+                accent: OnyxColorTokens.accentCyanTrue,
                 onPressed: () async {
                   await _openCommandClientLane(
                     clientId: pendingDraft.clientId,
@@ -6267,7 +6267,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _CommandDecisionAction(
                 label: 'Log to Ledger',
                 icon: Icons.edit_note_rounded,
-                accent: OnyxDesignTokens.cyanInteractive,
+                accent: OnyxColorTokens.accentCyanTrue,
                 onPressed: () async {
                   _appendCommandLedgerEntry(
                     'Drafted client update recorded for $scopeLabel',
@@ -6278,7 +6278,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: 'LEDGER NOTE',
                     detail:
                         'The client draft remains queued for approval while the controller record stays complete.',
-                    accent: OnyxDesignTokens.cyanInteractive,
+                    accent: OnyxColorTokens.accentCyanTrue,
                   );
                 },
               ),
@@ -6320,7 +6320,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             detail: fallbackDetail,
             context: fallbackContext,
             icon: Icons.mark_chat_read_rounded,
-            accent: OnyxDesignTokens.cyanInteractive,
+            accent: OnyxColorTokens.accentCyanTrue,
             onTap: () => _openCommandClientLane(
               clientId: clientCommsSnapshot.clientId,
               siteId: clientCommsSnapshot.siteId,
@@ -6333,7 +6333,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 label: 'OPEN CLIENT COMMS',
                 icon: Icons.mark_chat_read_rounded,
-                accent: OnyxDesignTokens.cyanInteractive,
+                accent: OnyxColorTokens.accentCyanTrue,
                 onPressed: () async {
                   await _openCommandClientLane(
                     clientId: clientCommsSnapshot.clientId,
@@ -6345,7 +6345,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _CommandDecisionAction(
                 label: 'Log to Ledger',
                 icon: Icons.edit_note_rounded,
-                accent: OnyxDesignTokens.cyanInteractive,
+                accent: OnyxColorTokens.accentCyanTrue,
                 onPressed: () async {
                   _appendCommandLedgerEntry(
                     'Client Comms activity logged for $scopeLabel',
@@ -6356,7 +6356,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: 'LEDGER NOTE',
                     detail:
                         'You can keep the command board simple while the ledger history stays attached to the shift story.',
-                    accent: OnyxDesignTokens.cyanInteractive,
+                    accent: OnyxColorTokens.accentCyanTrue,
                   );
                 },
               ),
@@ -6409,7 +6409,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             _CommandDecisionAction(
               label: 'Log to Ledger',
               icon: Icons.edit_note_rounded,
-              accent: OnyxDesignTokens.cyanInteractive,
+              accent: OnyxColorTokens.accentCyanTrue,
               onPressed: () async {
                 _appendCommandLedgerEntry(
                   'Scene review noted for ${visualIncident.id}',
@@ -6420,7 +6420,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: 'LEDGER NOTE',
                   detail:
                       'The controller decision stays tied to the clip and incident history.',
-                  accent: OnyxDesignTokens.cyanInteractive,
+                  accent: OnyxColorTokens.accentCyanTrue,
                 );
               },
             ),
@@ -6463,7 +6463,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               : Icons.visibility_rounded,
           accent: nextIncident.priority == _IncidentPriority.p2High
               ? OnyxDesignTokens.amberWarning
-              : OnyxDesignTokens.cyanInteractive,
+              : OnyxColorTokens.accentCyanTrue,
           onTap: () => _openCommandAlarmBoard(nextIncident),
           actions: [
             _CommandDecisionAction(
@@ -6472,7 +6472,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               label: 'Review',
               icon: Icons.open_in_new_rounded,
-              accent: OnyxDesignTokens.cyanInteractive,
+              accent: OnyxColorTokens.accentCyanTrue,
               onPressed: () async {
                 if (widget.onOpenAlarmsForIncident != null) {
                   widget.onOpenAlarmsForIncident!(nextIncident.id);
@@ -6485,14 +6485,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: 'REVIEW',
                   detail:
                       'The action ladder is now centered on the selected incident so the controller can decide quickly.',
-                  accent: OnyxDesignTokens.cyanInteractive,
+                  accent: OnyxColorTokens.accentCyanTrue,
                 );
               },
             ),
             _CommandDecisionAction(
               label: 'Log to Ledger',
               icon: Icons.edit_note_rounded,
-              accent: OnyxDesignTokens.cyanInteractive,
+              accent: OnyxColorTokens.accentCyanTrue,
               onPressed: () async {
                 _appendCommandLedgerEntry(
                   'Controller note saved for ${nextIncident.id}',
@@ -6503,7 +6503,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: 'LEDGER NOTE',
                   detail:
                       'The shift story now includes the controller note without opening a separate logging flow.',
-                  accent: OnyxDesignTokens.cyanInteractive,
+                  accent: OnyxColorTokens.accentCyanTrue,
                 );
               },
             ),
@@ -6522,12 +6522,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               'Nothing urgent is waiting on command. Review the clean record and stay ready for the next surfaced exception.',
           context: 'LIVE • command ready',
           icon: Icons.check_circle_rounded,
-          accent: const Color(0xFF10B981),
+          accent: OnyxColorTokens.accentGreen,
           actions: [
             _CommandDecisionAction(
               label: 'Verify Chain',
               icon: Icons.verified_rounded,
-              accent: const Color(0xFF8FD1FF),
+              accent: OnyxColorTokens.accentSky,
               onPressed: ledger.isEmpty
                   ? null
                   : () async {
@@ -6674,7 +6674,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         label: 'CLIENT DRAFT',
         detail:
             'ONYX needs a scoped client and site before it can stage a client update inside Client Comms.',
-        accent: const Color(0xFF8EC8FF),
+        accent: OnyxColorTokens.accentSky,
       );
       return true;
     }
@@ -6725,7 +6725,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'CLIENT DRAFT',
       detail:
           'ONYX drafted the next scoped update and reopened Client Comms with the message ready for controller review.',
-      accent: const Color(0xFF22D3EE),
+      accent: OnyxColorTokens.accentCyanTrue,
     );
     return true;
   }
@@ -6755,7 +6755,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         label: 'GUARD STATUS',
         detail:
             'Command stayed in place because the current scope does not have a guard vigilance signal to answer from.',
-        accent: const Color(0xFF8EC8FF),
+        accent: OnyxColorTokens.accentSky,
       );
       return true;
     }
@@ -6816,7 +6816,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         label: 'PATROL REPORT',
         detail:
             'Command stayed in place because the current scope does not have a patrol completion record to summarize.',
-        accent: const Color(0xFF8EC8FF),
+        accent: OnyxColorTokens.accentSky,
       );
       return true;
     }
@@ -6856,7 +6856,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'PATROL REPORT',
       detail:
           '$guardLabel completed $routeLabel in $durationMinutes minutes for $siteLabel.',
-      accent: const Color(0xFF8EC8FF),
+      accent: OnyxColorTokens.accentSky,
     );
     return true;
   }
@@ -6889,7 +6889,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         label: 'INCIDENT SUMMARY',
         detail:
             'Command stayed in place because there is no active incident to summarize from the current scope.',
-        accent: const Color(0xFF8EC8FF),
+        accent: OnyxColorTokens.accentSky,
       );
       return true;
     }
@@ -6970,8 +6970,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? 'Command stayed in place because there are no unresolved incidents in the current scope.'
           : 'ONYX kept the board in place and summarized the unresolved incident stack for the current scope.',
       accent: unresolvedIncidents.isEmpty
-          ? const Color(0xFF10B981)
-          : const Color(0xFF8EC8FF),
+          ? OnyxColorTokens.accentGreen
+          : OnyxColorTokens.accentSky,
     );
     return true;
   }
@@ -7026,8 +7026,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? 'Command stayed in place because there are no dispatch creation events for today in the current scope.'
           : 'ONYX kept the board in place and summarized today\'s dispatch creation events for the current scope.',
       accent: todayDispatches.isEmpty
-          ? const Color(0xFF10B981)
-          : const Color(0xFF8EC8FF),
+          ? OnyxColorTokens.accentGreen
+          : OnyxColorTokens.accentSky,
     );
     return true;
   }
@@ -7093,8 +7093,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? 'Command stayed in place because no alert intelligence landed since Monday 00:00 local time.'
           : 'ONYX compared alert volume by site for this week and kept the board in place.',
       accent: rankedSites.isEmpty
-          ? const Color(0xFF10B981)
-          : const Color(0xFF8EC8FF),
+          ? OnyxColorTokens.accentGreen
+          : OnyxColorTokens.accentSky,
     );
     return true;
   }
@@ -7148,8 +7148,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? 'Command stayed in place because there were no incident creation events between 18:00 and 06:00 local time.'
           : 'ONYX kept the board in place and summarized the incident stack from the local 18:00 to 06:00 window.',
       accent: lastNightIncidents.isEmpty
-          ? const Color(0xFF10B981)
-          : const Color(0xFF8EC8FF),
+          ? OnyxColorTokens.accentGreen
+          : OnyxColorTokens.accentSky,
     );
     return true;
   }
@@ -7280,20 +7280,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _guardStatusAccent(_GuardVigilance guard) {
     if (guard.decayLevel >= 90) {
-      return const Color(0xFFEF4444);
+      return OnyxColorTokens.accentRed;
     }
     if (guard.decayLevel >= 75) {
-      return const Color(0xFFF59E0B);
+      return OnyxColorTokens.accentAmber;
     }
-    return const Color(0xFF10B981);
+    return OnyxColorTokens.accentGreen;
   }
 
   Color _incidentSummaryAccent(_IncidentRecord incident) {
     return switch (incident.priority) {
-      _IncidentPriority.p1Critical => const Color(0xFFEF4444),
-      _IncidentPriority.p2High => const Color(0xFFF59E0B),
-      _IncidentPriority.p3Medium => const Color(0xFF22D3EE),
-      _IncidentPriority.p4Low => const Color(0xFF10B981),
+      _IncidentPriority.p1Critical => OnyxColorTokens.accentRed,
+      _IncidentPriority.p2High => OnyxColorTokens.accentAmber,
+      _IncidentPriority.p3Medium => OnyxColorTokens.accentCyanTrue,
+      _IncidentPriority.p4Low => OnyxColorTokens.accentGreen,
     };
   }
 
@@ -7312,7 +7312,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       OnyxToolTarget.dispatchBoard => OnyxDesignTokens.redCritical,
       OnyxToolTarget.tacticalTrack => OnyxDesignTokens.redCritical,
       OnyxToolTarget.cctvReview => OnyxDesignTokens.amberWarning,
-      OnyxToolTarget.clientComms => OnyxDesignTokens.cyanInteractive,
+      OnyxToolTarget.clientComms => OnyxColorTokens.accentCyanTrue,
       OnyxToolTarget.reportsWorkspace => OnyxDesignTokens.purpleAdmin,
     };
   }
@@ -7458,7 +7458,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         label: 'COMMAND INPUT',
         detail:
             'Ask for one outcome, like "review cctv", "check guard route", or "open client comms".',
-        accent: const Color(0xFF8EC8FF),
+        accent: OnyxColorTokens.accentSky,
       );
       return;
     }
@@ -7612,7 +7612,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         label: 'GUARDS',
         detail:
             'The simplified guards page is not connected here yet, so command restored the live vigilance context instead.',
-        accent: const Color(0xFFF59E0B),
+        accent: OnyxColorTokens.accentAmber,
       );
     }
   }
@@ -7631,7 +7631,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'ROSTER WATCH',
       detail:
           'ONYX pinned the roster gap and opened the month planner so coverage can be closed before handoff.',
-      accent: widget.guardRosterSignalAccent ?? const Color(0xFFF59E0B),
+      accent: widget.guardRosterSignalAccent ?? OnyxColorTokens.accentAmber,
     );
     if (widget.onOpenRosterPlanner != null) {
       widget.onOpenRosterPlanner!.call();
@@ -7650,7 +7650,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'AUTO-AUDIT',
       detail:
           'ONYX opened the signed occurrence-book record for the planner handoff so command can verify the chain without losing the live board.',
-      accent: const Color(0xFF63E6A1),
+      accent: OnyxColorTokens.accentGreen,
     );
     widget.onOpenRosterAudit?.call();
   }
@@ -7685,7 +7685,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         label: 'CLIENT COMMS',
         detail:
             'The dedicated client communications page is opening with the same scope already attached to the shift story.',
-        accent: const Color(0xFF22D3EE),
+        accent: OnyxColorTokens.accentCyanTrue,
       );
       return;
     }
@@ -7713,10 +7713,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         OnyxDesignTokens.amberWarning,
       ),
       _CommandDecisionSeverity.review => (
-        OnyxDesignTokens.cyanInteractive,
+        OnyxColorTokens.accentCyanTrue,
         _commandPanelColor,
-        OnyxDesignTokens.cyanInteractive.withValues(alpha: 0.18),
-        OnyxDesignTokens.cyanInteractive,
+        OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.18),
+        OnyxColorTokens.accentCyanTrue,
       ),
     };
   }
@@ -7755,10 +7755,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             label: activeIncident == null
                 ? 'No incident selected'
                 : 'Active ${activeIncident.id}',
-            foreground: OnyxDesignTokens.cyanInteractive,
-            background: OnyxDesignTokens.cyanInteractive.withValues(
-              alpha: 0.12,
-            ),
+            foreground: OnyxColorTokens.accentCyanTrue,
+            background: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.12),
             border: OnyxDesignTokens.cyanBorder,
             leadingIcon: Icons.hub_rounded,
           ),
@@ -7787,8 +7785,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: activeIncident == null
                   ? 'Focus lead incident'
                   : activeIncident.id,
-              foreground: OnyxDesignTokens.cyanInteractive,
-              background: OnyxDesignTokens.cyanInteractive.withValues(
+              foreground: OnyxColorTokens.accentCyanTrue,
+              background: OnyxColorTokens.accentCyanTrue.withValues(
                 alpha: 0.12,
               ),
               border: OnyxDesignTokens.cyanBorder,
@@ -7848,8 +7846,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   'live-operations-workspace-open-client-lane',
                 ),
                 label: 'OPEN CLIENT COMMS',
-                foreground: OnyxDesignTokens.cyanInteractive,
-                background: OnyxDesignTokens.cyanInteractive.withValues(
+                foreground: OnyxColorTokens.accentCyanTrue,
+                background: OnyxColorTokens.accentCyanTrue.withValues(
                   alpha: 0.12,
                 ),
                 border: OnyxDesignTokens.cyanBorder,
@@ -7872,13 +7870,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         width: 15.6,
                         height: 15.6,
                         decoration: BoxDecoration(
-                          color: const Color(0x1A22D3EE),
+                          color: OnyxColorTokens.accentCyanTrue.withValues(
+                            alpha: 0.1,
+                          ),
                           borderRadius: BorderRadius.circular(5.4),
-                          border: Border.all(color: const Color(0x3322D3EE)),
+                          border: Border.all(
+                            color: OnyxColorTokens.accentCyanTrue.withValues(
+                              alpha: 0.2,
+                            ),
+                          ),
                         ),
                         child: const Icon(
                           Icons.hub_rounded,
-                          color: Color(0xFF8FD1FF),
+                          color: OnyxColorTokens.accentSky,
                           size: 8.8,
                         ),
                       ),
@@ -7890,7 +7894,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             Text(
                               'LIVE OPERATIONS WORKSPACE',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF8FAFD4),
+                                color: OnyxColorTokens.textSecondary,
                                 fontSize: 7.1,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.85,
@@ -7902,7 +7906,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ? 'No incident is selected. The rail can pin the lead incident back into the board.'
                                   : '${activeIncident.id} is active in the board while $queueLabel and $contextLabel context stay available without leaving the page.',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFEAF4FF),
+                                color: OnyxColorTokens.textPrimary,
                                 fontSize: 8.2,
                                 fontWeight: FontWeight.w700,
                                 height: 1.24,
@@ -7912,7 +7916,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             Text(
                               '$scopeLabel • ${_incidents.length} live incident${_incidents.length == 1 ? '' : 's'} in view',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFB4C8E1),
+                                color: OnyxColorTokens.textSecondary,
                                 fontSize: 7.0,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -7966,12 +7970,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8.2),
             gradient: const LinearGradient(
-              colors: [Color(0xFF13131E), Color(0xFF1A1A2E)],
+              colors: [
+                OnyxColorTokens.backgroundSecondary,
+                OnyxColorTokens.surfaceElevated,
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             border: Border.all(color: _commandBorderStrongColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
                 color: _commandShadowColor,
                 blurRadius: 12,
@@ -8012,7 +8019,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             'LATEST COMMAND',
             style: GoogleFonts.inter(
-              color: const Color(0xFF4D7FAE),
+              color: OnyxColorTokens.accentBlue,
               fontSize: 6.8,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.46,
@@ -8074,7 +8081,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             Text(
               'Command brain replay',
               style: GoogleFonts.inter(
-                color: const Color(0xFF4D7FAE),
+                color: OnyxColorTokens.accentBlue,
                 fontSize: 6.8,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.42,
@@ -8099,7 +8106,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             Text(
               'Replay continuity',
               style: GoogleFonts.inter(
-                color: const Color(0xFF4D7FAE),
+                color: OnyxColorTokens.accentBlue,
                 fontSize: 6.8,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.42,
@@ -8129,8 +8136,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 onPressed: widget.onOpenLatestAudit,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF63E6A1),
-                  side: const BorderSide(color: Color(0xFF63E6A1)),
+                  foregroundColor: OnyxColorTokens.accentGreen,
+                  side: const BorderSide(color: OnyxColorTokens.accentGreen),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 6,
@@ -8174,7 +8181,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       return;
     }
     final receipt = _LiveOpsCommandReceipt(
-      accent: const Color(0xFF8B5CF6),
+      accent: OnyxColorTokens.accentPurple,
       continuityView: OnyxCommandSurfaceContinuityView(
         commandReceipt: OnyxCommandSurfaceReceiptMemory(
           label: 'AGENT RETURN',
@@ -8206,9 +8213,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return _chip(
       key: ValueKey('live-operations-workspace-tab-${tab.name}'),
       label: _tabLabel(tab),
-      foreground: selected ? const Color(0xFF245A69) : const Color(0xFF556B80),
-      background: selected ? const Color(0x1A9D4BFF) : const Color(0xFF1A1A2E),
-      border: selected ? const Color(0xFFBEDAE1) : const Color(0xFFD4DFEA),
+      foreground: selected
+          ? OnyxColorTokens.accentTeal
+          : OnyxColorTokens.textSecondary,
+      background: selected
+          ? OnyxColorTokens.cyanSurface
+          : OnyxColorTokens.surfaceElevated,
+      border: selected
+          ? OnyxColorTokens.borderStrong
+          : OnyxColorTokens.borderStrong,
       leadingIcon: switch (tab) {
         _ContextTab.details => Icons.article_outlined,
         _ContextTab.voip => Icons.call_rounded,
@@ -8242,8 +8255,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(4.5),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8.5),
-            color: const Color(0xFF13131E),
-            border: Border.all(color: const Color(0xFFD6E1EC)),
+            color: OnyxColorTokens.backgroundSecondary,
+            border: Border.all(color: OnyxColorTokens.borderStrong),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -8251,7 +8264,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 title.toUpperCase(),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 6.9,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.42,
@@ -8261,7 +8274,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF7A8FA4),
+                  color: OnyxColorTokens.textMuted,
                   fontSize: 6.9,
                   fontWeight: FontWeight.w600,
                   height: 1.38,
@@ -8359,7 +8372,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     String message, {
     String label = 'LIVE COMMAND',
     String? detail,
-    Color accent = const Color(0xFF8FD1FF),
+    Color accent = OnyxColorTokens.accentSky,
     OnyxCommandBrainSnapshot? commandBrainSnapshot,
     OnyxCommandSurfaceOutcomeMemory? commandOutcome,
   }) {
@@ -8400,16 +8413,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF13131E),
+        backgroundColor: OnyxColorTokens.backgroundSecondary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFFD6E1EC)),
+          side: const BorderSide(color: OnyxColorTokens.borderStrong),
         ),
         content: Text(
           message,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -8501,9 +8514,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           key: const ValueKey('live-operations-critical-alert-view-details'),
           onPressed: () => _focusIncidentFromBanner(incident),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFFFF7F7),
-            foregroundColor: const Color(0xFFB91C1C),
-            side: const BorderSide(color: Color(0x66EF4444)),
+            backgroundColor: OnyxColorTokens.redSurface,
+            foregroundColor: OnyxColorTokens.redBorder,
+            side: BorderSide(
+              color: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(9),
@@ -8524,15 +8539,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFFF1F1), Color(0xFFFFF7F7)],
+              colors: [OnyxColorTokens.redSurface, OnyxColorTokens.redSurface],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
             borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: const Color(0x66EF4444)),
-            boxShadow: const [
+            border: Border.all(
+              color: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
+            ),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x14EF4444),
+                color: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
                 blurRadius: 12,
                 spreadRadius: 0,
               ),
@@ -8546,13 +8563,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       children: [
                         const Icon(
                           Icons.warning_amber_rounded,
-                          color: Color(0xFFEF4444),
+                          color: OnyxColorTokens.accentRed,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'CRITICAL ALERT',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFB91C1C),
+                            color: OnyxColorTokens.redBorder,
                             fontSize: 9.6,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.9,
@@ -8564,7 +8581,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       '${incident.id} • ${incident.type} • ${incident.site}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF172638),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 10.8,
                         fontWeight: FontWeight.w700,
                       ),
@@ -8578,7 +8595,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         Text(
                           '$statusLabel ${incident.timestamp}',
                           style: GoogleFonts.robotoMono(
-                            color: const Color(0xFFB45309),
+                            color: OnyxColorTokens.amberBorder,
                             fontSize: 8.9,
                             fontWeight: FontWeight.w700,
                           ),
@@ -8592,13 +8609,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   children: [
                     const Icon(
                       Icons.warning_amber_rounded,
-                      color: Color(0xFFEF4444),
+                      color: OnyxColorTokens.accentRed,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'CRITICAL ALERT',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB91C1C),
+                        color: OnyxColorTokens.redBorder,
                         fontSize: 9.6,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.9,
@@ -8608,13 +8625,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       width: 1,
                       height: 16,
                       margin: const EdgeInsets.symmetric(horizontal: 8),
-                      color: const Color(0x55FFD6D6),
+                      color: OnyxColorTokens.redBorder.withValues(alpha: 0.33),
                     ),
                     Expanded(
                       child: Text(
                         '${incident.id} • ${incident.type} • ${incident.site}',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF172638),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 10.8,
                           fontWeight: FontWeight.w700,
                         ),
@@ -8625,7 +8642,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       '$statusLabel ${incident.timestamp}',
                       style: GoogleFonts.robotoMono(
-                        color: const Color(0xFFB45309),
+                        color: OnyxColorTokens.amberBorder,
                         fontSize: 8.9,
                         fontWeight: FontWeight.w700,
                       ),
@@ -8708,16 +8725,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 'live-operations-command-card-active-incidents',
               ),
               icon: Icons.graphic_eq_rounded,
-              iconAccent: const Color(0xFFEF4444),
+              iconAccent: OnyxColorTokens.accentRed,
               statusLabel: 'Live',
-              statusAccent: const Color(0xFFEF4444),
+              statusAccent: OnyxColorTokens.accentRed,
               value: '$activeIncidentCount',
               title: 'Alarms',
               footnote: resolvedCount > 0
                   ? '$resolvedCount cleared'
                   : 'Nothing cleared',
               footnoteIcon: Icons.trending_up_rounded,
-              footnoteAccent: const Color(0xFF34D399),
+              footnoteAccent: OnyxColorTokens.accentGreen,
               selected:
                   activeIncident != null &&
                   leadIncident != null &&
@@ -8729,9 +8746,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 'live-operations-command-card-pending-actions',
               ),
               icon: Icons.schedule_rounded,
-              iconAccent: const Color(0xFFF59E0B),
+              iconAccent: OnyxColorTokens.accentAmber,
               statusLabel: 'Queue',
-              statusAccent: const Color(0xFFF59E0B),
+              statusAccent: OnyxColorTokens.accentAmber,
               value: '$pendingActionCount',
               title: 'Queue',
               footnote: controlInboxSnapshot == null
@@ -8745,10 +8762,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ? Icons.priority_high_rounded
                   : Icons.check_circle_rounded,
               footnoteAccent: controlInboxSnapshot == null
-                  ? const Color(0xFF9AB1CF)
+                  ? OnyxColorTokens.textSecondary
                   : highPriorityCount > 0
-                  ? const Color(0xFFF87171)
-                  : const Color(0xFF34D399),
+                  ? OnyxColorTokens.accentRed
+                  : OnyxColorTokens.accentGreen,
               selected: queueFilterActive,
               onTap: controlInboxSnapshot == null
                   ? () {
@@ -8765,11 +8782,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             _commandOverviewCard(
               key: const ValueKey('live-operations-command-card-active-lanes'),
               icon: Icons.chat_bubble_outline_rounded,
-              iconAccent: const Color(0xFF22D3EE),
+              iconAccent: OnyxColorTokens.accentCyanTrue,
               statusLabel: activeLaneCount > 0 ? 'Ready' : 'Idle',
               statusAccent: activeLaneCount > 0
-                  ? const Color(0xFF22D3EE)
-                  : const Color(0xFF4B6B8F),
+                  ? OnyxColorTokens.accentCyanTrue
+                  : OnyxColorTokens.textSecondary,
               value: '$activeLaneCount',
               title: 'Client Comms',
               footnote: clientCommsSnapshot == null
@@ -8779,7 +8796,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ? Icons.remove_circle_outline_rounded
                   : Icons.check_circle_rounded,
               footnoteAccent: clientCommsSnapshot == null
-                  ? const Color(0xFF9AB1CF)
+                  ? OnyxColorTokens.textSecondary
                   : _telegramHealthAccent(
                       clientCommsSnapshot.telegramHealthLabel,
                     ),
@@ -8799,18 +8816,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               icon: Icons.visibility_rounded,
               iconAccent: rosterAttention
-                  ? const Color(0xFFF59E0B)
-                  : const Color(0xFF10B981),
+                  ? OnyxColorTokens.accentAmber
+                  : OnyxColorTokens.accentGreen,
               statusLabel: rosterAttention
                   ? 'Gap'
                   : watchCount > 0
                   ? 'Active'
                   : 'Idle',
               statusAccent: rosterAttention
-                  ? const Color(0xFFF59E0B)
+                  ? OnyxColorTokens.accentAmber
                   : watchCount > 0
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFF4B6B8F),
+                  ? OnyxColorTokens.accentGreen
+                  : OnyxColorTokens.textSecondary,
               value: '$displayedWatchCount',
               title: 'Watch',
               footnote: rosterAttention
@@ -8822,10 +8839,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ? Icons.event_busy_rounded
                   : Icons.shield_outlined,
               footnoteAccent: rosterAttention
-                  ? const Color(0xFFF59E0B)
+                  ? OnyxColorTokens.accentAmber
                   : watchCount > 0
-                  ? const Color(0xFF34D399)
-                  : const Color(0xFF9AB1CF),
+                  ? OnyxColorTokens.accentGreen
+                  : OnyxColorTokens.textSecondary,
               selected: _activeTab == _ContextTab.visual,
               onTap: displayedWatchCount == 0
                   ? null
@@ -9062,14 +9079,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       sortedInboxDrafts,
     );
     final priorityChipForeground = hasSensitivePriorityDraft
-        ? const Color(0xFFEF4444)
-        : const Color(0xFFF59E0B);
+        ? OnyxColorTokens.accentRed
+        : OnyxColorTokens.accentAmber;
     final priorityChipBackground = hasSensitivePriorityDraft
-        ? const Color(0x33EF4444)
-        : const Color(0x33F59E0B);
+        ? OnyxColorTokens.accentRed.withValues(alpha: 0.2)
+        : OnyxColorTokens.accentAmber.withValues(alpha: 0.2);
     final priorityChipBorder = hasSensitivePriorityDraft
-        ? const Color(0x66EF4444)
-        : const Color(0x66F59E0B);
+        ? OnyxColorTokens.accentRed.withValues(alpha: 0.4)
+        : OnyxColorTokens.amberBorder;
     final focusReference = _resolvedFocusReference;
     final hasFocusReference = focusReference.isNotEmpty;
     final focusState = _focusLinkState;
@@ -9093,7 +9110,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF10B981),
+                    color: OnyxColorTokens.accentGreen,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -9112,7 +9129,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   'Combat Window Active',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFF59E0B),
+                    color: OnyxColorTokens.accentAmber,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -9126,9 +9143,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               children: [
                 _chip(
                   label: '$activeCount Incidents',
-                  foreground: const Color(0xFFEF4444),
-                  background: const Color(0x33EF4444),
-                  border: const Color(0x66EF4444),
+                  foreground: OnyxColorTokens.accentRed,
+                  background: OnyxColorTokens.accentRed.withValues(alpha: 0.2),
+                  border: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
                 ),
                 _chip(
                   label: _clientLaneTopBarLabel(clientCommsSnapshot),
@@ -9189,16 +9206,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: filteredReplyCount == 1
                         ? 'Show all replies (1)'
                         : 'Show all replies ($filteredReplyCount)',
-                    foreground: const Color(0xFF3F6587),
-                    background: const Color(0xFFEFF4FA),
+                    foreground: OnyxColorTokens.accentBlue,
+                    background: OnyxColorTokens.surfaceElevated,
                     border: _commandBorderStrongColor,
                     onTap: _clearControlInboxPriorityOnly,
                   ),
                 _chip(
                   label: '${_vigilance.length} Guards Online',
-                  foreground: const Color(0xFF10B981),
-                  background: const Color(0x3310B981),
-                  border: const Color(0x6610B981),
+                  foreground: OnyxColorTokens.accentGreen,
+                  background: OnyxColorTokens.accentGreen.withValues(
+                    alpha: 0.2,
+                  ),
+                  border: OnyxColorTokens.greenBorder,
                 ),
                 if (hasFocusReference)
                   _chip(
@@ -9227,7 +9246,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             width: 7,
             height: 7,
             decoration: const BoxDecoration(
-              color: Color(0xFF10B981),
+              color: OnyxColorTokens.accentGreen,
               shape: BoxShape.circle,
             ),
           ),
@@ -9246,7 +9265,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             'Combat Window Active',
             style: GoogleFonts.inter(
-              color: const Color(0xFFF59E0B),
+              color: OnyxColorTokens.accentAmber,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -9254,9 +9273,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           const Spacer(),
           _chip(
             label: '$activeCount Active Incidents',
-            foreground: const Color(0xFFEF4444),
-            background: const Color(0x33EF4444),
-            border: const Color(0x66EF4444),
+            foreground: OnyxColorTokens.accentRed,
+            background: OnyxColorTokens.accentRed.withValues(alpha: 0.2),
+            border: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
           ),
           const SizedBox(width: 6),
           _chip(
@@ -9322,8 +9341,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: filteredReplyCount == 1
                   ? 'Show all replies (1)'
                   : 'Show all replies ($filteredReplyCount)',
-              foreground: const Color(0xFF3F6587),
-              background: const Color(0xFFEFF4FA),
+              foreground: OnyxColorTokens.accentBlue,
+              background: OnyxColorTokens.surfaceElevated,
               border: _commandBorderStrongColor,
               onTap: _clearControlInboxPriorityOnly,
             ),
@@ -9331,9 +9350,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           const SizedBox(width: 6),
           _chip(
             label: '${_vigilance.length} Guards Online',
-            foreground: const Color(0xFF10B981),
-            background: const Color(0x3310B981),
-            border: const Color(0x6610B981),
+            foreground: OnyxColorTokens.accentGreen,
+            background: OnyxColorTokens.accentGreen.withValues(alpha: 0.2),
+            border: OnyxColorTokens.greenBorder,
           ),
           if (hasFocusReference) ...[
             const SizedBox(width: 6),
@@ -9430,7 +9449,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       'CLIENT COMMS WATCH',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF4D7FAE),
+                        color: OnyxColorTokens.accentBlue,
                         fontSize: 7.2,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.85,
@@ -9492,7 +9511,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     'client-lane-watch-clear-learned-style-${snapshot.clientId}-${snapshot.siteId}',
                   ),
                   label: 'Clear Learned Style',
-                  foregroundColor: const Color(0xFF2E6EA8),
+                  foregroundColor: OnyxColorTokens.accentBlue,
                   borderColor: _commandBorderStrongColor,
                   onTap: learnedStyleBusy
                       ? null
@@ -9503,7 +9522,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           height: 14,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Color(0xFF2E6EA8),
+                            color: OnyxColorTokens.accentBlue,
                           ),
                         )
                       : const Icon(Icons.refresh_rounded, size: 14),
@@ -9531,19 +9550,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _commsChip(
                 icon: Icons.mark_chat_unread_rounded,
                 label: '${snapshot.clientInboundCount} client msg',
-                accent: const Color(0xFF22D3EE),
+                accent: OnyxColorTokens.accentCyanTrue,
               ),
               _commsChip(
                 icon: Icons.verified_user_rounded,
                 label: '${snapshot.pendingApprovalCount} approval',
                 accent: snapshot.pendingApprovalCount > 0
-                    ? const Color(0xFFF59E0B)
-                    : const Color(0xFF34D399),
+                    ? OnyxColorTokens.accentAmber
+                    : OnyxColorTokens.accentGreen,
               ),
               _commsChip(
                 icon: Icons.tune_rounded,
                 label: 'Client voice ${snapshot.clientVoiceProfileLabel}',
-                accent: const Color(0xFF4B6B8F),
+                accent: OnyxColorTokens.textSecondary,
               ),
               _commsChip(
                 icon: _controlInboxDraftCueChipIcon(cueKind),
@@ -9554,7 +9573,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 _commsChip(
                   icon: Icons.school_rounded,
                   label: 'Learned style ${snapshot.learnedApprovalStyleCount}',
-                  accent: const Color(0xFF22D3EE),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
               if (snapshot.pendingLearnedStyleDraftCount > 0)
                 _commsChip(
@@ -9562,7 +9581,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: snapshot.pendingLearnedStyleDraftCount == 1
                       ? 'ONYX using learned style'
                       : 'ONYX using learned style on ${snapshot.pendingLearnedStyleDraftCount} drafts',
-                  accent: const Color(0xFF67E8F9),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
               _commsChip(
                 icon: Icons.telegram_rounded,
@@ -9603,7 +9622,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                     ),
                   ),
                 for (final option in const <(String, String?)>[
@@ -9619,15 +9638,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
-                          ? const Color(0xFF2E6EA8)
+                          ? OnyxColorTokens.accentBlue
                           : _commandMutedColor,
                       backgroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
-                          ? const Color(0xFFEAF1FA)
+                          ? OnyxColorTokens.surfaceElevated
                           : _commandPanelColor,
                       side: BorderSide(
                         color: _laneVoiceOptionSelected(snapshot, option.$2)
-                            ? const Color(0xFF9EBBDA)
+                            ? OnyxColorTokens.textSecondary
                             : _commandBorderColor,
                       ),
                       padding: const EdgeInsets.symmetric(
@@ -9667,7 +9686,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Latest client ask',
               text:
                   '$latestClientMessage${_commsMomentLabel(snapshot.latestClientMessageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestClientMessageAtUtc)}'}',
-              borderColor: const Color(0xFF31506F),
+              borderColor: OnyxColorTokens.borderStrong,
               textColor: _commandTitleColor,
             ),
           ],
@@ -9687,7 +9706,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Latest SMS fallback',
               text:
                   '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestSmsFallbackStatus!.trim())}${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc)}'}',
-              borderColor: const Color(0xFF2E7D68),
+              borderColor: OnyxColorTokens.greenBorder,
               textColor: _commandTitleColor,
             ),
           ],
@@ -9697,7 +9716,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Latest VoIP stage',
               text:
                   '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestVoipStageStatus!.trim())}${_commsMomentLabel(snapshot.latestVoipStageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestVoipStageAtUtc)}'}',
-              borderColor: const Color(0xFF3E6AA6),
+              borderColor: OnyxColorTokens.accentBlue,
               textColor: _commandTitleColor,
             ),
           ],
@@ -9706,7 +9725,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             _clientCommsTextBlock(
               label: 'Recent delivery history',
               text: snapshot.recentDeliveryHistoryLines.join('\n'),
-              borderColor: const Color(0xFF35506F),
+              borderColor: OnyxColorTokens.borderStrong,
               textColor: _commandTitleColor,
             ),
           ],
@@ -9715,7 +9734,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             _clientCommsTextBlock(
               label: 'Learned approval style',
               text: snapshot.learnedApprovalStyleExample.trim(),
-              borderColor: const Color(0xFF245B72),
+              borderColor: OnyxColorTokens.accentBlue,
               textColor: _commandTitleColor,
             ),
           ],
@@ -9887,20 +9906,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               : Icons.pause_circle_outline_rounded,
                           label: previewModeLabel,
                           accent: _clientLaneCameraPreviewAutoRefresh
-                              ? const Color(0xFF34D399)
-                              : const Color(0xFFF59E0B),
+                              ? OnyxColorTokens.accentGreen
+                              : OnyxColorTokens.accentAmber,
                         ),
                         if (_clientLaneCameraPreviewAutoRefresh && !loading)
                           _commsChip(
                             icon: Icons.timelapse_rounded,
                             label: 'Operator preview only',
-                            accent: const Color(0xFF8FD1FF),
+                            accent: OnyxColorTokens.accentSky,
                           ),
                         if (packet == null && loadFailed)
                           _commsChip(
                             icon: Icons.error_outline_rounded,
                             label: 'Load failed',
-                            accent: const Color(0xFFEF4444),
+                            accent: OnyxColorTokens.accentRed,
                           ),
                       ],
                     ),
@@ -9951,11 +9970,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         ? 'PAUSE PREVIEW'
                         : 'RESUME PREVIEW',
                     foregroundColor: _clientLaneCameraPreviewAutoRefresh
-                        ? const Color(0xFF2E6EA8)
-                        : const Color(0xFF9A6700),
+                        ? OnyxColorTokens.accentBlue
+                        : OnyxColorTokens.amberBorder,
                     borderColor: _clientLaneCameraPreviewAutoRefresh
-                        ? const Color(0xFFBDD0E3)
-                        : const Color(0xFFE9D19A),
+                        ? OnyxColorTokens.borderStrong
+                        : OnyxColorTokens.amberBorder,
                     onTap: _toggleClientLaneCameraPreviewAutoRefresh,
                     leading: Icon(
                       _clientLaneCameraPreviewAutoRefresh
@@ -9984,16 +10003,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   icon: Icons.visibility_rounded,
                   label: 'Camera ${packet.status.wireValue.toUpperCase()}',
                   accent: switch (packet.status) {
-                    ClientCameraHealthStatus.live => const Color(0xFF34D399),
-                    ClientCameraHealthStatus.limited => const Color(0xFFF59E0B),
-                    ClientCameraHealthStatus.offline => const Color(0xFFEF4444),
+                    ClientCameraHealthStatus.live =>
+                      OnyxColorTokens.accentGreen,
+                    ClientCameraHealthStatus.limited =>
+                      OnyxColorTokens.accentAmber,
+                    ClientCameraHealthStatus.offline =>
+                      OnyxColorTokens.accentRed,
                   },
                 ),
                 _commsChip(
                   icon: Icons.hub_rounded,
                   label:
                       'Path ${packet.path.wireValue.replaceAll('_', ' ').toUpperCase()}',
-                  accent: const Color(0xFF67E8F9),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
                 if (packet.hasScopedLocalProxyHealth)
                   _commsChip(
@@ -10006,31 +10028,31 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   _commsChip(
                     icon: Icons.link_rounded,
                     label: 'Upstream CONNECTED',
-                    accent: const Color(0xFF34D399),
+                    accent: OnyxColorTokens.accentGreen,
                   ),
                 if (localProxyUpstreamStatus == 'reconnecting')
                   _commsChip(
                     icon: Icons.link_rounded,
                     label: 'Upstream RECONNECTING...',
-                    accent: const Color(0xFFF59E0B),
+                    accent: OnyxColorTokens.accentAmber,
                   ),
                 if (localProxyBufferedAlertCount > 0)
                   _commsChip(
                     icon: Icons.notifications_active_rounded,
                     label: 'Buffered alerts $localProxyBufferedAlertCount',
-                    accent: const Color(0xFF8FD1FF),
+                    accent: OnyxColorTokens.accentSky,
                   ),
                 if (verificationLabel.isNotEmpty)
                   _commsChip(
                     icon: Icons.image_rounded,
                     label: 'Visual $verificationLabel',
-                    accent: const Color(0xFF8FD1FF),
+                    accent: OnyxColorTokens.accentSky,
                   ),
                 if (lastProbeLabel.isNotEmpty)
                   _commsChip(
                     icon: Icons.router_rounded,
                     label: 'Probe $lastProbeLabel',
-                    accent: const Color(0xFFB9C8D8),
+                    accent: OnyxColorTokens.textSecondary,
                   ),
                 if (packet.hasCurrentVisualStreamRelay)
                   _commsChip(
@@ -10045,7 +10067,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   _commsChip(
                     icon: Icons.stream_rounded,
                     label: 'Stream relay unavailable',
-                    accent: const Color(0xFFF59E0B),
+                    accent: OnyxColorTokens.accentAmber,
                   ),
                 if (continuousWatchStatus.isNotEmpty)
                   _commsChip(
@@ -10083,8 +10105,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         ? 'Source CROSS-CAMERA'
                         : 'Source SINGLE-CAMERA',
                     accent: continuousWatchSourceLabel == 'cross_camera'
-                        ? const Color(0xFF8B5CF6)
-                        : const Color(0xFF67E8F9),
+                        ? OnyxColorTokens.accentPurple
+                        : OnyxColorTokens.accentCyanTrue,
                   ),
                 if (continuousWatchHotCameraLabel.isNotEmpty)
                   _commsChip(
@@ -10092,13 +10114,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: continuousWatchHotZoneLabel.isEmpty
                         ? 'Hot $continuousWatchHotCameraLabel'
                         : 'Hot $continuousWatchHotCameraLabel • $continuousWatchHotZoneLabel',
-                    accent: const Color(0xFF8FD1FF),
+                    accent: OnyxColorTokens.accentSky,
                   ),
                 if (continuousWatchHotAreaLabel.isNotEmpty)
                   _commsChip(
                     icon: Icons.place_rounded,
                     label: 'Area ${continuousWatchHotAreaLabel.toUpperCase()}',
-                    accent: const Color(0xFF67E8F9),
+                    accent: OnyxColorTokens.accentCyanTrue,
                   ),
                 if (continuousWatchHotPriorityLabel.isNotEmpty)
                   _commsChip(
@@ -10114,8 +10136,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     icon: Icons.timeline_rounded,
                     label: 'Streak x$continuousWatchHotStreak',
                     accent: continuousWatchStatus == 'alerting'
-                        ? const Color(0xFFEF4444)
-                        : const Color(0xFFF59E0B),
+                        ? OnyxColorTokens.accentRed
+                        : OnyxColorTokens.accentAmber,
                   ),
                 if (continuousWatchHotStage.isNotEmpty)
                   _commsChip(
@@ -10132,7 +10154,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     icon: Icons.hub_rounded,
                     label:
                         'Correlation ${correlatedContextLabel.toUpperCase()} x$correlatedCameraCount',
-                    accent: const Color(0xFF8B5CF6),
+                    accent: OnyxColorTokens.accentPurple,
                   ),
                 if (correlatedPriorityLabel.isNotEmpty &&
                     correlatedCameraCount > 1)
@@ -10302,7 +10324,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      color: const Color(0xFF1A1A2E),
+                      color: OnyxColorTokens.surfaceElevated,
                       alignment: Alignment.center,
                       padding: const EdgeInsets.all(12),
                       child: Text(
@@ -10353,7 +10375,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       : () =>
                             unawaited(_copyClientLaneCameraPreviewUrl(packet!)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2E6EA8),
+                    foregroundColor: OnyxColorTokens.accentBlue,
                     side: const BorderSide(color: _commandBorderStrongColor),
                     backgroundColor: _commandPanelColor,
                     padding: const EdgeInsets.symmetric(
@@ -10379,8 +10401,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     onPressed: () =>
                         unawaited(_copyClientLaneStreamPlayerUrl(packet!)),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF0F766E),
-                      side: const BorderSide(color: Color(0xFF99F6E4)),
+                      foregroundColor: OnyxColorTokens.accentTeal,
+                      side: const BorderSide(
+                        color: OnyxColorTokens.accentCyanTrue,
+                      ),
                       backgroundColor: _commandPanelColor,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -10405,7 +10429,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       ? null
                       : () => unawaited(_openClientLaneLiveView(packet!)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2E6EA8),
+                    foregroundColor: OnyxColorTokens.accentBlue,
                     side: const BorderSide(color: _commandBorderStrongColor),
                     backgroundColor: _commandPanelColor,
                     padding: const EdgeInsets.symmetric(
@@ -10433,8 +10457,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             unawaited(_showClientLaneStreamRelayDialog(packet!))
                       : null,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F766E),
-                    side: const BorderSide(color: Color(0xFF99F6E4)),
+                    foregroundColor: OnyxColorTokens.accentTeal,
+                    side: const BorderSide(
+                      color: OnyxColorTokens.accentCyanTrue,
+                    ),
                     backgroundColor: _commandPanelColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -10584,7 +10610,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           Text(
                             'CONTROL INBOX',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF4D7FAE),
+                              color: OnyxColorTokens.accentBlue,
                               fontSize: 8.6,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.0,
@@ -10606,13 +10632,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: _controlInboxPriorityOnly
-                                        ? const Color(0x44F59E0B)
-                                        : const Color(0x33F59E0B),
+                                        ? OnyxColorTokens.accentAmber
+                                              .withValues(alpha: 0.27)
+                                        : OnyxColorTokens.accentAmber
+                                              .withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(999),
                                     border: Border.all(
                                       color: _controlInboxPriorityOnly
-                                          ? const Color(0x99F59E0B)
-                                          : const Color(0x66F59E0B),
+                                          ? OnyxColorTokens.accentAmber
+                                                .withValues(alpha: 0.6)
+                                          : OnyxColorTokens.amberBorder,
                                     ),
                                   ),
                                   child: Row(
@@ -10621,7 +10650,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                       const Icon(
                                         Icons.priority_high_rounded,
                                         size: 10,
-                                        color: Color(0xFFF59E0B),
+                                        color: OnyxColorTokens.accentAmber,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
@@ -10633,7 +10662,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                                   ? 'High priority 1'
                                                   : 'High priority $priorityDraftCount'),
                                         style: GoogleFonts.inter(
-                                          color: const Color(0xFF8A5A00),
+                                          color: OnyxColorTokens.amberBorder,
                                           fontSize: 8.5,
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -10664,7 +10693,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               child: Text(
                                 'Filtered ${displayedPendingDrafts.length}',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF3F6587),
+                                  color: OnyxColorTokens.accentBlue,
                                   fontSize: 8.5,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -10741,7 +10770,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 });
                               },
                               style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFF2E6EA8),
+                                foregroundColor: OnyxColorTokens.accentBlue,
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -10765,9 +10794,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FC),
+                            color: OnyxColorTokens.surfaceElevated,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFBDD6EA)),
+                            border: Border.all(
+                              color: OnyxColorTokens.borderStrong,
+                            ),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -10777,7 +10808,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 child: Icon(
                                   Icons.lightbulb_outline_rounded,
                                   size: 13,
-                                  color: Color(0xFF7DD3FC),
+                                  color: OnyxColorTokens.accentSky,
                                 ),
                               ),
                               const SizedBox(width: 6),
@@ -10796,7 +10827,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               TextButton(
                                 onPressed: _dismissQueueStateHint,
                                 style: TextButton.styleFrom(
-                                  foregroundColor: const Color(0xFF2E6EA8),
+                                  foregroundColor: OnyxColorTokens.accentBlue,
                                   padding: EdgeInsets.zero,
                                   minimumSize: const Size(0, 0),
                                   tapTargetSize:
@@ -10882,15 +10913,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   icon: Icons.verified_user_rounded,
                   label: '${snapshot.pendingApprovalCount} waiting',
                   accent: snapshot.pendingApprovalCount > 0
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF34D399),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
                 _commsChip(
                   icon: Icons.mark_chat_unread_rounded,
                   label: '${snapshot.awaitingResponseCount} live ask',
                   accent: snapshot.awaitingResponseCount > 0
-                      ? const Color(0xFF22D3EE)
-                      : const Color(0xFF4B6B8F),
+                      ? OnyxColorTokens.accentCyanTrue
+                      : OnyxColorTokens.textSecondary,
                 ),
                 _commsChip(
                   icon: Icons.pin_drop_rounded,
@@ -10898,13 +10929,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       '$selectedScopeLabel • ${snapshot.selectedScopePendingCount}',
                   accent: snapshot.selectedScopePendingCount > 0
                       ? accent
-                      : const Color(0xFF4B6B8F),
+                      : OnyxColorTokens.textSecondary,
                 ),
                 _commsChip(
                   icon: Icons.tune_rounded,
                   label:
                       'Client voice ${snapshot.selectedScopeClientVoiceProfileLabel}',
-                  accent: const Color(0xFF4B6B8F),
+                  accent: OnyxColorTokens.textSecondary,
                 ),
                 _commsChip(
                   icon: Icons.telegram_rounded,
@@ -10916,7 +10947,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   _commsChip(
                     icon: Icons.swap_horiz_rounded,
                     label: 'Fallback active',
-                    accent: const Color(0xFFF97316),
+                    accent: OnyxColorTokens.accentAmber,
                   ),
               ],
             ),
@@ -11022,7 +11053,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   'Showing high-priority only. Tap the badge again to return to the full queue.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFFFE1A8),
+                    color: OnyxColorTokens.amberBorder,
                     fontSize: 9.5,
                     fontWeight: FontWeight.w700,
                     height: 1.28,
@@ -11044,7 +11075,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFF8FD1FF),
+                        color: OnyxColorTokens.accentSky,
                       ),
                     ),
                   for (final option in const <(String, String?)>[
@@ -11071,14 +11102,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               snapshot.selectedScopeClientVoiceProfileLabel,
                               option.$2,
                             )
-                            ? const Color(0xFF245A86)
-                            : const Color(0xFF6C8198),
+                            ? OnyxColorTokens.accentBlue
+                            : OnyxColorTokens.textMuted,
                         backgroundColor:
                             _laneVoiceOptionSelectedForLabel(
                               snapshot.selectedScopeClientVoiceProfileLabel,
                               option.$2,
                             )
-                            ? const Color(0xFFEAF4FF)
+                            ? OnyxColorTokens.textPrimary
                             : Colors.transparent,
                         side: BorderSide(
                           color:
@@ -11086,8 +11117,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 snapshot.selectedScopeClientVoiceProfileLabel,
                                 option.$2,
                               )
-                              ? const Color(0xFF9FC3E6)
-                              : const Color(0xFFD6E4F2),
+                              ? OnyxColorTokens.accentSky
+                              : OnyxColorTokens.borderStrong,
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -11112,7 +11143,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? 'The inbox is clear. New client questions and approval drafts will stage here for command.'
                     : 'Client questions are active even though no reply drafts are waiting yet.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9FB7D5),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 10.2,
                   fontWeight: FontWeight.w600,
                   height: 1.3,
@@ -11129,7 +11160,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'LIVE CLIENT ASKS',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8FAFD4),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.0,
@@ -11150,7 +11181,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   snapshot.telegramHealthDetail!.trim(),
                 ),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8FA7C8),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
                   height: 1.28,
@@ -11165,8 +11196,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Widget _controlInboxClientAskCard(LiveControlInboxClientAsk ask) {
     final accent = ask.matchesSelectedScope
-        ? const Color(0xFF22D3EE)
-        : const Color(0xFF4B6B8F);
+        ? OnyxColorTokens.accentCyanTrue
+        : OnyxColorTokens.textSecondary;
     final scopeLabel = _humanizeOpsScopeLabel(ask.siteId, fallback: ask.siteId);
     final providerLabel = ask.messageProvider.trim().isEmpty
         ? 'Client Comms'
@@ -11267,8 +11298,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Widget _controlInboxDraftCard(LiveControlInboxDraft draft) {
     final accent = draft.matchesSelectedScope
-        ? const Color(0xFF22D3EE)
-        : const Color(0xFFF59E0B);
+        ? OnyxColorTokens.accentCyanTrue
+        : OnyxColorTokens.accentAmber;
     final cueKind = _controlInboxDraftCueKindForSignals(
       sourceText: draft.sourceText,
       replyText: draft.draftText,
@@ -11331,7 +11362,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   _commsChip(
                     icon: Icons.tune_rounded,
                     label: 'Voice ${draft.clientVoiceProfileLabel}',
-                    accent: const Color(0xFF4B6B8F),
+                    accent: OnyxColorTokens.textSecondary,
                   ),
                   _commsChip(
                     icon: _controlInboxDraftCueChipIcon(cueKind),
@@ -11343,13 +11374,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     _commsChip(
                       icon: Icons.auto_fix_high_rounded,
                       label: 'Voice-adjusted',
-                      accent: const Color(0xFF34D399),
+                      accent: OnyxColorTokens.accentGreen,
                     ),
                   if (draft.usesLearnedApprovalStyle)
                     _commsChip(
                       icon: Icons.psychology_alt_rounded,
                       label: 'Uses learned approval style',
-                      accent: const Color(0xFF67E8F9),
+                      accent: OnyxColorTokens.accentCyanTrue,
                     ),
                 ],
               ),
@@ -11359,7 +11390,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           _clientCommsTextBlock(
             label: 'Client asked',
             text: draft.sourceText.trim(),
-            borderColor: const Color(0xFF31465F),
+            borderColor: OnyxColorTokens.borderStrong,
             textColor: _commandTitleColor,
           ),
           const SizedBox(height: 6),
@@ -11401,8 +11432,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? null
                     : () => _approveControlInboxDraft(draft),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D5B),
-                  foregroundColor: const Color(0xFFF8FBFF),
+                  backgroundColor: OnyxColorTokens.greenBorder,
+                  foregroundColor: OnyxColorTokens.surfaceElevated,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 6,
@@ -11425,7 +11456,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? null
                     : () => _editControlInboxDraft(draft),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF2E6EA8),
+                  foregroundColor: OnyxColorTokens.accentBlue,
                   backgroundColor: _commandPanelColor,
                   side: const BorderSide(color: _commandBorderStrongColor),
                   padding: const EdgeInsets.symmetric(
@@ -11447,9 +11478,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? null
                     : () => _rejectControlInboxDraft(draft),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFF87171),
+                  foregroundColor: OnyxColorTokens.accentRed,
                   backgroundColor: _commandPanelColor,
-                  side: const BorderSide(color: Color(0xFFE4B5BB)),
+                  side: const BorderSide(color: OnyxColorTokens.redBorder),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 6,
@@ -11511,7 +11542,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       final isActive = incident.id == _activeIncidentId;
       final isP1 = incident.priority == _IncidentPriority.p1Critical;
       final railAccent = isActive
-          ? const Color(0xFF22D3EE)
+          ? OnyxColorTokens.accentCyanTrue
           : priority.foreground;
       final queueToneLabel = switch (incident.priority) {
         _IncidentPriority.p1Critical => 'DO NOW',
@@ -11543,25 +11574,25 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: isActive
-                ? const Color(0x4422D3EE)
+                ? OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.27)
                 : isP1
-                ? const Color(0x24EF4444)
-                : const Color(0xFF13131E),
+                ? OnyxColorTokens.accentRed.withValues(alpha: 0.14)
+                : OnyxColorTokens.backgroundSecondary,
             border: Border.all(
               color: isActive
-                  ? const Color(0xFF4FDFFF)
+                  ? OnyxColorTokens.accentCyanTrue
                   : priority.border.withValues(alpha: 0.55),
             ),
             boxShadow: [
               if (isActive)
-                const BoxShadow(
-                  color: Color(0x5522D3EE),
+                BoxShadow(
+                  color: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.33),
                   blurRadius: 24,
                   spreadRadius: 1.5,
                 ),
               if (isP1)
-                const BoxShadow(
-                  color: Color(0x30EF4444),
+                BoxShadow(
+                  color: OnyxColorTokens.accentRed.withValues(alpha: 0.19),
                   blurRadius: 16,
                   spreadRadius: 1,
                 ),
@@ -11649,7 +11680,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                     width: 5,
                                     height: 5,
                                     decoration: const BoxDecoration(
-                                      color: Color(0xFF22D3EE),
+                                      color: OnyxColorTokens.accentCyanTrue,
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -11657,7 +11688,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   Text(
                                     'YOU',
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFF22D3EE),
+                                      color: OnyxColorTokens.accentCyanTrue,
                                       fontSize: 9,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -11711,7 +11742,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: GoogleFonts.robotoMono(
-                                                color: const Color(0xFF22D3EE),
+                                                color: OnyxColorTokens
+                                                    .accentCyanTrue,
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w700,
                                               ),
@@ -11721,7 +11753,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                           Text(
                                             incident.timestamp,
                                             style: GoogleFonts.inter(
-                                              color: const Color(0xFF8BA3C4),
+                                              color: OnyxColorTokens.textMuted,
                                               fontSize: 10,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -11734,7 +11766,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                         maxLines: compact ? 2 : 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(
-                                          color: const Color(0xFF172638),
+                                          color: OnyxColorTokens.textPrimary,
                                           fontSize: 13,
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -11745,7 +11777,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(
-                                          color: const Color(0xFF556B80),
+                                          color: OnyxColorTokens.textSecondary,
                                           fontSize: 11,
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -11811,7 +11843,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   label,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE6F0FF),
+                    color: OnyxColorTokens.surfaceElevated,
                     fontSize: 9.2,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.45,
@@ -11830,25 +11862,25 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             summaryChip(
               label: 'LIVE',
               value: '${_incidents.length}',
-              foreground: const Color(0xFF4ADE80),
-              background: const Color(0x1A10B981),
-              border: const Color(0x6610B981),
+              foreground: OnyxColorTokens.accentGreen,
+              background: OnyxColorTokens.greenSurface,
+              border: OnyxColorTokens.greenBorder,
             ),
             summaryChip(
               label: 'RED',
               value:
                   '${_incidents.where((incident) => incident.priority == _IncidentPriority.p1Critical).length}',
-              foreground: const Color(0xFFF87171),
-              background: const Color(0x1AEF4444),
-              border: const Color(0x66EF4444),
+              foreground: OnyxColorTokens.accentRed,
+              background: OnyxColorTokens.redSurface,
+              border: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
             ),
             summaryChip(
               label: 'HOT',
               value:
                   '${_incidents.where((incident) => incident.priority == _IncidentPriority.p2High).length}',
-              foreground: const Color(0xFFFBBF24),
-              background: const Color(0x1AF59E0B),
-              border: const Color(0x66F59E0B),
+              foreground: OnyxColorTokens.accentAmber,
+              background: OnyxColorTokens.amberSurface,
+              border: OnyxColorTokens.amberBorder,
             ),
           ],
         );
@@ -11943,9 +11975,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         gradient: LinearGradient(
           colors: [
             if (selectedIncident?.priority == _IncidentPriority.p1Critical)
-              const Color(0xFFFFF3F3)
+              OnyxColorTokens.redSurface
             else if (selectedIncident != null)
-              const Color(0xFFF3F9FD)
+              OnyxColorTokens.surfaceElevated
             else
               _commandPanelTintColor,
             _commandPanelColor,
@@ -11955,17 +11987,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         border: Border.all(
           color: selectedIncident?.priority == _IncidentPriority.p1Critical
-              ? const Color(0xFFE6B5B5)
+              ? OnyxColorTokens.redBorder
               : selectedIncident != null
-              ? const Color(0xFFBFD7E6)
+              ? OnyxColorTokens.borderStrong
               : _commandBorderStrongColor,
         ),
         boxShadow: [
           BoxShadow(
             color: selectedIncident?.priority == _IncidentPriority.p1Critical
-                ? const Color(0x12EF4444)
+                ? OnyxColorTokens.accentRed.withValues(alpha: 0.07)
                 : selectedIncident != null
-                ? const Color(0x1222D3EE)
+                ? OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.07)
                 : _commandShadowColor,
             blurRadius: 18,
             spreadRadius: 1,
@@ -11984,9 +12016,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   'live-operations-incident-focus-open-board',
                 ),
                 label: 'Board',
-                foreground: const Color(0xFF0F6D84),
-                background: const Color(0xFFEAF8FB),
-                border: const Color(0xFF9DD3E4),
+                foreground: OnyxColorTokens.accentTeal,
+                background: OnyxColorTokens.surfaceElevated,
+                border: OnyxColorTokens.accentSky,
                 leadingIcon: Icons.view_compact_alt_outlined,
                 onTap: () => _openIncidentQueueBoardFocus(selectedIncident),
               ),
@@ -11996,13 +12028,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 label: 'Details',
                 foreground: _activeTab == _ContextTab.details
-                    ? const Color(0xFF0F6D84)
+                    ? OnyxColorTokens.accentTeal
                     : _commandMutedColor,
                 background: _activeTab == _ContextTab.details
-                    ? const Color(0xFFEAF8FB)
+                    ? OnyxColorTokens.surfaceElevated
                     : _commandPanelColor,
                 border: _activeTab == _ContextTab.details
-                    ? const Color(0xFF9DD3E4)
+                    ? OnyxColorTokens.accentSky
                     : _commandBorderColor,
                 leadingIcon: Icons.article_outlined,
                 onTap: () => _openIncidentQueueContextFocus(
@@ -12015,9 +12047,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   'live-operations-incident-focus-open-queue',
                 ),
                 label: 'Queue',
-                foreground: const Color(0xFF8A6500),
-                background: const Color(0xFFFFF7E8),
-                border: const Color(0xFFE6D2A2),
+                foreground: OnyxColorTokens.amberBorder,
+                background: OnyxColorTokens.amberSurface,
+                border: OnyxColorTokens.amberBorder,
                 leadingIcon: Icons.schedule_rounded,
                 onTap: _openIncidentQueueQueueFocus,
               ),
@@ -12026,9 +12058,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 label: selectedIncident == null
                     ? 'Lead lane'
                     : selectedIncident.id,
-                foreground: const Color(0xFF0F6D84),
-                background: const Color(0xFFEFF7FD),
-                border: const Color(0xFFB7D6EB),
+                foreground: OnyxColorTokens.accentTeal,
+                background: OnyxColorTokens.surfaceElevated,
+                border: OnyxColorTokens.borderStrong,
                 leadingIcon: Icons.center_focus_strong_rounded,
                 onTap: _incidents.isEmpty ? null : _focusLeadIncident,
               ),
@@ -12038,9 +12070,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     'live-operations-incident-focus-focus-critical',
                   ),
                   label: 'Critical',
-                  foreground: const Color(0xFFB93838),
-                  background: const Color(0xFFFFF0F0),
-                  border: const Color(0xFFE6B5B5),
+                  foreground: OnyxColorTokens.redBorder,
+                  background: OnyxColorTokens.redSurface,
+                  border: OnyxColorTokens.redBorder,
                   leadingIcon: Icons.warning_amber_rounded,
                   onTap: () =>
                       _focusCriticalIncidentFromQueue(criticalIncident),
@@ -12059,16 +12091,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     height: 24,
                     decoration: BoxDecoration(
                       color:
-                          priorityStyle?.background ?? const Color(0x1422D3EE),
+                          priorityStyle?.background ??
+                          OnyxColorTokens.accentCyanTrue.withValues(
+                            alpha: 0.08,
+                          ),
                       borderRadius: BorderRadius.circular(7),
                       border: Border.all(
-                        color: priorityStyle?.border ?? const Color(0x3322D3EE),
+                        color:
+                            priorityStyle?.border ??
+                            OnyxColorTokens.accentCyanTrue.withValues(
+                              alpha: 0.2,
+                            ),
                       ),
                     ),
                     child: Icon(
                       priorityStyle?.icon ?? Icons.hub_rounded,
                       color:
-                          priorityStyle?.foreground ?? const Color(0xFF8FD1FF),
+                          priorityStyle?.foreground ??
+                          OnyxColorTokens.accentSky,
                       size: 13,
                     ),
                   ),
@@ -12080,7 +12120,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         Text(
                           'YOU ARE HERE',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF0F6D84),
+                            color: OnyxColorTokens.accentTeal,
                             fontSize: 8.8,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.1,
@@ -12121,18 +12161,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   borderRadius: BorderRadius.circular(10),
                   color:
                       selectedIncident?.priority == _IncidentPriority.p1Critical
-                      ? const Color(0xFFFFF4F4)
+                      ? OnyxColorTokens.redSurface
                       : selectedIncident != null
-                      ? const Color(0xFFEAF8FB)
-                      : const Color(0xFFEFFAF4),
+                      ? OnyxColorTokens.surfaceElevated
+                      : OnyxColorTokens.greenSurface,
                   border: Border.all(
                     color:
                         selectedIncident?.priority ==
                             _IncidentPriority.p1Critical
-                        ? const Color(0xFFE6B5B5)
+                        ? OnyxColorTokens.redBorder
                         : selectedIncident != null
-                        ? const Color(0xFFB7DCE8)
-                        : const Color(0xFFCBE4D6),
+                        ? OnyxColorTokens.borderStrong
+                        : OnyxColorTokens.greenBorder,
                   ),
                 ),
                 child: Column(
@@ -12144,10 +12184,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         color:
                             selectedIncident?.priority ==
                                 _IncidentPriority.p1Critical
-                            ? const Color(0xFFB93838)
+                            ? OnyxColorTokens.redBorder
                             : selectedIncident != null
-                            ? const Color(0xFF0F6D84)
-                            : const Color(0xFF1D7A52),
+                            ? OnyxColorTokens.accentTeal
+                            : OnyxColorTokens.greenBorder,
                         fontSize: 8.6,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.0,
@@ -12184,23 +12224,23 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 children: [
                   _chip(
                     label: 'LIVE ${_incidents.length}',
-                    foreground: const Color(0xFF0F6D84),
-                    background: const Color(0xFFEAF8FB),
-                    border: const Color(0xFF9DD3E4),
+                    foreground: OnyxColorTokens.accentTeal,
+                    background: OnyxColorTokens.surfaceElevated,
+                    border: OnyxColorTokens.accentSky,
                     leadingIcon: Icons.hub_rounded,
                   ),
                   _chip(
                     label: 'RED $criticalCount',
-                    foreground: const Color(0xFFB93838),
-                    background: const Color(0xFFFFF0F0),
-                    border: const Color(0xFFE6B5B5),
+                    foreground: OnyxColorTokens.redBorder,
+                    background: OnyxColorTokens.redSurface,
+                    border: OnyxColorTokens.redBorder,
                     leadingIcon: Icons.priority_high_rounded,
                   ),
                   _chip(
                     label: queueLabel.toUpperCase(),
-                    foreground: const Color(0xFF8A6500),
-                    background: const Color(0xFFFFF7E8),
-                    border: const Color(0xFFE6D2A2),
+                    foreground: OnyxColorTokens.amberBorder,
+                    background: OnyxColorTokens.amberSurface,
+                    border: OnyxColorTokens.amberBorder,
                     leadingIcon: Icons.schedule_rounded,
                   ),
                   if (selectedIncident != null)
@@ -12260,11 +12300,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           borderRadius: BorderRadius.circular(9),
           color: isActive
               ? statusColor.withValues(alpha: 0.08)
-              : const Color(0xFF1A1A2E),
+              : OnyxColorTokens.surfaceElevated,
           border: Border.all(
             color: isActive
                 ? statusColor.withValues(alpha: 0.32)
-                : const Color(0xFFD6E1EC),
+                : OnyxColorTokens.borderStrong,
           ),
         ),
         child: Row(
@@ -12275,8 +12315,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               height: 52,
               decoration: BoxDecoration(
                 color: isActive
-                    ? const Color(0xFF22D3EE)
-                    : const Color(0x0022D3EE),
+                    ? OnyxColorTokens.accentCyanTrue
+                    : OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.0),
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -12293,7 +12333,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         child: Text(
                           step.name,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF172638),
+                            color: OnyxColorTokens.textPrimary,
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                           ),
@@ -12314,7 +12354,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       step.timestamp!,
                       style: GoogleFonts.robotoMono(
-                        color: const Color(0xFF7A8FA4),
+                        color: OnyxColorTokens.textMuted,
                         fontSize: 9.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -12325,7 +12365,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       step.details!,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF556B80),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -12336,7 +12376,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       step.metadata!,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8ED3FF),
+                        color: OnyxColorTokens.accentSky,
                         fontSize: 9.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -12347,7 +12387,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       step.thinkingMessage!,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF22D3EE),
+                        color: OnyxColorTokens.accentCyanTrue,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -12365,9 +12405,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               ? null
                               : () => _openOverrideDialog(activeIncident),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0x66EF4444)),
-                            foregroundColor: const Color(0xFFEF4444),
-                            backgroundColor: const Color(0xFFFFF7F7),
+                            side: BorderSide(
+                              color: OnyxColorTokens.accentRed.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                            foregroundColor: OnyxColorTokens.accentRed,
+                            backgroundColor: OnyxColorTokens.redSurface,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 4,
@@ -12384,9 +12428,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               ? null
                               : () => _pauseAutomation(activeIncident),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0x333B82F6)),
-                            foregroundColor: const Color(0xFF315A86),
-                            backgroundColor: const Color(0xFF13131E),
+                            side: BorderSide(
+                              color: OnyxColorTokens.accentBlue.withValues(
+                                alpha: 0.2,
+                              ),
+                            ),
+                            foregroundColor: OnyxColorTokens.accentBlue,
+                            backgroundColor:
+                                OnyxColorTokens.backgroundSecondary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 4,
@@ -12473,7 +12522,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ? null
         : _priorityStyle(activeIncident.priority);
     final statusColor = activeIncident == null
-        ? const Color(0xFF8FAFD4)
+        ? OnyxColorTokens.textSecondary
         : _statusChipColor(activeIncident.status);
     final currentStep = steps.firstWhere(
       (step) =>
@@ -12500,12 +12549,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         : '${currentStep.name} is driving the current response path while the queue and right-rail context stay available.';
     final queueLabel = _controlInboxTopBarQueueStateLabel();
     final primaryAccent = currentStep.status == _LadderStepStatus.blocked
-        ? const Color(0xFFEF4444)
+        ? OnyxColorTokens.accentRed
         : _activeTab == _ContextTab.voip
-        ? const Color(0xFF3B82F6)
+        ? OnyxColorTokens.accentBlue
         : _activeTab == _ContextTab.visual
-        ? const Color(0xFF10B981)
-        : const Color(0xFF22D3EE);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentCyanTrue;
     final commandLead = activeIncident == null
         ? 'PICK THE LEAD LANE'
         : currentStep.status == _LadderStepStatus.blocked
@@ -12619,9 +12668,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 label: Text(primaryActionLabel),
                 style: FilledButton.styleFrom(
                   backgroundColor: primaryAccent,
-                  foregroundColor: const Color(0xFFF8FCFF),
-                  disabledBackgroundColor: const Color(0x33233C56),
-                  disabledForegroundColor: const Color(0xFF7E93AF),
+                  foregroundColor: OnyxColorTokens.surfaceElevated,
+                  disabledBackgroundColor: OnyxColorTokens.borderSubtle,
+                  disabledForegroundColor: OnyxColorTokens.textMuted,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 11,
@@ -12646,9 +12695,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       'live-operations-board-focus-open-queue',
                     ),
                     label: 'QUEUE',
-                    foreground: const Color(0xFF8A6500),
-                    background: const Color(0xFFFFF7E8),
-                    border: const Color(0xFFE6D2A2),
+                    foreground: OnyxColorTokens.amberBorder,
+                    background: OnyxColorTokens.amberSurface,
+                    border: OnyxColorTokens.amberBorder,
                     leadingIcon: Icons.schedule_rounded,
                     onTap: () =>
                         _openActionLadderQueueFromBoard(activeIncident),
@@ -12659,13 +12708,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                     label: 'DETAILS',
                     foreground: _activeTab == _ContextTab.details
-                        ? const Color(0xFF0F6D84)
+                        ? OnyxColorTokens.accentTeal
                         : _commandMutedColor,
                     background: _activeTab == _ContextTab.details
-                        ? const Color(0xFFEAF8FB)
+                        ? OnyxColorTokens.surfaceElevated
                         : _commandPanelColor,
                     border: _activeTab == _ContextTab.details
-                        ? const Color(0xFF9DD3E4)
+                        ? OnyxColorTokens.accentSky
                         : _commandBorderColor,
                     leadingIcon: Icons.article_outlined,
                     onTap: () => _openActionLadderContextFromBoard(
@@ -12679,13 +12728,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                     label: 'CALL',
                     foreground: _activeTab == _ContextTab.voip
-                        ? const Color(0xFF345A87)
+                        ? OnyxColorTokens.accentBlue
                         : _commandMutedColor,
                     background: _activeTab == _ContextTab.voip
-                        ? const Color(0xFFF2F7FF)
+                        ? OnyxColorTokens.surfaceElevated
                         : _commandPanelColor,
                     border: _activeTab == _ContextTab.voip
-                        ? const Color(0xFFBED4F6)
+                        ? OnyxColorTokens.borderStrong
                         : _commandBorderColor,
                     leadingIcon: Icons.call_rounded,
                     onTap: () => _openActionLadderContextFromBoard(
@@ -12699,13 +12748,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                     label: 'CAM',
                     foreground: _activeTab == _ContextTab.visual
-                        ? const Color(0xFF176B4A)
+                        ? OnyxColorTokens.greenBorder
                         : _commandMutedColor,
                     background: _activeTab == _ContextTab.visual
-                        ? const Color(0xFFEFFAF4)
+                        ? OnyxColorTokens.greenSurface
                         : _commandPanelColor,
                     border: _activeTab == _ContextTab.visual
-                        ? const Color(0xFFC5E7D2)
+                        ? OnyxColorTokens.greenBorder
                         : _commandBorderColor,
                     leadingIcon: Icons.videocam_outlined,
                     onTap: () => _openActionLadderContextFromBoard(
@@ -12718,13 +12767,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: 'OVERRIDE',
                     foreground: activeIncident == null
                         ? _commandMutedColor
-                        : const Color(0xFFB93838),
+                        : OnyxColorTokens.redBorder,
                     background: activeIncident == null
                         ? _commandPanelColor
-                        : const Color(0xFFFFF0F0),
+                        : OnyxColorTokens.redSurface,
                     border: activeIncident == null
                         ? _commandBorderColor
-                        : const Color(0xFFE6B5B5),
+                        : OnyxColorTokens.redBorder,
                     leadingIcon: Icons.gavel_rounded,
                     onTap: activeIncident == null
                         ? null
@@ -12763,17 +12812,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     height: 18.5,
                     decoration: BoxDecoration(
                       color: priorityStyle == null
-                          ? const Color(0x1422D3EE)
+                          ? OnyxColorTokens.accentCyanTrue.withValues(
+                              alpha: 0.08,
+                            )
                           : priorityStyle.background,
                       borderRadius: BorderRadius.circular(5.5),
                       border: Border.all(
-                        color: priorityStyle?.border ?? const Color(0x3322D3EE),
+                        color:
+                            priorityStyle?.border ??
+                            OnyxColorTokens.accentCyanTrue.withValues(
+                              alpha: 0.2,
+                            ),
                       ),
                     ),
                     child: Icon(
                       priorityStyle?.icon ?? Icons.center_focus_strong_rounded,
                       color:
-                          priorityStyle?.foreground ?? const Color(0xFF8FD1FF),
+                          priorityStyle?.foreground ??
+                          OnyxColorTokens.accentSky,
                       size: 10.8,
                     ),
                   ),
@@ -12879,9 +12935,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   if (activeIncident != null)
                     insightPill(
                       label: activeIncident.site,
-                      foreground: const Color(0xFF0F6D84),
-                      background: const Color(0xFFEAF8FB),
-                      border: const Color(0xFF9DD3E4),
+                      foreground: OnyxColorTokens.accentTeal,
+                      background: OnyxColorTokens.surfaceElevated,
+                      border: OnyxColorTokens.accentSky,
                       icon: Icons.location_on_outlined,
                     ),
                   insightPill(
@@ -12889,21 +12945,25 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         ? 'OVERRIDE'
                         : 'NOW ${currentStep.name}',
                     foreground: currentStep.status == _LadderStepStatus.blocked
-                        ? const Color(0xFFFFD6D6)
-                        : const Color(0xFFBDFBFF),
+                        ? OnyxColorTokens.redBorder
+                        : OnyxColorTokens.accentCyanTrue,
                     background: currentStep.status == _LadderStepStatus.blocked
-                        ? const Color(0x1AEF4444)
-                        : const Color(0x1422D3EE),
+                        ? OnyxColorTokens.redSurface
+                        : OnyxColorTokens.accentCyanTrue.withValues(
+                            alpha: 0.08,
+                          ),
                     border: currentStep.status == _LadderStepStatus.blocked
-                        ? const Color(0x66EF4444)
-                        : const Color(0x5522D3EE),
+                        ? OnyxColorTokens.accentRed.withValues(alpha: 0.4)
+                        : OnyxColorTokens.accentCyanTrue.withValues(
+                            alpha: 0.33,
+                          ),
                     icon: _stepIcon(currentStep.status),
                   ),
                   insightPill(
                     label: activeIncident == null ? 'BOARD READY' : queueLabel,
-                    foreground: const Color(0xFF2B5E8B),
-                    background: const Color(0xFFF2F7FF),
-                    border: const Color(0xFFBED4F6),
+                    foreground: OnyxColorTokens.accentBlue,
+                    background: OnyxColorTokens.surfaceElevated,
+                    border: OnyxColorTokens.borderStrong,
                     icon: Icons.view_compact_alt_outlined,
                   ),
                 ],
@@ -12953,7 +13013,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       detail: activeIncident == null
           ? 'Live Ops moved the reply queue back into view so a lead incident can be pinned into the board without leaving the shell.'
           : 'The selected incident stayed pinned while the reply queue and operator review state came forward in the left rail.',
-      accent: const Color(0xFFF59E0B),
+      accent: OnyxColorTokens.accentAmber,
     );
   }
 
@@ -12978,9 +13038,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? 'The right rail stayed inside the current workspace so the next live incident can land without resetting context.'
           : 'The action ladder kept ${activeIncident.id} active while ${tabLabel.toLowerCase()} context moved forward in the right rail.',
       accent: switch (tab) {
-        _ContextTab.details => const Color(0xFF22D3EE),
-        _ContextTab.voip => const Color(0xFF3B82F6),
-        _ContextTab.visual => const Color(0xFF10B981),
+        _ContextTab.details => OnyxColorTokens.accentCyanTrue,
+        _ContextTab.voip => OnyxColorTokens.accentBlue,
+        _ContextTab.visual => OnyxColorTokens.accentGreen,
       },
     );
   }
@@ -13128,9 +13188,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
 
     final contextAccent = switch (_activeTab) {
-      _ContextTab.details => const Color(0xFF22D3EE),
-      _ContextTab.voip => const Color(0xFF60A5FA),
-      _ContextTab.visual => const Color(0xFF4ADE80),
+      _ContextTab.details => OnyxColorTokens.accentCyanTrue,
+      _ContextTab.voip => OnyxColorTokens.accentSky,
+      _ContextTab.visual => OnyxColorTokens.accentGreen,
     };
     final contextIcon = switch (_activeTab) {
       _ContextTab.details => Icons.article_outlined,
@@ -13179,9 +13239,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _chip(
                 key: const ValueKey('live-operations-context-focus-open-queue'),
                 label: 'Queue',
-                foreground: const Color(0xFFFFE4B5),
-                background: const Color(0x1AF59E0B),
-                border: const Color(0x66F59E0B),
+                foreground: OnyxColorTokens.amberBorder,
+                background: OnyxColorTokens.amberSurface,
+                border: OnyxColorTokens.amberBorder,
                 leadingIcon: Icons.schedule_rounded,
                 onTap: () => _openContextRailQueue(activeIncident),
               ),
@@ -13191,13 +13251,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 label: 'Details',
                 foreground: _activeTab == _ContextTab.details
-                    ? const Color(0xFF0F6D84)
+                    ? OnyxColorTokens.accentTeal
                     : _commandMutedColor,
                 background: _activeTab == _ContextTab.details
-                    ? const Color(0xFFEAF8FB)
+                    ? OnyxColorTokens.surfaceElevated
                     : _commandPanelColor,
                 border: _activeTab == _ContextTab.details
-                    ? const Color(0xFFBCDCE4)
+                    ? OnyxColorTokens.borderStrong
                     : _commandBorderColor,
                 leadingIcon: Icons.article_outlined,
                 onTap: () =>
@@ -13207,13 +13267,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 key: const ValueKey('live-operations-context-focus-open-voip'),
                 label: 'VoIP',
                 foreground: _activeTab == _ContextTab.voip
-                    ? const Color(0xFF2E6EA8)
+                    ? OnyxColorTokens.accentBlue
                     : _commandMutedColor,
                 background: _activeTab == _ContextTab.voip
-                    ? const Color(0xFFEFF4FA)
+                    ? OnyxColorTokens.surfaceElevated
                     : _commandPanelColor,
                 border: _activeTab == _ContextTab.voip
-                    ? const Color(0xFFC4D8EC)
+                    ? OnyxColorTokens.borderStrong
                     : _commandBorderColor,
                 leadingIcon: Icons.call_rounded,
                 onTap: () =>
@@ -13225,13 +13285,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 label: 'Visual',
                 foreground: _activeTab == _ContextTab.visual
-                    ? const Color(0xFF176B4A)
+                    ? OnyxColorTokens.greenBorder
                     : _commandMutedColor,
                 background: _activeTab == _ContextTab.visual
-                    ? const Color(0xFFEFFAF4)
+                    ? OnyxColorTokens.greenSurface
                     : _commandPanelColor,
                 border: _activeTab == _ContextTab.visual
-                    ? const Color(0xFFC6E8D4)
+                    ? OnyxColorTokens.greenBorder
                     : _commandBorderColor,
                 leadingIcon: Icons.videocam_outlined,
                 onTap: () =>
@@ -13244,9 +13304,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 label: focusedGuard == null
                     ? 'Guard attention'
                     : focusedGuard.callsign,
-                foreground: const Color(0xFFE8FFF4),
-                background: const Color(0x1A10B981),
-                border: const Color(0x6610B981),
+                foreground: OnyxColorTokens.greenSurface,
+                background: OnyxColorTokens.greenSurface,
+                border: OnyxColorTokens.greenBorder,
                 leadingIcon: Icons.shield_moon_outlined,
                 onTap: _vigilance.isEmpty
                     ? null
@@ -13258,9 +13318,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     'live-operations-context-focus-open-client-lane',
                   ),
                   label: 'Client Comms',
-                  foreground: const Color(0xFF0F6D84),
-                  background: const Color(0xFFEAF8FB),
-                  border: const Color(0xFFBCDCE4),
+                  foreground: OnyxColorTokens.accentTeal,
+                  background: OnyxColorTokens.surfaceElevated,
+                  border: OnyxColorTokens.borderStrong,
                   leadingIcon: Icons.open_in_new_rounded,
                   onTap: openClientLaneAction,
                 ),
@@ -13344,9 +13404,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 children: [
                   _chip(
                     label: tabLabel,
-                    foreground: const Color(0xFF2E6EA8),
-                    background: const Color(0xFFEFF4FA),
-                    border: const Color(0xFFC4D8EC),
+                    foreground: OnyxColorTokens.accentBlue,
+                    background: OnyxColorTokens.surfaceElevated,
+                    border: OnyxColorTokens.borderStrong,
                     leadingIcon: switch (_activeTab) {
                       _ContextTab.details => Icons.article_outlined,
                       _ContextTab.voip => Icons.call_rounded,
@@ -13355,9 +13415,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ),
                   _chip(
                     label: queueLabel,
-                    foreground: const Color(0xFFFFE4B5),
-                    background: const Color(0x1AF59E0B),
-                    border: const Color(0x66F59E0B),
+                    foreground: OnyxColorTokens.amberBorder,
+                    background: OnyxColorTokens.amberSurface,
+                    border: OnyxColorTokens.amberBorder,
                     leadingIcon: Icons.schedule_rounded,
                   ),
                   if (focusedGuard != null)
@@ -13368,20 +13428,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       label:
                           '${focusedGuard.callsign} • ${focusedGuard.decayLevel}%',
                       foreground: focusedGuard.decayLevel >= 90
-                          ? const Color(0xFFFFD6D6)
+                          ? OnyxColorTokens.redBorder
                           : focusedGuard.decayLevel >= 75
-                          ? const Color(0xFFFFE4B5)
-                          : const Color(0xFFE8FFF4),
+                          ? OnyxColorTokens.amberBorder
+                          : OnyxColorTokens.greenSurface,
                       background: focusedGuard.decayLevel >= 90
-                          ? const Color(0x1AEF4444)
+                          ? OnyxColorTokens.redSurface
                           : focusedGuard.decayLevel >= 75
-                          ? const Color(0x1AF59E0B)
-                          : const Color(0x1A10B981),
+                          ? OnyxColorTokens.amberSurface
+                          : OnyxColorTokens.greenSurface,
                       border: focusedGuard.decayLevel >= 90
-                          ? const Color(0x66EF4444)
+                          ? OnyxColorTokens.accentRed.withValues(alpha: 0.4)
                           : focusedGuard.decayLevel >= 75
-                          ? const Color(0x66F59E0B)
-                          : const Color(0x6610B981),
+                          ? OnyxColorTokens.amberBorder
+                          : OnyxColorTokens.greenBorder,
                       leadingIcon: Icons.shield_moon_outlined,
                     ),
                   if (activeIncident != null)
@@ -13516,8 +13576,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0x66EF4444), width: 2),
-            color: const Color(0xFFFFF1F1),
+            border: Border.all(
+              color: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
+              width: 2,
+            ),
+            color: OnyxColorTokens.redSurface,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -13526,14 +13589,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 children: [
                   const Icon(
                     Icons.warning_amber_rounded,
-                    color: Color(0xFFEF4444),
+                    color: OnyxColorTokens.accentRed,
                     size: 18,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     'SILENT DURESS DETECTED',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFB42318),
+                      color: OnyxColorTokens.redBorder,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -13544,11 +13607,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               FilledButton(
                 onPressed: () => _forceDispatch(incident),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFF1F1),
-                  foregroundColor: const Color(0xFFB42318),
+                  backgroundColor: OnyxColorTokens.redSurface,
+                  foregroundColor: OnyxColorTokens.redBorder,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: Color(0xFFE8B6B6)),
+                    side: const BorderSide(color: OnyxColorTokens.redBorder),
                   ),
                   textStyle: GoogleFonts.inter(
                     fontSize: 11,
@@ -13580,7 +13643,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required bool duress,
     required String evidenceReady,
   }) {
-    final accent = duress ? const Color(0xFFEF4444) : priority.foreground;
+    final accent = duress ? OnyxColorTokens.accentRed : priority.foreground;
     final leadLabel = duress
         ? 'MOVE NOW'
         : incident.priority == _IncidentPriority.p1Critical
@@ -13612,7 +13675,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.16), const Color(0xFFFBFDFF)],
+          colors: [
+            accent.withValues(alpha: 0.16),
+            OnyxColorTokens.surfaceElevated,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -13653,7 +13719,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 incident.id,
                 style: GoogleFonts.robotoMono(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 10.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -13664,7 +13730,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w900,
               height: 1,
@@ -13676,7 +13742,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10.1,
               fontWeight: FontWeight.w700,
               height: 1.28,
@@ -13690,7 +13756,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _commsChip(
                 icon: Icons.location_on_outlined,
                 label: _humaniseSiteId(incident.site),
-                accent: const Color(0xFF22D3EE),
+                accent: OnyxColorTokens.accentCyanTrue,
               ),
               _commsChip(
                 icon: Icons.fiber_manual_record_rounded,
@@ -13700,7 +13766,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _commsChip(
                 icon: Icons.verified_outlined,
                 label: evidenceReady,
-                accent: const Color(0xFF34D399),
+                accent: OnyxColorTokens.accentGreen,
               ),
             ],
           ),
@@ -13753,7 +13819,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF4FF),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 10.4,
                 fontWeight: FontWeight.w700,
                 height: 1.15,
@@ -13771,7 +13837,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           factTile(
             label: 'SITE',
             value: _humaniseSiteId(incident.site),
-            accent: const Color(0xFF22D3EE),
+            accent: OnyxColorTokens.accentCyanTrue,
             icon: Icons.location_on_outlined,
           ),
           factTile(
@@ -13783,13 +13849,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           factTile(
             label: 'CLIENT',
             value: 'Sandton HOA',
-            accent: const Color(0xFF3B82F6),
+            accent: OnyxColorTokens.accentBlue,
             icon: Icons.apartment_rounded,
           ),
           factTile(
             label: 'PROOF',
             value: evidenceReady,
-            accent: const Color(0xFF34D399),
+            accent: OnyxColorTokens.accentGreen,
             icon: Icons.verified_outlined,
           ),
         ];
@@ -13877,7 +13943,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.12), const Color(0xFFFBFDFF)],
+          colors: [
+            accent.withValues(alpha: 0.12),
+            OnyxColorTokens.surfaceElevated,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -13902,7 +13971,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 child: Text(
                   'Client Comms Pulse',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF172638),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
@@ -13919,8 +13988,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     siteId: snapshot.siteId,
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF315A86),
-                    backgroundColor: const Color(0xFF13131E),
+                    foregroundColor: OnyxColorTokens.accentBlue,
+                    backgroundColor: OnyxColorTokens.backgroundSecondary,
                     side: BorderSide(color: accent.withValues(alpha: 0.58)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -13948,9 +14017,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       ? null
                       : () => _clearLearnedLaneStyle(snapshot),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F6A83),
-                    backgroundColor: const Color(0xFFF5FBFF),
-                    side: const BorderSide(color: Color(0xFF87CAE0)),
+                    foregroundColor: OnyxColorTokens.accentTeal,
+                    backgroundColor: OnyxColorTokens.surfaceElevated,
+                    side: const BorderSide(color: OnyxColorTokens.accentSky),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 5,
@@ -13963,7 +14032,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           height: 14,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Color(0xFF0F6A83),
+                            color: OnyxColorTokens.accentTeal,
                           ),
                         )
                       : const Icon(Icons.refresh_rounded, size: 14),
@@ -13982,7 +14051,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             '${_humanizeOpsScopeLabel(snapshot.siteId, fallback: incident.site)} • ${_clientCommsNarrative(snapshot)}',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10.4,
               fontWeight: FontWeight.w600,
               height: 1.28,
@@ -13996,14 +14065,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _commsChip(
                 icon: Icons.mark_chat_unread_rounded,
                 label: '${snapshot.clientInboundCount} client msg',
-                accent: const Color(0xFF22D3EE),
+                accent: OnyxColorTokens.accentCyanTrue,
               ),
               _commsChip(
                 icon: Icons.verified_user_rounded,
                 label: '${snapshot.pendingApprovalCount} approval',
                 accent: snapshot.pendingApprovalCount > 0
-                    ? const Color(0xFFF59E0B)
-                    : const Color(0xFF34D399),
+                    ? OnyxColorTokens.accentAmber
+                    : OnyxColorTokens.accentGreen,
               ),
               _commsChip(
                 icon: Icons.telegram_rounded,
@@ -14038,7 +14107,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 _commsChip(
                   icon: Icons.school_rounded,
                   label: 'Learned style ${snapshot.learnedApprovalStyleCount}',
-                  accent: const Color(0xFF22D3EE),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
               if (snapshot.pendingLearnedStyleDraftCount > 0)
                 _commsChip(
@@ -14046,7 +14115,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: snapshot.pendingLearnedStyleDraftCount == 1
                       ? 'ONYX using learned style'
                       : 'ONYX using learned style on ${snapshot.pendingLearnedStyleDraftCount} drafts',
-                  accent: const Color(0xFF67E8F9),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
             ],
           ),
@@ -14063,7 +14132,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                     ),
                   ),
                 for (final option in const <(String, String?)>[
@@ -14079,16 +14148,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
-                          ? const Color(0xFF172638)
-                          : const Color(0xFF556B80),
+                          ? OnyxColorTokens.textPrimary
+                          : OnyxColorTokens.textSecondary,
                       backgroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
                           ? accent.withValues(alpha: 0.16)
-                          : const Color(0xFF13131E),
+                          : OnyxColorTokens.backgroundSecondary,
                       side: BorderSide(
                         color: _laneVoiceOptionSelected(snapshot, option.$2)
                             ? accent.withValues(alpha: 0.34)
-                            : const Color(0xFFD4DFEA),
+                            : OnyxColorTokens.borderStrong,
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -14110,7 +14179,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             _liveClientLaneCue(snapshot),
             style: GoogleFonts.inter(
-              color: const Color(0xFFA9BFD9),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.28,
@@ -14121,8 +14190,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             label: 'Latest Client Message',
             text:
                 '$latestClientMessage${_commsMomentLabel(snapshot.latestClientMessageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestClientMessageAtUtc)}'}',
-            borderColor: const Color(0xFF31506F),
-            textColor: const Color(0xFF172638),
+            borderColor: OnyxColorTokens.borderStrong,
+            textColor: OnyxColorTokens.textPrimary,
           ),
           const SizedBox(height: 7),
           _clientCommsTextBlock(
@@ -14130,7 +14199,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             text:
                 '$responseText${responseMoment.isEmpty ? '' : ' • $responseMoment'}',
             borderColor: accent,
-            textColor: const Color(0xFF172638),
+            textColor: OnyxColorTokens.textPrimary,
           ),
           if ((snapshot.latestSmsFallbackStatus ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 7),
@@ -14138,8 +14207,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Latest SMS fallback',
               text:
                   '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestSmsFallbackStatus!.trim())}${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc)}'}',
-              borderColor: const Color(0xFF2E7D68),
-              textColor: const Color(0xFF166534),
+              borderColor: OnyxColorTokens.greenBorder,
+              textColor: OnyxColorTokens.greenBorder,
             ),
           ],
           if ((snapshot.latestVoipStageStatus ?? '').trim().isNotEmpty) ...[
@@ -14148,8 +14217,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Latest VoIP stage',
               text:
                   '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestVoipStageStatus!.trim())}${_commsMomentLabel(snapshot.latestVoipStageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestVoipStageAtUtc)}'}',
-              borderColor: const Color(0xFF3E6AA6),
-              textColor: const Color(0xFF315A86),
+              borderColor: OnyxColorTokens.accentBlue,
+              textColor: OnyxColorTokens.accentBlue,
             ),
           ],
           if (snapshot.recentDeliveryHistoryLines.isNotEmpty) ...[
@@ -14157,8 +14226,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             _clientCommsTextBlock(
               label: 'Recent delivery history',
               text: snapshot.recentDeliveryHistoryLines.join('\n'),
-              borderColor: const Color(0xFF35506F),
-              textColor: const Color(0xFF315A86),
+              borderColor: OnyxColorTokens.borderStrong,
+              textColor: OnyxColorTokens.accentBlue,
             ),
           ],
           if (snapshot.learnedApprovalStyleExample.trim().isNotEmpty) ...[
@@ -14166,8 +14235,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             _clientCommsTextBlock(
               label: 'Learned approval style',
               text: snapshot.learnedApprovalStyleExample.trim(),
-              borderColor: const Color(0xFF245B72),
-              textColor: const Color(0xFF0F6A83),
+              borderColor: OnyxColorTokens.accentBlue,
+              textColor: OnyxColorTokens.accentTeal,
             ),
           ],
           if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty ||
@@ -14178,7 +14247,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             Text(
               _clientCommsOpsFootnote(snapshot),
               style: GoogleFonts.inter(
-                color: const Color(0xFFA9BFD9),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 height: 1.28,
@@ -14512,8 +14581,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x665C7CFA)),
-        color: const Color(0xFFF7F7FF),
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+        ),
+        color: OnyxColorTokens.surfaceElevated,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -14523,7 +14594,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Next-Shift Drafts',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF3F51B5),
+                  color: OnyxColorTokens.accentPurple,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -14532,7 +14603,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 '${drafts.length} draft${drafts.length == 1 ? '' : 's'}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -14600,8 +14671,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x665B9BD5)),
-        color: const Color(0xFFF5FBFF),
+        border: Border.all(
+          color: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
+        ),
+        color: OnyxColorTokens.surfaceElevated,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -14611,7 +14684,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Shadow MO Intelligence',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF315A86),
+                  color: OnyxColorTokens.accentBlue,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -14620,7 +14693,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 '${sitePosture.moShadowMatchCount} match${sitePosture.moShadowMatchCount == 1 ? '' : 'es'}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -14699,11 +14772,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             label: 'SHADOW MO',
                             detail:
                                 'The copied dossier stays visible in the desktop rail while the shadow pattern remains in context.',
-                            accent: const Color(0xFF8FD1FF),
+                            accent: OnyxColorTokens.accentSky,
                           );
                         },
                         style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF315C86),
+                          foregroundColor: OnyxColorTokens.accentBlue,
                         ),
                         child: const Text('COPY JSON'),
                       ),
@@ -14764,7 +14837,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 Text(
                                   'Strength ${shadowMoStrengthSummary(match)}',
                                   style: GoogleFonts.robotoMono(
-                                    color: const Color(0xFF315C86),
+                                    color: OnyxColorTokens.accentBlue,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -14775,7 +14848,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 Text(
                                   'Actions ${match.recommendedActionPlans.join(' • ')}',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFF315C86),
+                                    color: OnyxColorTokens.accentBlue,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -14795,7 +14868,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                       );
                                     },
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: const Color(0xFF315C86),
+                                      foregroundColor:
+                                          OnyxColorTokens.accentBlue,
                                       side: const BorderSide(
                                         color: _commandBorderStrongColor,
                                       ),
@@ -14848,8 +14922,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD4DFEA)),
-        color: const Color(0xFF13131E),
+        border: Border.all(color: OnyxColorTokens.borderStrong),
+        color: OnyxColorTokens.backgroundSecondary,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -14859,7 +14933,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Activity Truth',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF315A86),
+                  color: OnyxColorTokens.accentBlue,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -14868,7 +14942,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 '${snapshot.totalSignals} signals',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -14905,12 +14979,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: 'EVENTS SCOPE',
                     detail:
                         'The scoped evidence handoff stays pinned in the context rail while the incident board remains in place.',
-                    accent: const Color(0xFF67E8F9),
+                    accent: OnyxColorTokens.accentCyanTrue,
                   );
                 },
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF23547C)),
-                  foregroundColor: const Color(0xFF8FD1FF),
+                  side: const BorderSide(color: OnyxColorTokens.accentBlue),
+                  foregroundColor: OnyxColorTokens.accentSky,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 8,
@@ -14970,8 +15044,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD4DFEA)),
-        color: const Color(0xFF13131E),
+        border: Border.all(color: OnyxColorTokens.borderStrong),
+        color: OnyxColorTokens.backgroundSecondary,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -14981,7 +15055,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Suppressed ${widget.videoOpsLabel} Reviews',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -14989,9 +15063,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               const SizedBox(width: 8),
               _contextChip(
                 label: '${entries.length} internal',
-                foreground: const Color(0xFFBFD7F2),
-                background: const Color(0x149AB1CF),
-                border: const Color(0x339AB1CF),
+                foreground: OnyxColorTokens.borderStrong,
+                background: OnyxColorTokens.textSecondary.withValues(
+                  alpha: 0.08,
+                ),
+                border: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
               ),
             ],
           ),
@@ -14999,7 +15075,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             'Recent ${widget.videoOpsLabel} reviews ONYX held below the client notification threshold for this site.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -15044,7 +15120,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       Text(
                         _hhmm(review.reviewedAtUtc.toLocal()),
                         style: GoogleFonts.robotoMono(
-                          color: const Color(0xFF8FA7C8),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -15078,29 +15154,41 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     children: [
                       _contextChip(
                         label: sourceLabel.isEmpty ? 'metadata' : sourceLabel,
-                        foreground: const Color(0xFFFDE68A),
-                        background: const Color(0x145B3A16),
-                        border: const Color(0x665B3A16),
+                        foreground: OnyxColorTokens.accentAmber,
+                        background: OnyxColorTokens.amberBorder.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.amberBorder.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
                       _contextChip(
                         label: postureLabel.isEmpty ? 'reviewed' : postureLabel,
-                        foreground: const Color(0xFF86EFAC),
-                        background: const Color(0x1420643B),
-                        border: const Color(0x6634D399),
+                        foreground: OnyxColorTokens.accentGreen,
+                        background: OnyxColorTokens.greenBorder.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentGreen.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
                       if (cameraLabel.isNotEmpty)
                         _contextChip(
                           label: cameraLabel,
-                          foreground: const Color(0xFF67E8F9),
-                          background: const Color(0x1122D3EE),
-                          border: const Color(0x5522D3EE),
+                          foreground: OnyxColorTokens.accentCyanTrue,
+                          background: OnyxColorTokens.accentCyanTrue.withValues(
+                            alpha: 0.07,
+                          ),
+                          border: OnyxColorTokens.accentCyanTrue.withValues(
+                            alpha: 0.33,
+                          ),
                         ),
                       if (zoneLabel.isNotEmpty)
                         _contextChip(
                           label: zoneLabel,
-                          foreground: const Color(0xFF556B80),
-                          background: const Color(0xFF1A1A2E),
-                          border: const Color(0xFFD4DFEA),
+                          foreground: OnyxColorTokens.textSecondary,
+                          background: OnyxColorTokens.surfaceElevated,
+                          border: OnyxColorTokens.borderStrong,
                         ),
                     ],
                   ),
@@ -15435,8 +15523,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD4DFEA)),
-        color: const Color(0xFF13131E),
+        border: Border.all(color: OnyxColorTokens.borderStrong),
+        color: OnyxColorTokens.backgroundSecondary,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -15446,7 +15534,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Partner Progression',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -15454,9 +15542,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               const SizedBox(width: 8),
               _contextChip(
                 label: '${progress.declarationCount} declarations',
-                foreground: const Color(0xFF8FD1FF),
-                background: const Color(0x1122D3EE),
-                border: const Color(0x5522D3EE),
+                foreground: OnyxColorTokens.accentSky,
+                background: OnyxColorTokens.accentCyanTrue.withValues(
+                  alpha: 0.07,
+                ),
+                border: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.33),
               ),
             ],
           ),
@@ -15464,7 +15554,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             '${progress.partnerLabel} • Latest ${_partnerDispatchStatusLabel(progress.latestStatus)} • ${_hhmm(progress.latestOccurredAt.toLocal())}',
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -15476,9 +15566,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             children: [
               _contextChip(
                 label: 'Dispatch ${progress.dispatchId}',
-                foreground: const Color(0xFF556B80),
-                background: const Color(0xFF1A1A2E),
-                border: const Color(0xFFD4DFEA),
+                foreground: OnyxColorTokens.textSecondary,
+                background: OnyxColorTokens.surfaceElevated,
+                border: OnyxColorTokens.borderStrong,
               ),
               if (trend != null)
                 _contextChip(
@@ -15516,7 +15606,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               '7-day partner history is available for review in Admin and Governance.',
               key: ValueKey<String>('live-partner-trend-reason-$incidentId'),
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -15539,15 +15629,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: reached ? tone.$2 : const Color(0xFF1A1A2E),
-        border: Border.all(color: reached ? tone.$3 : const Color(0xFFD4DFEA)),
+        color: reached ? tone.$2 : OnyxColorTokens.surfaceElevated,
+        border: Border.all(
+          color: reached ? tone.$3 : OnyxColorTokens.borderStrong,
+        ),
       ),
       child: Text(
         reached
             ? '${_partnerDispatchStatusLabel(status)} ${_hhmm(timestamp.toLocal())}'
             : '${_partnerDispatchStatusLabel(status)} Pending',
         style: GoogleFonts.inter(
-          color: reached ? tone.$1 : const Color(0xFF556B80),
+          color: reached ? tone.$1 : OnyxColorTokens.textSecondary,
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
@@ -15564,7 +15656,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         title: 'No live call is pinned yet.',
         summary:
             'Pick the lead incident and the call script lands here. Keep this tab open when client pressure matters.',
-        accent: const Color(0xFF22D3EE),
+        accent: OnyxColorTokens.accentCyanTrue,
         clientCommsSnapshot: widget.clientCommsSnapshot,
       );
     }
@@ -15590,8 +15682,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       },
     ];
     final callAccent = duress
-        ? const Color(0xFFEF4444)
-        : const Color(0xFF22D3EE);
+        ? OnyxColorTokens.accentRed
+        : OnyxColorTokens.accentCyanTrue;
     final latestMessage = transcript.last['message'] ?? '';
     final items = List<Widget>.generate(transcript.length, (index) {
       final entry = transcript[index];
@@ -15603,9 +15695,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: aiSpeaker ? const Color(0xFFEAF8FB) : _commandPanelColor,
+          color: aiSpeaker
+              ? OnyxColorTokens.surfaceElevated
+              : _commandPanelColor,
           border: Border.all(
-            color: aiSpeaker ? const Color(0xFFBCDCE4) : _commandBorderColor,
+            color: aiSpeaker
+                ? OnyxColorTokens.borderStrong
+                : _commandBorderColor,
           ),
         ),
         child: Column(
@@ -15617,7 +15713,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   speaker,
                   style: GoogleFonts.inter(
                     color: aiSpeaker
-                        ? const Color(0xFF22D3EE)
+                        ? OnyxColorTokens.accentCyanTrue
                         : _commandTitleColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
@@ -15639,7 +15735,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               message,
               style: GoogleFonts.inter(
                 color: index == transcript.length - 1 && duress
-                    ? const Color(0xFFB42318)
+                    ? OnyxColorTokens.redBorder
                     : _commandTitleColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -15700,7 +15796,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 incident.id,
                 style: GoogleFonts.robotoMono(
-                  color: const Color(0xFF4D7FAE),
+                  color: OnyxColorTokens.accentBlue,
                   fontSize: 10.0,
                   fontWeight: FontWeight.w700,
                 ),
@@ -15744,12 +15840,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _commsChip(
                 icon: Icons.location_on_outlined,
                 label: incident.site,
-                accent: const Color(0xFF3B82F6),
+                accent: OnyxColorTokens.accentBlue,
               ),
               _commsChip(
                 icon: Icons.schedule_rounded,
                 label: transcript.last['timestamp'] ?? '',
-                accent: const Color(0xFFF59E0B),
+                accent: OnyxColorTokens.accentAmber,
               ),
             ],
           ),
@@ -15820,7 +15916,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         title: 'No camera comparison is pinned yet.',
         summary:
             'The visual rail can still recover the lead incident, reopen the action ladder, or keep the scoped Client Comms posture visible while comparison evidence comes online.',
-        accent: const Color(0xFFFACC15),
+        accent: OnyxColorTokens.accentAmber,
         clientCommsSnapshot: widget.clientCommsSnapshot,
       );
     }
@@ -15828,10 +15924,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final clipAvailable = (incident.clipUrl ?? '').trim().isNotEmpty;
     final score = _visualMatchScoreForIncident(incident);
     final scoreColor = score >= 95
-        ? const Color(0xFF10B981)
+        ? OnyxColorTokens.accentGreen
         : score >= 60
-        ? const Color(0xFFFACC15)
-        : const Color(0xFFEF4444);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentRed;
     final visualSummaryCard = Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -15932,20 +16028,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? 'snapshot ready'
                     : 'snapshot pending',
                 accent: snapshotAvailable
-                    ? const Color(0xFF34D399)
-                    : const Color(0xFFF59E0B),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
               _commsChip(
                 icon: Icons.movie_outlined,
                 label: clipAvailable ? 'clip ready' : 'clip pending',
                 accent: clipAvailable
-                    ? const Color(0xFF34D399)
-                    : const Color(0xFFF59E0B),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
               _commsChip(
                 icon: Icons.location_on_outlined,
                 label: _humaniseSiteId(incident.site),
-                accent: const Color(0xFF22D3EE),
+                accent: OnyxColorTokens.accentCyanTrue,
               ),
             ],
           ),
@@ -16001,8 +16097,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: const Color(0xFFF2FBF7),
-            border: Border.all(color: const Color(0xFFB9DEC8)),
+            color: OnyxColorTokens.greenSurface,
+            border: Border.all(color: OnyxColorTokens.greenBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -16022,8 +16118,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: const Color(0xFFFFF2F2),
-            border: Border.all(color: const Color(0xFFE7B4B4)),
+            color: OnyxColorTokens.redSurface,
+            border: Border.all(color: OnyxColorTokens.redBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -16055,7 +16151,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           child: Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFC3C9),
+              color: OnyxColorTokens.redBorder,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -16064,7 +16160,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         Text(
           '$confidence%',
           style: GoogleFonts.inter(
-            color: const Color(0xFFEF4444),
+            color: OnyxColorTokens.accentRed,
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
@@ -16079,10 +16175,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       final guard = _vigilance[index];
       final selected = _focusedVigilanceCallsign == guard.callsign;
       final statusColor = guard.decayLevel <= 75
-          ? const Color(0xFF10B981)
+          ? OnyxColorTokens.accentGreen
           : guard.decayLevel <= 90
-          ? const Color(0xFFF59E0B)
-          : const Color(0xFFEF4444);
+          ? OnyxColorTokens.accentAmber
+          : OnyxColorTokens.accentRed;
       return Material(
         color: Colors.transparent,
         child: InkWell(
@@ -16294,20 +16390,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(999),
                             color: verified
-                                ? const Color(0x1A34D399)
-                                : const Color(0x1AF59E0B),
+                                ? OnyxColorTokens.greenSurface
+                                : OnyxColorTokens.amberSurface,
                             border: Border.all(
                               color: verified
-                                  ? const Color(0x6634D399)
-                                  : const Color(0x66F59E0B),
+                                  ? OnyxColorTokens.accentGreen.withValues(
+                                      alpha: 0.4,
+                                    )
+                                  : OnyxColorTokens.amberBorder,
                             ),
                           ),
                           child: Text(
                             verified ? 'VERIFIED' : 'PENDING',
                             style: GoogleFonts.robotoMono(
                               color: verified
-                                  ? const Color(0xFF6EE7B7)
-                                  : const Color(0xFFFBBF24),
+                                  ? OnyxColorTokens.accentGreen
+                                  : OnyxColorTokens.accentAmber,
                               fontSize: 8,
                               fontWeight: FontWeight.w800,
                             ),
@@ -16399,16 +16497,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6D28D9).withValues(alpha: 0.16),
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.36),
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.36),
                   ),
                 ),
                 child: const Icon(
                   Icons.shield_outlined,
                   size: 16,
-                  color: Color(0xFFA78BFA),
+                  color: OnyxColorTokens.accentPurple,
                 ),
               ),
               const SizedBox(width: 8),
@@ -16478,12 +16576,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               color: chainVerified
-                  ? const Color(0x1434D399)
-                  : const Color(0x14F59E0B),
+                  ? OnyxColorTokens.accentGreen.withValues(alpha: 0.08)
+                  : OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
               border: Border.all(
                 color: chainVerified
-                    ? const Color(0x3334D399)
-                    : const Color(0x33F59E0B),
+                    ? OnyxColorTokens.accentGreen.withValues(alpha: 0.2)
+                    : OnyxColorTokens.accentAmber.withValues(alpha: 0.2),
               ),
             ),
             child: Row(
@@ -16494,8 +16592,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       : Icons.pending_actions_outlined,
                   size: 16,
                   color: chainVerified
-                      ? const Color(0xFF6EE7B7)
-                      : const Color(0xFFFBBF24),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentAmber,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -16508,8 +16606,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             : 'Chain status: Pending verification',
                         style: GoogleFonts.inter(
                           color: chainVerified
-                              ? const Color(0xFF176B4A)
-                              : const Color(0xFF8A5A00),
+                              ? OnyxColorTokens.greenBorder
+                              : OnyxColorTokens.amberBorder,
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                         ),
@@ -16550,9 +16648,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? null
                     : () => _verifyLedgerChain(ledger),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF6D28D9),
+                  foregroundColor: OnyxColorTokens.accentPurple,
                   backgroundColor: _commandPanelColor,
-                  side: const BorderSide(color: Color(0xFFD5C0FF)),
+                  side: const BorderSide(color: OnyxColorTokens.purpleBorder),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 9,
@@ -16679,7 +16777,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       detail: activeIncident == null
           ? 'The queue came forward in the left rail while the right-side context stayed pinned for the next incident.'
           : 'The selected incident stayed active while the left rail reopened high-priority reply work in place.',
-      accent: const Color(0xFFF59E0B),
+      accent: OnyxColorTokens.accentAmber,
     );
   }
 
@@ -16704,9 +16802,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? 'The right rail stayed active so the next incident can land without losing operator context.'
           : 'The context rail kept ${activeIncident.id} pinned while ${tabLabel.toLowerCase()} posture moved forward in place.',
       accent: switch (tab) {
-        _ContextTab.details => const Color(0xFF22D3EE),
-        _ContextTab.voip => const Color(0xFF3B82F6),
-        _ContextTab.visual => const Color(0xFF10B981),
+        _ContextTab.details => OnyxColorTokens.accentCyanTrue,
+        _ContextTab.voip => OnyxColorTokens.accentBlue,
+        _ContextTab.visual => OnyxColorTokens.accentGreen,
       },
     );
   }
@@ -16720,10 +16818,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _focusedVigilanceCallsign = guard.callsign;
     });
     final accent = guard.decayLevel >= 90
-        ? const Color(0xFFEF4444)
+        ? OnyxColorTokens.accentRed
         : guard.decayLevel >= 75
-        ? const Color(0xFFF59E0B)
-        : const Color(0xFF10B981);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentGreen;
     _showLiveOpsFeedback(
       'Guard attention centered on ${guard.callsign}.',
       label: 'GUARD VIGILANCE',
@@ -16750,7 +16848,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       detail: active == null
           ? 'The board is centered and ready for the next live incident without leaving the rail.'
           : 'The selected incident stayed pinned while the action ladder moved into view for ${active.id}.',
-      accent: const Color(0xFF22D3EE),
+      accent: OnyxColorTokens.accentCyanTrue,
     );
   }
 
@@ -16781,9 +16879,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? 'The right rail stayed active so the next incident can land without losing operator context.'
           : 'The incident rail kept ${active.id} selected while ${tabLabel.toLowerCase()} posture moved forward in place.',
       accent: switch (tab) {
-        _ContextTab.details => const Color(0xFF22D3EE),
-        _ContextTab.voip => const Color(0xFF3B82F6),
-        _ContextTab.visual => const Color(0xFF10B981),
+        _ContextTab.details => OnyxColorTokens.accentCyanTrue,
+        _ContextTab.voip => OnyxColorTokens.accentBlue,
+        _ContextTab.visual => OnyxColorTokens.accentGreen,
       },
     );
   }
@@ -16799,7 +16897,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       detail: active == null
           ? 'The left rail moved directly into reply work while the board stayed ready for the next selected incident.'
           : 'Reply work came forward in the left rail while ${active.id} remained the active live incident.',
-      accent: const Color(0xFFF59E0B),
+      accent: OnyxColorTokens.accentAmber,
     );
   }
 
@@ -16812,7 +16910,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'INCIDENT RAIL',
       detail:
           'The highest-risk live incident moved into the board while the rest of the queue stayed visible for follow-through.',
-      accent: const Color(0xFFEF4444),
+      accent: OnyxColorTokens.accentRed,
     );
   }
 
@@ -16825,10 +16923,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       width: compact ? null : double.infinity,
       padding: EdgeInsets.symmetric(horizontal: compact ? 7 : 9, vertical: 7),
       decoration: BoxDecoration(
-        color: selected ? const Color(0xFFEAF8FB) : _commandPanelColor,
+        color: selected ? OnyxColorTokens.surfaceElevated : _commandPanelColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selected ? const Color(0xFFBCDCE4) : _commandBorderColor,
+          color: selected ? OnyxColorTokens.borderStrong : _commandBorderColor,
         ),
       ),
       alignment: Alignment.center,
@@ -16838,7 +16936,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         style: GoogleFonts.inter(
           fontSize: 9.5,
           fontWeight: FontWeight.w800,
-          color: selected ? const Color(0xFF0F6D84) : _commandMutedColor,
+          color: selected ? OnyxColorTokens.accentTeal : _commandMutedColor,
         ),
       ),
     );
@@ -17137,9 +17235,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 if (leadIncident != null)
                   _contextChip(
                     label: 'Lead ${leadIncident.id}',
-                    foreground: const Color(0xFF8FD1FF),
-                    background: const Color(0x1A22D3EE),
-                    border: const Color(0x5522D3EE),
+                    foreground: OnyxColorTokens.accentSky,
+                    background: OnyxColorTokens.accentCyanTrue.withValues(
+                      alpha: 0.1,
+                    ),
+                    border: OnyxColorTokens.accentCyanTrue.withValues(
+                      alpha: 0.33,
+                    ),
                   ),
               ],
             ),
@@ -17154,9 +17256,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       'live-operations-context-recovery-focus-lead',
                     ),
                     label: 'Focus lead incident',
-                    foreground: const Color(0xFF0F6D84),
-                    background: const Color(0xFFEAF8FB),
-                    border: const Color(0xFFBCDCE4),
+                    foreground: OnyxColorTokens.accentTeal,
+                    background: OnyxColorTokens.surfaceElevated,
+                    border: OnyxColorTokens.borderStrong,
                     leadingIcon: Icons.center_focus_strong_rounded,
                     onTap: () async {
                       _focusLeadIncident();
@@ -17177,9 +17279,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       'live-operations-context-recovery-focus-critical',
                     ),
                     label: 'Focus critical',
-                    foreground: const Color(0xFFFFD6D6),
-                    background: const Color(0x1AEF4444),
-                    border: const Color(0x66EF4444),
+                    foreground: OnyxColorTokens.redBorder,
+                    background: OnyxColorTokens.redSurface,
+                    border: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
                     leadingIcon: Icons.warning_amber_rounded,
                     onTap: () async {
                       _focusIncidentFromBanner(criticalAlertIncident);
@@ -17190,7 +17292,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         label: 'CONTEXT RECOVERY',
                         detail:
                             'Live Ops pinned the critical incident back into the board while keeping the current context tab active.',
-                        accent: const Color(0xFFEF4444),
+                        accent: OnyxColorTokens.accentRed,
                       );
                     },
                   ),
@@ -17199,9 +17301,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     'live-operations-context-recovery-open-queue',
                   ),
                   label: 'Open action ladder',
-                  foreground: const Color(0xFF2E6EA8),
-                  background: const Color(0xFFEFF4FA),
-                  border: const Color(0xFFC4D8EC),
+                  foreground: OnyxColorTokens.accentBlue,
+                  background: OnyxColorTokens.surfaceElevated,
+                  border: OnyxColorTokens.borderStrong,
                   leadingIcon: Icons.schedule_rounded,
                   onTap: () async {
                     await _openPendingActionsRecovery();
@@ -17213,9 +17315,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       'live-operations-context-recovery-open-client-lane',
                     ),
                     label: 'Recover Client Comms',
-                    foreground: const Color(0xFF0F6D84),
-                    background: const Color(0xFFEAF8FB),
-                    border: const Color(0xFFBCDCE4),
+                    foreground: OnyxColorTokens.accentTeal,
+                    background: OnyxColorTokens.surfaceElevated,
+                    border: OnyxColorTokens.borderStrong,
                     leadingIcon: Icons.forum_rounded,
                     onTap: () async {
                       await _openClientLaneRecovery(clientCommsSnapshot);
@@ -17368,8 +17470,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 onPressed: () =>
                     Navigator.of(context).pop(controller.text.trim()),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D5B),
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  backgroundColor: OnyxColorTokens.greenBorder,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 child: Text(
                   'Save Draft',
@@ -17449,7 +17551,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     String message, {
     String label = 'CONTROL INBOX',
     String? detail,
-    Color accent = const Color(0xFF8FD1FF),
+    Color accent = OnyxColorTokens.accentSky,
   }) {
     _showLiveOpsFeedback(
       message,
@@ -17469,15 +17571,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF13131E),
+              backgroundColor: OnyxColorTokens.backgroundSecondary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: Color(0x66EF4444)),
+                side: BorderSide(
+                  color: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
+                ),
               ),
               title: Text(
                 'Override ${incident.id}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8F2D36),
+                  color: OnyxColorTokens.redBorder,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -17491,7 +17595,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       'Select a reason code (required):',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF556B80),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -17520,15 +17624,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                     : Icons.radio_button_off,
                                 size: 16,
                                 color: selected
-                                    ? const Color(0xFFEF4444)
-                                    : const Color(0xFF9AB2D2),
+                                    ? OnyxColorTokens.accentRed
+                                    : OnyxColorTokens.textSecondary,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   code,
                                   style: GoogleFonts.robotoMono(
-                                    color: const Color(0xFF172638),
+                                    color: OnyxColorTokens.textPrimary,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -17556,11 +17660,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           Navigator.of(context).pop();
                         },
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFF1F1),
-                    foregroundColor: const Color(0xFFB42318),
+                    backgroundColor: OnyxColorTokens.redSurface,
+                    foregroundColor: OnyxColorTokens.redBorder,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
-                      side: const BorderSide(color: Color(0xFFE8B6B6)),
+                      side: const BorderSide(color: OnyxColorTokens.redBorder),
                     ),
                   ),
                   child: const Text('Submit Override'),
@@ -17634,7 +17738,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       label: 'AUTOMATION HOLD',
       detail:
           'The automation hold stays visible in the context rail while the operator reviews the incident ladder.',
-      accent: const Color(0xFFFBBF24),
+      accent: OnyxColorTokens.accentAmber,
     );
   }
 
@@ -17833,28 +17937,42 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _focusStateForeground(_FocusLinkState state) {
     return switch (state) {
-      _FocusLinkState.none => const Color(0xFF9AB1CF),
-      _FocusLinkState.exact => const Color(0xFF34D399),
-      _FocusLinkState.scopeBacked => const Color(0xFF8FD1FF),
-      _FocusLinkState.seeded => const Color(0xFFF59E0B),
+      _FocusLinkState.none => OnyxColorTokens.textSecondary,
+      _FocusLinkState.exact => OnyxColorTokens.accentGreen,
+      _FocusLinkState.scopeBacked => OnyxColorTokens.accentSky,
+      _FocusLinkState.seeded => OnyxColorTokens.accentAmber,
     };
   }
 
   Color _focusStateBackground(_FocusLinkState state) {
     return switch (state) {
-      _FocusLinkState.none => const Color(0x1A9AB1CF),
-      _FocusLinkState.exact => const Color(0x3334D399),
-      _FocusLinkState.scopeBacked => const Color(0x338FD1FF),
-      _FocusLinkState.seeded => const Color(0x33F59E0B),
+      _FocusLinkState.none => OnyxColorTokens.textSecondary.withValues(
+        alpha: 0.1,
+      ),
+      _FocusLinkState.exact => OnyxColorTokens.accentGreen.withValues(
+        alpha: 0.2,
+      ),
+      _FocusLinkState.scopeBacked => OnyxColorTokens.accentSky.withValues(
+        alpha: 0.2,
+      ),
+      _FocusLinkState.seeded => OnyxColorTokens.accentAmber.withValues(
+        alpha: 0.2,
+      ),
     };
   }
 
   Color _focusStateBorder(_FocusLinkState state) {
     return switch (state) {
-      _FocusLinkState.none => const Color(0x669AB1CF),
-      _FocusLinkState.exact => const Color(0x6634D399),
-      _FocusLinkState.scopeBacked => const Color(0x668FD1FF),
-      _FocusLinkState.seeded => const Color(0x66F59E0B),
+      _FocusLinkState.none => OnyxColorTokens.textSecondary.withValues(
+        alpha: 0.4,
+      ),
+      _FocusLinkState.exact => OnyxColorTokens.accentGreen.withValues(
+        alpha: 0.4,
+      ),
+      _FocusLinkState.scopeBacked => OnyxColorTokens.accentSky.withValues(
+        alpha: 0.4,
+      ),
+      _FocusLinkState.seeded => OnyxColorTokens.amberBorder,
     };
   }
 
@@ -18091,9 +18209,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? const EdgeInsets.symmetric(horizontal: 2.1, vertical: 0.88)
           : const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(compact ? 999 : 9),
-        border: Border.all(color: const Color(0xFFD4DFEA)),
+        border: Border.all(color: OnyxColorTokens.borderStrong),
       ),
       child: compact
           ? Wrap(
@@ -18104,7 +18222,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   'Scope focus active',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8FD1FF),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 6.2,
                     fontWeight: FontWeight.w800,
                   ),
@@ -18112,7 +18230,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   scopeLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF172638),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 6.1,
                     fontWeight: FontWeight.w700,
                   ),
@@ -18125,7 +18243,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   'Scope focus active',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8FD1FF),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 8.5,
                     fontWeight: FontWeight.w800,
                   ),
@@ -18134,7 +18252,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   scopeLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF172638),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 8.4,
                     fontWeight: FontWeight.w700,
                   ),
@@ -18623,7 +18741,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _statusChipColor(_IncidentStatus status) {
     return switch (status) {
-      _IncidentStatus.triaging => OnyxDesignTokens.cyanInteractive,
+      _IncidentStatus.triaging => OnyxColorTokens.accentCyanTrue,
       _IncidentStatus.dispatched => OnyxDesignTokens.amberWarning,
       _IncidentStatus.investigating => OnyxDesignTokens.purpleAdmin,
       _IncidentStatus.resolved => OnyxDesignTokens.greenNominal,
@@ -18648,9 +18766,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
       _IncidentPriority.p3Medium => _PriorityStyle(
         label: 'P3',
-        foreground: OnyxDesignTokens.cyanInteractive,
-        background: OnyxDesignTokens.cyanInteractive.withValues(alpha: 0.2),
-        border: OnyxDesignTokens.cyanInteractive.withValues(alpha: 0.4),
+        foreground: OnyxColorTokens.accentCyanTrue,
+        background: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.2),
+        border: OnyxColorTokens.accentCyanTrue.withValues(alpha: 0.4),
         icon: Icons.schedule_rounded,
       ),
       _IncidentPriority.p4Low => _PriorityStyle(
@@ -18667,7 +18785,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return switch (type) {
       _LedgerType.aiAction => const _LedgerStyle(
         icon: Icons.psychology_alt_rounded,
-        color: OnyxDesignTokens.cyanInteractive,
+        color: OnyxColorTokens.accentCyanTrue,
       ),
       _LedgerType.humanOverride => const _LedgerStyle(
         icon: Icons.person_rounded,
@@ -18695,11 +18813,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _stepColor(_LadderStepStatus status) {
     return switch (status) {
-      _LadderStepStatus.completed => const Color(0xFF10B981),
-      _LadderStepStatus.active => const Color(0xFF22D3EE),
-      _LadderStepStatus.thinking => const Color(0xFF22D3EE),
-      _LadderStepStatus.pending => const Color(0xFF6F84A3),
-      _LadderStepStatus.blocked => const Color(0xFFEF4444),
+      _LadderStepStatus.completed => OnyxColorTokens.accentGreen,
+      _LadderStepStatus.active => OnyxColorTokens.accentCyanTrue,
+      _LadderStepStatus.thinking => OnyxColorTokens.accentCyanTrue,
+      _LadderStepStatus.pending => OnyxColorTokens.textMuted,
+      _LadderStepStatus.blocked => OnyxColorTokens.accentRed,
     };
   }
 
@@ -18753,73 +18871,73 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   (Color, Color, Color) _partnerProgressTone(PartnerDispatchStatus status) {
     return switch (status) {
       PartnerDispatchStatus.unknown => (
-        const Color(0xFF94A3B8),
-        const Color(0x1494A3B8),
-        const Color(0x6694A3B8),
+        OnyxColorTokens.textMuted,
+        OnyxColorTokens.textMuted.withValues(alpha: 0.08),
+        OnyxColorTokens.textMuted.withValues(alpha: 0.4),
       ),
       PartnerDispatchStatus.accepted => (
-        const Color(0xFF38BDF8),
-        const Color(0x1A38BDF8),
-        const Color(0x6638BDF8),
+        OnyxColorTokens.accentSky,
+        OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+        OnyxColorTokens.accentSky.withValues(alpha: 0.4),
       ),
       PartnerDispatchStatus.onSite => (
-        const Color(0xFFF59E0B),
-        const Color(0x1AF59E0B),
-        const Color(0x66F59E0B),
+        OnyxColorTokens.accentAmber,
+        OnyxColorTokens.amberSurface,
+        OnyxColorTokens.amberBorder,
       ),
       PartnerDispatchStatus.allClear => (
-        const Color(0xFF34D399),
-        const Color(0x1A34D399),
-        const Color(0x6634D399),
+        OnyxColorTokens.accentGreen,
+        OnyxColorTokens.greenSurface,
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.4),
       ),
       PartnerDispatchStatus.cancelled => (
-        const Color(0xFFF87171),
-        const Color(0x1AF87171),
-        const Color(0x66F87171),
+        OnyxColorTokens.accentRed,
+        OnyxColorTokens.redSurface,
+        OnyxColorTokens.redBorder,
       ),
     };
   }
 
   Color _partnerTrendColor(String trendLabel) {
     return switch (trendLabel.trim().toUpperCase()) {
-      'IMPROVING' => const Color(0xFF34D399),
-      'STABLE' => const Color(0xFF38BDF8),
-      'SLIPPING' => const Color(0xFFF87171),
-      'NEW' => const Color(0xFF60A5FA),
-      _ => const Color(0xFF9CB4D0),
+      'IMPROVING' => OnyxColorTokens.accentGreen,
+      'STABLE' => OnyxColorTokens.accentSky,
+      'SLIPPING' => OnyxColorTokens.accentRed,
+      'NEW' => OnyxColorTokens.accentSky,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
   Color _clientCommsAccent(LiveClientCommsSnapshot snapshot) {
     if (snapshot.pendingApprovalCount > 0) {
-      return const Color(0xFF60A5FA);
+      return OnyxColorTokens.accentSky;
     }
     final bridge = snapshot.telegramHealthLabel.trim().toLowerCase();
     final push = snapshot.pushSyncStatusLabel.trim().toLowerCase();
     if (bridge == 'blocked' || push == 'failed') {
-      return const Color(0xFFEF4444);
+      return OnyxColorTokens.accentRed;
     }
     if (bridge == 'degraded' || snapshot.telegramFallbackActive) {
-      return const Color(0xFF38BDF8);
+      return OnyxColorTokens.accentSky;
     }
-    return const Color(0xFF22D3EE);
+    return OnyxColorTokens.accentCyanTrue;
   }
 
   Color _controlInboxAccent(LiveControlInboxSnapshot snapshot) {
     if (snapshot.pendingApprovalCount > 0) {
-      return const Color(0xFF60A5FA);
+      return OnyxColorTokens.accentSky;
     }
     if (snapshot.awaitingResponseCount > 0) {
-      return const Color(0xFF22D3EE);
+      return OnyxColorTokens.accentCyanTrue;
     }
     final bridge = snapshot.telegramHealthLabel.trim().toLowerCase();
     if (bridge == 'blocked') {
-      return const Color(0xFFEF4444);
+      return OnyxColorTokens.accentRed;
     }
     if (snapshot.telegramFallbackActive || bridge == 'degraded') {
-      return const Color(0xFF38BDF8);
+      return OnyxColorTokens.accentSky;
     }
-    return const Color(0xFF22D3EE);
+    return OnyxColorTokens.accentCyanTrue;
   }
 
   String _clientLaneTopBarLabel(LiveClientCommsSnapshot? snapshot) {
@@ -18843,7 +18961,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _clientLaneTopBarForeground(LiveClientCommsSnapshot? snapshot) {
     if (snapshot == null) {
-      return const Color(0xFF8FA7C8);
+      return OnyxColorTokens.textSecondary;
     }
     return _clientCommsAccent(snapshot);
   }
@@ -18860,20 +18978,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _telegramHealthAccent(String label) {
     return switch (label.trim().toLowerCase()) {
-      'ok' => const Color(0xFF34D399),
-      'blocked' => const Color(0xFFEF4444),
-      'degraded' => const Color(0xFF60A5FA),
-      'disabled' => const Color(0xFF8EA4C2),
-      _ => const Color(0xFF38BDF8),
+      'ok' => OnyxColorTokens.accentGreen,
+      'blocked' => OnyxColorTokens.accentRed,
+      'degraded' => OnyxColorTokens.accentSky,
+      'disabled' => OnyxColorTokens.textMuted,
+      _ => OnyxColorTokens.accentSky,
     };
   }
 
   Color _pushSyncAccent(String label) {
     return switch (label.trim().toLowerCase()) {
-      'ok' => const Color(0xFF34D399),
-      'failed' => const Color(0xFFEF4444),
-      'syncing' => const Color(0xFF38BDF8),
-      _ => const Color(0xFF8EA4C2),
+      'ok' => OnyxColorTokens.accentGreen,
+      'failed' => OnyxColorTokens.accentRed,
+      'syncing' => OnyxColorTokens.accentSky,
+      _ => OnyxColorTokens.textMuted,
     };
   }
 
@@ -18883,24 +19001,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required bool eligibleNow,
   }) {
     if (eligibleNow) {
-      return const Color(0xFF60A5FA);
+      return OnyxColorTokens.accentSky;
     }
     if (ready) {
-      return const Color(0xFF34D399);
+      return OnyxColorTokens.accentGreen;
     }
     final normalized = label.trim().toLowerCase();
     if (normalized.contains('pending')) {
-      return const Color(0xFF38BDF8);
+      return OnyxColorTokens.accentSky;
     }
-    return const Color(0xFF8EA4C2);
+    return OnyxColorTokens.textMuted;
   }
 
   Color _voiceReadinessAccent(String label) {
     return switch (label.trim().toLowerCase()) {
-      'voip ready' => const Color(0xFF34D399),
-      'voip contact pending' => const Color(0xFF60A5FA),
-      'voip staged' => const Color(0xFF38BDF8),
-      _ => const Color(0xFF8EA4C2),
+      'voip ready' => OnyxColorTokens.accentGreen,
+      'voip contact pending' => OnyxColorTokens.accentSky,
+      'voip staged' => OnyxColorTokens.accentSky,
+      _ => OnyxColorTokens.textMuted,
     };
   }
 
@@ -19011,12 +19129,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _clientLaneContinuousVisualWatchAccent(String raw) {
     return switch (raw.trim().toLowerCase()) {
-      'alerting' => const Color(0xFFEF4444),
-      'active' => const Color(0xFF34D399),
-      'learning' => const Color(0xFF67E8F9),
-      'degraded' => const Color(0xFFF59E0B),
-      'inactive' => const Color(0xFF94A3B8),
-      _ => const Color(0xFF34D399),
+      'alerting' => OnyxColorTokens.accentRed,
+      'active' => OnyxColorTokens.accentGreen,
+      'learning' => OnyxColorTokens.accentCyanTrue,
+      'degraded' => OnyxColorTokens.accentAmber,
+      'inactive' => OnyxColorTokens.textMuted,
+      _ => OnyxColorTokens.accentGreen,
     };
   }
 
@@ -19032,42 +19150,42 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _clientLaneContinuousVisualStageAccent(String raw) {
     return switch (raw.trim().toLowerCase()) {
-      'watching' => const Color(0xFFF59E0B),
-      'sustained' => const Color(0xFFFF8A65),
-      'persistent' => const Color(0xFFEF4444),
-      'idle' => const Color(0xFF94A3B8),
-      _ => const Color(0xFFF59E0B),
+      'watching' => OnyxColorTokens.accentAmber,
+      'sustained' => OnyxColorTokens.accentAmber,
+      'persistent' => OnyxColorTokens.accentRed,
+      'idle' => OnyxColorTokens.textMuted,
+      _ => OnyxColorTokens.accentAmber,
     };
   }
 
   Color _clientLaneContinuousVisualPriorityAccent(String raw) {
     return switch (raw.trim().toLowerCase()) {
-      'high' => const Color(0xFFEF4444),
-      'medium' => const Color(0xFFF59E0B),
-      'low' => const Color(0xFF94A3B8),
-      _ => const Color(0xFF8FD1FF),
+      'high' => OnyxColorTokens.accentRed,
+      'medium' => OnyxColorTokens.accentAmber,
+      'low' => OnyxColorTokens.textMuted,
+      _ => OnyxColorTokens.accentSky,
     };
   }
 
   Color _clientLaneContinuousVisualAttentionAccent(String raw) {
     return switch (raw.trim().toLowerCase()) {
-      'urgent' => const Color(0xFFB91C1C),
-      'high' => const Color(0xFFEF4444),
-      'elevated' => const Color(0xFFF59E0B),
-      'watch' => const Color(0xFF67E8F9),
-      _ => const Color(0xFF8FD1FF),
+      'urgent' => OnyxColorTokens.redBorder,
+      'high' => OnyxColorTokens.accentRed,
+      'elevated' => OnyxColorTokens.accentAmber,
+      'watch' => OnyxColorTokens.accentCyanTrue,
+      _ => OnyxColorTokens.accentSky,
     };
   }
 
   Color _clientLaneRelayStatusAccent(ClientCameraRelayStatus? status) {
     return switch (status ?? ClientCameraRelayStatus.unknown) {
-      ClientCameraRelayStatus.active => const Color(0xFF10B981),
-      ClientCameraRelayStatus.ready => const Color(0xFF34D399),
-      ClientCameraRelayStatus.starting => const Color(0xFF67E8F9),
-      ClientCameraRelayStatus.stale => const Color(0xFFF59E0B),
-      ClientCameraRelayStatus.error => const Color(0xFFEF4444),
-      ClientCameraRelayStatus.idle => const Color(0xFF94A3B8),
-      ClientCameraRelayStatus.unknown => const Color(0xFF34D399),
+      ClientCameraRelayStatus.active => OnyxColorTokens.accentGreen,
+      ClientCameraRelayStatus.ready => OnyxColorTokens.accentGreen,
+      ClientCameraRelayStatus.starting => OnyxColorTokens.accentCyanTrue,
+      ClientCameraRelayStatus.stale => OnyxColorTokens.accentAmber,
+      ClientCameraRelayStatus.error => OnyxColorTokens.accentRed,
+      ClientCameraRelayStatus.idle => OnyxColorTokens.textMuted,
+      ClientCameraRelayStatus.unknown => OnyxColorTokens.accentGreen,
     };
   }
 
@@ -19166,12 +19284,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _clientLaneLocalProxyStatusAccent(String status) {
     return switch (status.trim().toLowerCase()) {
-      'connected' => const Color(0xFF34D399),
-      'reconnecting' => const Color(0xFFF59E0B),
-      'ready' => const Color(0xFF38BDF8),
-      'degraded' => const Color(0xFFF59E0B),
-      'offline' => const Color(0xFFEF4444),
-      _ => const Color(0xFF94A3B8),
+      'connected' => OnyxColorTokens.accentGreen,
+      'reconnecting' => OnyxColorTokens.accentAmber,
+      'ready' => OnyxColorTokens.accentSky,
+      'degraded' => OnyxColorTokens.accentAmber,
+      'offline' => OnyxColorTokens.accentRed,
+      _ => OnyxColorTokens.textMuted,
     };
   }
 
