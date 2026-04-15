@@ -140,7 +140,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     message: 'Pick one record. Check it fast. Move.',
     detail:
         'Every shift action stays signed in the background so the controller only works from the record that matters now.',
-    accent: Color(0xFF19B4E5),
+    accent: OnyxColorTokens.accentCyanTrue,
   );
 
   late final TextEditingController _searchController;
@@ -845,7 +845,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 const SizedBox(width: 10),
                 Checkbox(
                   value: _draftFlagged,
-                  activeColor: const Color(0xFFF39A19),
+                  activeColor: OnyxColorTokens.accentAmber,
                   onChanged: (value) {
                     setState(() => _draftFlagged = value ?? false);
                   },
@@ -1068,8 +1068,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                         ? Icons.check_circle_rounded
                         : Icons.pending_rounded,
                     color: entry.verified
-                        ? const Color(0xFF2BB973)
-                        : const Color(0xFFF39A19),
+                        ? OnyxColorTokens.accentGreen
+                        : OnyxColorTokens.accentAmber,
                     size: 22,
                   ),
                   const SizedBox(height: 12),
@@ -1078,7 +1078,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                         ? Icons.flag_rounded
                         : Icons.outlined_flag_rounded,
                     color: entry.flagged
-                        ? const Color(0xFFF39A19)
+                        ? OnyxColorTokens.accentAmber
                         : _obTextMuted,
                     size: 22,
                   ),
@@ -1368,7 +1368,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
               auditTargetCallout,
               key: const ValueKey('ledger-audit-target-callout'),
               style: GoogleFonts.inter(
-                color: const Color(0xFF22D3EE),
+                color: OnyxColorTokens.accentCyanTrue,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.8,
@@ -1458,8 +1458,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF102338),
-                    foregroundColor: const Color(0xFF8FD1FF),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentSky,
                   ),
                   icon: const Icon(Icons.description_rounded, size: 18),
                   label: const Text('OPEN REPORTS WORKSPACE'),
@@ -1477,8 +1477,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF12213A),
-                    foregroundColor: const Color(0xFF8FD1FF),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentSky,
                   ),
                   icon: const Icon(Icons.near_me_rounded, size: 18),
                   label: const Text('OPEN TACTICAL TRACK'),
@@ -1496,8 +1496,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF0E2230),
-                    foregroundColor: const Color(0xFF22D3EE),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentCyanTrue,
                   ),
                   icon: const Icon(Icons.forum_rounded, size: 18),
                   label: Text(
@@ -1557,10 +1557,10 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   key: const ValueKey('ledger-entry-open-vip-package'),
                   onPressed: widget.onOpenVipPackageFromAudit,
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF173124),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
                     foregroundColor: vipAuditAction == 'package_review_opened'
-                        ? const Color(0xFF7DDCFF)
-                        : const Color(0xFF5BE2A3),
+                        ? OnyxColorTokens.accentSky
+                        : OnyxColorTokens.accentGreen,
                   ),
                   icon: const Icon(Icons.shield_outlined, size: 18),
                   label: Text(
@@ -1582,8 +1582,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF12213A),
-                    foregroundColor: const Color(0xFF8FD1FF),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentSky,
                   ),
                   icon: const Icon(Icons.near_me_rounded, size: 18),
                   label: const Text('OPEN TACTICAL TRACK'),
@@ -1601,8 +1601,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF102338),
-                    foregroundColor: const Color(0xFF8FD1FF),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentSky,
                   ),
                   icon: const Icon(Icons.local_shipping_rounded, size: 18),
                   label: const Text('OPEN DISPATCH BOARD'),
@@ -1622,8 +1622,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF0E2230),
-                    foregroundColor: const Color(0xFF22D3EE),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentCyanTrue,
                   ),
                   icon: const Icon(Icons.forum_rounded, size: 18),
                   label: Text(
@@ -1662,8 +1662,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF241532),
-                    foregroundColor: const Color(0xFFC084FC),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentPurple,
                   ),
                   icon: const Icon(Icons.psychology_alt_rounded, size: 18),
                   label: const Text('OPEN AI COPILOT'),
@@ -1681,8 +1681,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF241532),
-                    foregroundColor: const Color(0xFFC084FC),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentPurple,
                   ),
                   icon: const Icon(Icons.psychology_alt_rounded, size: 18),
                   label: const Text('OPEN AI COPILOT'),
@@ -1692,8 +1692,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   key: const ValueKey('ledger-entry-open-roster-planner'),
                   onPressed: widget.onOpenRosterPlannerFromAudit,
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF2B1804),
-                    foregroundColor: const Color(0xFFFBBF24),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentAmber,
                   ),
                   icon: const Icon(Icons.calendar_month_rounded, size: 18),
                   label: const Text('OPEN MONTH PLANNER'),
@@ -1703,7 +1703,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   key: const ValueKey('ledger-entry-open-sites-action'),
                   onPressed: widget.onOpenSitesActionFromAudit,
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF12213A),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
                     foregroundColor: _sitesAuditButtonAccent(sitesAuditAction),
                   ),
                   icon: Icon(_sitesAuditButtonIcon(sitesAuditAction), size: 18),
@@ -1714,8 +1714,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   key: const ValueKey('ledger-entry-back-to-war-room'),
                   onPressed: widget.onReturnToWarRoom,
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF1B4332),
-                    foregroundColor: const Color(0xFF63E6A1),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.accentGreen,
                   ),
                   icon: const Icon(Icons.undo_rounded, size: 18),
                   label: Text(returnToWarRoomLabel),
@@ -1738,7 +1738,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   Text(
                     'SCENE REVIEW',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF6B63FF),
+                      color: OnyxColorTokens.brand,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.1,
@@ -1834,13 +1834,13 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           _buildHashPanel(
             label: 'Current Hash',
             value: selected.hash,
-            color: const Color(0xFF19B26D),
+            color: OnyxColorTokens.accentGreen,
           ),
           const SizedBox(height: 12),
           _buildHashPanel(
             label: 'Previous Hash',
             value: selected.previousHash,
-            color: const Color(0xFF11A4DA),
+            color: OnyxColorTokens.accentCyanTrue,
           ),
           const SizedBox(height: 16),
           Text(
@@ -2112,9 +2112,9 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
 
   Color _dispatchAuditPrimaryButtonAccent(String action) {
     return switch (action.trim()) {
-      'dispatch_launched' => const Color(0xFFF59E0B),
-      'dispatch_resolved' || 'alarm_cleared' => const Color(0xFF63E6A1),
-      _ => const Color(0xFF8FD1FF),
+      'dispatch_launched' => OnyxColorTokens.accentAmber,
+      'dispatch_resolved' || 'alarm_cleared' => OnyxColorTokens.accentGreen,
+      _ => OnyxColorTokens.accentSky,
     };
   }
 
@@ -2322,11 +2322,11 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
 
   Color _sitesAuditButtonAccent(String action) {
     return switch (action.trim()) {
-      'site_builder_opened' => const Color(0xFF8FD1FF),
-      'site_map_opened' => const Color(0xFF54C8FF),
-      'site_settings_opened' => const Color(0xFFFFC247),
-      'site_guard_roster_opened' => const Color(0xFF63E6A1),
-      _ => const Color(0xFF8FD1FF),
+      'site_builder_opened' => OnyxColorTokens.accentSky,
+      'site_map_opened' => OnyxColorTokens.accentSky,
+      'site_settings_opened' => OnyxColorTokens.accentAmber,
+      'site_guard_roster_opened' => OnyxColorTokens.accentGreen,
+      _ => OnyxColorTokens.accentSky,
     };
   }
 
@@ -2642,7 +2642,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       border: Border.all(color: _obBorder),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFF172638).withValues(alpha: 0.07),
+          color: Colors.black.withValues(alpha: 0.3),
           blurRadius: 24,
           offset: const Offset(0, 12),
         ),
@@ -2711,7 +2711,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         label: 'SUBMIT ENTRY',
         detail:
             'Add the operational note before saving it into the occurrence book.',
-        accent: const Color(0xFFF39A19),
+        accent: OnyxColorTokens.accentAmber,
       );
       return;
     }
@@ -2790,7 +2790,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         label: label,
         detail:
             'This entry is currently a clean standalone record in the OB log.',
-        accent: const Color(0xFFF39A19),
+        accent: OnyxColorTokens.accentAmber,
       );
       return;
     }
@@ -2804,7 +2804,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       label: label,
       detail:
           'The related event scope has been handed off without leaving the occurrence-book context behind.',
-      accent: const Color(0xFF19B4E5),
+      accent: OnyxColorTokens.accentCyanTrue,
     );
   }
 
@@ -2822,7 +2822,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       label: 'VERIFY CHAIN',
       detail:
           'Continuity state remains visible while the operational view stays simple for the controller.',
-      accent: intact ? const Color(0xFF19B26D) : const Color(0xFFF44B4B),
+      accent: intact ? OnyxColorTokens.accentGreen : OnyxColorTokens.accentRed,
     );
   }
 
@@ -2836,7 +2836,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       label: 'EXPORT LEDGER',
       detail:
           'The full occurrence-book payload is on the clipboard while the clean controller view remains in place.',
-      accent: const Color(0xFF19B4E5),
+      accent: OnyxColorTokens.accentCyanTrue,
     );
   }
 
@@ -2882,12 +2882,12 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFFD6E1EC)),
+          side: const BorderSide(color: OnyxColorTokens.divider),
         ),
         content: Text(
           message,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -2959,23 +2959,23 @@ extension on _ObCategory {
   Color get accent {
     switch (this) {
       case _ObCategory.all:
-        return const Color(0xFF19B4E5);
+        return OnyxColorTokens.accentCyanTrue;
       case _ObCategory.patrol:
-        return const Color(0xFF33B878);
+        return OnyxColorTokens.accentGreen;
       case _ObCategory.incident:
-        return const Color(0xFFF44B4B);
+        return OnyxColorTokens.accentRed;
       case _ObCategory.handover:
-        return const Color(0xFF6A63FF);
+        return OnyxColorTokens.brand;
       case _ObCategory.visitor:
-        return const Color(0xFF9C66E6);
+        return OnyxColorTokens.accentPurple;
       case _ObCategory.maintenance:
-        return const Color(0xFF1DA2C9);
+        return OnyxColorTokens.accentCyanTrue;
       case _ObCategory.vehicle:
-        return const Color(0xFFF39A19);
+        return OnyxColorTokens.accentAmber;
       case _ObCategory.alarm:
-        return const Color(0xFFF0672B);
+        return OnyxColorTokens.accentAmber;
       case _ObCategory.other:
-        return const Color(0xFF73879B);
+        return OnyxColorTokens.textMuted;
     }
   }
 }
@@ -2999,11 +2999,11 @@ extension on _ChainIntegrity {
   Color get color {
     switch (this) {
       case _ChainIntegrity.intact:
-        return const Color(0xFF19B26D);
+        return OnyxColorTokens.accentGreen;
       case _ChainIntegrity.pending:
-        return const Color(0xFFF39A19);
+        return OnyxColorTokens.accentAmber;
       case _ChainIntegrity.compromised:
-        return const Color(0xFFF44B4B);
+        return OnyxColorTokens.accentRed;
     }
   }
 }
@@ -3165,7 +3165,7 @@ final List<_ObEntryView> _fallbackEntries = [
     linkedEventIds: ['INC-2438'],
     hash: 'a7f3e9d2c1b4f8a6e9c2b1a5d6e7f8a6',
     previousHash: '8e2f4a9d1c6b7e3f0a1b2c3d4e5f6a7b',
-    accent: Color(0xFFF44B4B),
+    accent: OnyxColorTokens.accentRed,
     payload: {
       'source': 'fallback',
       'site': 'Riverside Estate',
@@ -3196,7 +3196,7 @@ final List<_ObEntryView> _fallbackEntries = [
     linkedEventIds: ['PATROL-119'],
     hash: '8e2f4a9d1c6b7e3f0a1b2c3d4e5f6a7b',
     previousHash: '3d9a7e2f4c1b8e6a0d4e5f6a7b8c9d0e',
-    accent: Color(0xFF33B878),
+    accent: OnyxColorTokens.accentGreen,
     payload: {
       'source': 'fallback',
       'site': 'Midrand Logistics Hub',
@@ -3227,7 +3227,7 @@ final List<_ObEntryView> _fallbackEntries = [
     linkedEventIds: ['VEH-091'],
     hash: '3d9a7e2f4c1b8e6a0d4e5f6a7b8c9d0e',
     previousHash: '1f6c8a4e9d2b7e3a4b5c6d7e8f9a0b1c',
-    accent: Color(0xFFF39A19),
+    accent: OnyxColorTokens.accentAmber,
     payload: {
       'source': 'fallback',
       'site': 'Main Gate',
