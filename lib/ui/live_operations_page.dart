@@ -2805,6 +2805,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
+  /// Replace all SITE-XX-YY patterns inside a free-text string.
+  String _humaniseSiteIdsInText(String text) {
+    return text.replaceAllMapped(
+      RegExp(r'SITE-[A-Z0-9]+(?:-[A-Z0-9]+)*', caseSensitive: false),
+      (m) => _humaniseSiteId(m.group(0)!),
+    );
+  }
+
   String _humaniseSiteId(String raw) {
     var normalized = raw.trim();
     if (normalized.toUpperCase().startsWith('SITE-')) {
@@ -3129,70 +3137,62 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       final displayVal = isTextVal
           ? m.metricLabel.replaceFirst('THREAT LEVEL: ', '')
           : m.countLabel;
-      final dotColor =
-          (m.accent == OnyxDesignTokens.redCritical ||
-                  m.accent == OnyxDesignTokens.amberWarning)
-              ? m.accent
-              : OnyxDesignTokens.greenSpec;
+      final valColor = m.accent == OnyxDesignTokens.textMuted
+          ? _commandTitleColor
+          : m.accent;
       return GestureDetector(
         onTap: m.onTap != null ? () => m.onTap!() : null,
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: OnyxColorTokens.backgroundSecondary,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: OnyxColorTokens.divider),
           ),
-          child: Stack(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: m.accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(m.icon, size: 13, color: m.accent),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    displayVal,
-                    style: GoogleFonts.inter(
-                      fontSize: isTextVal ? 20 : 26,
-                      fontWeight: FontWeight.w700,
-                      color: m.accent == OnyxDesignTokens.textMuted
-                          ? _commandTitleColor
-                          : m.accent,
-                      letterSpacing: -0.5,
-                      height: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    m.label,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _commandMutedColor,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: m.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Icon(m.icon, size: 11, color: m.accent),
               ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: dotColor,
-                  ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      displayVal,
+                      style: GoogleFonts.inter(
+                        fontSize: isTextVal ? 14 : 18,
+                        fontWeight: FontWeight.w700,
+                        color: valColor,
+                        letterSpacing: -0.4,
+                        height: 1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      m.label,
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: _commandMutedColor,
+                        letterSpacing: 0.4,
+                        height: 1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -3247,7 +3247,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    entry.description,
+                    _humaniseSiteIdsInText(entry.description),
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: _commandBodyColor,
@@ -4933,11 +4933,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             shrinkWrap: true,
             itemCount: modules.length,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: compact ? 1.9 : 2.2,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
+              mainAxisExtent: 76,
             ),
             itemBuilder: (context, index) {
               final module = modules[index];
@@ -4969,69 +4969,56 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Top row: icon
                             Container(
-                              width: 24,
-                              height: 24,
+                              width: 20,
+                              height: 20,
                               decoration: BoxDecoration(
                                 color: module.accent.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: module.accent.withValues(alpha: 0.36),
+                                  color: module.accent.withValues(alpha: 0.30),
                                 ),
                               ),
                               child: Icon(
                                 module.icon,
-                                size: 14,
+                                size: 11,
                                 color: module.accent,
                               ),
                             ),
-                            // Middle: large count + metric label
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  module.countLabel,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                    color: module.accent,
-                                    fontSize: compact ? 26 : 32,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    module.countLabel,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      color: module.accent,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  module.metricLabel,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                    color: _commandMutedColor,
-                                    fontSize: 8.5,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.4,
-                                    height: 1,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    module.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      color: _commandMutedColor,
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.3,
+                                      height: 1,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            // Bottom: module name
-                            Text(
-                              module.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                color: _commandTitleColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                                height: 1,
+                                ],
                               ),
                             ),
                           ],
@@ -5674,7 +5661,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             ? LinearGradient(
                 colors: [
                   Color.alphaBlend(
-                    accent.withValues(alpha: featured ? 0.28 : 0.18),
+                    accent.withValues(alpha: featured ? 0.10 : 0.06),
                     surface,
                   ),
                   surface,
@@ -5686,12 +5673,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         color: emphasized ? null : surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: border),
-        boxShadow: emphasized
+        boxShadow: emphasized && featured
             ? [
                 BoxShadow(
-                  color: accent.withValues(alpha: featured ? 0.16 : 0.10),
-                  blurRadius: featured ? 22 : 16,
-                  offset: const Offset(0, 10),
+                  color: accent.withValues(alpha: 0.10),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
                 ),
               ]
             : null,
@@ -8021,20 +8008,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return switch (severity) {
       _CommandDecisionSeverity.critical => (
         OnyxDesignTokens.redCritical,
-        OnyxDesignTokens.redSurface,
-        OnyxDesignTokens.redBorder,
+        _commandPanelColor,
+        OnyxDesignTokens.redCritical.withValues(alpha: 0.22),
         OnyxDesignTokens.redCritical,
       ),
       _CommandDecisionSeverity.actionRequired => (
         OnyxDesignTokens.amberWarning,
-        OnyxDesignTokens.amberSurface,
-        OnyxDesignTokens.amberBorder,
+        _commandPanelColor,
+        OnyxDesignTokens.amberWarning.withValues(alpha: 0.22),
         OnyxDesignTokens.amberWarning,
       ),
       _CommandDecisionSeverity.review => (
         OnyxDesignTokens.cyanInteractive,
-        OnyxDesignTokens.cyanSurface,
-        OnyxDesignTokens.cyanBorder,
+        _commandPanelColor,
+        OnyxDesignTokens.cyanInteractive.withValues(alpha: 0.18),
         OnyxDesignTokens.cyanInteractive,
       ),
     };
