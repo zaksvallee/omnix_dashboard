@@ -3141,28 +3141,30 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       final valColor = m.accent == OnyxDesignTokens.textMuted
           ? _commandTitleColor
           : m.accent;
-      // Determine alerting: any accent that isn't nominal green, teal, or muted.
+      // Alerting = any accent that is not nominal green, teal, or muted.
       final isAlerting = m.accent != OnyxDesignTokens.textMuted &&
           m.accent != OnyxDesignTokens.greenNominal &&
           m.accent != OnyxDesignTokens.accentTeal;
       final cardBg = isAlerting
           ? Color.alphaBlend(
-              m.accent.withValues(alpha: 0.04),
+              m.accent.withValues(alpha: 0.06),
               OnyxColorTokens.backgroundSecondary,
             )
           : OnyxColorTokens.backgroundSecondary;
-      final borderColor = isAlerting
-          ? m.accent.withValues(alpha: 0.20)
-          : OnyxColorTokens.divider;
-      // Footer label: title-case each word of the module label.
-      final footerLabel = m.label
-          .split(' ')
-          .map(
-            (p) => p.isEmpty
-                ? ''
-                : '${p[0].toUpperCase()}${p.substring(1).toLowerCase()}',
-          )
-          .join(' ');
+      final cardBorder = isAlerting
+          ? Border.all(color: m.accent.withValues(alpha: 0.25), width: 1.5)
+          : Border.all(color: OnyxColorTokens.divider);
+      // Fixed nav link labels — short, human-readable.
+      final footerLabel = switch (m.label) {
+        'ALARMS' => 'Alarms',
+        'GUARDS' => 'Guards',
+        'RISK INTEL' => 'Intel',
+        'VIP PROTECTION' => 'VIP',
+        'CLIENT COMMS' => 'Comms',
+        _ => 'CCTV', // VIDEO OPS / CCTV variants
+      };
+      // Metric font: 36px for counts, 28px for text values (e.g. "LOW").
+      final metricFontSize = isTextVal ? 28.0 : 36.0;
 
       return MouseRegion(
         cursor: SystemMouseCursors.click,
@@ -3175,13 +3177,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             decoration: BoxDecoration(
               color: cardBg,
               borderRadius: OnyxRadiusTokens.radiusMd,
-              border: Border.all(color: borderColor),
+              border: cardBorder,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Icon box + status dot
+                // Top row: icon box (left) + status dot (right)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -3196,17 +3198,23 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                     const Spacer(),
                     Container(
-                      width: 6,
-                      height: 6,
+                      width: 8,
+                      height: 8,
                       margin: const EdgeInsets.only(top: 4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: m.accent,
+                        boxShadow: [
+                          BoxShadow(
+                            color: m.accent.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                // Metric value + label
+                // Middle: metric value + label
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -3214,7 +3222,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       displayVal,
                       style: GoogleFonts.inter(
-                        fontSize: OnyxTypographyTokens.metricSm,
+                        fontSize: metricFontSize,
                         fontWeight: FontWeight.w700,
                         color: valColor,
                         letterSpacing: -0.5,
@@ -3238,7 +3246,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                   ],
                 ),
-                // Footer: page name + arrow (right-aligned)
+                // Bottom: nav link right-aligned
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
