@@ -40,7 +40,7 @@ const _dispatchBorderStrongColor = OnyxDesignTokens.borderStrong;
 const _dispatchTitleColor = OnyxDesignTokens.textPrimary;
 const _dispatchBodyColor = OnyxDesignTokens.textSecondary;
 const _dispatchMutedColor = OnyxDesignTokens.textMuted;
-const _dispatchShadowColor = Color(0x0D000000);
+final _dispatchShadowColor = OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.05);
 const _dispatchAccentSky = OnyxDesignTokens.accentSky;
 
 class _DispatchItem {
@@ -664,7 +664,7 @@ class _DispatchPageState extends State<DispatchPage> {
             : 'Returned from Agent for $dispatchId.',
         detail:
             'The scoped Dispatch Board stayed pinned so controllers can continue from the same alarm without widening the view.',
-        accent: const Color(0xFF8B5CF6),
+        accent: OnyxColorTokens.accentPurple,
       );
     }
 
@@ -1106,25 +1106,25 @@ class _DispatchPageState extends State<DispatchPage> {
         : 'Units are moving. Track and close.';
     final borderColor = nominal
         ? rosterAttention
-              ? const Color(0xFF8A5A16)
-              : const Color(0xFF2F7D57)
+              ? OnyxColorTokens.accentAmber
+              : OnyxColorTokens.accentGreen
         : hot
-        ? const Color(0xFF9F2A25)
-        : const Color(0xFF8A5A16);
+        ? OnyxColorTokens.accentRed
+        : OnyxColorTokens.accentAmber;
     final backgroundColor = nominal
         ? rosterAttention
-              ? const Color(0xFFFFF7E7)
-              : const Color(0xFFF0FDF4)
+              ? OnyxColorTokens.surfaceInset
+              : OnyxColorTokens.surfaceInset
         : hot
-        ? const Color(0xFFFEF2F2)
-        : const Color(0xFFFFF7E7);
+        ? OnyxColorTokens.surfaceInset
+        : OnyxColorTokens.surfaceInset;
     final accentColor = nominal
         ? rosterAttention
-              ? const Color(0xFFF7C66A)
-              : const Color(0xFF6DDB9F)
+              ? OnyxColorTokens.accentAmber
+              : OnyxColorTokens.accentGreen
         : hot
-        ? const Color(0xFFFF8A7A)
-        : const Color(0xFFF7C66A);
+        ? OnyxColorTokens.accentRed
+        : OnyxColorTokens.accentAmber;
     return Container(
       key: const ValueKey('dispatch-alarm-attention-strip'),
       width: double.infinity,
@@ -1154,7 +1154,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 Text(
                   headline,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF172638),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 21,
                     fontWeight: FontWeight.w700,
                     height: 0.92,
@@ -1164,7 +1164,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 Text(
                   instruction,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF556B80),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 11.0,
                     fontWeight: FontWeight.w600,
                     height: 1.34,
@@ -1183,27 +1183,27 @@ class _DispatchPageState extends State<DispatchPage> {
               _alarmTopCountChip(
                 label: 'LIVE',
                 value: '$totalActiveAlarms',
-                foreground: const Color(0xFFF5F7FA),
-                border: const Color(0x44FFFFFF),
+                foreground: OnyxColorTokens.surfaceInset,
+                border: OnyxColorTokens.textPrimary.withValues(alpha: 0.27),
               ),
               _alarmTopCountChip(
                 label: 'RED',
                 value: '$pendingDispatches',
-                foreground: const Color(0xFFFFD3D0),
-                border: const Color(0x66EF4444),
+                foreground: OnyxColorTokens.accentRed.withValues(alpha: 0.3),
+                border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
               ),
               _alarmTopCountChip(
                 label: 'OUT',
                 value: '$dispatchedDispatches',
-                foreground: const Color(0xFFFFE4B5),
-                border: const Color(0x66F59E0B),
+                foreground: OnyxColorTokens.surfaceInset,
+                border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
               ),
               if (rosterAttention)
                 _alarmTopCountChip(
                   label: 'GAPS',
                   value: '1',
-                  foreground: const Color(0xFFFFE4B5),
-                  border: const Color(0x66F59E0B),
+                  foreground: OnyxColorTokens.surfaceInset,
+                  border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                 ),
             ],
           ),
@@ -1211,7 +1211,7 @@ class _DispatchPageState extends State<DispatchPage> {
           Text(
             _clockLabel(DateTime.now().toLocal()),
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textMuted,
               fontSize: 17,
               fontWeight: FontWeight.w700,
             ),
@@ -1251,7 +1251,7 @@ class _DispatchPageState extends State<DispatchPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9.0,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.28,
@@ -1375,9 +1375,9 @@ class _DispatchPageState extends State<DispatchPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF8FB),
+        color: OnyxColorTokens.surfaceInset,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFB7DCE8)),
+        border: Border.all(color: OnyxColorTokens.surfaceInset),
       ),
       child: Row(
         children: [
@@ -1385,14 +1385,14 @@ class _DispatchPageState extends State<DispatchPage> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFDFF3F8),
+              color: OnyxColorTokens.surfaceInset,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF9DD3E4)),
+              border: Border.all(color: OnyxColorTokens.surfaceInset),
             ),
             child: const Icon(
               Icons.shield_outlined,
               size: 20,
-              color: Color(0xFF0F6D84),
+              color: OnyxColorTokens.accentCyan,
             ),
           ),
           const SizedBox(width: 14),
@@ -1403,7 +1403,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 Text(
                   'OFFICER DISPATCHED',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF0F6D84),
+                    color: OnyxColorTokens.accentCyan,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.7,
@@ -1425,7 +1425,7 @@ class _DispatchPageState extends State<DispatchPage> {
                       ? 'On site'
                       : 'Enroute',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF1E7B59),
+                    color: OnyxColorTokens.accentGreen,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1449,7 +1449,7 @@ class _DispatchPageState extends State<DispatchPage> {
               Text(
                 etaLabel,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF0F6D84),
+                  color: OnyxColorTokens.accentCyan,
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
                   height: 0.92,
@@ -1607,15 +1607,15 @@ class _DispatchPageState extends State<DispatchPage> {
     final title = _alarmTitle(dispatch);
     final summary = _alarmSummary(dispatch);
     final borderColor = dispatch.status == _DispatchStatus.pending
-        ? const Color(0xFFE4B8B3)
+        ? OnyxColorTokens.surfaceInset
         : dispatch.status == _DispatchStatus.cleared
-        ? const Color(0xFFC6D9CC)
-        : const Color(0xFFBDD5E4);
+        ? OnyxColorTokens.surfaceInset
+        : OnyxColorTokens.surfaceInset;
     final background = dispatch.status == _DispatchStatus.pending
-        ? const Color(0xFFFFF4F2)
+        ? OnyxColorTokens.surfaceInset
         : dispatch.status == _DispatchStatus.cleared
-        ? const Color(0xFFF4FAF6)
-        : const Color(0xFFF7FBFE);
+        ? OnyxColorTokens.surfaceInset
+        : OnyxColorTokens.surfaceInset;
     final nextMoveLabel = switch (dispatch.status) {
       _DispatchStatus.pending => 'DISPATCH NOW',
       _DispatchStatus.enRoute => 'TRACK OFFICER',
@@ -1632,10 +1632,10 @@ class _DispatchPageState extends State<DispatchPage> {
         'Alarm is clear. Keep the record and Client Comms tidy.',
     };
     final commandAccent = dispatch.status == _DispatchStatus.pending
-        ? const Color(0xFFFF8A7A)
+        ? OnyxColorTokens.accentRed
         : dispatch.status == _DispatchStatus.cleared
-        ? const Color(0xFF86EFAC)
-        : const Color(0xFF7ED8FF);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentCyan;
     final commandSurface = Color.alphaBlend(
       commandAccent.withValues(alpha: 0.12),
       _dispatchPanelColor,
@@ -1664,10 +1664,10 @@ class _DispatchPageState extends State<DispatchPage> {
                   margin: const EdgeInsets.only(top: 6),
                   decoration: BoxDecoration(
                     color: dispatch.status == _DispatchStatus.pending
-                        ? const Color(0xFFFF7E7E)
+                        ? OnyxColorTokens.accentRed
                         : dispatch.status == _DispatchStatus.cleared
-                        ? const Color(0xFF7F93A8)
-                        : const Color(0xFF55D4FF),
+                        ? OnyxColorTokens.textMuted
+                        : OnyxColorTokens.accentCyan,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -1833,8 +1833,8 @@ class _DispatchPageState extends State<DispatchPage> {
                       key: ValueKey('dispatch-action-dispatch-${dispatch.id}'),
                       onPressed: () => _handleDispatchAction(dispatch),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFB83A35),
-                        foregroundColor: const Color(0xFFF8F7F5),
+                        backgroundColor: OnyxColorTokens.accentRed,
+                        foregroundColor: OnyxColorTokens.surfaceInset,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -1852,9 +1852,9 @@ class _DispatchPageState extends State<DispatchPage> {
                   _alarmActionButton(
                     label: 'OPEN CLIENT COMMS',
                     icon: Icons.call_outlined,
-                    background: const Color(0xFFEAF8FB),
-                    border: const Color(0xFF9DD3E4),
-                    foreground: const Color(0xFF0F6D84),
+                    background: OnyxColorTokens.surfaceInset,
+                    border: OnyxColorTokens.surfaceInset,
+                    foreground: OnyxColorTokens.accentCyan,
                     onPressed: () => _callClient(dispatch),
                   ),
                 ],
@@ -1905,11 +1905,11 @@ class _DispatchPageState extends State<DispatchPage> {
     final resolved = dispatch.status != _DispatchStatus.pending;
     final title = resolved ? 'COMPLETED' : 'CALLING';
     final attempts = resolved ? '2' : '1';
-    final accent = resolved ? const Color(0xFF7A4BC1) : const Color(0xFF3567AE);
+    final accent = resolved ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentSky;
     final background = resolved
-        ? const Color(0xFFF7F1FF)
-        : const Color(0xFFF2F7FF);
-    final border = resolved ? const Color(0xFFD4C1F4) : const Color(0xFFBED4F6);
+        ? OnyxColorTokens.surfaceInset
+        : OnyxColorTokens.surfaceInset;
+    final border = resolved ? OnyxColorTokens.surfaceInset : OnyxColorTokens.surfaceInset;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1959,7 +1959,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   Text(
                     'CLIENT RESPONSE',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFA24C75),
+                      color: OnyxColorTokens.accentPurple,
                       fontSize: 9.9,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.34,
@@ -1972,14 +1972,14 @@ class _DispatchPageState extends State<DispatchPage> {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFEEF1),
+                      color: OnyxColorTokens.surfaceInset,
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFFF3B4C1)),
+                      border: Border.all(color: OnyxColorTokens.accentRed.withValues(alpha: 0.4)),
                     ),
                     child: Text(
                       'REAL EMERGENCY',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB45366),
+                        color: OnyxColorTokens.accentRed,
                         fontSize: 10.0,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.12,
@@ -1994,7 +1994,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   Text(
                     'NEXT ACTION',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFA24C75),
+                      color: OnyxColorTokens.accentPurple,
                       fontSize: 9.9,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.34,
@@ -2004,7 +2004,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   Text(
                     'Officer dispatched - real emergency confirmed',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF6F4AA7),
+                      color: OnyxColorTokens.accentPurple,
                       fontSize: 12.6,
                       fontWeight: FontWeight.w600,
                       height: 1.36,
@@ -2091,9 +2091,9 @@ class _DispatchPageState extends State<DispatchPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBF0),
+        color: OnyxColorTokens.surfaceInset,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2CE9A)),
+        border: Border.all(color: OnyxColorTokens.surfaceInset),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2101,7 +2101,7 @@ class _DispatchPageState extends State<DispatchPage> {
           Text(
             'SELECT OFFICER TO DISPATCH',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8A6500),
+              color: OnyxColorTokens.accentAmber,
               fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
@@ -2379,7 +2379,7 @@ class _DispatchPageState extends State<DispatchPage> {
       label: 'AGENT HANDOFF',
       detail:
           'ONYX keeps the alarm scope pinned and opens ONYX support directly from Dispatch Board.',
-      accent: const Color(0xFFC084FC),
+      accent: OnyxColorTokens.accentPurple,
     );
   }
 
@@ -2414,7 +2414,7 @@ class _DispatchPageState extends State<DispatchPage> {
       label: 'ROSTER WATCH',
       detail:
           'ONYX pinned the roster gap and opened the month planner so coverage can be repaired without leaving Dispatch Board blind.',
-      accent: widget.guardRosterSignalAccent ?? const Color(0xFFF59E0B),
+      accent: widget.guardRosterSignalAccent ?? OnyxColorTokens.accentAmber,
     );
     widget.onOpenRosterPlanner?.call();
   }
@@ -2425,7 +2425,7 @@ class _DispatchPageState extends State<DispatchPage> {
       label: 'AUTO-AUDIT',
       detail:
           'ONYX opened the signed Sovereign Ledger record for the planner handoff so dispatch can verify coverage work without leaving Dispatch Board blind.',
-      accent: const Color(0xFF63E6A1),
+      accent: OnyxColorTokens.accentGreen,
     );
     widget.onOpenRosterAudit?.call();
   }
@@ -2491,13 +2491,13 @@ class _DispatchPageState extends State<DispatchPage> {
               width: 10.3,
               height: 10.3,
               decoration: BoxDecoration(
-                color: const Color(0x1ADC2626),
+                color: OnyxColorTokens.accentRed.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(3.15),
-                border: Border.all(color: const Color(0x55EA580C)),
+                border: Border.all(color: OnyxColorTokens.accentAmber.withValues(alpha: 0.33)),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.route_rounded,
-                color: Color(0xFFFFD6BF),
+                color: OnyxColorTokens.accentAmber.withValues(alpha: 0.3),
                 size: 6.2,
               ),
             ),
@@ -2561,7 +2561,7 @@ class _DispatchPageState extends State<DispatchPage> {
             ),
             borderRadius: BorderRadius.circular(5.5),
             border: Border.all(color: _dispatchBorderStrongColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
                 color: _dispatchShadowColor,
                 blurRadius: 18,
@@ -2603,7 +2603,7 @@ class _DispatchPageState extends State<DispatchPage> {
               Text(
                 'DISPATCH BOARD RECOVERY',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                   fontSize: 5.8,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.0,
@@ -2637,23 +2637,23 @@ class _DispatchPageState extends State<DispatchPage> {
                 children: [
                   _heroChip(
                     label: 'Active',
-                    foreground: const Color(0xFF22D3EE),
-                    background: const Color(0x1422D3EE),
-                    border: const Color(0x6622D3EE),
+                    foreground: OnyxColorTokens.accentCyan,
+                    background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                   ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-badge-pending'),
                     label: 'Pending $pendingDispatches',
-                    foreground: const Color(0xFFF59E0B),
-                    background: const Color(0x1AF59E0B),
-                    border: const Color(0x66F59E0B),
+                    foreground: OnyxColorTokens.accentAmber,
+                    background: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+                    border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.pending),
                   ),
                   _heroChip(
                     label: 'Cleared $clearedDispatches',
-                    foreground: const Color(0xFF86EFAC),
-                    background: const Color(0x1486EFAC),
-                    border: const Color(0x6686EFAC),
+                    foreground: OnyxColorTokens.accentGreen,
+                    background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                   ),
                 ],
               ),
@@ -2678,41 +2678,41 @@ class _DispatchPageState extends State<DispatchPage> {
                         'dispatch-workspace-focus-open-active-lanes',
                       ),
                       label: 'Active dispatches',
-                      foreground: const Color(0xFF22D3EE),
-                      background: const Color(0x1422D3EE),
-                      border: const Color(0x6622D3EE),
+                      foreground: OnyxColorTokens.accentCyan,
+                      background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                       onTap: () => onSetLaneFilter(_DispatchLaneFilter.active),
                     ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-filter-pending'),
                     label: 'Pending dispatches',
-                    foreground: const Color(0xFFF59E0B),
-                    background: const Color(0x1AF59E0B),
-                    border: const Color(0x66F59E0B),
+                    foreground: OnyxColorTokens.accentAmber,
+                    background: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+                    border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.pending),
                   ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-filter-cleared'),
                     label: 'Cleared dispatches',
-                    foreground: const Color(0xFF86EFAC),
-                    background: const Color(0x1486EFAC),
-                    border: const Color(0x6686EFAC),
+                    foreground: OnyxColorTokens.accentGreen,
+                    background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.cleared),
                   ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-focus-open-board'),
                     label: 'OPEN DISPATCH BOARD',
-                    foreground: const Color(0xFFD8E8FA),
-                    background: const Color(0x143B82F6),
-                    border: const Color(0x663B82F6),
+                    foreground: OnyxColorTokens.surfaceInset,
+                    background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                     onTap: onOpenDispatchBoard,
                   ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-open-system'),
                     label: 'Fleet Watch Rail',
-                    foreground: const Color(0xFFD8E8FA),
-                    background: const Color(0x143B82F6),
-                    border: const Color(0x663B82F6),
+                    foreground: OnyxColorTokens.surfaceInset,
+                    background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                     onTap: onOpenSystemStatus,
                   ),
                 ],
@@ -2794,16 +2794,16 @@ class _DispatchPageState extends State<DispatchPage> {
                 ),
                 _heroChip(
                   label: selectedDispatch.officer,
-                  foreground: const Color(0xFFD8E8FA),
-                  background: const Color(0x143B82F6),
-                  border: const Color(0x663B82F6),
+                  foreground: OnyxColorTokens.surfaceInset,
+                  background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                  border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                 ),
                 if (selectedDispatch.eta != null)
                   _heroChip(
                     label: 'ETA ${selectedDispatch.eta}',
-                    foreground: const Color(0xFF22D3EE),
-                    background: const Color(0x1422D3EE),
-                    border: const Color(0x6622D3EE),
+                    foreground: OnyxColorTokens.accentCyan,
+                    background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                   ),
               ],
             ),
@@ -2839,9 +2839,9 @@ class _DispatchPageState extends State<DispatchPage> {
                       _workspaceActionChip(
                         key: const ValueKey('dispatch-workspace-filter-active'),
                         label: 'Active dispatches',
-                        foreground: const Color(0xFF22D3EE),
-                        background: const Color(0x1422D3EE),
-                        border: const Color(0x6622D3EE),
+                        foreground: OnyxColorTokens.accentCyan,
+                        background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                         onTap: () =>
                             onSetLaneFilter(_DispatchLaneFilter.active),
                       ),
@@ -2850,9 +2850,9 @@ class _DispatchPageState extends State<DispatchPage> {
                           'dispatch-workspace-filter-pending',
                         ),
                         label: 'Pending dispatches',
-                        foreground: const Color(0xFFF59E0B),
-                        background: const Color(0x1AF59E0B),
-                        border: const Color(0x66F59E0B),
+                        foreground: OnyxColorTokens.accentAmber,
+                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                         onTap: () =>
                             onSetLaneFilter(_DispatchLaneFilter.pending),
                       ),
@@ -2861,9 +2861,9 @@ class _DispatchPageState extends State<DispatchPage> {
                           'dispatch-workspace-filter-cleared',
                         ),
                         label: 'Cleared dispatches',
-                        foreground: const Color(0xFF86EFAC),
-                        background: const Color(0x1486EFAC),
-                        border: const Color(0x6686EFAC),
+                        foreground: OnyxColorTokens.accentGreen,
+                        background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                         onTap: () =>
                             onSetLaneFilter(_DispatchLaneFilter.cleared),
                       ),
@@ -2883,17 +2883,17 @@ class _DispatchPageState extends State<DispatchPage> {
                             'dispatch-workspace-focus-open-report',
                           ),
                           label: 'OPEN REPORTS WORKSPACE',
-                          foreground: const Color(0xFFFFD6BF),
-                          background: const Color(0x14EA580C),
-                          border: const Color(0x66EA580C),
+                          foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.3),
+                          background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                          border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                           onTap: onOpenReport,
                         ),
                       _workspaceActionChip(
                         key: const ValueKey('dispatch-workspace-open-system'),
                         label: 'Fleet Watch Rail',
-                        foreground: const Color(0xFFD8E8FA),
-                        background: const Color(0x143B82F6),
-                        border: const Color(0x663B82F6),
+                        foreground: OnyxColorTokens.surfaceInset,
+                        background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                        border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                         onTap: onOpenSystemStatus,
                       ),
                     ],
@@ -2938,25 +2938,25 @@ class _DispatchPageState extends State<DispatchPage> {
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-filter-active'),
                     label: 'Active dispatches',
-                    foreground: const Color(0xFF22D3EE),
-                    background: const Color(0x1422D3EE),
-                    border: const Color(0x6622D3EE),
+                    foreground: OnyxColorTokens.accentCyan,
+                    background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.active),
                   ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-filter-pending'),
                     label: 'Pending dispatches',
-                    foreground: const Color(0xFFF59E0B),
-                    background: const Color(0x1AF59E0B),
-                    border: const Color(0x66F59E0B),
+                    foreground: OnyxColorTokens.accentAmber,
+                    background: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+                    border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.pending),
                   ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-filter-cleared'),
                     label: 'Cleared dispatches',
-                    foreground: const Color(0xFF86EFAC),
-                    background: const Color(0x1486EFAC),
-                    border: const Color(0x6686EFAC),
+                    foreground: OnyxColorTokens.accentGreen,
+                    background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.cleared),
                   ),
                   _workspaceActionChip(
@@ -2973,17 +2973,17 @@ class _DispatchPageState extends State<DispatchPage> {
                         'dispatch-workspace-focus-open-report',
                       ),
                       label: 'OPEN REPORTS WORKSPACE',
-                      foreground: const Color(0xFFFFD6BF),
-                      background: const Color(0x14EA580C),
-                      border: const Color(0x66EA580C),
+                      foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.3),
+                      background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                      border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                       onTap: onOpenReport,
                     ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-open-system'),
                     label: 'Fleet Watch Rail',
-                    foreground: const Color(0xFFD8E8FA),
-                    background: const Color(0x143B82F6),
-                    border: const Color(0x663B82F6),
+                    foreground: OnyxColorTokens.surfaceInset,
+                    background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                    border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                     onTap: onOpenSystemStatus,
                   ),
                 ],
@@ -3017,7 +3017,7 @@ class _DispatchPageState extends State<DispatchPage> {
             borderRadius: BorderRadius.circular(4.0),
             color: _dispatchPanelColor,
             border: Border.all(color: _dispatchBorderColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
                 color: _dispatchShadowColor,
                 blurRadius: 14,
@@ -3156,7 +3156,7 @@ class _DispatchPageState extends State<DispatchPage> {
     if (headline.isEmpty) {
       return const SizedBox.shrink();
     }
-    final accent = widget.guardRosterSignalAccent ?? const Color(0xFFF59E0B);
+    final accent = widget.guardRosterSignalAccent ?? OnyxColorTokens.accentAmber;
     final label = (widget.guardRosterSignalLabel ?? '').trim().isEmpty
         ? 'ROSTER WATCH'
         : widget.guardRosterSignalLabel!.trim();
@@ -3281,10 +3281,10 @@ class _DispatchPageState extends State<DispatchPage> {
   // ignore: unused_element
   Widget _focusPill(String focusReference) {
     final color = switch (_focusState) {
-      _DispatchFocusState.exact => const Color(0xFF22D3EE),
+      _DispatchFocusState.exact => OnyxColorTokens.accentCyan,
       _DispatchFocusState.scopeBacked => _dispatchAccentSky,
-      _DispatchFocusState.seeded => const Color(0xFFFACC15),
-      _DispatchFocusState.none => const Color(0xFF9AB1CF),
+      _DispatchFocusState.seeded => OnyxColorTokens.accentAmber,
+      _DispatchFocusState.none => OnyxColorTokens.textMuted,
     };
     final foreground =
         Color.lerp(_dispatchTitleColor, color, 0.62) ?? color;
@@ -3327,37 +3327,37 @@ class _DispatchPageState extends State<DispatchPage> {
         label: 'ACTIVE DISPATCHES',
         value: '$activeDispatches',
         icon: Icons.send_rounded,
-        valueColor: const Color(0xFF10B981),
-        borderColor: const Color(0x5538C98B),
+        valueColor: OnyxColorTokens.accentGreen,
+        borderColor: OnyxColorTokens.accentGreen.withValues(alpha: 0.33),
       ),
       _KpiCardSpec(
         label: 'PENDING QUEUE',
         value: '$pendingDispatches',
         icon: Icons.schedule_rounded,
         valueColor: pendingDispatches > 0
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF8EA4C2),
+            ? OnyxColorTokens.accentAmber
+            : OnyxColorTokens.textMuted,
         borderColor: pendingDispatches > 0
-            ? const Color(0x55F59E0B)
-            : const Color(0x332B425F),
+            ? OnyxColorTokens.accentAmber.withValues(alpha: 0.33)
+            : OnyxColorTokens.surfaceElevated.withValues(alpha: 0.20),
       ),
       _KpiCardSpec(
         label: 'AVG RESPONSE TIME',
         value: _averageResponseTimeLabel(widget.events),
         icon: Icons.speed_rounded,
-        valueColor: const Color(0xFF22D3EE),
-        borderColor: const Color(0x553DB8D7),
+        valueColor: OnyxColorTokens.accentCyan,
+        borderColor: OnyxColorTokens.accentCyan.withValues(alpha: 0.33),
       ),
       _KpiCardSpec(
         label: rosterAttention ? 'ROSTER GAPS' : 'OFFICERS AVAILABLE',
         value: rosterAttention ? '1' : '${_officersAvailable()}',
         icon: rosterAttention ? Icons.event_busy_rounded : Icons.radio_rounded,
         valueColor: rosterAttention
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF10B981),
+            ? OnyxColorTokens.accentAmber
+            : OnyxColorTokens.accentGreen,
         borderColor: rosterAttention
-            ? const Color(0x55F59E0B)
-            : const Color(0x5538C98B),
+            ? OnyxColorTokens.accentAmber.withValues(alpha: 0.33)
+            : OnyxColorTokens.accentGreen.withValues(alpha: 0.33),
       ),
     ];
 
@@ -3393,7 +3393,7 @@ class _DispatchPageState extends State<DispatchPage> {
         color: _dispatchPanelColor,
         borderRadius: BorderRadius.circular(5.5),
         border: Border.all(color: spec.borderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _dispatchShadowColor,
             blurRadius: 12,
@@ -3442,7 +3442,7 @@ class _DispatchPageState extends State<DispatchPage> {
         widget.guardRosterSignalNeedsAttention &&
         rosterSignalHeadline.isNotEmpty;
     final rosterSignalAccent =
-        widget.guardRosterSignalAccent ?? const Color(0xFFF59E0B);
+        widget.guardRosterSignalAccent ?? OnyxColorTokens.accentAmber;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(1.2),
@@ -3450,7 +3450,7 @@ class _DispatchPageState extends State<DispatchPage> {
         color: _dispatchPanelColor,
         borderRadius: BorderRadius.circular(5.5),
         border: Border.all(color: _dispatchBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _dispatchShadowColor,
             blurRadius: 14,
@@ -3532,7 +3532,7 @@ class _DispatchPageState extends State<DispatchPage> {
                     icon: const Icon(Icons.calendar_month_rounded, size: 14),
                     style: FilledButton.styleFrom(
                       backgroundColor: rosterSignalAccent,
-                      foregroundColor: const Color(0xFF081018),
+                      foregroundColor: OnyxColorTokens.backgroundPrimary,
                       minimumSize: const Size.fromHeight(18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
@@ -3554,8 +3554,8 @@ class _DispatchPageState extends State<DispatchPage> {
                       onPressed: _openRosterAuditFromDispatch,
                       icon: const Icon(Icons.menu_book_rounded, size: 14),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF63E6A1),
-                        side: const BorderSide(color: Color(0xFF63E6A1)),
+                        foregroundColor: OnyxColorTokens.accentGreen,
+                        side: const BorderSide(color: OnyxColorTokens.accentGreen),
                         minimumSize: const Size.fromHeight(18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(6),
@@ -3590,7 +3590,7 @@ class _DispatchPageState extends State<DispatchPage> {
       onPressed: onPressed,
       icon: Icon(icon, size: 14.5),
       style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFF315C86),
+        foregroundColor: OnyxColorTokens.accentSky,
         backgroundColor: _dispatchPanelAltColor,
         side: const BorderSide(color: _dispatchBorderStrongColor),
         padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 1.8),
@@ -3640,7 +3640,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 onPressed: widget.onGenerate,
                 icon: const Icon(Icons.send_rounded, size: 15),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF315C86),
+                  foregroundColor: OnyxColorTokens.accentSky,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 4.2,
                     vertical: 2.8,
@@ -3836,7 +3836,7 @@ class _DispatchPageState extends State<DispatchPage> {
         color: _dispatchPanelColor,
         borderRadius: BorderRadius.circular(4.25),
         border: Border.all(color: _dispatchBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _dispatchShadowColor,
             blurRadius: 16,
@@ -3853,9 +3853,9 @@ class _DispatchPageState extends State<DispatchPage> {
     final count = _dispatchCountForFilter(filter);
     final accent = switch (filter) {
       _DispatchLaneFilter.all => _dispatchAccentSky,
-      _DispatchLaneFilter.active => const Color(0xFF22D3EE),
-      _DispatchLaneFilter.pending => const Color(0xFFF59E0B),
-      _DispatchLaneFilter.cleared => const Color(0xFF86EFAC),
+      _DispatchLaneFilter.active => OnyxColorTokens.accentCyan,
+      _DispatchLaneFilter.pending => OnyxColorTokens.accentAmber,
+      _DispatchLaneFilter.cleared => OnyxColorTokens.accentGreen,
     };
     return InkWell(
       key: ValueKey<String>('dispatch-queue-filter-${filter.name}'),
@@ -3917,7 +3917,7 @@ class _DispatchPageState extends State<DispatchPage> {
         color: _dispatchPanelColor,
         borderRadius: BorderRadius.circular(6.0),
         border: Border.all(color: _dispatchBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _dispatchShadowColor,
             blurRadius: 14,
@@ -3999,25 +3999,25 @@ class _DispatchPageState extends State<DispatchPage> {
                 'Officer',
                 dispatch.officer,
                 waitingAssignment
-                    ? const Color(0xFFFDE68A)
-                    : const Color(0xFF86EFAC),
+                    ? OnyxColorTokens.accentAmber.withValues(alpha: 0.5)
+                    : OnyxColorTokens.accentGreen,
               ),
               _dispatchBoardTag(
                 'Dispatched',
                 dispatch.dispatchTime,
-                const Color(0xFF9AB1CF),
+                OnyxColorTokens.textMuted,
               ),
               if (dispatch.eta != null)
                 _dispatchBoardTag(
                   'ETA',
                   dispatch.eta!,
-                  const Color(0xFF22D3EE),
+                  OnyxColorTokens.accentCyan,
                 ),
               if (dispatch.distance != null)
                 _dispatchBoardTag(
                   'Distance',
                   dispatch.distance!,
-                  const Color(0xFF9AB1CF),
+                  OnyxColorTokens.textMuted,
                 ),
             ],
           ),
@@ -4094,8 +4094,8 @@ class _DispatchPageState extends State<DispatchPage> {
                 ? 'Dispatch is waiting for officer commitment on this dispatch.'
                 : 'Primary responder ${dispatch.officer} owns the current dispatch.',
             accent: waitingAssignment
-                ? const Color(0xFFF59E0B)
-                : const Color(0xFF22D3EE),
+                ? OnyxColorTokens.accentAmber
+                : OnyxColorTokens.accentCyan,
             complete: !waitingAssignment,
             active: waitingAssignment,
           ),
@@ -4115,8 +4115,8 @@ class _DispatchPageState extends State<DispatchPage> {
                 ? 'Travel window is still in motion. Current ETA ${dispatch.eta}.'
                 : 'Waiting for travel tracking or partner progression.',
             accent: partnerOnSite != null
-                ? const Color(0xFF86EFAC)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentAmber,
             complete: partnerOnSite != null,
             active: partnerOnSite == null,
           ),
@@ -4131,8 +4131,8 @@ class _DispatchPageState extends State<DispatchPage> {
                 ? 'Report shell can open now for mid-incident review and receipt prep.'
                 : 'Report handoff will unlock once a live dispatch is available.',
             accent: handoffReady
-                ? const Color(0xFF86EFAC)
-                : const Color(0xFF8EA4C2),
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.textMuted,
             complete: handoffReady,
             active: !handoffReady && openReportAvailable,
           ),
@@ -4204,7 +4204,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   _dispatchBoardActionButton(
                     label: 'OPEN EVENTS SCOPE',
                     icon: Icons.center_focus_strong_rounded,
-                    foreground: const Color(0xFFFDE68A),
+                    foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
                     onPressed: () => primaryScopeAction.call(
                       linkedScope!.clientId,
                       linkedScope.siteId,
@@ -4289,7 +4289,7 @@ class _DispatchPageState extends State<DispatchPage> {
           Icon(
             icon,
             size: 13.0,
-            color: complete || active ? accent : const Color(0xFF60748E),
+            color: complete || active ? accent : OnyxColorTokens.textMuted,
           ),
           const SizedBox(width: 4.0),
           Expanded(
@@ -4424,18 +4424,18 @@ class _DispatchPageState extends State<DispatchPage> {
               _dispatchBoardTag(
                 'Status',
                 scope.statusLabel,
-                const Color(0xFF86EFAC),
+                OnyxColorTokens.accentGreen,
               ),
               _dispatchBoardTag(
                 'Watch',
                 scope.watchLabel,
-                const Color(0xFFFDE68A),
+                OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
               ),
               if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
                 _dispatchBoardTag(
                   'Camera',
                   scope.latestCameraLabel!,
-                  const Color(0xFF9AB1CF),
+                  OnyxColorTokens.textMuted,
                 ),
             ],
           ),
@@ -4495,13 +4495,13 @@ class _DispatchPageState extends State<DispatchPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1422D3EE) : _dispatchPanelColor,
+          color: selected ? OnyxColorTokens.accentCyan.withValues(alpha: 0.08) : _dispatchPanelColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0x8022D3EE) : _dispatchBorderColor,
+            color: selected ? OnyxColorTokens.accentCyan.withValues(alpha: 0.50) : _dispatchBorderColor,
           ),
           boxShadow: selected
-              ? const [
+              ? [
                   BoxShadow(
                     color: _dispatchShadowColor,
                     blurRadius: 12,
@@ -4573,7 +4573,7 @@ class _DispatchPageState extends State<DispatchPage> {
                         Text(
                           'SEEDED',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFFACC15),
+                            color: OnyxColorTokens.accentAmber,
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                           ),
@@ -4592,7 +4592,7 @@ class _DispatchPageState extends State<DispatchPage> {
                         _metaItem(
                           'ETA',
                           dispatch.eta!,
-                          color: const Color(0xFF22D3EE),
+                          color: OnyxColorTokens.accentCyan,
                         ),
                       if (dispatch.distance != null)
                         _metaItem('Distance', dispatch.distance!),
@@ -4821,40 +4821,40 @@ class _DispatchPageState extends State<DispatchPage> {
   (Color, Color, Color) _partnerProgressTone(PartnerDispatchStatus status) {
     return switch (status) {
       PartnerDispatchStatus.unknown => (
-        const Color(0xFF94A3B8),
-        const Color(0x1494A3B8),
-        const Color(0x6694A3B8),
+        OnyxColorTokens.textMuted,
+        OnyxColorTokens.textMuted.withValues(alpha: 0.08),
+        OnyxColorTokens.textMuted.withValues(alpha: 0.40),
       ),
       PartnerDispatchStatus.accepted => (
-        const Color(0xFF38BDF8),
-        const Color(0x1A38BDF8),
-        const Color(0x6638BDF8),
+        OnyxColorTokens.accentCyan,
+        OnyxColorTokens.accentCyan.withValues(alpha: 0.10),
+        OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
       ),
       PartnerDispatchStatus.onSite => (
-        const Color(0xFFF59E0B),
-        const Color(0x1AF59E0B),
-        const Color(0x66F59E0B),
+        OnyxColorTokens.accentAmber,
+        OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+        OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
       ),
       PartnerDispatchStatus.allClear => (
-        const Color(0xFF34D399),
-        const Color(0x1A34D399),
-        const Color(0x6634D399),
+        OnyxColorTokens.accentGreen,
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.10),
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
       ),
       PartnerDispatchStatus.cancelled => (
-        const Color(0xFFF87171),
-        const Color(0x1AF87171),
-        const Color(0x66F87171),
+        OnyxColorTokens.accentRed,
+        OnyxColorTokens.accentRed.withValues(alpha: 0.10),
+        OnyxColorTokens.accentRed.withValues(alpha: 0.40),
       ),
     };
   }
 
   Color _partnerTrendColor(String trendLabel) {
     return switch (trendLabel.trim().toUpperCase()) {
-      'IMPROVING' => const Color(0xFF34D399),
-      'STABLE' => const Color(0xFF38BDF8),
-      'SLIPPING' => const Color(0xFFF97316),
-      'NEW' => const Color(0xFFFDE68A),
-      _ => const Color(0xFF9CB4D0),
+      'IMPROVING' => OnyxColorTokens.accentGreen,
+      'STABLE' => OnyxColorTokens.accentCyan,
+      'SLIPPING' => OnyxColorTokens.accentAmber,
+      'NEW' => OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+      _ => OnyxColorTokens.textMuted,
     };
   }
 
@@ -4885,7 +4885,7 @@ class _DispatchPageState extends State<DispatchPage> {
         color: _dispatchPanelColor,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _dispatchBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _dispatchShadowColor,
             blurRadius: 16,
@@ -4920,7 +4920,7 @@ class _DispatchPageState extends State<DispatchPage> {
           const SizedBox(height: 2),
           _statusSection(
             title: 'Transport & Intake',
-            pill: _statePill('OPERATIONAL', const Color(0xFF10B981)),
+            pill: _statePill('OPERATIONAL', OnyxColorTokens.accentGreen),
             child: Column(
               children: const [
                 _MetricRow(label: 'Vehicles Ready', value: '12 / 14'),
@@ -4928,7 +4928,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 _MetricRow(
                   label: 'Fuel Status',
                   value: 'Optimal',
-                  valueColor: Color(0xFF10B981),
+                  valueColor: OnyxColorTokens.accentGreen,
                 ),
               ],
             ),
@@ -4943,8 +4943,8 @@ class _DispatchPageState extends State<DispatchPage> {
                   : 'HEALTHY',
               widget.radioOpsReadiness == 'UNCONFIGURED' &&
                       widget.cctvOpsReadiness == 'UNCONFIGURED'
-                  ? const Color(0xFFF59E0B)
-                  : const Color(0xFF10B981),
+                  ? OnyxColorTokens.accentAmber
+                  : OnyxColorTokens.accentGreen,
             ),
             child: Column(
               children: [
@@ -5067,21 +5067,21 @@ class _DispatchPageState extends State<DispatchPage> {
                   label: 'P1 Critical',
                   value: '4.2 min avg',
                   width: 0.85,
-                  color: Color(0xFF10B981),
+                  color: OnyxColorTokens.accentGreen,
                 ),
                 SizedBox(height: 5),
                 _BreakdownRow(
                   label: 'P2 High',
                   value: '8.1 min avg',
                   width: 0.65,
-                  color: Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 SizedBox(height: 5),
                 _BreakdownRow(
                   label: 'P3 Medium',
                   value: '12.4 min avg',
                   width: 0.50,
-                  color: Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyan,
                 ),
               ],
             ),
@@ -5104,7 +5104,7 @@ class _DispatchPageState extends State<DispatchPage> {
         color: _dispatchPanelAltColor,
         borderRadius: BorderRadius.circular(7),
         border: Border.all(color: receipt.accent.withValues(alpha: 0.42)),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _dispatchShadowColor,
             blurRadius: 12,
@@ -5173,8 +5173,8 @@ class _DispatchPageState extends State<DispatchPage> {
                 key: const ValueKey('dispatch-workspace-view-latest-audit'),
                 onPressed: widget.onOpenLatestAudit,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF63E6A1),
-                  side: const BorderSide(color: Color(0xFF63E6A1)),
+                  foregroundColor: OnyxColorTokens.accentGreen,
+                  side: const BorderSide(color: OnyxColorTokens.accentGreen),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 6,
@@ -5243,7 +5243,7 @@ class _DispatchPageState extends State<DispatchPage> {
               _statusBadge(
                 'Internal',
                 '${entries.length}',
-                const Color(0xFF9AB1CF),
+                OnyxColorTokens.textMuted,
               ),
             ],
           ),
@@ -5309,18 +5309,18 @@ class _DispatchPageState extends State<DispatchPage> {
                         review.decisionLabel.trim().isEmpty
                             ? 'Suppressed'
                             : review.decisionLabel.trim(),
-                        const Color(0xFFBFD7F2),
+                        OnyxColorTokens.surfaceInset,
                       ),
                       if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
                         _statusBadge(
                           'Camera',
                           scope.latestCameraLabel!.trim(),
-                          const Color(0xFF67E8F9),
+                          OnyxColorTokens.accentCyan,
                         ),
                       _statusBadge(
                         'Posture',
                         review.postureLabel.trim(),
-                        const Color(0xFF86EFAC),
+                        OnyxColorTokens.accentGreen,
                       ),
                     ],
                   ),
@@ -5483,7 +5483,7 @@ class _DispatchPageState extends State<DispatchPage> {
             color: _dispatchPanelColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _dispatchBorderColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
                 color: _dispatchShadowColor,
                 blurRadius: 12,
@@ -5504,20 +5504,20 @@ class _DispatchPageState extends State<DispatchPage> {
     onOpenLatestWatchActionDetail,
   }) {
     final statusColor = switch (scope.statusLabel.toUpperCase()) {
-      'LIVE' => const Color(0xFF10B981),
-      'ACTIVE WATCH' => const Color(0xFF22D3EE),
-      'LIMITED WATCH' => const Color(0xFFF59E0B),
-      'WATCH READY' => const Color(0xFFF59E0B),
-      _ => const Color(0xFF8EA4C2),
+      'LIVE' => OnyxColorTokens.accentGreen,
+      'ACTIVE WATCH' => OnyxColorTokens.accentCyan,
+      'LIMITED WATCH' => OnyxColorTokens.accentAmber,
+      'WATCH READY' => OnyxColorTokens.accentAmber,
+      _ => OnyxColorTokens.textMuted,
     };
     final watchColor = scope.watchLabel == 'LIMITED'
-        ? const Color(0xFFF59E0B)
-        : const Color(0xFF67E8F9);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentCyan;
     final phaseColor = (scope.watchWindowStateLabel ?? '').contains('LIMITED')
-        ? const Color(0xFFF59E0B)
+        ? OnyxColorTokens.accentAmber
         : scope.watchWindowStateLabel == 'IN WINDOW'
-        ? const Color(0xFF86EFAC)
-        : const Color(0xFFFBBF24);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
     final hasDispatchLane =
         scope.hasIncidentContext && widget.onOpenFleetDispatchScope != null;
     final hasTacticalLane =
@@ -5535,11 +5535,11 @@ class _DispatchPageState extends State<DispatchPage> {
         ? 'OPEN TACTICAL TRACK'
         : 'Latest detail';
     final primaryActionColor = canRecoverCoverage
-        ? const Color(0xFFFCA5A5)
+        ? OnyxColorTokens.accentRed
         : hasDispatchLane
-        ? const Color(0xFFFDE68A)
+        ? OnyxColorTokens.accentAmber.withValues(alpha: 0.5)
         : hasTacticalLane
-        ? const Color(0xFF67E8F9)
+        ? OnyxColorTokens.accentCyan
         : _dispatchAccentSky;
 
     void openFleetDetail() {
@@ -5567,7 +5567,7 @@ class _DispatchPageState extends State<DispatchPage> {
         'Opened ${scope.siteName} in Dispatch Board.',
         label: 'DISPATCH HANDOFF',
         detail: '${scope.siteName} is now foregrounded in Dispatch Board.',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       );
     }
 
@@ -5585,7 +5585,7 @@ class _DispatchPageState extends State<DispatchPage> {
         'Opened ${scope.siteName} in Tactical Track.',
         label: 'TACTICAL HANDOFF',
         detail: '${scope.siteName} is now foregrounded in Tactical Track.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentCyan,
       );
     }
 
@@ -5600,7 +5600,7 @@ class _DispatchPageState extends State<DispatchPage> {
         label: 'COVERAGE RESYNC',
         detail:
             '${scope.siteName} has been queued for watch-window recovery from the fleet watch card.',
-        accent: const Color(0xFFFCA5A5),
+        accent: OnyxColorTokens.accentRed,
       );
     }
 
@@ -5735,7 +5735,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 _statusBadge(
                   'Endpoint',
                   scope.endpointLabel,
-                  const Color(0xFF9AB1CF),
+                  OnyxColorTokens.textMuted,
                 ),
                 _statusBadge(
                   'Last seen',
@@ -5746,16 +5746,16 @@ class _DispatchPageState extends State<DispatchPage> {
                   _statusBadge(
                     'Reference',
                     scope.latestIncidentReference!,
-                    const Color(0xFFFDE68A),
+                    OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
                   ),
                 if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
                   _statusBadge(
                     'Camera',
                     scope.latestCameraLabel!,
-                    const Color(0xFF9AB1CF),
+                    OnyxColorTokens.textMuted,
                   ),
                 if (!scope.hasIncidentContext)
-                  _statusBadge('Context', 'Pending', const Color(0xFFFBBF24)),
+                  _statusBadge('Context', 'Pending', OnyxColorTokens.accentAmber),
               ],
             ),
           ],
@@ -5782,7 +5782,7 @@ class _DispatchPageState extends State<DispatchPage> {
         fontWeight: FontWeight.w600,
       ),
       statusDetailStyle: GoogleFonts.inter(
-        color: const Color(0xFFFDE68A),
+        color: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
         fontSize: 10,
         fontWeight: FontWeight.w600,
       ),
@@ -5800,10 +5800,10 @@ class _DispatchPageState extends State<DispatchPage> {
       primaryGroupAccent: commandAccent,
       primaryGroupKey: ValueKey('dispatch-fleet-scope-posture-${scope.siteId}'),
       contextGroupLabel: null,
-      contextGroupAccent: const Color(0xFFFDE68A),
+      contextGroupAccent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
       contextGroupKey: ValueKey('dispatch-fleet-scope-context-${scope.siteId}'),
       latestGroupLabel: 'LATEST SIGNAL',
-      latestGroupAccent: const Color(0xFF67E8F9),
+      latestGroupAccent: OnyxColorTokens.accentCyan,
       latestGroupKey: ValueKey('dispatch-fleet-scope-latest-${scope.siteId}'),
       secondaryGroupLabel: 'LIVE FEED',
       secondaryGroupAccent: _dispatchAccentSky,
@@ -5816,23 +5816,23 @@ class _DispatchPageState extends State<DispatchPage> {
           _statusBadge(
             'Cue',
             scope.operatorOutcomeLabel!,
-            const Color(0xFF67E8F9),
+            OnyxColorTokens.accentCyan,
           ),
         if ((scope.operatorOutcomeLabel ?? '').trim().isEmpty &&
             (scope.lastRecoveryLabel ?? '').trim().isNotEmpty)
           _statusBadge(
             'Recovery',
             scope.lastRecoveryLabel!,
-            const Color(0xFF86EFAC),
+            OnyxColorTokens.accentGreen,
           ),
         if (scope.hasWatchActivationGap)
           _statusBadge(
             'Gap',
             scope.watchActivationGapLabel!,
-            const Color(0xFFF87171),
+            OnyxColorTokens.accentRed,
           ),
         if (!scope.hasIncidentContext)
-          _statusBadge('Context', 'Pending', const Color(0xFFFBBF24)),
+          _statusBadge('Context', 'Pending', OnyxColorTokens.accentAmber),
         if (scope.identityPolicyChipValue != null)
           _statusBadge(
             'Identity',
@@ -5844,10 +5844,10 @@ class _DispatchPageState extends State<DispatchPage> {
             'Client',
             scope.clientDecisionChipValue!,
             scope.clientDecisionChipValue == 'Approved'
-                ? const Color(0xFF86EFAC)
+                ? OnyxColorTokens.accentGreen
                 : scope.clientDecisionChipValue == 'Review'
-                ? const Color(0xFFFDE68A)
-                : const Color(0xFFFCA5A5),
+                ? OnyxColorTokens.accentAmber.withValues(alpha: 0.5)
+                : OnyxColorTokens.accentRed,
           ),
         _statusBadge('Status', scope.statusLabel, statusColor),
         _statusBadge('Watch', scope.watchLabel, watchColor),
@@ -5859,7 +5859,7 @@ class _DispatchPageState extends State<DispatchPage> {
         _statusBadge(
           'Events 6h',
           '${scope.recentEvents}',
-          const Color(0xFF9AB1CF),
+          OnyxColorTokens.textMuted,
         ),
       ],
       secondaryChips: [
@@ -5867,7 +5867,7 @@ class _DispatchPageState extends State<DispatchPage> {
           _statusBadge(
             'Window',
             scope.watchWindowLabel!,
-            const Color(0xFF86EFAC),
+            OnyxColorTokens.accentGreen,
           ),
         if (scope.watchWindowStateLabel != null)
           _statusBadge('Phase', scope.watchWindowStateLabel!, phaseColor),
@@ -5881,7 +5881,7 @@ class _DispatchPageState extends State<DispatchPage> {
           _statusBadge(
             'Camera',
             scope.latestCameraLabel!,
-            const Color(0xFF9AB1CF),
+            OnyxColorTokens.textMuted,
           ),
       ],
       actionChildren: [
@@ -5889,21 +5889,21 @@ class _DispatchPageState extends State<DispatchPage> {
           _fleetActionButton(
             key: ValueKey('dispatch-fleet-resync-${scope.siteId}'),
             label: 'Resync',
-            color: const Color(0xFFF87171),
+            color: OnyxColorTokens.accentRed,
             onPressed: recoverFleetScope,
           ),
         if (hasTacticalLane)
           _fleetActionButton(
             key: ValueKey('dispatch-fleet-tactical-${scope.siteId}'),
             label: 'Tactical',
-            color: const Color(0xFF67E8F9),
+            color: OnyxColorTokens.accentCyan,
             onPressed: openFleetTactical,
           ),
         if (hasDispatchLane)
           _fleetActionButton(
             key: ValueKey('dispatch-fleet-dispatch-${scope.siteId}'),
             label: 'Dispatch',
-            color: const Color(0xFFFBBF24),
+            color: OnyxColorTokens.accentAmber,
             onPressed: openFleetDispatch,
           ),
         _fleetActionButton(
@@ -5931,7 +5931,7 @@ class _DispatchPageState extends State<DispatchPage> {
         color: _dispatchPanelColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _dispatchBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _dispatchShadowColor,
             blurRadius: 10,
@@ -6092,7 +6092,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 _fleetActionButton(
                   key: const ValueKey('dispatch-fleet-summary-clear'),
                   label: 'Clear focus',
-                  color: const Color(0xFF9AB1CF),
+                  color: OnyxColorTokens.textMuted,
                   onPressed: onClearFocus,
                 ),
             ],
@@ -6104,19 +6104,19 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Color _fleetScopeCommandAccent(VideoFleetScopeHealthView scope) {
     if (scope.hasWatchActivationGap) {
-      return const Color(0xFFFCA5A5);
+      return OnyxColorTokens.accentRed;
     }
     if (scope.identityPolicyChipValue != null) {
       return identityPolicyAccentColorForScope(scope);
     }
     if (scope.escalationCount > 0) {
-      return const Color(0xFFFCA5A5);
+      return OnyxColorTokens.accentRed;
     }
     if (scope.alertCount > 0) {
-      return const Color(0xFF67E8F9);
+      return OnyxColorTokens.accentCyan;
     }
     if (scope.repeatCount > 0) {
-      return const Color(0xFFFDE68A);
+      return OnyxColorTokens.accentAmber.withValues(alpha: 0.5);
     }
     if (scope.latestRiskScore != null) {
       return _fleetRiskColor(scope.latestRiskScore!);
@@ -6241,14 +6241,14 @@ class _DispatchPageState extends State<DispatchPage> {
         'Active',
         '${sections.activeCount}',
         detail: 'Live or limited fleet watch scopes',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentCyan,
         key: const ValueKey('dispatch-fleet-summary-tile-active'),
       ),
       _fleetSummaryTile(
         'Limited',
         '${sections.limitedCount}',
         detail: 'Coverage constrained or degraded',
-        accent: const Color(0xFFF59E0B),
+        accent: OnyxColorTokens.accentAmber,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.limited,
@@ -6263,35 +6263,35 @@ class _DispatchPageState extends State<DispatchPage> {
         'Gap',
         '${sections.gapCount}',
         detail: 'Watch starts missed or delayed',
-        accent: const Color(0xFFF87171),
+        accent: OnyxColorTokens.accentRed,
         key: const ValueKey('dispatch-fleet-summary-tile-gap'),
       ),
       _fleetSummaryTile(
         'High Risk',
         '${sections.highRiskCount}',
         detail: '70+ high-risk scopes live',
-        accent: const Color(0xFFF87171),
+        accent: OnyxColorTokens.accentRed,
         key: const ValueKey('dispatch-fleet-summary-tile-high-risk'),
       ),
       _fleetSummaryTile(
         'Recovered 6h',
         '${sections.recoveredCount}',
         detail: 'Recent operator recovery passes',
-        accent: const Color(0xFF86EFAC),
+        accent: OnyxColorTokens.accentGreen,
         key: const ValueKey('dispatch-fleet-summary-tile-recovered'),
       ),
       _fleetSummaryTile(
         'Suppressed',
         '${sections.suppressedCount}',
         detail: 'Quiet filtered review holds',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textMuted,
         key: const ValueKey('dispatch-fleet-summary-tile-suppressed'),
       ),
       _fleetSummaryTile(
         'Alerts',
         '${sections.alertActionCount}',
         detail: 'Client alerts sent from Fleet Watch Rail',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentCyan,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.alerts,
@@ -6306,7 +6306,7 @@ class _DispatchPageState extends State<DispatchPage> {
         'Repeat',
         '${sections.repeatActionCount}',
         detail: 'Monitoring loops still repeating',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.repeat,
@@ -6321,7 +6321,7 @@ class _DispatchPageState extends State<DispatchPage> {
         'Escalated',
         '${sections.escalationActionCount}',
         detail: 'Reviews pushed into escalation',
-        accent: const Color(0xFFF87171),
+        accent: OnyxColorTokens.accentRed,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.escalated,
@@ -6336,7 +6336,7 @@ class _DispatchPageState extends State<DispatchPage> {
         'Filtered',
         '${sections.suppressedActionCount}',
         detail: 'Below-threshold review holds',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textMuted,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.filtered,
@@ -6396,14 +6396,14 @@ class _DispatchPageState extends State<DispatchPage> {
         'Stale',
         '${sections.staleCount}',
         detail: 'Feeds aging beyond fresh window',
-        accent: const Color(0xFFFBBF24),
+        accent: OnyxColorTokens.accentAmber,
         key: const ValueKey('dispatch-fleet-summary-tile-stale'),
       ),
       _fleetSummaryTile(
         'No Incident',
         '${sections.noIncidentCount}',
         detail: 'Telemetry without linked incident',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textMuted,
         key: const ValueKey('dispatch-fleet-summary-tile-no-incident'),
       ),
     ];
@@ -6522,15 +6522,15 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Color _fleetRiskColor(int score) {
     if (score >= 85) {
-      return const Color(0xFFF87171);
+      return OnyxColorTokens.accentRed;
     }
     if (score >= 70) {
-      return const Color(0xFFFBBF24);
+      return OnyxColorTokens.accentAmber;
     }
     if (score >= 40) {
-      return const Color(0xFF67E8F9);
+      return OnyxColorTokens.accentCyan;
     }
-    return const Color(0xFF9AB1CF);
+    return OnyxColorTokens.textMuted;
   }
 
   String _fleetRiskLabel(int score) {
@@ -6548,11 +6548,11 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Color _fleetFreshnessColor(VideoFleetScopeHealthView scope) {
     return switch (scope.freshnessLabel) {
-      'Fresh' => const Color(0xFF10B981),
-      'Recent' => const Color(0xFF67E8F9),
-      'Stale' => const Color(0xFFF87171),
-      'Quiet' => const Color(0xFFFBBF24),
-      _ => const Color(0xFF9AB1CF),
+      'Fresh' => OnyxColorTokens.accentGreen,
+      'Recent' => OnyxColorTokens.accentCyan,
+      'Stale' => OnyxColorTokens.accentRed,
+      'Quiet' => OnyxColorTokens.accentAmber,
+      _ => OnyxColorTokens.textMuted,
     };
   }
 
@@ -6700,13 +6700,13 @@ class _DispatchPageState extends State<DispatchPage> {
                       label: 'TEMPORARY ID',
                       detail:
                           'The approval expiry stays pinned in Fleet Watch Rail while the selected watch scope stays pinned.',
-                      accent: const Color(0xFFFCA5A5),
+                      accent: OnyxColorTokens.accentRed,
                     );
                   },
                   child: Text(
                     'Expire now',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFB95D5D),
+                      color: OnyxColorTokens.accentRed,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -6786,11 +6786,11 @@ class _DispatchPageState extends State<DispatchPage> {
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFFFF1F1),
-                foregroundColor: const Color(0xFFB42318),
+                backgroundColor: OnyxColorTokens.surfaceInset,
+                foregroundColor: OnyxColorTokens.accentRed,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Color(0xFFE8B6B6)),
+                  side: const BorderSide(color: OnyxColorTokens.surfaceInset),
                 ),
               ),
               child: Text(
@@ -6839,7 +6839,7 @@ class _DispatchPageState extends State<DispatchPage> {
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(34),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
-        foregroundColor: const Color(0xFF315C86),
+        foregroundColor: OnyxColorTokens.accentSky,
         backgroundColor: _dispatchPanelColor,
         side: const BorderSide(color: _dispatchBorderStrongColor),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -6916,16 +6916,16 @@ class _DispatchPageState extends State<DispatchPage> {
   }) {
     final enabled = onPressed != null;
     final foreground = destructive
-        ? const Color(0xFFEF4444)
-        : const Color(0xFF67E8F9);
+        ? OnyxColorTokens.accentRed
+        : OnyxColorTokens.accentCyan;
     final border = destructive
-        ? const Color(0xFF5B242C)
-        : const Color(0xFF264A62);
+        ? OnyxColorTokens.accentRed
+        : OnyxColorTokens.surfaceElevated;
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 14),
       style: OutlinedButton.styleFrom(
-        foregroundColor: enabled ? foreground : const Color(0xFF5F7390),
+        foregroundColor: enabled ? foreground : OnyxColorTokens.textMuted,
         backgroundColor: _dispatchPanelColor,
         side: BorderSide(color: enabled ? border : _dispatchBorderStrongColor),
         minimumSize: const Size(130, 34),
@@ -6982,11 +6982,11 @@ class _DispatchPageState extends State<DispatchPage> {
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFFFF1F1),
-                foregroundColor: const Color(0xFFB42318),
+                backgroundColor: OnyxColorTokens.surfaceInset,
+                foregroundColor: OnyxColorTokens.accentRed,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Color(0xFFE8B6B6)),
+                  side: const BorderSide(color: OnyxColorTokens.surfaceInset),
                 ),
               ),
               child: Text(
@@ -7274,52 +7274,52 @@ class _DispatchPageState extends State<DispatchPage> {
   _DispatchStatusStyle _statusStyle(_DispatchStatus status) {
     switch (status) {
       case _DispatchStatus.pending:
-        return const _DispatchStatusStyle(
+        return _DispatchStatusStyle(
           label: 'PENDING',
           icon: Icons.error_outline_rounded,
-          iconColor: Color(0xFFF59E0B),
-          iconBg: Color(0x33F59E0B),
-          chipFg: Color(0xFFF59E0B),
-          chipBg: Color(0x1AF59E0B),
-          chipBorder: Color(0x66F59E0B),
+          iconColor: OnyxColorTokens.accentAmber,
+          iconBg: OnyxColorTokens.accentAmber.withValues(alpha: 0.20),
+          chipFg: OnyxColorTokens.accentAmber,
+          chipBg: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+          chipBorder: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
           actionLabel: 'ASSIGN OFFICER',
-          actionColor: Color(0xFFF59E0B),
+          actionColor: OnyxColorTokens.accentAmber,
         );
       case _DispatchStatus.enRoute:
-        return const _DispatchStatusStyle(
+        return _DispatchStatusStyle(
           label: 'EN ROUTE',
           icon: Icons.local_shipping_rounded,
-          iconColor: Color(0xFF22D3EE),
-          iconBg: Color(0x3322D3EE),
-          chipFg: Color(0xFF22D3EE),
-          chipBg: Color(0x1A22D3EE),
-          chipBorder: Color(0x6622D3EE),
+          iconColor: OnyxColorTokens.accentCyan,
+          iconBg: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
+          chipFg: OnyxColorTokens.accentCyan,
+          chipBg: OnyxColorTokens.accentCyan.withValues(alpha: 0.10),
+          chipBorder: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
           actionLabel: 'TRACK LOCATION',
-          actionColor: Color(0xFF22D3EE),
+          actionColor: OnyxColorTokens.accentCyan,
         );
       case _DispatchStatus.onSite:
-        return const _DispatchStatusStyle(
+        return _DispatchStatusStyle(
           label: 'ON SITE',
           icon: Icons.verified_rounded,
-          iconColor: Color(0xFF10B981),
-          iconBg: Color(0x3310B981),
-          chipFg: Color(0xFF10B981),
-          chipBg: Color(0x1A10B981),
-          chipBorder: Color(0x6610B981),
+          iconColor: OnyxColorTokens.accentGreen,
+          iconBg: OnyxColorTokens.accentGreen.withValues(alpha: 0.20),
+          chipFg: OnyxColorTokens.accentGreen,
+          chipBg: OnyxColorTokens.accentGreen.withValues(alpha: 0.10),
+          chipBorder: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
           actionLabel: 'MARK CLEARED',
-          actionColor: Color(0xFF10B981),
+          actionColor: OnyxColorTokens.accentGreen,
         );
       case _DispatchStatus.cleared:
-        return const _DispatchStatusStyle(
+        return _DispatchStatusStyle(
           label: 'CLEARED',
           icon: Icons.check_circle_outline_rounded,
-          iconColor: Color(0xFF86EFAC),
-          iconBg: Color(0x3386EFAC),
-          chipFg: Color(0xFF86EFAC),
-          chipBg: Color(0x1A86EFAC),
-          chipBorder: Color(0x6686EFAC),
+          iconColor: OnyxColorTokens.accentGreen,
+          iconBg: OnyxColorTokens.accentGreen.withValues(alpha: 0.20),
+          chipFg: OnyxColorTokens.accentGreen,
+          chipBg: OnyxColorTokens.accentGreen.withValues(alpha: 0.10),
+          chipBorder: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
           actionLabel: 'OPEN CLIENT COMMS',
-          actionColor: Color(0xFF86EFAC),
+          actionColor: OnyxColorTokens.accentGreen,
         );
     }
   }
@@ -7328,15 +7328,15 @@ class _DispatchPageState extends State<DispatchPage> {
     return switch (priority) {
       _DispatchPriority.p1Critical => const _DispatchPriorityStyle(
         'P1-CRITICAL',
-        Color(0xFFEF4444),
+        OnyxColorTokens.accentRed,
       ),
       _DispatchPriority.p2High => const _DispatchPriorityStyle(
         'P2-HIGH',
-        Color(0xFFF59E0B),
+        OnyxColorTokens.accentAmber,
       ),
       _DispatchPriority.p3Medium => const _DispatchPriorityStyle(
         'P3-MEDIUM',
-        Color(0xFFFACC15),
+        OnyxColorTokens.accentAmber,
       ),
     };
   }
@@ -7802,7 +7802,7 @@ class _DispatchPageState extends State<DispatchPage> {
       label: 'DISPATCH SIGNAL',
       detail:
           'The queued dispatch signal stays visible in Fleet Watch Rail while the selected Dispatch Board remains in focus.',
-      accent: const Color(0xFFFDE68A),
+      accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
     );
   }
 }
@@ -7909,7 +7909,7 @@ class _BulletLine extends StatelessWidget {
             width: 4,
             height: 4,
             decoration: const BoxDecoration(
-              color: Color(0xFF10B981),
+              color: OnyxColorTokens.accentGreen,
               shape: BoxShape.circle,
             ),
           ),
