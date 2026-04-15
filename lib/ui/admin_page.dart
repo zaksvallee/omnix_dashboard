@@ -1308,7 +1308,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     headline: 'Admin desk ready',
     detail:
         'Directory actions, onboarding drills, and system changes stay visible in the Context Rail.',
-    accent: Color(0xFF8FD1FF),
+    accent: OnyxColorTokens.accentSky,
   );
 
   final TextEditingController _searchController = TextEditingController();
@@ -1416,7 +1416,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       detail: (detail == null || detail.isEmpty)
           ? 'Planner intent stays pinned here while you make the change.'
           : detail,
-      accent: widget.initialCommandAccent ?? const Color(0xFF8FD1FF),
+      accent: widget.initialCommandAccent ?? OnyxColorTokens.accentSky,
     );
   }
 
@@ -1920,9 +1920,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             color: _adminDialogSurfaceColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: _adminDialogBorderColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x0C0F2235),
+                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.05),
                 blurRadius: 18,
                 offset: Offset(0, 10),
               ),
@@ -2094,7 +2094,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             _adminWorkspaceChip(
               '$auditCount Audit${auditCount == 1 ? '' : 's'}',
               accent: auditCount > 0
-                  ? OnyxColorTokens.accentCyanTrue
+                  ? OnyxColorTokens.accentSky
                   : OnyxColorTokens.textMuted,
             ),
             _adminWorkspaceChip(
@@ -2106,7 +2106,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             _adminWorkspaceChip(
               '$watchScopeCount Recovery Scope${watchScopeCount == 1 ? '' : 's'}',
               accent: watchScopeCount > 0
-                  ? OnyxColorTokens.accentCyanTrue
+                  ? OnyxColorTokens.accentSky
                   : OnyxColorTokens.textMuted,
             ),
             _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
@@ -2175,7 +2175,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   _adminWorkspaceChip(
                     _directoryLoadedFromSupabase ? 'Supabase' : 'Local',
                     accent: _directoryLoadedFromSupabase
-                        ? OnyxColorTokens.accentCyanTrue
+                        ? OnyxColorTokens.accentSky
                         : OnyxColorTokens.textMuted,
                   ),
                   _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
@@ -2434,14 +2434,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
       icon: Icon(icon, size: 14),
       style: FilledButton.styleFrom(
         backgroundColor: Color.alphaBlend(
-          const Color(0xFF13131E).withValues(alpha: 0.62),
+          OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.62),
           accent.withValues(alpha: 0.1),
         ),
         foregroundColor: onPressed == null
-            ? const Color(0xFF66778E)
+            ? OnyxColorTokens.textMuted
             : foreground,
         disabledBackgroundColor: _adminDialogAltColor,
-        disabledForegroundColor: const Color(0xFF66778E),
+        disabledForegroundColor: OnyxColorTokens.textMuted,
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
@@ -2462,7 +2462,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Color.alphaBlend(
-          const Color(0xFF13131E).withValues(alpha: 0.54),
+          OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.54),
           accent.withValues(alpha: 0.08),
         ),
         borderRadius: BorderRadius.circular(999),
@@ -2525,7 +2525,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return switch (_activeSystemSection) {
       _AdminSystemSection.aiCommunications => OnyxColorTokens.accentAmber,
       _AdminSystemSection.systemControls => OnyxColorTokens.accentGreen,
-      _AdminSystemSection.watchIdentity => OnyxColorTokens.accentCyanTrue,
+      _AdminSystemSection.watchIdentity => OnyxColorTokens.accentSky,
     };
   }
 
@@ -2612,7 +2612,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'AI DRAFT QUEUE',
         detail:
             'Pending client comms drafts stay pinned in the audit panel so review can continue without hunting through admin surfaces.',
-        accent: OnyxColorTokens.accentCyanTrue,
+        accent: OnyxColorTokens.accentSky,
       );
     });
   }
@@ -2920,10 +2920,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Color _identityRuleBucketColor(_IdentityRuleBucket bucket) {
     return switch (bucket) {
-      _IdentityRuleBucket.flaggedFaces => const Color(0xFFFF7A7A),
-      _IdentityRuleBucket.flaggedPlates => const Color(0xFFFFB36B),
-      _IdentityRuleBucket.allowedFaces => const Color(0xFF58D68D),
-      _IdentityRuleBucket.allowedPlates => const Color(0xFF4FD1C5),
+      _IdentityRuleBucket.flaggedFaces => OnyxColorTokens.accentRed,
+      _IdentityRuleBucket.flaggedPlates => OnyxColorTokens.accentAmber,
+      _IdentityRuleBucket.allowedFaces => OnyxColorTokens.accentGreen,
+      _IdentityRuleBucket.allowedPlates => OnyxColorTokens.accentTeal,
     };
   }
 
@@ -2992,12 +2992,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final allowlistedCount =
         policy.allowedFaceMatchIds.length + policy.allowedPlateNumbers.length;
     if (flaggedCount > 0) {
-      return const Color(0xFFFFB36B);
+      return OnyxColorTokens.accentAmber;
     }
     if (allowlistedCount > 0) {
-      return const Color(0xFF4FD1C5);
+      return OnyxColorTokens.accentTeal;
     }
-    return const Color(0xFF67E8F9);
+    return OnyxColorTokens.accentSky;
   }
 
   String _identityPolicyRecommendedMove(MonitoringIdentityScopePolicy policy) {
@@ -3715,8 +3715,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: const Color(0xFFEAF4FF),
+                backgroundColor: OnyxColorTokens.accentRed,
+                foregroundColor: OnyxColorTokens.textPrimary,
               ),
               child: const Text('Clear'),
             ),
@@ -3742,7 +3742,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       sourceLabel: 'IDENTITY RULES',
       detail:
           'The selected site scope has been reset inside the identity workspace while the remaining scoped rule sets stay intact.',
-      accent: const Color(0xFFFCA5A5),
+      accent: OnyxColorTokens.accentRed,
     );
   }
 
@@ -3757,7 +3757,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'IDENTITY RULES',
         detail:
             'Persistence hooks are offline, so the current scoped rule set was staged to the clipboard while the watch workspace remains active.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
       );
       return;
     }
@@ -3800,7 +3800,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'IDENTITY RULES',
         detail:
             'Persistence hooks are offline, so the reset was applied only inside this admin workspace until a runtime save hook is connected.',
-        accent: const Color(0xFFF1B872),
+        accent: OnyxColorTokens.accentAmber,
       );
       return;
     }
@@ -3842,8 +3842,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
       hintText: 'Enter ${label.replaceAll(' ', ' ID / ')}',
       hintStyle: GoogleFonts.inter(color: _adminDialogMutedColor),
       confirmButtonStyle: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF2B5E93),
-        foregroundColor: const Color(0xFFEAF4FF),
+        backgroundColor: OnyxColorTokens.accentBlue,
+        foregroundColor: OnyxColorTokens.textPrimary,
       ),
     );
     final normalized = _normalizeIdentityRuleValue(rawValue ?? '');
@@ -3959,7 +3959,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.only(bottom: 8),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x33223344))),
+        border: Border(bottom: BorderSide(color: OnyxColorTokens.borderSubtle)),
       ),
       child: Wrap(
         spacing: 8,
@@ -3981,7 +3981,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     border: Border(
                       bottom: BorderSide(
                         color: active
-                            ? const Color(0xFF00D4FF)
+                            ? OnyxColorTokens.accentSky
                             : Colors.transparent,
                         width: 2,
                       ),
@@ -3994,16 +3994,16 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         tab.icon,
                         size: 16,
                         color: active
-                            ? const Color(0xFF22D3EE)
-                            : const Color(0xFF9AA6B2),
+                            ? OnyxColorTokens.accentSky
+                            : OnyxColorTokens.textMuted,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         tab.label,
                         style: GoogleFonts.inter(
                           color: active
-                              ? const Color(0xFF00D4FF)
-                              : const Color(0xFFB6C3D6),
+                              ? OnyxColorTokens.accentSky
+                              : OnyxColorTokens.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.45,
@@ -4049,39 +4049,39 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return switch (normalized) {
       'ok' || 'configured' => (
         fallback ? 'Bridge Status: Fallback (In-App)' : 'Bridge Status: Ready',
-        fallback ? const Color(0xFFF59E0B) : const Color(0xFF34D399),
-        fallback ? const Color(0x1AF59E0B) : const Color(0x1A34D399),
-        fallback ? const Color(0x66F59E0B) : const Color(0x6634D399),
+        fallback ? OnyxColorTokens.accentAmber : OnyxColorTokens.accentGreen,
+        fallback ? OnyxColorTokens.amberSurface : OnyxColorTokens.greenSurface,
+        fallback ? OnyxColorTokens.amberBorder : OnyxColorTokens.accentGreen.withValues(alpha: 0.4),
       ),
       'blocked' => (
         'Bridge Status: Blocked',
-        const Color(0xFFF87171),
-        const Color(0x1AF87171),
-        const Color(0x66F87171),
+        OnyxColorTokens.accentRed,
+        OnyxColorTokens.redSurface,
+        OnyxColorTokens.redBorder,
       ),
       'no-target' => (
         'Bridge Status: No Target',
-        const Color(0xFFF59E0B),
-        const Color(0x1AF59E0B),
-        const Color(0x66F59E0B),
+        OnyxColorTokens.accentAmber,
+        OnyxColorTokens.amberSurface,
+        OnyxColorTokens.amberBorder,
       ),
       'degraded' => (
         'Bridge Status: Degraded',
-        const Color(0xFFF59E0B),
-        const Color(0x1AF59E0B),
-        const Color(0x66F59E0B),
+        OnyxColorTokens.accentAmber,
+        OnyxColorTokens.amberSurface,
+        OnyxColorTokens.amberBorder,
       ),
       'disabled' => (
         'Bridge Status: Disabled',
-        const Color(0xFF94A3B8),
-        const Color(0x1A94A3B8),
-        const Color(0x6694A3B8),
+        OnyxColorTokens.textMuted,
+        OnyxColorTokens.surfaceElevated,
+        OnyxColorTokens.textMuted.withValues(alpha: 0.4),
       ),
       _ => (
         'Bridge Status: ${widget.telegramBridgeHealthLabel.trim().isEmpty ? 'Unknown' : widget.telegramBridgeHealthLabel.trim()}',
-        const Color(0xFF8FD1FF),
-        const Color(0x1A8FD1FF),
-        const Color(0x668FD1FF),
+        OnyxColorTokens.accentSky,
+        OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+        OnyxColorTokens.accentSky.withValues(alpha: 0.4),
       ),
     };
   }
@@ -4158,7 +4158,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(
-                color: Color(0xFF67C5FF),
+                color: OnyxColorTokens.accentSky,
                 width: 1.4,
               ),
             ),
@@ -4194,8 +4194,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
               : _openClientMessagingBridgeFlow,
           icon: const Icon(Icons.forum_rounded, size: 16),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF8FD1FF),
-            side: const BorderSide(color: Color(0xFF35506F)),
+            foregroundColor: OnyxColorTokens.accentSky,
+            side: const BorderSide(color: OnyxColorTokens.borderStrong),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -4215,8 +4215,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
           icon: const Icon(Icons.calendar_month_rounded, size: 16),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF8FD1FF),
-            side: const BorderSide(color: Color(0xFF35506F)),
+            foregroundColor: OnyxColorTokens.accentSky,
+            side: const BorderSide(color: OnyxColorTokens.borderStrong),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -4241,9 +4241,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 )
               : const Icon(Icons.layers_rounded, size: 16),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFF2F7FF),
-            foregroundColor: const Color(0xFF1D4ED8),
-            side: const BorderSide(color: Color(0xFFB8CCE0)),
+            backgroundColor: OnyxColorTokens.surfaceElevated,
+            foregroundColor: OnyxColorTokens.accentBlue,
+            side: const BorderSide(color: OnyxColorTokens.borderStrong),
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -4278,7 +4278,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               ? const Icon(
                                   Icons.check_circle_rounded,
                                   size: 14,
-                                  color: Color(0xFF34D399),
+                                  color: OnyxColorTokens.accentGreen,
                                 )
                               : const SizedBox.shrink(),
                         ),
@@ -4327,7 +4327,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 const Icon(
                   Icons.tune_rounded,
                   size: 16,
-                  color: Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -4342,7 +4342,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 const Icon(
                   Icons.expand_more_rounded,
                   size: 16,
-                  color: Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
               ],
             ),
@@ -4363,8 +4363,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 )
               : const Icon(Icons.delete_sweep_rounded, size: 16),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFFDA4AF),
-            side: const BorderSide(color: Color(0xFF5B242C)),
+            foregroundColor: OnyxColorTokens.accentRed,
+            side: const BorderSide(color: OnyxColorTokens.redBorder),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -4390,8 +4390,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 : 'Seed Source: Local',
             style: GoogleFonts.inter(
               color: _directoryLoadedFromSupabase
-                  ? const Color(0xFF67E8F9)
-                  : const Color(0xFF9AB1CF),
+                  ? OnyxColorTokens.accentSky
+                  : OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -4425,10 +4425,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
           onSelected: (value) => setState(() => _demoMode = value),
           showCheckmark: false,
           backgroundColor: _adminDialogAltColor,
-          selectedColor: const Color(0xFFDFF1FF),
+          selectedColor: OnyxColorTokens.accentSky.withValues(alpha: 0.15),
           side: BorderSide(
             color: _demoMode
-                ? const Color(0xFF3C79BB)
+                ? OnyxColorTokens.accentBlue
                 : _adminDialogBorderColor,
           ),
           shape: RoundedRectangleBorder(
@@ -4438,8 +4438,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Icons.auto_awesome_rounded,
             size: 16,
             color: _demoMode
-                ? const Color(0xFF67E8F9)
-                : const Color(0xFF8EA4C2),
+                ? OnyxColorTokens.accentSky
+                : OnyxColorTokens.textMuted,
           ),
           label: Text(
             _demoMode ? 'Demo Mode: ON' : 'Demo Mode',
@@ -4514,7 +4514,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         Text(
           syncMessage,
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
+            color: OnyxColorTokens.textMuted,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -4524,7 +4524,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       Text(
         'DIRECTORY WORKSPACE',
         style: GoogleFonts.inter(
-          color: const Color(0xFF93A5BF),
+          color: OnyxColorTokens.textMuted,
           fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.1,
@@ -4689,11 +4689,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
           title: 'AI DRAFT QUEUE',
           subtitle: '',
           icon: Icons.chat_bubble_outline_rounded,
-          accent: OnyxColorTokens.accentCyanTrue,
+          accent: OnyxColorTokens.accentSky,
           trailing: OutlinedButton(
             onPressed: widget.onOpenAiQueue,
             style: OutlinedButton.styleFrom(
-              foregroundColor: OnyxColorTokens.accentCyanTrue,
+              foregroundColor: OnyxColorTokens.accentSky,
               side: BorderSide(color: OnyxColorTokens.divider),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: const Size(0, 28),
@@ -5061,9 +5061,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
       key: const ValueKey('admin-system-camera-bridge-telegram-seed'),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FCFF),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD8E7F2)),
+        border: Border.all(color: OnyxColorTokens.borderStrong),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5109,7 +5109,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF13131E),
+                        color: OnyxColorTokens.backgroundSecondary,
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(color: _adminDialogBorderColor),
                       ),
@@ -5141,7 +5141,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF13131E),
+              color: OnyxColorTokens.backgroundSecondary,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: _adminDialogBorderColor),
             ),
@@ -5171,9 +5171,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       ),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9FCFF),
+                        color: OnyxColorTokens.surfaceElevated,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFDCE7F1)),
+                        border: Border.all(color: OnyxColorTokens.borderStrong),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5183,7 +5183,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             height: 26,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEAF4FF),
+                              color: OnyxColorTokens.textPrimary,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
@@ -5231,7 +5231,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEAF4FF),
+                              color: OnyxColorTokens.textPrimary,
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
                                 color: _adminDialogBorderColor,
@@ -5448,9 +5448,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0x1F7FD8A5),
+                  color: OnyxColorTokens.accentGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0x447FD8A5)),
+                  border: Border.all(color: OnyxColorTokens.accentGreen.withValues(alpha: 0.27)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -5458,7 +5458,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     Text(
                       'NEXT MOVE',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7FD8A5),
+                        color: OnyxColorTokens.accentGreen,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.7,
@@ -5470,7 +5470,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ? 'Continue site setup'
                           : 'Continue client setup',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFF5F7FA),
+                        color: OnyxColorTokens.surfaceElevated,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -5526,8 +5526,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   );
                 },
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF245B72),
-                  foregroundColor: const Color(0xFFF5F7FA),
+                  backgroundColor: OnyxColorTokens.accentBlue,
+                  foregroundColor: OnyxColorTokens.surfaceElevated,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 16,
@@ -5556,8 +5556,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         );
                       },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFBFE8FF),
-                  side: const BorderSide(color: Color(0xFF35506F)),
+                  foregroundColor: OnyxColorTokens.accentSky,
+                  side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 16,
@@ -5749,22 +5749,22 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       'Queue Hint',
                       resetAvailable ? 'ready' : 'offline',
                       color: resetAvailable
-                          ? const Color(0xFF7FD8A5)
-                          : const Color(0xFFF59E0B),
+                          ? OnyxColorTokens.accentGreen
+                          : OnyxColorTokens.accentAmber,
                     ),
                     _watchAuditChip(
                       'Runtime',
                       runtimeReady ? 'aligned' : 'draft drift',
                       color: runtimeReady
-                          ? const Color(0xFF8FD1FF)
-                          : const Color(0xFFF59E0B),
+                          ? OnyxColorTokens.accentSky
+                          : OnyxColorTokens.accentAmber,
                     ),
                     _watchAuditChip(
                       'Ops Poll',
                       opsPollReady ? 'wired' : 'standby',
                       color: opsPollReady
-                          ? const Color(0xFF67E8F9)
-                          : const Color(0xFFBFD7F2),
+                          ? OnyxColorTokens.accentSky
+                          : OnyxColorTokens.textSecondary,
                     ),
                   ],
                 ),
@@ -5777,9 +5777,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0x1F7FD8A5),
+                  color: OnyxColorTokens.accentGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0x447FD8A5)),
+                  border: Border.all(color: OnyxColorTokens.accentGreen.withValues(alpha: 0.27)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -5787,7 +5787,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     Text(
                       'NEXT MOVE',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7FD8A5),
+                        color: OnyxColorTokens.accentGreen,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.7,
@@ -5797,7 +5797,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     Text(
                       nextMove,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFF5F7FA),
+                        color: OnyxColorTokens.surfaceElevated,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -5818,8 +5818,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     ? _resetLiveOperationsQueueHint
                     : null,
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF245B72),
-                  foregroundColor: const Color(0xFFF5F7FA),
+                  backgroundColor: OnyxColorTokens.accentBlue,
+                  foregroundColor: OnyxColorTokens.surfaceElevated,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 16,
@@ -5843,12 +5843,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     message: 'Focused radio runtime controls.',
                     detail:
                         'Radio phrase detection is now foregrounded so runtime copy and queue hint behavior can be tuned from one anchored control surface.',
-                    accent: const Color(0xFF67E8F9),
+                    accent: OnyxColorTokens.accentSky,
                   );
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFBFE8FF),
-                  side: const BorderSide(color: Color(0xFF35506F)),
+                  foregroundColor: OnyxColorTokens.accentSky,
+                  side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 16,
@@ -5877,12 +5877,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     detail: opsPollReady
                         ? 'Ops poll health is foregrounded so queue recovery and telemetry stay visible without leaving system controls.'
                         : 'System core controls stay pinned while ops poll telemetry is still in standby.',
-                    accent: const Color(0xFF8FD1FF),
+                    accent: OnyxColorTokens.accentSky,
                   );
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFE6ECF5),
-                  side: const BorderSide(color: Color(0xFF273241)),
+                  foregroundColor: OnyxColorTokens.textPrimary,
+                  side: const BorderSide(color: OnyxColorTokens.borderSubtle),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 16,
@@ -6028,8 +6028,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
     ].where((ready) => ready).length;
     final stackProfileLabel = _demoStackProfileLabel(_demoStackProfile);
     final commandAccent = opsReady
-        ? const Color(0xFF34D399)
-        : (stackReady ? const Color(0xFF67E8F9) : const Color(0xFF8EA4C2));
+        ? OnyxColorTokens.accentGreen
+        : (stackReady ? OnyxColorTokens.accentSky : OnyxColorTokens.textMuted);
     final commandHeadline = opsReady
         ? 'Incident $incidentRef ready for full route replay.'
         : stackReady
@@ -6110,7 +6110,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Storyboard runbook copied for command review.',
         sourceLabel: 'RUNBOOK HANDOFF',
-        accent: const Color(0xFF8FD1FF),
+        accent: OnyxColorTokens.accentSky,
         detail:
             'The storyboard keeps the seeded runbook pinned in the desktop command rail while you continue routing through the live demo path.',
       );
@@ -6123,7 +6123,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Incident focus copied for command review: $incidentRef',
         sourceLabel: 'INCIDENT FOCUS',
-        accent: const Color(0xFFBFD7F2),
+        accent: OnyxColorTokens.textSecondary,
         detail:
             'The storyboard keeps the seeded incident reference pinned in the desktop command rail while you continue routing from the live scope.',
       );
@@ -6137,7 +6137,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Demo Autopilot launched with focus: $incidentRef',
         sourceLabel: 'AUTOPILOT ROUTE',
-        accent: const Color(0xFF93C5FD),
+        accent: OnyxColorTokens.accentSky,
         detail:
             'The storyboard keeps the seeded incident route pinned in the desktop command rail while Demo Autopilot runs against the live focus.',
       );
@@ -6152,7 +6152,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Full Demo Tour launched with focus: $incidentRef',
         sourceLabel: 'FULL TOUR',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
         detail:
             'The storyboard keeps the seeded incident route pinned in the desktop command rail while the full tour replays the live command path.',
       );
@@ -6168,7 +6168,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? 'Security Desk opened for scope: $siteId'
             : 'Security Desk opened',
         sourceLabel: 'SECURITY DESK',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
         detail:
             'The storyboard keeps the seeded demo route pinned in the desktop command rail while Security Desk opens with the live scope focus.',
       );
@@ -6184,7 +6184,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? 'Tactical Track opened for scope: $siteId'
             : 'Tactical Track opened',
         sourceLabel: 'TACTICAL TRACK',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
         detail:
             'The storyboard keeps the seeded tactical path pinned in the desktop command rail while Tactical Track opens with the live scope focus.',
       );
@@ -6196,7 +6196,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Events Scope opened with focus: $incidentRef',
         sourceLabel: 'EVENTS SCOPE',
-        accent: const Color(0xFFBFD7F2),
+        accent: OnyxColorTokens.textSecondary,
         detail:
             'The storyboard keeps the seeded incident timeline pinned in the desktop command rail while Events Scope opens with the live evidence focus.',
       );
@@ -6208,7 +6208,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Sovereign Ledger opened with focus: $incidentRef',
         sourceLabel: 'SOVEREIGN LEDGER',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber,
         detail:
             'The storyboard keeps the seeded ledger path pinned in the desktop command rail while Sovereign Ledger opens with the live focus.',
       );
@@ -6222,7 +6222,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? 'Governance Desk opened for: $siteId'
             : 'Governance Desk opened',
         sourceLabel: 'GOVERNANCE DESK',
-        accent: const Color(0xFF86EFAC),
+        accent: OnyxColorTokens.accentGreen,
         detail:
             'The storyboard keeps the seeded governance path pinned in the desktop command rail while Governance Desk opens with the scoped review focus.',
       );
@@ -6238,7 +6238,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? 'Dispatch Board opened for scope: $siteId'
             : 'Dispatch Board opened',
         sourceLabel: 'DISPATCH BOARD',
-        accent: const Color(0xFF93C5FD),
+        accent: OnyxColorTokens.accentSky,
         detail:
             'The storyboard keeps the seeded dispatch path pinned in the desktop command rail while Dispatch Board opens with the live scope focus.',
       );
@@ -6252,7 +6252,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? 'Client Comms opened for scope: $siteId'
             : 'Client Comms opened',
         sourceLabel: 'CLIENT COMMS',
-        accent: const Color(0xFFBFD7F2),
+        accent: OnyxColorTokens.textSecondary,
         detail:
             'The storyboard keeps the seeded client context pinned in the desktop command rail while Client Comms opens with the scoped review focus.',
       );
@@ -6266,7 +6266,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? 'Reports Workspace opened for scope: $siteId'
             : 'Reports Workspace opened',
         sourceLabel: 'REPORTS WORKSPACE',
-        accent: const Color(0xFFFFDDAA),
+        accent: OnyxColorTokens.accentAmber,
         detail:
             'The storyboard keeps the seeded reporting path pinned in the desktop command rail while Reports Workspace opens with the scoped review focus.',
       );
@@ -6280,9 +6280,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
         color: _adminDialogSurfaceColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _adminDialogBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0C0F2235),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.05),
             blurRadius: 14,
             offset: Offset(0, 8),
           ),
@@ -6296,7 +6296,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               const Icon(
                 Icons.auto_awesome_rounded,
                 size: 18,
-                color: Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
               ),
               const SizedBox(width: 8),
               Text(
@@ -6418,7 +6418,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _watchAuditChip(
                       'Profile',
                       stackProfileLabel,
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                     ),
                     _watchAuditChip(
                       'Progress',
@@ -6434,7 +6434,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           : clientId.isNotEmpty
                           ? clientId
                           : 'pending',
-                      color: const Color(0xFFBFD7F2),
+                      color: OnyxColorTokens.textSecondary,
                     ),
                     _watchAuditChip(
                       'Status',
@@ -6483,8 +6483,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               size: 16,
                             ),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF1D4ED8),
-                        foregroundColor: const Color(0xFFEAF4FF),
+                        backgroundColor: OnyxColorTokens.accentBlue,
+                        foregroundColor: OnyxColorTokens.textPrimary,
                       ),
                       label: Text(
                         _demoScriptRunning && !opsReady
@@ -6498,8 +6498,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       onPressed: copyRunbook,
                       icon: const Icon(Icons.summarize_rounded, size: 16),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF8FD1FF),
-                        side: const BorderSide(color: Color(0xFF35506F)),
+                        foregroundColor: OnyxColorTokens.accentSky,
+                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
                       ),
                       label: Text(
                         'Copy Runbook',
@@ -6514,8 +6514,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             : runDemoAutopilot,
                         icon: const Icon(Icons.auto_mode_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF93C5FD),
-                          side: const BorderSide(color: Color(0xFF35506F)),
+                          foregroundColor: OnyxColorTokens.accentSky,
+                          side: const BorderSide(color: OnyxColorTokens.borderStrong),
                         ),
                         label: Text(
                           'Autopilot',
@@ -6531,8 +6531,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             : runFullDemoTour,
                         icon: const Icon(Icons.route_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF67E8F9),
-                          side: const BorderSide(color: Color(0xFF2B5E93)),
+                          foregroundColor: OnyxColorTokens.accentSky,
+                          side: const BorderSide(color: OnyxColorTokens.accentBlue),
                         ),
                         label: Text(
                           'Full Tour',
@@ -6547,8 +6547,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         onPressed: copyIncidentReference,
                         icon: const Icon(Icons.content_copy_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFBFD7F2),
-                          side: const BorderSide(color: Color(0xFF35506F)),
+                          foregroundColor: OnyxColorTokens.textSecondary,
+                          side: const BorderSide(color: OnyxColorTokens.borderStrong),
                         ),
                         label: Text(
                           'Copy Incident',
@@ -6571,9 +6571,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0x223C79BB),
+                  color: OnyxColorTokens.accentBlue.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0x665FAAFF)),
+                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.4)),
                 ),
                 child: Text(
                   'Stack Profile: $stackProfileLabel',
@@ -6640,17 +6640,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: opsReady
-                  ? const Color(0x2234D399)
+                  ? OnyxColorTokens.accentGreen.withValues(alpha: 0.13)
                   : (stackReady
-                        ? const Color(0x223C79BB)
-                        : const Color(0x221F3A5A)),
+                        ? OnyxColorTokens.accentBlue.withValues(alpha: 0.13)
+                        : OnyxColorTokens.surfaceInset.withValues(alpha: 0.13)),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: opsReady
-                    ? const Color(0x6634D399)
+                    ? OnyxColorTokens.accentGreen.withValues(alpha: 0.4)
                     : (stackReady
-                          ? const Color(0x665FAAFF)
-                          : const Color(0x5535506F)),
+                          ? OnyxColorTokens.accentSky.withValues(alpha: 0.4)
+                          : OnyxColorTokens.borderStrong.withValues(alpha: 0.33)),
               ),
             ),
             child: Text(
@@ -6660,7 +6660,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         ? 'Core stack ready. Seed fleet + incident data for a full client demo.'
                         : 'Next action: build Demo Stack or complete the next onboarding step.'),
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF4FF),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -6671,7 +6671,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Route unlocks stay staged here until the storyboard reaches incident-ready status.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -6687,8 +6687,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   onPressed: copyIncidentReference,
                   icon: const Icon(Icons.content_copy_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8FD1FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Copy Incident Ref',
@@ -6701,8 +6701,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       : runDemoAutopilot,
                   icon: const Icon(Icons.auto_mode_rounded, size: 16),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1D4ED8),
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    backgroundColor: OnyxColorTokens.accentBlue,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     'Run Demo Autopilot',
@@ -6715,8 +6715,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       : runFullDemoTour,
                   icon: const Icon(Icons.route_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF93C5FD),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Run Full Demo Tour',
@@ -6729,8 +6729,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       : openOperations,
                   icon: const Icon(Icons.rocket_launch_rounded, size: 16),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2B5E93),
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    backgroundColor: OnyxColorTokens.accentBlue,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     'OPEN SECURITY DESK',
@@ -6741,8 +6741,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   onPressed: openTacticalAction == null ? null : openTactical,
                   icon: const Icon(Icons.map_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF67E8F9),
-                    side: const BorderSide(color: Color(0xFF2B5E93)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.accentBlue),
                   ),
                   label: Text(
                     'OPEN TACTICAL TRACK',
@@ -6755,8 +6755,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       : openEventsTimeline,
                   icon: const Icon(Icons.timeline_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFBFD7F2),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.textSecondary,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'OPEN EVENTS SCOPE',
@@ -6769,8 +6769,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       : openLedger,
                   icon: const Icon(Icons.receipt_long_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFDE68A),
-                    side: const BorderSide(color: Color(0xFF5B3A16)),
+                    foregroundColor: OnyxColorTokens.accentAmber,
+                    side: const BorderSide(color: OnyxColorTokens.amberBorder),
                   ),
                   label: Text(
                     'OPEN SOVEREIGN LEDGER',
@@ -6783,8 +6783,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       : openGovernance,
                   icon: const Icon(Icons.fact_check_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF86EFAC),
-                    side: const BorderSide(color: Color(0xFF2F5949)),
+                    foregroundColor: OnyxColorTokens.accentGreen,
+                    side: const BorderSide(color: OnyxColorTokens.greenBorder),
                   ),
                   label: Text(
                     'OPEN GOVERNANCE DESK',
@@ -6797,8 +6797,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       : openDispatches,
                   icon: const Icon(Icons.hub_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF93C5FD),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'OPEN DISPATCH BOARD',
@@ -6811,8 +6811,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       : openClientView,
                   icon: const Icon(Icons.person_outline_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFBFD7F2),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.textSecondary,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'OPEN CLIENT COMMS',
@@ -6823,8 +6823,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   onPressed: openReportsAction == null ? null : openReports,
                   icon: const Icon(Icons.assessment_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFFDDAA),
-                    side: const BorderSide(color: Color(0xFF5B3A16)),
+                    foregroundColor: OnyxColorTokens.accentAmber,
+                    side: const BorderSide(color: OnyxColorTokens.amberBorder),
                   ),
                   label: Text(
                     'OPEN REPORTS WORKSPACE',
@@ -6851,7 +6851,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         color: _adminDialogRaisedColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: done ? const Color(0x6634D399) : _adminDialogBorderColor,
+          color: done ? OnyxColorTokens.accentGreen.withValues(alpha: 0.4) : _adminDialogBorderColor,
         ),
       ),
       child: Row(
@@ -6860,7 +6860,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Icon(
             done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
             size: 16,
-            color: done ? const Color(0xFF34D399) : const Color(0xFF8EA4C2),
+            color: done ? OnyxColorTokens.accentGreen : OnyxColorTokens.textMuted,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -6999,24 +6999,24 @@ class _AdministrationPageState extends State<AdministrationPage> {
     late final Color border;
     if (uppercase.startsWith('PASS')) {
       label = 'CHATCHECK PASS';
-      fg = const Color(0xFF277A4E);
-      bg = const Color(0xFFEEF9F2);
-      border = const Color(0xFFBDE4CA);
+      fg = OnyxColorTokens.greenBorder;
+      bg = OnyxColorTokens.greenSurface;
+      border = OnyxColorTokens.greenBorder;
     } else if (uppercase.startsWith('FAIL')) {
       label = 'CHATCHECK FAIL';
-      fg = const Color(0xFFB42318);
-      bg = const Color(0xFFFFF1F1);
-      border = const Color(0xFFE8B6B6);
+      fg = OnyxColorTokens.accentRed;
+      bg = OnyxColorTokens.redSurface;
+      border = OnyxColorTokens.redBorder;
     } else if (uppercase.startsWith('SKIP')) {
       label = 'CHATCHECK SKIP';
-      fg = const Color(0xFF9A6700);
-      bg = const Color(0xFFFFF7E8);
-      border = const Color(0xFFF2D9A6);
+      fg = OnyxColorTokens.amberBorder;
+      bg = OnyxColorTokens.amberSurface;
+      border = OnyxColorTokens.amberBorder;
     } else {
       label = 'CHATCHECK';
-      fg = const Color(0xFF5C7086);
-      bg = const Color(0xFFF3F7FB);
-      border = const Color(0xFFD5E0EB);
+      fg = OnyxColorTokens.textMuted;
+      bg = OnyxColorTokens.surfaceElevated;
+      border = OnyxColorTokens.borderStrong;
     }
     return Tooltip(
       message: normalized,
@@ -7049,24 +7049,24 @@ class _AdministrationPageState extends State<AdministrationPage> {
     late final Color border;
     if (uppercase.startsWith('PASS')) {
       label = 'PARTNER PASS';
-      fg = const Color(0xFF277A4E);
-      bg = const Color(0xFFEEF9F2);
-      border = const Color(0xFFBDE4CA);
+      fg = OnyxColorTokens.greenBorder;
+      bg = OnyxColorTokens.greenSurface;
+      border = OnyxColorTokens.greenBorder;
     } else if (uppercase.startsWith('FAIL')) {
       label = 'PARTNER FAIL';
-      fg = const Color(0xFFB42318);
-      bg = const Color(0xFFFFF1F1);
-      border = const Color(0xFFE8B6B6);
+      fg = OnyxColorTokens.accentRed;
+      bg = OnyxColorTokens.redSurface;
+      border = OnyxColorTokens.redBorder;
     } else if (uppercase.startsWith('SKIP')) {
       label = 'PARTNER SKIP';
-      fg = const Color(0xFF9A6700);
-      bg = const Color(0xFFFFF7E8);
-      border = const Color(0xFFF2D9A6);
+      fg = OnyxColorTokens.amberBorder;
+      bg = OnyxColorTokens.amberSurface;
+      border = OnyxColorTokens.amberBorder;
     } else {
       label = 'PARTNER';
-      fg = const Color(0xFF5C7086);
-      bg = const Color(0xFFF3F7FB);
-      border = const Color(0xFFD5E0EB);
+      fg = OnyxColorTokens.textMuted;
+      bg = OnyxColorTokens.surfaceElevated;
+      border = OnyxColorTokens.borderStrong;
     }
     return Tooltip(
       message: normalized,
@@ -7129,7 +7129,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         Text(
           label,
           style: GoogleFonts.inter(
-            color: light ? _adminDialogMutedColor : const Color(0xFF8EA4C2),
+            color: light ? _adminDialogMutedColor : OnyxColorTokens.textMuted,
             fontSize: 9.8,
             fontWeight: FontWeight.w700,
           ),
@@ -7138,7 +7138,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         Text(
           value,
           style: GoogleFonts.inter(
-            color: light ? _adminDialogTitleColor : const Color(0xFFEAF4FF),
+            color: light ? _adminDialogTitleColor : OnyxColorTokens.textPrimary,
             fontSize: 16.8,
             fontWeight: FontWeight.w700,
           ),
@@ -7172,14 +7172,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? tone.$2
             : light
             ? _adminDialogAltColor
-            : const Color(0xFF111822),
+            : OnyxColorTokens.backgroundPrimary,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: reached
               ? tone.$3
               : light
               ? _adminDialogBorderColor
-              : const Color(0xFF2A374A),
+              : OnyxColorTokens.borderStrong,
         ),
       ),
       child: Column(
@@ -7189,7 +7189,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Text(
             _partnerDispatchStatusLabel(status),
             style: GoogleFonts.inter(
-              color: reached ? tone.$1 : const Color(0xFF94A3B8),
+              color: reached ? tone.$1 : OnyxColorTokens.textMuted,
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.22,
@@ -7200,8 +7200,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             reached ? _partnerEventTimeLabel(timestamp) : 'Pending',
             style: GoogleFonts.inter(
               color: reached
-                  ? (light ? _adminDialogTitleColor : const Color(0xFFEAF4FF))
-                  : (light ? _adminDialogMutedColor : const Color(0xFF8EA4C2)),
+                  ? (light ? _adminDialogTitleColor : OnyxColorTokens.textPrimary)
+                  : (light ? _adminDialogMutedColor : OnyxColorTokens.textMuted),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -7225,7 +7225,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131E),
+          color: OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: _adminDialogBorderColor),
         ),
@@ -7240,7 +7240,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     style: GoogleFonts.inter(
                       color: light
                           ? _adminDialogTitleColor
-                          : const Color(0xFFEAF4FF),
+                          : OnyxColorTokens.textPrimary,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -7297,7 +7297,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Days ${row.reportDays} • Dispatches ${row.dispatchCount} • Strong ${row.strongCount} • On track ${row.onTrackCount} • Watch ${row.watchCount} • Critical ${row.criticalCount}',
               style: GoogleFonts.inter(
-                color: light ? _adminDialogBodyColor : const Color(0xFFB9CCE5),
+                color: light ? _adminDialogBodyColor : OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -7306,7 +7306,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Avg accept ${row.averageAcceptedDelayMinutes.toStringAsFixed(1)}m • Avg on site ${row.averageOnSiteDelayMinutes.toStringAsFixed(1)}m',
               style: GoogleFonts.inter(
-                color: light ? _adminDialogMutedColor : const Color(0xFF8EA4C2),
+                color: light ? _adminDialogMutedColor : OnyxColorTokens.textMuted,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -7329,50 +7329,50 @@ class _AdministrationPageState extends State<AdministrationPage> {
   (Color, Color, Color) _partnerProgressTone(PartnerDispatchStatus status) {
     return switch (status) {
       PartnerDispatchStatus.unknown => (
-        const Color(0xFF94A3B8),
-        const Color(0x1494A3B8),
-        const Color(0x6694A3B8),
+        OnyxColorTokens.textMuted,
+        OnyxColorTokens.textMuted.withValues(alpha: 0.08),
+        OnyxColorTokens.textMuted.withValues(alpha: 0.4),
       ),
       PartnerDispatchStatus.accepted => (
-        const Color(0xFF38BDF8),
-        const Color(0x1A38BDF8),
-        const Color(0x6638BDF8),
+        OnyxColorTokens.accentSky,
+        OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+        OnyxColorTokens.accentSky.withValues(alpha: 0.4),
       ),
       PartnerDispatchStatus.onSite => (
-        const Color(0xFFF59E0B),
-        const Color(0x1AF59E0B),
-        const Color(0x66F59E0B),
+        OnyxColorTokens.accentAmber,
+        OnyxColorTokens.amberSurface,
+        OnyxColorTokens.amberBorder,
       ),
       PartnerDispatchStatus.allClear => (
-        const Color(0xFF34D399),
-        const Color(0x1A34D399),
-        const Color(0x6634D399),
+        OnyxColorTokens.accentGreen,
+        OnyxColorTokens.greenSurface,
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.4),
       ),
       PartnerDispatchStatus.cancelled => (
-        const Color(0xFFF87171),
-        const Color(0x1AF87171),
-        const Color(0x66F87171),
+        OnyxColorTokens.accentRed,
+        OnyxColorTokens.redSurface,
+        OnyxColorTokens.redBorder,
       ),
     };
   }
 
   Color _adminPartnerScoreColor(String scoreLabel) {
     return switch (scoreLabel.trim().toUpperCase()) {
-      'STRONG' => const Color(0xFF34D399),
-      'ON TRACK' => const Color(0xFF38BDF8),
-      'WATCH' => const Color(0xFFF59E0B),
-      'CRITICAL' => const Color(0xFFF87171),
-      _ => const Color(0xFF9CB4D0),
+      'STRONG' => OnyxColorTokens.accentGreen,
+      'ON TRACK' => OnyxColorTokens.accentSky,
+      'WATCH' => OnyxColorTokens.accentAmber,
+      'CRITICAL' => OnyxColorTokens.accentRed,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
   Color _adminPartnerTrendColor(String trendLabel) {
     return switch (trendLabel.trim().toUpperCase()) {
-      'IMPROVING' => const Color(0xFF34D399),
-      'STABLE' => const Color(0xFF38BDF8),
-      'SLIPPING' => const Color(0xFFF97316),
-      'NEW' => const Color(0xFFFDE68A),
-      _ => const Color(0xFF9CB4D0),
+      'IMPROVING' => OnyxColorTokens.accentGreen,
+      'STABLE' => OnyxColorTokens.accentSky,
+      'SLIPPING' => OnyxColorTokens.accentAmber,
+      'NEW' => OnyxColorTokens.accentAmber,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
@@ -7918,8 +7918,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         },
                         icon: const Icon(Icons.verified_user_rounded, size: 16),
                         style: partnerDetailOutlineStyle(
-                          foreground: const Color(0xFF2B5E93),
-                          borderColor: const Color(0xFFB8CCE0),
+                          foreground: OnyxColorTokens.accentBlue,
+                          borderColor: OnyxColorTokens.borderStrong,
                         ),
                         label: Text(
                           'OPEN GOVERNANCE DESK',
@@ -8097,7 +8097,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                 },
                           style: partnerDetailOutlineStyle(
                             foreground: _adminDialogTitleColor,
-                            borderColor: const Color(0xFFB8CCE0),
+                            borderColor: OnyxColorTokens.borderStrong,
                           ),
                           child: Text(
                             checking ? 'Checking...' : 'Check bridge',
@@ -8127,8 +8127,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             );
                           },
                           style: partnerDetailOutlineStyle(
-                            foreground: const Color(0xFF2B5E93),
-                            borderColor: const Color(0xFFB8CCE0),
+                            foreground: OnyxColorTokens.accentBlue,
+                            borderColor: OnyxColorTokens.borderStrong,
                           ),
                           child: Text(
                             'OPEN EVENTS SCOPE',
@@ -8152,8 +8152,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             );
                           },
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2B5E93),
-                            foregroundColor: Colors.white,
+                            backgroundColor: OnyxColorTokens.accentBlue,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           child: Text(
                             'OPEN DISPATCH BOARD',
@@ -8181,8 +8181,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             )?.call();
                           },
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2B5E93),
-                            foregroundColor: Colors.white,
+                            backgroundColor: OnyxColorTokens.accentBlue,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           child: Text(
                             'OPEN DISPATCH BOARD',
@@ -8257,8 +8257,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     foreground: _guardRosterPlannerAccent(
                       _guardRosterPlannerSession!.mode,
                     ),
-                    background: const Color(0x1A60A5FA),
-                    border: const Color(0x663C79BB),
+                    background: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+                    border: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
                   ),
               ],
               onEdit: () => _showGuardEditDialog(row),
@@ -8499,7 +8499,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Text(
             '7-day partner performance across active client/site scopes.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -8512,17 +8512,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _partnerScorecardChip(
                 label: 'Slipping',
                 value: '$slippingCount',
-                color: const Color(0xFFF97316),
+                color: OnyxColorTokens.accentAmber,
               ),
               _partnerScorecardChip(
                 label: 'Critical',
                 value: '$criticalCount',
-                color: const Color(0xFFEF4444),
+                color: OnyxColorTokens.accentRed,
               ),
               _partnerScorecardChip(
                 label: 'Improving',
                 value: '$improvingCount',
-                color: const Color(0xFF34D399),
+                color: OnyxColorTokens.accentGreen,
               ),
             ],
           ),
@@ -8552,8 +8552,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   },
                   icon: const Icon(Icons.verified_user_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8FD1FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'OPEN GOVERNANCE DESK',
@@ -8564,8 +8564,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 onPressed: rows.isEmpty ? null : _copyPartnerScorecardJson,
                 icon: const Icon(Icons.copy_all_rounded, size: 16),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1D4ED8),
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  backgroundColor: OnyxColorTokens.accentBlue,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 label: Text(
                   'Copy Scorecard JSON',
@@ -8576,8 +8576,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 onPressed: rows.isEmpty ? null : _copyPartnerScorecardCsv,
                 icon: const Icon(Icons.table_rows_rounded, size: 16),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF9AB1CF),
-                  side: const BorderSide(color: Color(0xFF35506F)),
+                  foregroundColor: OnyxColorTokens.textSecondary,
+                  side: const BorderSide(color: OnyxColorTokens.borderStrong),
                 ),
                 label: Text(
                   'Copy Scorecard CSV',
@@ -8591,7 +8591,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'No partner scorecard history is available yet.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -8814,7 +8814,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'REPORTS WORKSPACE',
         detail:
             '$selectedScopeLabel is now foregrounded in Reports Workspace from the listener alarm desk.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -8831,7 +8831,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'GOVERNANCE DESK',
         detail:
             '$selectedScopeLabel is now foregrounded in Governance Desk from the listener alarm desk.',
-        accent: const Color(0xFFFBBF24),
+        accent: OnyxColorTokens.accentAmber,
       );
     }
 
@@ -8848,7 +8848,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Text(
             'Parallel alarm intake health, verdict mix, and the latest partner advisory outcome.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -8861,32 +8861,32 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _partnerScorecardChip(
                 label: 'Cycles',
                 value: '${cycles.length}',
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
               _partnerScorecardChip(
                 label: 'Advisories',
                 value: '${advisories.length}',
-                color: const Color(0xFF22D3EE),
+                color: OnyxColorTokens.accentSky,
               ),
               _partnerScorecardChip(
                 label: 'Clear',
                 value: '$clearCount',
-                color: const Color(0xFF34D399),
+                color: OnyxColorTokens.accentGreen,
               ),
               _partnerScorecardChip(
                 label: 'Suspicious',
                 value: '$suspiciousCount',
-                color: const Color(0xFFF59E0B),
+                color: OnyxColorTokens.accentAmber,
               ),
               _partnerScorecardChip(
                 label: 'Unavailable',
                 value: '$unavailableCount',
-                color: const Color(0xFFEF4444),
+                color: OnyxColorTokens.accentRed,
               ),
               _partnerScorecardChip(
                 label: 'Parity',
                 value: '${parities.length}',
-                color: const Color(0xFFFDE68A),
+                color: OnyxColorTokens.accentAmber,
               ),
             ],
           ),
@@ -8971,7 +8971,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           Text(
                             nextMoveLabel,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -8994,17 +8994,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _watchAuditChip(
                       'Scope',
                       selectedScopeLabel,
-                      color: const Color(0xFFBFD7F2),
+                      color: OnyxColorTokens.textSecondary,
                     ),
                     _watchAuditChip(
                       'Status',
                       selectedSupportLabel,
-                      color: const Color(0xFF67E8F9),
+                      color: OnyxColorTokens.accentSky,
                     ),
                     _watchAuditChip(
                       'At',
                       selectedOccurredAt,
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                     ),
                   ],
                 ),
@@ -9016,7 +9016,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _listenerAlarmActionButton(
                       key: const ValueKey('admin-listener-alarm-focus-feed'),
                       label: 'Feed',
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                       onTap: () => focusSummary(
                         _ListenerAlarmSummaryFocus.feed,
                         pinReceipt: true,
@@ -9027,7 +9027,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         'admin-listener-alarm-focus-advisory',
                       ),
                       label: 'Advisory',
-                      color: const Color(0xFFF59E0B),
+                      color: OnyxColorTokens.accentAmber,
                       onTap: () => focusSummary(
                         _ListenerAlarmSummaryFocus.advisory,
                         pinReceipt: true,
@@ -9036,7 +9036,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _listenerAlarmActionButton(
                       key: const ValueKey('admin-listener-alarm-focus-parity'),
                       label: 'Parity',
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       onTap: () => focusSummary(
                         _ListenerAlarmSummaryFocus.parity,
                         pinReceipt: true,
@@ -9056,7 +9056,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           'admin-listener-alarm-open-reports',
                         ),
                         label: 'Reports',
-                        color: const Color(0xFF67E8F9),
+                        color: OnyxColorTokens.accentSky,
                         onTap: openListenerReports,
                       ),
                     if (openGovernance != null)
@@ -9065,7 +9065,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           'admin-listener-alarm-open-governance',
                         ),
                         label: 'Governance',
-                        color: const Color(0xFFFBBF24),
+                        color: OnyxColorTokens.accentAmber,
                         onTap: openListenerGovernance,
                       ),
                   ],
@@ -9078,7 +9078,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             key: const ValueKey('admin-listener-alarm-row-feed'),
             label: 'Feed',
             value: latestCycleSummary,
-            accent: const Color(0xFF8FD1FF),
+            accent: OnyxColorTokens.accentSky,
             selected: resolvedFocus == _ListenerAlarmSummaryFocus.feed,
             onTap: () => focusSummary(_ListenerAlarmSummaryFocus.feed),
           ),
@@ -9087,7 +9087,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             key: const ValueKey('admin-listener-alarm-row-advisory'),
             label: 'Partner',
             value: latestAdvisorySummary,
-            accent: const Color(0xFFF59E0B),
+            accent: OnyxColorTokens.accentAmber,
             selected: resolvedFocus == _ListenerAlarmSummaryFocus.advisory,
             onTap: () => focusSummary(_ListenerAlarmSummaryFocus.advisory),
           ),
@@ -9096,7 +9096,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             key: const ValueKey('admin-listener-alarm-row-parity'),
             label: 'Parity',
             value: latestParitySummary,
-            accent: const Color(0xFFFDE68A),
+            accent: OnyxColorTokens.accentAmber,
             selected: resolvedFocus == _ListenerAlarmSummaryFocus.parity,
             onTap: () => focusSummary(_ListenerAlarmSummaryFocus.parity),
           ),
@@ -9144,7 +9144,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Text(
             'Cross-site posture and orchestrator interventions across the active video monitoring estate.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -9157,22 +9157,22 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _partnerScorecardChip(
                 label: 'Sites',
                 value: '${snapshot.totalSites}',
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
               _partnerScorecardChip(
                 label: 'Elevated',
                 value: '${snapshot.elevatedSiteCount}',
-                color: const Color(0xFFF59E0B),
+                color: OnyxColorTokens.accentAmber,
               ),
               _partnerScorecardChip(
                 label: 'Critical',
                 value: '${snapshot.criticalSiteCount}',
-                color: const Color(0xFFEF4444),
+                color: OnyxColorTokens.accentRed,
               ),
               _partnerScorecardChip(
                 label: 'Intents',
                 value: '${intents.length}',
-                color: const Color(0xFF22D3EE),
+                color: OnyxColorTokens.accentSky,
               ),
               _partnerScorecardChip(
                 label: 'Sim',
@@ -9181,8 +9181,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     warRoomPlans.any(
                       (plan) => plan.actionType == 'POLICY RECOMMENDATION',
                     )
-                    ? const Color(0xFF8B5CF6)
-                    : const Color(0xFF8FD1FF),
+                    ? OnyxColorTokens.accentPurple
+                    : OnyxColorTokens.accentSky,
               ),
             ],
           ),
@@ -9190,7 +9190,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Text(
             summary,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -9200,7 +9200,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Lead posture • ${leadSite.siteId} • ${leadSite.heatLevel.name.toUpperCase()} • ${leadSite.latestSummary}',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -9211,7 +9211,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Latest intent • ${intents.first.actionType} • ${intents.first.description}',
               style: GoogleFonts.inter(
-                color: const Color(0xFFFDE68A),
+                color: OnyxColorTokens.accentAmber,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -9222,7 +9222,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Hazard scope • $hazardIntentSummary',
               style: GoogleFonts.inter(
-                color: const Color(0xFFFCA5A5),
+                color: OnyxColorTokens.accentRed,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -9233,7 +9233,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Simulation • ${warRoomPlans.first.actionType} • ${warRoomPlans.first.description}',
               style: GoogleFonts.inter(
-                color: const Color(0xFFC4B5FD),
+                color: OnyxColorTokens.accentPurple,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -9244,7 +9244,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Hazard rehearsal • $hazardSimulationSummary',
               style: GoogleFonts.inter(
-                color: const Color(0xFFC4B5FD),
+                color: OnyxColorTokens.accentPurple,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -9255,7 +9255,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Learning • $learningSimulationSummary',
               style: GoogleFonts.inter(
-                color: const Color(0xFFE9D5FF),
+                color: OnyxColorTokens.accentPurple,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -9319,7 +9319,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: selected ? accent.withValues(alpha: 0.12) : const Color(0xFF13131E),
+        color: selected ? accent.withValues(alpha: 0.12) : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(
           color: selected
@@ -9640,8 +9640,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? (draftValid ? 'ready' : 'unchecked')
             : 'validated';
         final validationColor = _radioIntentPhraseValidationError
-            ? const Color(0xFFF87171)
-            : const Color(0xFF67E8F9);
+            ? OnyxColorTokens.accentRed
+            : OnyxColorTokens.accentSky;
         final nextMove = _radioIntentPhrasesSaving
             ? 'Saving runtime'
             : _radioIntentPhraseValidationError || !draftValid
@@ -9674,7 +9674,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: _adminDialogAltColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x3367E8F9)),
+                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -9689,7 +9689,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 'RADIO INTENT COMMAND',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF67E8F9),
+                                  color: OnyxColorTokens.accentSky,
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
@@ -9710,7 +9710,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 leadBucketPreview,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFB5C7DD),
+                                  color: OnyxColorTokens.textSecondary,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
                                   height: 1.35,
@@ -9749,7 +9749,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 nextMove,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFEAF4FF),
+                                  color: OnyxColorTokens.textPrimary,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -9767,12 +9767,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _watchAuditChip(
                           'Buckets',
                           '$bucketCount',
-                          color: const Color(0xFF67E8F9),
+                          color: OnyxColorTokens.accentSky,
                         ),
                         _watchAuditChip(
                           'Phrases',
                           '$phraseCount',
-                          color: const Color(0xFFBFD7F2),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                         _watchAuditChip(
                           'Validation',
@@ -9782,7 +9782,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _watchAuditChip(
                           'Runtime',
                           hasOverride ? 'override loaded' : 'defaults live',
-                          color: const Color(0xFF86EFAC),
+                          color: OnyxColorTokens.accentGreen,
                         ),
                       ],
                     ),
@@ -9798,8 +9798,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : _validateRadioIntentJson,
                           icon: const Icon(Icons.rule_rounded, size: 16),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2B5E93),
-                            foregroundColor: const Color(0xFFEAF4FF),
+                            backgroundColor: OnyxColorTokens.accentBlue,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           label: Text(
                             'Validate',
@@ -9815,8 +9815,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : _saveRadioIntentJson,
                           icon: const Icon(Icons.save_rounded, size: 16),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2563EB),
-                            foregroundColor: const Color(0xFFEAF4FF),
+                            backgroundColor: OnyxColorTokens.accentBlue,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           label: Text(
                             widget.onSaveRadioIntentPhrasesJson == null
@@ -9834,8 +9834,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : _resetRadioIntentJson,
                           icon: const Icon(Icons.restart_alt_rounded, size: 16),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF9AB1CF),
-                            side: const BorderSide(color: Color(0xFF35506F)),
+                            foregroundColor: OnyxColorTokens.textSecondary,
+                            side: const BorderSide(color: OnyxColorTokens.borderStrong),
                           ),
                           label: Text(
                             widget.onResetRadioIntentPhrasesJson == null
@@ -9887,7 +9887,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0x6655A4FF)),
+                    borderSide: BorderSide(
+                      color: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                    ),
                   ),
                 ),
               ),
@@ -9897,7 +9899,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _runtimeFallbackNote(
                   message:
                       'Persistence hooks are offline. Save stages a validated draft to the clipboard, and reset only updates this local workspace editor.',
-                  accent: const Color(0xFF67E8F9),
+                  accent: OnyxColorTokens.accentSky,
                 ),
               ],
               if (_radioIntentPhraseValidation != null) ...[
@@ -9906,8 +9908,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   _radioIntentPhraseValidation!,
                   style: GoogleFonts.inter(
                     color: _radioIntentPhraseValidationError
-                        ? const Color(0xFFF87171)
-                        : const Color(0xFF67E8F9),
+                        ? OnyxColorTokens.accentRed
+                        : OnyxColorTokens.accentSky,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -9960,8 +9962,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? (draftValid ? 'ready' : 'unchecked')
             : 'validated';
         final validationColor = _demoRouteCueValidationError
-            ? const Color(0xFFF87171)
-            : const Color(0xFF8FD1FF);
+            ? OnyxColorTokens.accentRed
+            : OnyxColorTokens.accentSky;
         final nextMove = _demoRouteCuesSaving
             ? 'Saving runtime'
             : _demoRouteCueValidationError || !draftValid
@@ -9994,7 +9996,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: _adminDialogAltColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x338FD1FF)),
+                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -10009,7 +10011,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 'DEMO ROUTE COMMAND',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
+                                  color: OnyxColorTokens.accentSky,
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
@@ -10030,7 +10032,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 leadRoutePreview,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFB5C7DD),
+                                  color: OnyxColorTokens.textSecondary,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
                                   height: 1.35,
@@ -10069,7 +10071,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 nextMove,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFEAF4FF),
+                                  color: OnyxColorTokens.textPrimary,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -10087,12 +10089,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _watchAuditChip(
                           'Routes',
                           '$routeCount',
-                          color: const Color(0xFF8FD1FF),
+                          color: OnyxColorTokens.accentSky,
                         ),
                         _watchAuditChip(
                           'Lead',
                           leadRoute,
-                          color: const Color(0xFFBFD7F2),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                         _watchAuditChip(
                           'Validation',
@@ -10102,7 +10104,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _watchAuditChip(
                           'Runtime',
                           hasOverride ? 'override loaded' : 'defaults live',
-                          color: const Color(0xFF86EFAC),
+                          color: OnyxColorTokens.accentGreen,
                         ),
                       ],
                     ),
@@ -10118,8 +10120,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : _validateDemoRouteCueJson,
                           icon: const Icon(Icons.rule_rounded, size: 16),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2B5E93),
-                            foregroundColor: const Color(0xFFEAF4FF),
+                            backgroundColor: OnyxColorTokens.accentBlue,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           label: Text(
                             'Validate',
@@ -10135,8 +10137,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : _saveDemoRouteCueJson,
                           icon: const Icon(Icons.save_rounded, size: 16),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2563EB),
-                            foregroundColor: const Color(0xFFEAF4FF),
+                            backgroundColor: OnyxColorTokens.accentBlue,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           label: Text(
                             widget.onSaveDemoRouteCuesJson == null
@@ -10154,8 +10156,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : _resetDemoRouteCueJson,
                           icon: const Icon(Icons.restart_alt_rounded, size: 16),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF9AB1CF),
-                            side: const BorderSide(color: Color(0xFF35506F)),
+                            foregroundColor: OnyxColorTokens.textSecondary,
+                            side: const BorderSide(color: OnyxColorTokens.borderStrong),
                           ),
                           label: Text(
                             widget.onResetDemoRouteCuesJson == null
@@ -10179,7 +10181,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 maxLines: 12,
                 minLines: 8,
                 style: GoogleFonts.robotoMono(
-                  color: const Color(0xFFEAF4FF),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -10187,7 +10189,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   hintText:
                       '{\n  "dashboard": "Action ladder and decision speed.",\n  "tactical": "Verify units and site posture.",\n  "dispatches": "Execute dispatch from focused queue."\n}',
                   hintStyle: GoogleFonts.robotoMono(
-                    color: const Color(0xFF6A829F),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -10207,7 +10209,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0x6655A4FF)),
+                    borderSide: BorderSide(
+                      color: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                    ),
                   ),
                 ),
               ),
@@ -10217,7 +10221,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _runtimeFallbackNote(
                   message:
                       'Persistence hooks are offline. Save stages the validated route cue draft to the clipboard, and reset only updates this local workspace editor.',
-                  accent: const Color(0xFF8FD1FF),
+                  accent: OnyxColorTokens.accentSky,
                 ),
               ],
               if (_demoRouteCueValidation != null) ...[
@@ -10226,8 +10230,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   _demoRouteCueValidation!,
                   style: GoogleFonts.inter(
                     color: _demoRouteCueValidationError
-                        ? const Color(0xFFF87171)
-                        : const Color(0xFF67E8F9),
+                        ? OnyxColorTokens.accentRed
+                        : OnyxColorTokens.accentSky,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -10246,7 +10250,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'platinum',
         'Platinum',
         '< 5 min',
-        const Color(0xFF22D3EE),
+        OnyxColorTokens.accentSky,
         'Executive and sovereign scopes stay on the fastest intervention route.',
         'Maintain rapid response',
       ),
@@ -10254,7 +10258,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'gold',
         'Gold',
         '< 10 min',
-        const Color(0xFFF59E0B),
+        OnyxColorTokens.accentAmber,
         'Priority estates stay close to dispatch tempo without losing compliance posture.',
         'Review readiness tempo',
       ),
@@ -10262,7 +10266,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'silver',
         'Silver',
         '< 15 min',
-        const Color(0xFF94A3B8),
+        OnyxColorTokens.textMuted,
         'General estate coverage balances operator headroom with stable alert handling.',
         'Check partner posture',
       ),
@@ -10270,7 +10274,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'bronze',
         'Bronze',
         '< 20 min',
-        const Color(0xFFFB923C),
+        OnyxColorTokens.accentAmber,
         'Monitor-only and low-touch scopes rely on strong detection and escalation discipline.',
         'Tighten listener coverage',
       ),
@@ -10340,7 +10344,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           Text(
                             selectedTier.$5,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFB5C7DD),
+                              color: OnyxColorTokens.textSecondary,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
@@ -10379,7 +10383,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           Text(
                             selectedTier.$6,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -10402,14 +10406,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _watchAuditChip(
                       'Window',
                       selectedTier.$3,
-                      color: const Color(0xFFBFD7F2),
+                      color: OnyxColorTokens.textSecondary,
                     ),
                     _watchAuditChip(
                       'Readiness',
                       selectedTier.$1 == 'bronze'
                           ? 'watch first'
                           : 'command ready',
-                      color: const Color(0xFF86EFAC),
+                      color: OnyxColorTokens.accentGreen,
                     ),
                   ],
                 ),
@@ -10433,8 +10437,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       },
                       icon: const Icon(Icons.public_rounded, size: 16),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF245B72),
-                        foregroundColor: const Color(0xFFEAF4FF),
+                        backgroundColor: OnyxColorTokens.accentBlue,
+                        foregroundColor: OnyxColorTokens.textPrimary,
                       ),
                       label: Text(
                         'Readiness',
@@ -10456,8 +10460,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       },
                       icon: const Icon(Icons.handshake_outlined, size: 16),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFBFD7F2),
-                        side: const BorderSide(color: Color(0xFF35506F)),
+                        foregroundColor: OnyxColorTokens.textSecondary,
+                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
                       ),
                       label: Text(
                         'Partner Scorecard',
@@ -10482,8 +10486,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         size: 16,
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF9AB1CF),
-                        side: const BorderSide(color: Color(0xFF35506F)),
+                        foregroundColor: OnyxColorTokens.textSecondary,
+                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
                       ),
                       label: Text(
                         'Listener Alarm',
@@ -10525,7 +10529,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   decoration: BoxDecoration(
                     color: selected
                         ? tier.$4.withValues(alpha: 0.12)
-                        : const Color(0xFF13131E),
+                        : OnyxColorTokens.backgroundSecondary,
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(
                       color: selected
@@ -10568,7 +10572,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       Text(
                         tier.$3,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF9AB1CF),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -10590,7 +10594,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'auto-escalate',
         'Auto-escalate after',
         '30 seconds',
-        const Color(0xFF8B5CF6),
+        OnyxColorTokens.accentPurple,
         'Escalation discipline keeps low-confidence alerts from stalling in the queue.',
         'Review readiness tempo',
       ),
@@ -10598,7 +10602,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'critical-timeout',
         'Critical incident timeout',
         '5 minutes',
-        const Color(0xFFF59E0B),
+        OnyxColorTokens.accentAmber,
         'Critical scenes must stay inside a five-minute command cycle before leadership escalation.',
         'Check listener alarm',
       ),
@@ -10606,7 +10610,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'guard-heartbeat',
         'Guard heartbeat interval',
         '60 seconds',
-        const Color(0xFF67E8F9),
+        OnyxColorTokens.accentSky,
         'Heartbeat cadence protects lone-worker and field continuity checks.',
         'Inspect parity drift',
       ),
@@ -10614,7 +10618,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'geofence-alert',
         'Geofence breach alert',
         'Enabled',
-        const Color(0xFF22D3EE),
+        OnyxColorTokens.accentSky,
         'Perimeter breaches stay hot-wired into watch and tactical verification.',
         'Confirm watch coverage',
       ),
@@ -10684,7 +10688,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           Text(
                             selectedPolicy.$5,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFB5C7DD),
+                              color: OnyxColorTokens.textSecondary,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
@@ -10723,7 +10727,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           Text(
                             selectedPolicy.$6,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -10746,14 +10750,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _watchAuditChip(
                       'Value',
                       selectedPolicy.$3,
-                      color: const Color(0xFFBFD7F2),
+                      color: OnyxColorTokens.textSecondary,
                     ),
                     _watchAuditChip(
                       'Runtime',
                       _selectedPolicyId == 'geofence-alert'
                           ? 'watch linked'
                           : 'system linked',
-                      color: const Color(0xFF86EFAC),
+                      color: OnyxColorTokens.accentGreen,
                     ),
                   ],
                 ),
@@ -10777,8 +10781,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       },
                       icon: const Icon(Icons.tune_rounded, size: 16),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF245B72),
-                        foregroundColor: const Color(0xFFEAF4FF),
+                        backgroundColor: OnyxColorTokens.accentBlue,
+                        foregroundColor: OnyxColorTokens.textPrimary,
                       ),
                       label: Text(
                         'Runtime',
@@ -10800,8 +10804,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       },
                       icon: const Icon(Icons.public_rounded, size: 16),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFBFD7F2),
-                        side: const BorderSide(color: Color(0xFF35506F)),
+                        foregroundColor: OnyxColorTokens.textSecondary,
+                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
                       ),
                       label: Text(
                         'Readiness',
@@ -10823,8 +10827,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       },
                       icon: const Icon(Icons.hearing_rounded, size: 16),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF9AB1CF),
-                        side: const BorderSide(color: Color(0xFF35506F)),
+                        foregroundColor: OnyxColorTokens.textSecondary,
+                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
                       ),
                       label: Text(
                         'Listener Alarm',
@@ -10866,7 +10870,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   decoration: BoxDecoration(
                     color: selected
                         ? policy.$4.withValues(alpha: 0.12)
-                        : const Color(0xFF13131E),
+                        : OnyxColorTokens.backgroundSecondary,
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(
                       color: selected
@@ -10902,7 +10906,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       Text(
                         policy.$3,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF4FF),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -10996,7 +11000,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'VIDEO OPS',
         detail:
             'Fleet health is now foregrounded from the ops poll command deck so video telemetry can pivot straight into the watch workspace.',
-        accent: const Color(0xFF93C5FD),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -11218,7 +11222,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     Text(
                       nextMoveLabel,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -11241,12 +11245,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _watchAuditChip(
                 'Rows',
                 '${focusEntries.length}',
-                color: const Color(0xFFBFD7F2),
+                color: OnyxColorTokens.textSecondary,
               ),
               _watchAuditChip(
                 'Lead',
                 leadEntry.label,
-                color: const Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
               ),
             ],
           ),
@@ -11259,7 +11263,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-run-ops'),
                   label: 'Run Ops Poll',
-                  color: const Color(0xFF7DD3FC),
+                  color: OnyxColorTokens.accentSky,
                   onTap: widget.onRunOpsIntegrationPoll == null
                       ? null
                       : () {
@@ -11269,7 +11273,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-poll-radio'),
                   label: 'Poll Radio',
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentSky,
                   onTap: widget.onRunRadioPoll == null
                       ? null
                       : () {
@@ -11279,7 +11283,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-focus-queue'),
                   label: 'Queue',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                   onTap: () {
                     setState(() {
                       _activeOpsPollHealthFocus = _OpsPollHealthFocus.queue;
@@ -11290,7 +11294,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       sourceLabel: 'OPS POLL',
                       detail:
                           'Queue telemetry now stays pinned in the ops command deck while retry and clear actions remain visible.',
-                      accent: const Color(0xFF8FD1FF),
+                      accent: OnyxColorTokens.accentSky,
                     );
                   },
                 ),
@@ -11299,7 +11303,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-run-ops'),
                   label: 'Run Ops Poll',
-                  color: const Color(0xFF7DD3FC),
+                  color: OnyxColorTokens.accentSky,
                   onTap: widget.onRunOpsIntegrationPoll == null
                       ? null
                       : () {
@@ -11309,7 +11313,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-poll-radio'),
                   label: 'Poll Radio',
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentSky,
                   onTap: widget.onRunRadioPoll == null
                       ? null
                       : () {
@@ -11319,7 +11323,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-retry-queue'),
                   label: 'Retry Queue',
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentSky,
                   onTap:
                       !(widget.radioQueueHasPending &&
                           widget.onRetryRadioQueue != null)
@@ -11331,7 +11335,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-clear-queue'),
                   label: 'Clear Queue',
-                  color: const Color(0xFFF87171),
+                  color: OnyxColorTokens.accentRed,
                   onTap:
                       !(widget.radioQueueHasPending &&
                           widget.onClearRadioQueue != null)
@@ -11343,7 +11347,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-clear-failure'),
                   label: 'Clear Failure',
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                   onTap: widget.onClearRadioQueueFailureSnapshot == null
                       ? null
                       : () {
@@ -11355,7 +11359,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-poll-video'),
                   label: 'Poll ${widget.videoOpsLabel}',
-                  color: const Color(0xFF93C5FD),
+                  color: OnyxColorTokens.accentSky,
                   onTap: widget.onRunCctvPoll == null
                       ? null
                       : () {
@@ -11365,7 +11369,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-open-fleet'),
                   label: 'Fleet Health',
-                  color: const Color(0xFFBFD7F2),
+                  color: OnyxColorTokens.textSecondary,
                   onTap: onOpenFleetHealth,
                 ),
               ],
@@ -11373,7 +11377,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-run-ops'),
                   label: 'Run Ops Poll',
-                  color: const Color(0xFF7DD3FC),
+                  color: OnyxColorTokens.accentSky,
                   onTap: widget.onRunOpsIntegrationPoll == null
                       ? null
                       : () {
@@ -11383,7 +11387,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-focus-queue'),
                   label: 'Queue',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                   onTap: () {
                     setState(() {
                       _activeOpsPollHealthFocus = _OpsPollHealthFocus.queue;
@@ -11394,7 +11398,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       sourceLabel: 'OPS POLL',
                       detail:
                           'Queue telemetry now stays pinned in the ops command deck while retry and clear actions remain visible.',
-                      accent: const Color(0xFF8FD1FF),
+                      accent: OnyxColorTokens.accentSky,
                     );
                   },
                 ),
@@ -11403,7 +11407,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-poll-wearable'),
                   label: 'Poll Wearable',
-                  color: const Color(0xFF34D399),
+                  color: OnyxColorTokens.accentGreen,
                   onTap: widget.onRunWearablePoll == null
                       ? null
                       : () {
@@ -11413,7 +11417,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-run-ops'),
                   label: 'Run Ops Poll',
-                  color: const Color(0xFF7DD3FC),
+                  color: OnyxColorTokens.accentSky,
                   onTap: widget.onRunOpsIntegrationPoll == null
                       ? null
                       : () {
@@ -11425,7 +11429,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-open-listener'),
                   label: 'Listener Command',
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                   onTap: _focusListenerAlarmSummaryFromOps,
                 ),
               ],
@@ -11433,7 +11437,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-poll-news'),
                   label: 'Poll News',
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                   onTap: widget.onRunNewsPoll == null
                       ? null
                       : () {
@@ -11443,7 +11447,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-run-ops'),
                   label: 'Run Ops Poll',
-                  color: const Color(0xFF7DD3FC),
+                  color: OnyxColorTokens.accentSky,
                   onTap: widget.onRunOpsIntegrationPoll == null
                       ? null
                       : () {
@@ -11455,7 +11459,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _opsPollActionButton(
                   key: const ValueKey('admin-ops-poll-command-open-watch'),
                   label: 'Recovery Trail',
-                  color: const Color(0xFF86EFAC),
+                  color: OnyxColorTokens.accentGreen,
                   onTap: _focusWatchAuditTrailFromSummary,
                 ),
               ],
@@ -11595,7 +11599,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     Text(
                       recommendedLabel,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -11648,12 +11652,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _watchAuditChip(
                 'Pinned rows',
                 '${focusEntries.length}',
-                color: const Color(0xFFBFD7F2),
+                color: OnyxColorTokens.textSecondary,
               ),
               _watchAuditChip(
                 'Next move',
                 recommendedLabel,
-                color: const Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
               ),
             ],
           ),
@@ -11689,7 +11693,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       Text(
                         entry.value,
                         style: GoogleFonts.robotoMono(
-                          color: const Color(0xFFEAF4FF),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                           height: 1.35,
@@ -11703,7 +11707,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               '${focusEntries.length - 4} more ${_opsPollHealthFocusLabel(resolvedFocus)} signals remain visible in the telemetry stack below.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF718198),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -11732,10 +11736,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
             .isNotEmpty;
     final statusUpper = status.toUpperCase();
     final accent = statusUpper == 'PASS'
-        ? const Color(0xFF34D399)
+        ? OnyxColorTokens.accentGreen
         : statusUpper == 'WARN' || statusUpper == 'HOLD'
-        ? const Color(0xFFF59E0B)
-        : const Color(0xFF67E8F9);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentSky;
 
     return Container(
       width: double.infinity,
@@ -11853,7 +11857,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     TabBar(
                       labelColor: _adminDialogTitleColor,
                       unselectedLabelColor: _adminDialogMutedColor,
-                      indicatorColor: const Color(0xFF4B8CFF),
+                      indicatorColor: OnyxColorTokens.accentSky,
                       tabs: const [
                         Tab(text: 'JSON'),
                         Tab(text: 'Markdown'),
@@ -12006,33 +12010,33 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return switch (state) {
       'ready' => (
         label: 'READY',
-        accent: const Color(0xFF0F9F6E),
-        fill: const Color(0xFFEAFBF3),
-        border: const Color(0xFFB8E9CF),
+        accent: OnyxColorTokens.accentGreen,
+        fill: OnyxColorTokens.greenSurface,
+        border: OnyxColorTokens.greenBorder,
       ),
       'review' => (
         label: 'REVIEW',
-        accent: const Color(0xFFB45309),
-        fill: const Color(0xFFFFF6E8),
-        border: const Color(0xFFF4D8A7),
+        accent: OnyxColorTokens.amberBorder,
+        fill: OnyxColorTokens.amberSurface,
+        border: OnyxColorTokens.amberBorder,
       ),
       'optional' => (
         label: 'OPTIONAL',
-        accent: const Color(0xFF64748B),
-        fill: const Color(0xFF1A1A2E),
-        border: const Color(0x269D4BFF),
+        accent: OnyxColorTokens.textMuted,
+        fill: OnyxColorTokens.surfaceElevated,
+        border: OnyxColorTokens.borderSubtle,
       ),
       'missing' => (
         label: 'MISSING',
-        accent: const Color(0xFFB91C1C),
-        fill: const Color(0xFFFFF1F2),
-        border: const Color(0xFFF6C3C8),
+        accent: OnyxColorTokens.redBorder,
+        fill: OnyxColorTokens.redSurface,
+        border: OnyxColorTokens.redBorder,
       ),
       _ => (
         label: 'REVIEW',
-        accent: const Color(0xFF3C79BB),
-        fill: const Color(0xFFEAF4FF),
-        border: const Color(0xFFC6DAF1),
+        accent: OnyxColorTokens.accentBlue,
+        fill: OnyxColorTokens.textPrimary,
+        border: OnyxColorTokens.borderStrong,
       ),
     };
   }
@@ -12117,7 +12121,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FBFF),
+                  color: OnyxColorTokens.surfaceElevated,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: _adminDialogBorderColor),
                 ),
@@ -12158,7 +12162,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 .map(
                   (prompt) => ActionChip(
                     onPressed: () => _copyTelegramChecklistCommand(prompt),
-                    backgroundColor: const Color(0xFFF8FBFF),
+                    backgroundColor: OnyxColorTokens.surfaceElevated,
                     side: BorderSide(color: _adminDialogBorderColor),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(999),
@@ -12275,40 +12279,40 @@ class _AdministrationPageState extends State<AdministrationPage> {
     switch (outcomeLabel.trim().toLowerCase()) {
       case 'quick action':
         return (
-          fill: const Color(0xFFE8F7F1),
-          border: const Color(0xFFB7E4CF),
-          text: const Color(0xFF0F6A52),
+          fill: OnyxColorTokens.greenSurface,
+          border: OnyxColorTokens.greenBorder,
+          text: OnyxColorTokens.accentGreen,
         );
       case 'onboarding intake':
         return (
-          fill: const Color(0xFFFFF4E5),
-          border: const Color(0xFFFACD8A),
-          text: const Color(0xFF9A5B00),
+          fill: OnyxColorTokens.amberSurface,
+          border: OnyxColorTokens.amberBorder,
+          text: OnyxColorTokens.amberBorder,
         );
       case 'assistant reply':
         return (
-          fill: const Color(0xFFF1ECFF),
-          border: const Color(0xFFD7C9FF),
-          text: const Color(0xFF6A4BC4),
+          fill: OnyxColorTokens.purpleSurface,
+          border: OnyxColorTokens.purpleBorder,
+          text: OnyxColorTokens.accentPurple,
         );
       case 'denied':
         return (
-          fill: const Color(0xFFFFEFEF),
-          border: const Color(0xFFF6C7C7),
-          text: const Color(0xFFB42318),
+          fill: OnyxColorTokens.redSurface,
+          border: OnyxColorTokens.redBorder,
+          text: OnyxColorTokens.accentRed,
         );
       case 'send failed':
         return (
-          fill: const Color(0xFFFFF7ED),
-          border: const Color(0xFFFBD38D),
-          text: const Color(0xFFB45309),
+          fill: OnyxColorTokens.amberSurface,
+          border: OnyxColorTokens.amberBorder,
+          text: OnyxColorTokens.amberBorder,
         );
       case 'answered':
       default:
         return (
-          fill: const Color(0xFFF0F7FF),
-          border: const Color(0xFFC7DCF7),
-          text: const Color(0xFF245D9B),
+          fill: OnyxColorTokens.surfaceElevated,
+          border: OnyxColorTokens.borderStrong,
+          text: OnyxColorTokens.accentBlue,
         );
     }
   }
@@ -12411,7 +12415,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FBFF),
+                        color: OnyxColorTokens.surfaceElevated,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: _adminDialogBorderColor),
                       ),
@@ -12466,7 +12470,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ActionChip(
                             onPressed: () =>
                                 _copyTelegramChecklistCommand(entry.prompt),
-                            backgroundColor: const Color(0xFF13131E),
+                            backgroundColor: OnyxColorTokens.backgroundSecondary,
                             side: BorderSide(color: _adminDialogBorderColor),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(999),
@@ -12661,7 +12665,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FBFF),
+                    color: OnyxColorTokens.surfaceElevated,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: _adminDialogBorderColor),
                   ),
@@ -12806,7 +12810,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   .map(
                     (example) => ActionChip(
                       onPressed: () => _copyTelegramChecklistCommand(example),
-                      backgroundColor: const Color(0xFFF8FBFF),
+                      backgroundColor: OnyxColorTokens.surfaceElevated,
                       side: BorderSide(color: _adminDialogBorderColor),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(999),
@@ -12975,10 +12979,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
   Color _telegramAiAudienceAccent(TelegramAiPendingDraftView draft) {
     switch (draft.audience.trim().toLowerCase()) {
       case 'admin':
-        return const Color(0xFFF59E0B);
+        return OnyxColorTokens.accentAmber;
       case 'client':
       default:
-        return const Color(0xFF22D3EE);
+        return OnyxColorTokens.accentSky;
     }
   }
 
@@ -13136,7 +13140,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     if (normalized.isEmpty) {
       return const SizedBox.shrink();
     }
-    final accent = const Color(0xFF4B6B8F);
+    final accent = OnyxColorTokens.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
@@ -13171,7 +13175,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           (selected
               ? _adminDialogTitleColor
               : _telegramAiAccentTextColor(accent, strength: 0.42)),
-      backgroundColor: selected ? accent.withValues(alpha: 0.12) : const Color(0xFF13131E),
+      backgroundColor: selected ? accent.withValues(alpha: 0.12) : OnyxColorTokens.backgroundSecondary,
       side: BorderSide(
         color: selected
             ? accent.withValues(alpha: 0.5)
@@ -13270,7 +13274,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           );
                         },
                         style: _telegramAiOutlineButtonStyle(
-                          accent: const Color(0xFF245B72),
+                          accent: OnyxColorTokens.accentBlue,
                         ),
                         child: Text(
                           tag,
@@ -13301,8 +13305,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       onPressed: () =>
                           Navigator.of(context).pop(controller.text.trim()),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF245B72),
-                        foregroundColor: const Color(0xFFEAF4FF),
+                        backgroundColor: OnyxColorTokens.accentBlue,
+                        foregroundColor: OnyxColorTokens.textPrimary,
                       ),
                       child: Text(
                         'Save Tag',
@@ -13386,7 +13390,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         color: _adminDialogSurfaceColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: const Color(0xFF245B72).withValues(alpha: 0.12),
+          color: OnyxColorTokens.accentBlue.withValues(alpha: 0.12),
         ),
       ),
       child: Column(
@@ -13436,7 +13440,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         rank: rank,
                       ),
                 style: _telegramAiOutlineButtonStyle(
-                  accent: const Color(0xFF245B72),
+                  accent: OnyxColorTokens.accentBlue,
                 ),
                 icon: const Icon(Icons.north_rounded, size: 14),
                 label: Text(
@@ -13460,7 +13464,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         rank: rank,
                       ),
                 style: _telegramAiOutlineButtonStyle(
-                  accent: const Color(0xFFB24A4A),
+                  accent: OnyxColorTokens.redBorder,
                 ),
                 icon: const Icon(Icons.south_rounded, size: 14),
                 label: Text(
@@ -13484,7 +13488,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         rank: rank,
                       ),
                 style: _telegramAiOutlineButtonStyle(
-                  accent: const Color(0xFF245B72),
+                  accent: OnyxColorTokens.accentBlue,
                 ),
                 icon: const Icon(Icons.label_rounded, size: 14),
                 label: Text(
@@ -13640,7 +13644,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
@@ -14042,8 +14046,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       onPressed: () =>
                           Navigator.of(context).pop(controller.text.trim()),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D5B),
-                        foregroundColor: const Color(0xFFEAF4FF),
+                        backgroundColor: OnyxColorTokens.greenBorder,
+                        foregroundColor: OnyxColorTokens.textPrimary,
                       ),
                       child: Text(
                         'Save Draft',
@@ -14515,7 +14519,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'LIVE OPS TIP',
         detail:
             'Queue onboarding guidance has been re-armed and stays pinned here while system controls remain in view.',
-        accent: const Color(0xFF7FD8A5),
+        accent: OnyxColorTokens.accentGreen,
       );
     } catch (_) {
       _snack(
@@ -14523,7 +14527,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'LIVE OPS TIP',
         detail:
             'The reset failure stays visible here so you can retry without losing system context.',
-        accent: const Color(0xFFF59E0B),
+        accent: OnyxColorTokens.accentAmber,
       );
     } finally {
       if (mounted) {
@@ -14545,9 +14549,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
           ? null
           : _resetLiveOperationsQueueHint,
       style: _telegramAiOutlineButtonStyle(
-        accent: const Color(0xFF245B72),
+        accent: OnyxColorTokens.accentBlue,
         foregroundColor: _telegramAiAccentTextColor(
-          const Color(0xFF245B72),
+          OnyxColorTokens.accentBlue,
           strength: 0.42,
         ),
       ),
@@ -14580,7 +14584,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -14593,8 +14597,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 Icons.smart_toy_rounded,
                 size: 16,
                 color: widget.telegramAiAssistantEnabled
-                    ? const Color(0xFF22D3EE)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.textMuted,
               ),
               const SizedBox(width: 6),
               Text(
@@ -14630,7 +14634,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             'Provider chain: ${widget.telegramAiProviderChainLabel}',
             style: GoogleFonts.inter(
               color: widget.telegramAiFallbackOnly
-                  ? const Color(0xFFB45309)
+                  ? OnyxColorTokens.amberBorder
                   : _adminDialogBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -14643,7 +14647,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               child: Text(
                 'AI Assist is on, but no ONYX brain is configured right now. Telegram replies are using deterministic fallback until ONYX cloud or local brain is available.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFB45309),
+                  color: OnyxColorTokens.amberBorder,
                   fontSize: 10.2,
                   fontWeight: FontWeight.w700,
                   height: 1.32,
@@ -14663,12 +14667,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: widget.telegramAiAssistantEnabled
-                      ? const Color(0xFF34D399)
+                      ? OnyxColorTokens.accentGreen
                       : _adminDialogBodyColor,
-                  backgroundColor: const Color(0xFF13131E),
+                  backgroundColor: OnyxColorTokens.backgroundSecondary,
                   side: BorderSide(
                     color: widget.telegramAiAssistantEnabled
-                        ? const Color(0xFF2F5949)
+                        ? OnyxColorTokens.greenBorder
                         : _adminDialogBorderColor,
                   ),
                   shape: RoundedRectangleBorder(
@@ -14697,12 +14701,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: widget.telegramAiApprovalRequired
-                      ? const Color(0xFFF59E0B)
+                      ? OnyxColorTokens.accentAmber
                       : _adminDialogBodyColor,
-                  backgroundColor: const Color(0xFF13131E),
+                  backgroundColor: OnyxColorTokens.backgroundSecondary,
                   side: BorderSide(
                     color: widget.telegramAiApprovalRequired
-                        ? const Color(0xFF5B3A16)
+                        ? OnyxColorTokens.amberBorder
                         : _adminDialogBorderColor,
                   ),
                   shape: RoundedRectangleBorder(
@@ -14818,20 +14822,20 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       children: [
                         _telegramAiInfoChip(
                           label: 'Awaiting human sign-off',
-                          accent: const Color(0xFFF59E0B),
+                          accent: OnyxColorTokens.accentAmber,
                           icon: Icons.verified_user_rounded,
                         ),
                         _telegramAiInfoChip(
                           label: 'Draft #${draft.updateId}',
-                          accent: const Color(0xFF4B6B8F),
+                          accent: OnyxColorTokens.textSecondary,
                         ),
                         _telegramAiInfoChip(
                           label: draft.matchesSelectedScope
                               ? 'Selected scope'
                               : 'Cross-scope',
                           accent: draft.matchesSelectedScope
-                              ? const Color(0xFF34D399)
-                              : const Color(0xFF60A5FA),
+                              ? OnyxColorTokens.accentGreen
+                              : OnyxColorTokens.accentSky,
                           icon: draft.matchesSelectedScope
                               ? Icons.place_rounded
                               : Icons.alt_route_rounded,
@@ -14850,27 +14854,27 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           label:
                               'Client voice: ${_telegramAiProfileLabel(profileSignal)}',
                           accent: profileSignal.isEmpty
-                              ? const Color(0xFF4B6B8F)
-                              : const Color(0xFF34D399),
+                              ? OnyxColorTokens.textSecondary
+                              : OnyxColorTokens.accentGreen,
                           icon: Icons.tune_rounded,
                         ),
                         if (profileSignal.isNotEmpty)
                           _telegramAiInfoChip(
                             label: 'Voice-adjusted',
-                            accent: const Color(0xFF34D399),
+                            accent: OnyxColorTokens.accentGreen,
                             icon: Icons.auto_fix_high_rounded,
                           ),
                         if (draft.learnedRewriteCount > 0)
                           _telegramAiInfoChip(
                             label:
                                 'Learned from approvals (${draft.learnedRewriteCount})',
-                            accent: const Color(0xFF22D3EE),
+                            accent: OnyxColorTokens.accentSky,
                             icon: Icons.school_rounded,
                           ),
                         if (draft.usesLearnedApprovalStyle)
                           _telegramAiInfoChip(
                             label: 'Uses learned approval style',
-                            accent: const Color(0xFF67E8F9),
+                            accent: OnyxColorTokens.accentSky,
                             icon: Icons.psychology_alt_rounded,
                           ),
                         for (final option in _orderedTelegramAiProfileOptions(
@@ -14902,7 +14906,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                       (option.$2 == null &&
                                           profileSignal.isEmpty)
                                   ? accent.withValues(alpha: 0.12)
-                                  : const Color(0xFF13131E),
+                                  : OnyxColorTokens.backgroundSecondary,
                               side: BorderSide(
                                 color:
                                     (option.$2 ?? '') == profileSignal ||
@@ -14930,15 +14934,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _telegramAiReviewTextBlock(
                       label: 'CLIENT ASKED',
                       text: draft.sourceText.trim(),
-                      borderColor: const Color(0xFF31465F),
-                      textColor: const Color(0xFFD4E4F7),
+                      borderColor: OnyxColorTokens.borderStrong,
+                      textColor: OnyxColorTokens.textPrimary,
                     ),
                     const SizedBox(height: 7),
                     _telegramAiReviewTextBlock(
                       label: 'ONYX WILL SAY',
                       text: draft.draftText.trim(),
                       borderColor: accent,
-                      textColor: const Color(0xFFEAF4FF),
+                      textColor: OnyxColorTokens.textPrimary,
                     ),
                     const SizedBox(height: 7),
                     Text(
@@ -14961,8 +14965,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _telegramAiReviewTextBlock(
                         label: 'LEARNED APPROVAL STYLE',
                         text: draft.learnedRewriteExample.trim(),
-                        borderColor: const Color(0xFF245B72),
-                        textColor: const Color(0xFFD9F7FF),
+                        borderColor: OnyxColorTokens.accentBlue,
+                        textColor: OnyxColorTokens.accentSky,
                       ),
                       if (_telegramAiLearnedStyleMetaLabel(
                         approvalCount: draft.learnedRewriteApprovalCount,
@@ -15011,7 +15015,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     siteId: draft.siteId,
                                   ),
                             style: _telegramAiOutlineButtonStyle(
-                              accent: const Color(0xFF245B72),
+                              accent: OnyxColorTokens.accentBlue,
                             ),
                             icon: const Icon(Icons.push_pin_rounded, size: 14),
                             label: Text(
@@ -15033,7 +15037,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     siteId: draft.siteId,
                                   ),
                             style: _telegramAiOutlineButtonStyle(
-                              accent: const Color(0xFFB24A4A),
+                              accent: OnyxColorTokens.redBorder,
                             ),
                             icon: const Icon(Icons.south_rounded, size: 14),
                             label: Text(
@@ -15058,7 +15062,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     rank: 1,
                                   ),
                             style: _telegramAiOutlineButtonStyle(
-                              accent: const Color(0xFF245B72),
+                              accent: OnyxColorTokens.accentBlue,
                             ),
                             icon: const Icon(Icons.label_rounded, size: 14),
                             label: Text(
@@ -15078,7 +15082,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                 ? null
                                 : () => _clearTelegramAiLearnedStyle(draft),
                             style: _telegramAiOutlineButtonStyle(
-                              accent: const Color(0xFF245B72),
+                              accent: OnyxColorTokens.accentBlue,
                             ),
                             icon: const Icon(Icons.refresh_rounded, size: 14),
                             label: Text(
@@ -15117,8 +15121,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               ? null
                               : () => _approveTelegramAiDraft(draft),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2E7D5B),
-                            foregroundColor: const Color(0xFFEAF4FF),
+                            backgroundColor: OnyxColorTokens.greenBorder,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 8,
@@ -15144,7 +15148,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : () => _editTelegramAiDraft(draft),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _adminDialogTitleColor,
-                            backgroundColor: const Color(0xFF13131E),
+                            backgroundColor: OnyxColorTokens.backgroundSecondary,
                             side: const BorderSide(
                               color: _adminDialogBorderColor,
                             ),
@@ -15168,9 +15172,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               ? null
                               : () => _rejectTelegramAiDraft(draft),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFB24A4A),
-                            backgroundColor: const Color(0xFF13131E),
-                            side: const BorderSide(color: Color(0xFFE5C1C1)),
+                            foregroundColor: OnyxColorTokens.redBorder,
+                            backgroundColor: OnyxColorTokens.backgroundSecondary,
+                            side: const BorderSide(color: OnyxColorTokens.redBorder),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 8,
@@ -15205,7 +15209,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                 accent,
                                 strength: 0.42,
                               ),
-                              backgroundColor: const Color(0xFF13131E),
+                              backgroundColor: OnyxColorTokens.backgroundSecondary,
                               side: BorderSide(
                                 color: accent.withValues(alpha: 0.4),
                               ),
@@ -15288,15 +15292,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Color _clientCommsAuditAccent(ClientCommsAuditView view) {
     if ((view.latestSmsFallbackStatus ?? '').trim().isNotEmpty) {
-      return const Color(0xFF34D399);
+      return OnyxColorTokens.accentGreen;
     }
     if ((view.latestVoipStageStatus ?? '').trim().isNotEmpty) {
-      return const Color(0xFF60A5FA);
+      return OnyxColorTokens.accentSky;
     }
     if (view.pendingApprovalCount > 0) {
-      return const Color(0xFFF59E0B);
+      return OnyxColorTokens.accentAmber;
     }
-    return const Color(0xFF22D3EE);
+    return OnyxColorTokens.accentSky;
   }
 
   Widget _clientCommsAuditPanel() {
@@ -15308,7 +15312,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131E),
+          color: OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(9),
           border: Border.all(color: _adminDialogBorderColor),
         ),
@@ -15320,7 +15324,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               const Icon(
                 Icons.history_edu_rounded,
                 size: 16,
-                color: Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -15432,8 +15436,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           label:
                               'Client voice: ${_telegramAiProfileLabel(profileSignal)}',
                           accent: profileSignal.isEmpty
-                              ? const Color(0xFF4B6B8F)
-                              : const Color(0xFF34D399),
+                              ? OnyxColorTokens.textSecondary
+                              : OnyxColorTokens.accentGreen,
                           icon: Icons.tune_rounded,
                         ),
                         _telegramAiInfoChip(
@@ -15441,8 +15445,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               ? '${audit.pendingApprovalCount} pending draft${audit.pendingApprovalCount == 1 ? '' : 's'}'
                               : 'No pending draft',
                           accent: audit.pendingApprovalCount > 0
-                              ? const Color(0xFFF59E0B)
-                              : const Color(0xFF34D399),
+                              ? OnyxColorTokens.accentAmber
+                              : OnyxColorTokens.accentGreen,
                           icon: Icons.verified_user_rounded,
                         ),
                         _telegramAiInfoChip(
@@ -15450,14 +15454,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               ? '${audit.awaitingResponseCount} live ask${audit.awaitingResponseCount == 1 ? '' : 's'}'
                               : 'No live ask',
                           accent: audit.awaitingResponseCount > 0
-                              ? const Color(0xFF22D3EE)
-                              : const Color(0xFF4B6B8F),
+                              ? OnyxColorTokens.accentSky
+                              : OnyxColorTokens.textSecondary,
                           icon: Icons.mark_chat_unread_rounded,
                         ),
                         _telegramAiInfoChip(
                           label:
                               'Telegram ${audit.telegramHealthLabel.toUpperCase()}',
-                          accent: const Color(0xFF22D3EE),
+                          accent: OnyxColorTokens.accentSky,
                           icon: Icons.telegram_rounded,
                         ),
                         _telegramAiInfoChip(
@@ -15466,8 +15470,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           accent:
                               audit.pushSyncStatusLabel.trim().toLowerCase() ==
                                   'failed'
-                              ? const Color(0xFFF59E0B)
-                              : const Color(0xFF4B6B8F),
+                              ? OnyxColorTokens.accentAmber
+                              : OnyxColorTokens.textSecondary,
                           icon: Icons.outbox_rounded,
                         ),
                         if (audit.queuedPushCount > 0)
@@ -15475,20 +15479,20 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             label: audit.queuedPushCount == 1
                                 ? '1 push item queued'
                                 : '${audit.queuedPushCount} push items queued',
-                            accent: const Color(0xFFF59E0B),
+                            accent: OnyxColorTokens.accentAmber,
                             icon: Icons.queue_rounded,
                           ),
                         if (profileSignal.isNotEmpty)
                           _telegramAiInfoChip(
                             label: 'Voice-adjusted',
-                            accent: const Color(0xFF34D399),
+                            accent: OnyxColorTokens.accentGreen,
                             icon: Icons.auto_fix_high_rounded,
                           ),
                         if (audit.learnedApprovalStyleCount > 0)
                           _telegramAiInfoChip(
                             label:
                                 'Learned style (${audit.learnedApprovalStyleCount})',
-                            accent: const Color(0xFF22D3EE),
+                            accent: OnyxColorTokens.accentSky,
                             icon: Icons.school_rounded,
                           ),
                         if (audit.pendingLearnedStyleDraftCount > 0)
@@ -15496,7 +15500,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             label: audit.pendingLearnedStyleDraftCount == 1
                                 ? 'ONYX using learned style'
                                 : 'ONYX using learned style on ${audit.pendingLearnedStyleDraftCount} drafts',
-                            accent: const Color(0xFF67E8F9),
+                            accent: OnyxColorTokens.accentSky,
                             icon: Icons.psychology_alt_rounded,
                           ),
                         for (final option in _orderedTelegramAiProfileOptions(
@@ -15530,7 +15534,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                       (option.$2 == null &&
                                           profileSignal.isEmpty)
                                   ? accent.withValues(alpha: 0.12)
-                                  : const Color(0xFF13131E),
+                                  : OnyxColorTokens.backgroundSecondary,
                               side: BorderSide(
                                 color:
                                     (option.$2 ?? '') == profileSignal ||
@@ -15574,8 +15578,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
                               audit.latestSmsFallbackStatus!.trim(),
                             ),
-                        borderColor: const Color(0xFF2E7D68),
-                        textColor: const Color(0xFFDDFBF3),
+                        borderColor: OnyxColorTokens.greenBorder,
+                        textColor: OnyxColorTokens.textPrimary,
                       ),
                     ],
                     if ((audit.latestVoipStageStatus ?? '')
@@ -15588,8 +15592,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
                               audit.latestVoipStageStatus!.trim(),
                             ),
-                        borderColor: const Color(0xFF3E6AA6),
-                        textColor: const Color(0xFFDCEBFF),
+                        borderColor: OnyxColorTokens.accentBlue,
+                        textColor: OnyxColorTokens.textPrimary,
                       ),
                     ],
                     if ((audit.pushSyncFailureReason ?? '')
@@ -15602,8 +15606,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
                               audit.pushSyncFailureReason!.trim(),
                             ),
-                        borderColor: const Color(0xFF8F4B4B),
-                        textColor: const Color(0xFFFFE1E1),
+                        borderColor: OnyxColorTokens.redBorder,
+                        textColor: OnyxColorTokens.textPrimary,
                       ),
                     ],
                     if (audit.recentDeliveryHistoryLines.isNotEmpty) ...[
@@ -15611,8 +15615,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _telegramAiReviewTextBlock(
                         label: 'RECENT DELIVERY HISTORY',
                         text: audit.recentDeliveryHistoryLines.join('\n'),
-                        borderColor: const Color(0xFF35506F),
-                        textColor: const Color(0xFFDCE8FF),
+                        borderColor: OnyxColorTokens.borderStrong,
+                        textColor: OnyxColorTokens.accentSky,
                       ),
                     ],
                     if (audit.latestClientAskBody.trim().isNotEmpty) ...[
@@ -15620,8 +15624,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _telegramAiReviewTextBlock(
                         label: 'LATEST CLIENT ASK',
                         text: audit.latestClientAskBody.trim(),
-                        borderColor: const Color(0xFF2D5D82),
-                        textColor: const Color(0xFFD8ECFF),
+                        borderColor: OnyxColorTokens.accentBlue,
+                        textColor: OnyxColorTokens.textPrimary,
                       ),
                       if (audit.latestClientAskAtUtc != null) ...[
                         const SizedBox(height: 6),
@@ -15641,8 +15645,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _telegramAiReviewTextBlock(
                         label: 'LATEST CLIENT COMMS REPLY',
                         text: audit.latestLaneReplyBody.trim(),
-                        borderColor: const Color(0xFF345A8F),
-                        textColor: const Color(0xFFDCE8FF),
+                        borderColor: OnyxColorTokens.accentBlue,
+                        textColor: OnyxColorTokens.accentSky,
                       ),
                       if (audit.latestLaneReplyAtUtc != null) ...[
                         const SizedBox(height: 6),
@@ -15672,8 +15676,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _telegramAiReviewTextBlock(
                         label: 'LEARNED APPROVAL STYLE',
                         text: audit.learnedApprovalStyleExample.trim(),
-                        borderColor: const Color(0xFF245B72),
-                        textColor: const Color(0xFFD9F7FF),
+                        borderColor: OnyxColorTokens.accentBlue,
+                        textColor: OnyxColorTokens.accentSky,
                       ),
                       if (_telegramAiLearnedStyleMetaLabel(
                         approvalCount: audit.learnedApprovalStyleApprovalCount,
@@ -15724,7 +15728,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     siteId: audit.siteId,
                                   ),
                             style: _telegramAiOutlineButtonStyle(
-                              accent: const Color(0xFF245B72),
+                              accent: OnyxColorTokens.accentBlue,
                             ),
                             icon: const Icon(Icons.push_pin_rounded, size: 14),
                             label: Text(
@@ -15746,7 +15750,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     siteId: audit.siteId,
                                   ),
                             style: _telegramAiOutlineButtonStyle(
-                              accent: const Color(0xFFB24A4A),
+                              accent: OnyxColorTokens.redBorder,
                             ),
                             icon: const Icon(Icons.south_rounded, size: 14),
                             label: Text(
@@ -15772,7 +15776,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     rank: 1,
                                   ),
                             style: _telegramAiOutlineButtonStyle(
-                              accent: const Color(0xFF245B72),
+                              accent: OnyxColorTokens.accentBlue,
                             ),
                             icon: const Icon(Icons.label_rounded, size: 14),
                             label: Text(
@@ -15825,7 +15829,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               accent,
                               strength: 0.42,
                             ),
-                            backgroundColor: const Color(0xFF13131E),
+                            backgroundColor: OnyxColorTokens.backgroundSecondary,
                             side: BorderSide(
                               color: accent.withValues(alpha: 0.4),
                             ),
@@ -15872,7 +15876,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: OnyxColorTokens.backgroundSecondary,
             borderRadius: BorderRadius.circular(9),
             border: Border.all(color: _adminDialogBorderColor),
           ),
@@ -15884,7 +15888,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   const Icon(
                     Icons.badge_rounded,
                     size: 16,
-                    color: Color(0xFF67E8F9),
+                    color: OnyxColorTokens.accentSky,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -15914,7 +15918,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: _adminDialogAltColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x1A67E8F9)),
+                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.1)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -15929,7 +15933,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 'Operator',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF67E8F9),
+                                  color: OnyxColorTokens.accentSky,
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
@@ -15969,9 +15973,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0x0867E8F9),
+                            color: OnyxColorTokens.accentSky.withValues(alpha: 0.03),
                             borderRadius: BorderRadius.circular(9),
-                            border: Border.all(color: const Color(0x1667E8F9)),
+                            border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.09)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -15979,7 +15983,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 'NEXT MOVE',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF67E8F9),
+                                  color: OnyxColorTokens.accentSky,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
@@ -16007,21 +16011,21 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _watchAuditChip(
                           'Active',
                           widget.operatorId,
-                          color: const Color(0xFF67E8F9),
+                          color: OnyxColorTokens.accentSky,
                         ),
                         _watchAuditChip(
                           'Draft',
                           draftOperatorId.isEmpty
                               ? 'default operator'
                               : draftOperatorId,
-                          color: const Color(0xFFBFD7F2),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                         _watchAuditChip(
                           'Save hook',
                           canSave ? 'live' : 'offline',
                           color: canSave
-                              ? const Color(0xFF86EFAC)
-                              : const Color(0xFFFCA5A5),
+                              ? OnyxColorTokens.accentGreen
+                              : OnyxColorTokens.accentRed,
                         ),
                       ],
                     ),
@@ -16035,7 +16039,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             'admin-operator-runtime-apply-command',
                           ),
                           label: 'Apply Runtime',
-                          color: const Color(0xFF67E8F9),
+                          color: OnyxColorTokens.accentSky,
                           onTap: (!canSave || _operatorIdSaving)
                               ? null
                               : _saveOperatorId,
@@ -16045,7 +16049,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             'admin-operator-runtime-reset-command',
                           ),
                           label: 'Revert Default',
-                          color: const Color(0xFFBFD7F2),
+                          color: OnyxColorTokens.textSecondary,
                           onTap: (!canSave || _operatorIdSaving)
                               ? null
                               : _resetOperatorId,
@@ -16102,8 +16106,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           )
                         : const Icon(Icons.save_rounded, size: 16),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2B5E93),
-                      foregroundColor: const Color(0xFFEAF4FF),
+                      backgroundColor: OnyxColorTokens.accentBlue,
+                      foregroundColor: OnyxColorTokens.textPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -16122,7 +16126,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         : _resetOperatorId,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _adminDialogTitleColor,
-                      backgroundColor: const Color(0xFF13131E),
+                      backgroundColor: OnyxColorTokens.backgroundSecondary,
                       side: const BorderSide(color: _adminDialogBorderColor),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -16196,7 +16200,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: OnyxColorTokens.backgroundSecondary,
             borderRadius: BorderRadius.circular(9),
             border: Border.all(color: _adminDialogBorderColor),
           ),
@@ -16208,7 +16212,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   const Icon(
                     Icons.local_shipping_rounded,
                     size: 16,
-                    color: Color(0xFFF59E0B),
+                    color: OnyxColorTokens.accentAmber,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -16238,7 +16242,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: _adminDialogAltColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x4DF59E0B)),
+                  border: Border.all(color: OnyxColorTokens.accentAmber.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -16253,7 +16257,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 'PARTNER RUNTIME COMMAND',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFF59E0B),
+                                  color: OnyxColorTokens.accentAmber,
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
@@ -16293,9 +16297,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0x14F59E0B),
+                            color: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(9),
-                            border: Border.all(color: const Color(0x33F59E0B)),
+                            border: Border.all(color: OnyxColorTokens.accentAmber.withValues(alpha: 0.2)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -16303,7 +16307,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 'NEXT MOVE',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFF59E0B),
+                                  color: OnyxColorTokens.accentAmber,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
@@ -16331,24 +16335,24 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _watchAuditChip(
                           'Scope',
                           hasRuntimeScope ? siteScope : 'awaiting selection',
-                          color: const Color(0xFFF59E0B),
+                          color: OnyxColorTokens.accentAmber,
                         ),
                         _watchAuditChip(
                           'Bridge',
                           chatId.isEmpty ? 'chat id missing' : chatId,
-                          color: const Color(0xFFBFD7F2),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                         if (threadId.isNotEmpty)
                           _watchAuditChip(
                             'Thread',
                             threadId,
-                            color: const Color(0xFF93C5FD),
+                            color: OnyxColorTokens.accentSky,
                           ),
                         if (endpointLabel.isNotEmpty)
                           _watchAuditChip(
                             'Label',
                             endpointLabel,
-                            color: const Color(0xFF67E8F9),
+                            color: OnyxColorTokens.accentSky,
                           ),
                       ],
                     ),
@@ -16362,7 +16366,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             'admin-partner-runtime-bind-command',
                           ),
                           label: 'Bind Runtime',
-                          color: const Color(0xFFF59E0B),
+                          color: OnyxColorTokens.accentAmber,
                           onTap: (!canMutate || _partnerRuntimeBusy)
                               ? null
                               : _runPartnerRuntimeBind,
@@ -16372,7 +16376,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             'admin-partner-runtime-check-command',
                           ),
                           label: 'Verify Runtime',
-                          color: const Color(0xFFBFD7F2),
+                          color: OnyxColorTokens.textSecondary,
                           onTap: (!canCheck || _partnerRuntimeBusy)
                               ? null
                               : _runPartnerRuntimeCheck,
@@ -16382,7 +16386,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             'admin-partner-runtime-unlink-command',
                           ),
                           label: 'Detach Runtime',
-                          color: const Color(0xFFFCA5A5),
+                          color: OnyxColorTokens.accentRed,
                           onTap: (!canUnlink || _partnerRuntimeBusy)
                               ? null
                               : _runPartnerRuntimeUnlink,
@@ -16540,8 +16544,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             )
                           : const Icon(Icons.link_rounded, size: 16),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF2B5E93),
-                        foregroundColor: const Color(0xFFEAF4FF),
+                        backgroundColor: OnyxColorTokens.accentBlue,
+                        foregroundColor: OnyxColorTokens.textPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -16562,7 +16566,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           : _runPartnerRuntimeCheck,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _adminDialogTitleColor,
-                        backgroundColor: const Color(0xFF13131E),
+                        backgroundColor: OnyxColorTokens.backgroundSecondary,
                         side: const BorderSide(color: _adminDialogBorderColor),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -16582,9 +16586,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ? null
                           : _runPartnerRuntimeUnlink,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFFCA5A5),
-                        backgroundColor: const Color(0xFF13131E),
-                        side: const BorderSide(color: Color(0xFFF1BCBC)),
+                        foregroundColor: OnyxColorTokens.accentRed,
+                        backgroundColor: OnyxColorTokens.backgroundSecondary,
+                        side: const BorderSide(color: OnyxColorTokens.redBorder),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -16659,7 +16663,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     Text(
                       'MANUAL RECOVERY DECK',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7DD3FC),
+                        color: OnyxColorTokens.accentSky,
                         fontSize: 9.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.8,
@@ -16686,9 +16690,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0x147DD3FC),
+                  color: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: const Color(0x337DD3FC)),
+                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -16696,7 +16700,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     Text(
                       'NEXT MOVE',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7DD3FC),
+                        color: OnyxColorTokens.accentSky,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.8,
@@ -16724,19 +16728,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _watchAuditChip(
                 'Poll sweep',
                 availablePolls.isEmpty ? 'offline' : availablePolls.join(' • '),
-                color: const Color(0xFF7DD3FC),
+                color: OnyxColorTokens.accentSky,
               ),
               _watchAuditChip(
                 'Queue pressure',
                 hasPending ? 'pending' : 'clear',
                 color: hasPending
-                    ? const Color(0xFF67E8F9)
-                    : const Color(0xFF86EFAC),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentGreen,
               ),
               _watchAuditChip(
                 'Recovery actions',
                 '$recoveryCount live',
-                color: const Color(0xFFF59E0B),
+                color: OnyxColorTokens.accentAmber,
               ),
             ],
           ),
@@ -16744,7 +16748,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Text(
             'POLL SWEEP',
             style: GoogleFonts.inter(
-              color: const Color(0xFF7DD3FC),
+              color: OnyxColorTokens.accentSky,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -16758,7 +16762,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _opsPollActionButton(
                 key: const ValueKey('admin-ops-recovery-run-ops'),
                 label: 'Run Ops Poll Now',
-                color: const Color(0xFF7DD3FC),
+                color: OnyxColorTokens.accentSky,
                 onTap: widget.onRunOpsIntegrationPoll == null
                     ? null
                     : () {
@@ -16768,7 +16772,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _opsPollActionButton(
                 key: const ValueKey('admin-ops-recovery-run-radio'),
                 label: 'Poll Radio',
-                color: const Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
                 onTap: widget.onRunRadioPoll == null
                     ? null
                     : () {
@@ -16778,7 +16782,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _opsPollActionButton(
                 key: const ValueKey('admin-ops-recovery-run-video'),
                 label: 'Poll ${widget.videoOpsLabel}',
-                color: const Color(0xFF93C5FD),
+                color: OnyxColorTokens.accentSky,
                 onTap: widget.onRunCctvPoll == null
                     ? null
                     : () {
@@ -16788,7 +16792,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _opsPollActionButton(
                 key: const ValueKey('admin-ops-recovery-run-wearable'),
                 label: 'Poll Wearable',
-                color: const Color(0xFF34D399),
+                color: OnyxColorTokens.accentGreen,
                 onTap: widget.onRunWearablePoll == null
                     ? null
                     : () {
@@ -16798,7 +16802,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _opsPollActionButton(
                 key: const ValueKey('admin-ops-recovery-run-news'),
                 label: 'Poll News',
-                color: const Color(0xFFF59E0B),
+                color: OnyxColorTokens.accentAmber,
                 onTap: widget.onRunNewsPoll == null
                     ? null
                     : () {
@@ -16811,7 +16815,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Text(
             'QUEUE OVERRIDE',
             style: GoogleFonts.inter(
-              color: const Color(0xFF67E8F9),
+              color: OnyxColorTokens.accentSky,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -16825,7 +16829,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _opsPollActionButton(
                 key: const ValueKey('admin-ops-recovery-retry-queue'),
                 label: 'Retry Radio Queue',
-                color: const Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
                 onTap: !(hasPending && widget.onRetryRadioQueue != null)
                     ? null
                     : () {
@@ -16835,7 +16839,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _opsPollActionButton(
                 key: const ValueKey('admin-ops-recovery-clear-queue'),
                 label: 'Clear Radio Queue',
-                color: const Color(0xFFF87171),
+                color: OnyxColorTokens.accentRed,
                 onTap: !(hasPending && widget.onClearRadioQueue != null)
                     ? null
                     : () {
@@ -16845,7 +16849,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _opsPollActionButton(
                 key: const ValueKey('admin-ops-recovery-clear-failure'),
                 label: 'Clear Last Failure',
-                color: const Color(0xFFF59E0B),
+                color: OnyxColorTokens.accentAmber,
                 onTap: widget.onClearRadioQueueFailureSnapshot == null
                     ? null
                     : () {
@@ -16899,8 +16903,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFB91C1C),
-                foregroundColor: const Color(0xFFFFFFFF),
+                backgroundColor: OnyxColorTokens.redBorder,
+                foregroundColor: OnyxColorTokens.textPrimary,
               ),
               child: Text(
                 'Confirm Clear',
@@ -16958,8 +16962,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFB45309),
-                foregroundColor: const Color(0xFFFFFFFF),
+                backgroundColor: OnyxColorTokens.amberBorder,
+                foregroundColor: OnyxColorTokens.textPrimary,
               ),
               child: Text(
                 'Confirm Clear',
@@ -16986,7 +16990,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Radio',
           value: widget.radioOpsPollHealth!.trim(),
           focus: _OpsPollHealthFocus.radio,
-          accent: const Color(0xFF67E8F9),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -16997,7 +17001,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Radio Queue',
           value: widget.radioOpsQueueHealth!.trim(),
           focus: _OpsPollHealthFocus.queue,
-          accent: const Color(0xFF8FD1FF),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17008,7 +17012,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Radio Queue Mix',
           value: widget.radioOpsQueueIntentMix!.trim(),
           focus: _OpsPollHealthFocus.queue,
-          accent: const Color(0xFF8FD1FF),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17019,7 +17023,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Radio ACK Recent',
           value: widget.radioOpsAckRecentSummary!.trim(),
           focus: _OpsPollHealthFocus.radio,
-          accent: const Color(0xFF67E8F9),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17030,7 +17034,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Radio Queue State',
           value: widget.radioOpsQueueStateDetail!.trim(),
           focus: _OpsPollHealthFocus.queue,
-          accent: const Color(0xFF8FD1FF),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17041,7 +17045,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Radio Failure',
           value: widget.radioOpsFailureDetail!.trim(),
           focus: _OpsPollHealthFocus.queue,
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         ),
       );
     }
@@ -17052,7 +17056,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Radio Failure Audit',
           value: widget.radioOpsFailureAuditDetail!.trim(),
           focus: _OpsPollHealthFocus.queue,
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         ),
       );
     }
@@ -17063,7 +17067,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Radio Action',
           value: widget.radioOpsManualActionDetail!.trim(),
           focus: _OpsPollHealthFocus.queue,
-          accent: const Color(0xFF8FD1FF),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17074,7 +17078,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: widget.videoOpsLabel,
           value: widget.cctvOpsPollHealth!.trim(),
           focus: _OpsPollHealthFocus.video,
-          accent: const Color(0xFF93C5FD),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17085,7 +17089,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: '${widget.videoOpsLabel} Caps',
           value: widget.cctvCapabilitySummary!.trim(),
           focus: _OpsPollHealthFocus.video,
-          accent: const Color(0xFF93C5FD),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17096,7 +17100,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: '${widget.videoOpsLabel} Recent',
           value: widget.cctvRecentSignalSummary!.trim(),
           focus: _OpsPollHealthFocus.video,
-          accent: const Color(0xFF93C5FD),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17107,7 +17111,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: '${widget.videoOpsLabel} Evidence',
           value: widget.cctvEvidenceHealthSummary!.trim(),
           focus: _OpsPollHealthFocus.video,
-          accent: const Color(0xFF93C5FD),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17118,7 +17122,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: '${widget.videoOpsLabel} Cameras',
           value: widget.cctvCameraHealthSummary!.trim(),
           focus: _OpsPollHealthFocus.video,
-          accent: const Color(0xFF93C5FD),
+          accent: OnyxColorTokens.accentSky,
         ),
       );
     }
@@ -17129,7 +17133,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Incident Spool',
           value: widget.incidentSpoolHealthSummary!.trim(),
           focus: _OpsPollHealthFocus.spool,
-          accent: const Color(0xFF34D399),
+          accent: OnyxColorTokens.accentGreen,
         ),
       );
     }
@@ -17140,7 +17144,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Spool Replay',
           value: widget.incidentSpoolReplaySummary!.trim(),
           focus: _OpsPollHealthFocus.spool,
-          accent: const Color(0xFF34D399),
+          accent: OnyxColorTokens.accentGreen,
         ),
       );
     }
@@ -17151,7 +17155,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Watch Audit',
           value: widget.monitoringWatchAuditSummary!.trim(),
           focus: _OpsPollHealthFocus.watchAudit,
-          accent: const Color(0xFF86EFAC),
+          accent: OnyxColorTokens.accentGreen,
         ),
       );
     }
@@ -17162,7 +17166,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Wearable',
           value: widget.wearableOpsPollHealth!.trim(),
           focus: _OpsPollHealthFocus.wearable,
-          accent: const Color(0xFF34D399),
+          accent: OnyxColorTokens.accentGreen,
         ),
       );
     }
@@ -17173,7 +17177,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'Listener Alarm',
           value: widget.listenerAlarmOpsPollHealth!.trim(),
           focus: _OpsPollHealthFocus.listener,
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         ),
       );
     }
@@ -17184,7 +17188,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           label: 'News',
           value: widget.newsOpsPollHealth!.trim(),
           focus: _OpsPollHealthFocus.news,
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         ),
       );
     }
@@ -17210,14 +17214,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
               color: isSelected
                   ? row.accent.withValues(alpha: 0.12)
                   : isWatchAuditRow || isListenerAlarmRow
-                  ? const Color(0x1410B981)
-                  : const Color(0xFF13131E),
+                  ? OnyxColorTokens.accentGreen.withValues(alpha: 0.08)
+                  : OnyxColorTokens.backgroundSecondary,
               borderRadius: BorderRadius.circular(9),
               border: Border.all(
                 color: isSelected
                     ? row.accent.withValues(alpha: 0.4)
                     : isWatchAuditRow || isListenerAlarmRow
-                    ? const Color(0x334AD2A0)
+                    ? OnyxColorTokens.accentGreen.withValues(alpha: 0.2)
                     : _adminDialogBorderColor,
               ),
             ),
@@ -17243,7 +17247,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   child: Text(
                     row.value,
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFF67E8F9),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -17253,7 +17257,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   const SizedBox(width: 8),
                   Icon(
                     Icons.arrow_downward_rounded,
-                    color: const Color(0xFF86EFAC),
+                    color: OnyxColorTokens.accentGreen,
                     size: 16,
                   ),
                 ],
@@ -17357,14 +17361,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Color _opsPollHealthFocusAccent(_OpsPollHealthFocus focus) {
     return switch (focus) {
-      _OpsPollHealthFocus.radio => const Color(0xFF67E8F9),
-      _OpsPollHealthFocus.queue => const Color(0xFF8FD1FF),
-      _OpsPollHealthFocus.video => const Color(0xFF93C5FD),
-      _OpsPollHealthFocus.spool => const Color(0xFF34D399),
-      _OpsPollHealthFocus.wearable => const Color(0xFF34D399),
-      _OpsPollHealthFocus.listener => const Color(0xFFF59E0B),
-      _OpsPollHealthFocus.news => const Color(0xFFF59E0B),
-      _OpsPollHealthFocus.watchAudit => const Color(0xFF86EFAC),
+      _OpsPollHealthFocus.radio => OnyxColorTokens.accentSky,
+      _OpsPollHealthFocus.queue => OnyxColorTokens.accentSky,
+      _OpsPollHealthFocus.video => OnyxColorTokens.accentSky,
+      _OpsPollHealthFocus.spool => OnyxColorTokens.accentGreen,
+      _OpsPollHealthFocus.wearable => OnyxColorTokens.accentGreen,
+      _OpsPollHealthFocus.listener => OnyxColorTokens.accentAmber,
+      _OpsPollHealthFocus.news => OnyxColorTokens.accentAmber,
+      _OpsPollHealthFocus.watchAudit => OnyxColorTokens.accentGreen,
     };
   }
 
@@ -17377,7 +17381,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     required String failureMessage,
     required String failureDetail,
     String? failureSourceLabel,
-    Color failureAccent = const Color(0xFFFFD6A5),
+    Color failureAccent = OnyxColorTokens.accentAmber,
   }) async {
     try {
       await action();
@@ -17416,7 +17420,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       successSourceLabel: 'OPS POLL',
       successDetail:
           'Radio, video, wearable, listener, and news telemetry has been refreshed from the ops command deck.',
-      successAccent: const Color(0xFF7DD3FC),
+      successAccent: OnyxColorTokens.accentSky,
       failureMessage: 'Ops integration poll could not complete right now.',
       failureDetail:
           'The ops command deck stayed in place. Retry the full integration poll without losing the current runtime focus.',
@@ -17433,7 +17437,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       successSourceLabel: 'RADIO POLL',
       successDetail:
           'Queue pressure, ACK mix, and the latest radio runtime state have been refreshed from the ops command deck.',
-      successAccent: const Color(0xFF67E8F9),
+      successAccent: OnyxColorTokens.accentSky,
       failureMessage: 'Radio telemetry poll could not complete right now.',
       failureDetail:
           'The ops command deck stayed in place. Retry the radio poll without losing the current queue focus.',
@@ -17450,7 +17454,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       successSourceLabel: '${widget.videoOpsLabel.toUpperCase()} POLL',
       successDetail:
           '${widget.videoOpsLabel} capability, evidence, and camera telemetry has been refreshed from the ops command deck.',
-      successAccent: const Color(0xFF93C5FD),
+      successAccent: OnyxColorTokens.accentSky,
       failureMessage:
           '${widget.videoOpsLabel} telemetry poll could not complete right now.',
       failureDetail:
@@ -17482,7 +17486,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       successDetail: prefill == null
           ? '${widget.videoOpsLabel} capability, evidence, and camera telemetry has been refreshed from the ops command deck.'
           : '${widget.videoOpsLabel} review context for ${prefill.siteId} was copied before the live telemetry refresh.',
-      successAccent: const Color(0xFF93C5FD),
+      successAccent: OnyxColorTokens.accentSky,
       failureMessage:
           '${widget.videoOpsLabel} telemetry poll could not complete right now.',
       failureDetail: prefill == null
@@ -17501,7 +17505,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       successSourceLabel: 'WEARABLE POLL',
       successDetail:
           'Wearable telemetry has been refreshed from the ops command deck.',
-      successAccent: const Color(0xFF34D399),
+      successAccent: OnyxColorTokens.accentGreen,
       failureMessage: 'Wearable telemetry poll could not complete right now.',
       failureDetail:
           'The ops command deck stayed in place. Retry the wearable poll without losing the current runtime focus.',
@@ -17518,7 +17522,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       successSourceLabel: 'NEWS POLL',
       successDetail:
           'News telemetry has been refreshed from the ops command deck.',
-      successAccent: const Color(0xFFF59E0B),
+      successAccent: OnyxColorTokens.accentAmber,
       failureMessage: 'News telemetry poll could not complete right now.',
       failureDetail:
           'The ops command deck stayed in place. Retry the news poll without losing the current runtime focus.',
@@ -17535,7 +17539,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       successSourceLabel: 'RADIO QUEUE',
       successDetail:
           'Pending queued radio responses have been retried from the ops command deck.',
-      successAccent: const Color(0xFF67E8F9),
+      successAccent: OnyxColorTokens.accentSky,
       failureMessage: 'Radio queue retry could not complete right now.',
       failureDetail:
           'The ops command deck stayed in place. Retry the queued radio actions again without losing the queue focus.',
@@ -17556,7 +17560,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       sourceLabel: 'RADIO QUEUE',
       detail:
           'Pending queued radio responses were cleared from the ops command deck.',
-      accent: const Color(0xFFF87171),
+      accent: OnyxColorTokens.accentRed,
     );
   }
 
@@ -17574,7 +17578,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       sourceLabel: 'RADIO FAILURE',
       detail:
           'The persisted radio failure snapshot has been cleared from the ops command deck.',
-      accent: const Color(0xFFF59E0B),
+      accent: OnyxColorTokens.accentAmber,
     );
   }
 
@@ -17629,7 +17633,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       sourceLabel: 'WATCH RECOVERY',
       detail:
           'Latest watch recovery alignment is now pinned in the Watch Recovery Trail while the full trail stays in view below.',
-      accent: const Color(0xFF86EFAC),
+      accent: OnyxColorTokens.accentGreen,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final trailContext = _watchAuditTrailPanelKey.currentContext;
@@ -17770,7 +17774,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'REPORTS WORKSPACE',
         detail:
             '$selectedSiteLabel is now foregrounded in Reports Workspace from Watch Identity.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -17787,7 +17791,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'GOVERNANCE DESK',
         detail:
             '$selectedSiteLabel is now foregrounded in Governance Desk from Watch Identity.',
-        accent: const Color(0xFFFBBF24),
+        accent: OnyxColorTokens.accentAmber,
       );
     }
 
@@ -17796,7 +17800,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -17817,14 +17821,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0x1422D3EE),
+                  color: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0x3322D3EE)),
+                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.2)),
                 ),
                 child: Text(
                   '${history.length} entries',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF67E8F9),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -17941,12 +17945,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _watchAuditChip(
                       'Site',
                       selectedSiteLabel,
-                      color: const Color(0xFFBFD7F2),
+                      color: OnyxColorTokens.textSecondary,
                     ),
                     _watchAuditChip(
                       'Actor',
                       selectedActor,
-                      color: const Color(0xFF67E8F9),
+                      color: OnyxColorTokens.accentSky,
                     ),
                     _watchAuditChip(
                       'Outcome',
@@ -17956,7 +17960,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _watchAuditChip(
                       'At',
                       selectedRecordedAt,
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                     ),
                   ],
                 ),
@@ -17968,14 +17972,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _watchAuditActionButton(
                       key: const ValueKey('admin-watch-audit-open-latest'),
                       label: 'Latest',
-                      color: const Color(0xFFBFD7F2),
+                      color: OnyxColorTokens.textSecondary,
                       onTap: focusLatestAudit,
                     ),
                     if (history.length > 1)
                       _watchAuditActionButton(
                         key: const ValueKey('admin-watch-audit-open-previous'),
                         label: 'Previous',
-                        color: const Color(0xFF9AB1CF),
+                        color: OnyxColorTokens.textSecondary,
                         onTap: focusPreviousAudit,
                       ),
                     _watchAuditActionButton(
@@ -17988,7 +17992,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _watchAuditActionButton(
                         key: const ValueKey('admin-watch-audit-open-reports'),
                         label: 'Reports',
-                        color: const Color(0xFF67E8F9),
+                        color: OnyxColorTokens.accentSky,
                         onTap: openSelectedReportsScope,
                       ),
                     if (openSelectedGovernance != null)
@@ -17997,7 +18001,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           'admin-watch-audit-open-governance',
                         ),
                         label: 'Governance',
-                        color: const Color(0xFFFBBF24),
+                        color: OnyxColorTokens.accentAmber,
                         onTap: openSelectedGovernanceScope,
                       ),
                   ],
@@ -18025,14 +18029,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 color: isSelected
                     ? rowAccent.withValues(alpha: 0.14)
                     : isLatest
-                    ? const Color(0x1410B981)
+                    ? OnyxColorTokens.accentGreen.withValues(alpha: 0.08)
                     : _adminDialogAltColor,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: isSelected
                       ? rowAccent.withValues(alpha: 0.5)
                       : isLatest
-                      ? const Color(0x334AD2A0)
+                      ? OnyxColorTokens.accentGreen.withValues(alpha: 0.2)
                       : _adminDialogBorderColor,
                 ),
               ),
@@ -18048,7 +18052,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           isLatest ? 'LATEST' : '#${index + 1}',
                           style: GoogleFonts.inter(
                             color: isLatest
-                                ? const Color(0xFF86EFAC)
+                                ? OnyxColorTokens.accentGreen
                                 : _adminDialogMutedColor,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -18101,7 +18105,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 record.action,
                                 style: GoogleFonts.robotoMono(
-                                  color: const Color(0xFF67E8F9),
+                                  color: OnyxColorTokens.accentSky,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -18114,7 +18118,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                   _watchAuditChip(
                                     'Actor',
                                     record.actor,
-                                    color: const Color(0xFF67E8F9),
+                                    color: OnyxColorTokens.accentSky,
                                   ),
                                   _watchAuditChip(
                                     'Outcome',
@@ -18124,7 +18128,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                   _watchAuditChip(
                                     'At',
                                     _watchAuditRecordedAtLabel(record),
-                                    color: const Color(0xFFBFD7F2),
+                                    color: OnyxColorTokens.textSecondary,
                                   ),
                                 ],
                               ),
@@ -18163,7 +18167,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Color.alphaBlend(
-          const Color(0xFF13131E).withValues(alpha: 0.56),
+          OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.56),
           color.withValues(alpha: 0.08),
         ),
         borderRadius: BorderRadius.circular(999),
@@ -18276,9 +18280,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Color _listenerAlarmFocusAccent(_ListenerAlarmSummaryFocus focus) {
     return switch (focus) {
-      _ListenerAlarmSummaryFocus.feed => const Color(0xFF8FD1FF),
-      _ListenerAlarmSummaryFocus.advisory => const Color(0xFFF59E0B),
-      _ListenerAlarmSummaryFocus.parity => const Color(0xFFFDE68A),
+      _ListenerAlarmSummaryFocus.feed => OnyxColorTokens.accentSky,
+      _ListenerAlarmSummaryFocus.advisory => OnyxColorTokens.accentAmber,
+      _ListenerAlarmSummaryFocus.parity => OnyxColorTokens.accentAmber,
     };
   }
 
@@ -18354,15 +18358,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
   Color _watchAuditOutcomeAccent(String outcome) {
     final normalized = outcome.trim().toLowerCase();
     if (normalized.contains('resync') || normalized.contains('restore')) {
-      return const Color(0xFF86EFAC);
+      return OnyxColorTokens.accentGreen;
     }
     if (normalized.contains('aligned') || normalized.contains('stable')) {
-      return const Color(0xFFFDE68A);
+      return OnyxColorTokens.accentAmber;
     }
     if (normalized.contains('fail') || normalized.contains('error')) {
-      return const Color(0xFFFCA5A5);
+      return OnyxColorTokens.accentRed;
     }
-    return const Color(0xFF67E8F9);
+    return OnyxColorTokens.accentSky;
   }
 
   Widget _fleetScopeHealthPanel({
@@ -18501,7 +18505,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'SUPPRESSED REVIEW',
         detail:
             'Suppressed scene reviews stay pinned at the top of the system tab while ONYX keeps the filtered watch scope in focus.',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textSecondary,
       );
     }
 
@@ -18517,7 +18521,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'EVENTS HANDOFF',
         detail:
             '${leadScope.siteName} is now foregrounded in the scoped events review from the suppressed review board.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -18533,7 +18537,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'LEDGER HANDOFF',
         detail:
             '${leadScope.siteName} is now foregrounded in the continuity ledger from the suppressed review board.',
-        accent: const Color(0xFFFBBF24),
+        accent: OnyxColorTokens.accentAmber,
       );
     }
 
@@ -18562,9 +18566,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0x149AB1CF),
+                  color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0x339AB1CF)),
+                  border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2)),
                 ),
                 child: Text(
                   '${entries.length} internal',
@@ -18594,7 +18598,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             decoration: BoxDecoration(
               color: _adminDialogAltColor,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x669AB1CF)),
+              border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.4)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -18609,7 +18613,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           Text(
                             'FILTERED REVIEW COMMAND',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF9AB1CF),
+                              color: OnyxColorTokens.textSecondary,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
@@ -18646,9 +18650,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0x149AB1CF),
+                        color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(9),
-                        border: Border.all(color: const Color(0x339AB1CF)),
+                        border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -18656,7 +18660,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           Text(
                             'NEXT MOVE',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF9AB1CF),
+                              color: OnyxColorTokens.textSecondary,
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
@@ -18684,22 +18688,22 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     _watchAuditChip(
                       'Site',
                       leadScope.siteName,
-                      color: const Color(0xFFBFD7F2),
+                      color: OnyxColorTokens.textSecondary,
                     ),
                     _watchAuditChip(
                       'Reviewed',
                       _suppressedReviewedAtLabel(leadReview.reviewedAtUtc),
-                      color: const Color(0xFF67E8F9),
+                      color: OnyxColorTokens.accentSky,
                     ),
                     _watchAuditChip(
                       'Posture',
                       leadReview.postureLabel,
-                      color: const Color(0xFF86EFAC),
+                      color: OnyxColorTokens.accentGreen,
                     ),
                     _watchAuditChip(
                       'Source',
                       leadReview.sourceLabel,
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                     ),
                   ],
                 ),
@@ -18713,7 +18717,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         'admin-suppressed-scene-focus-filtered',
                       ),
                       label: 'Filtered scope',
-                      color: const Color(0xFF9AB1CF),
+                      color: OnyxColorTokens.textSecondary,
                       onPressed: focusFilteredLane,
                     ),
                     if (canOpenLeadEvents)
@@ -18722,7 +18726,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           'admin-suppressed-scene-open-events',
                         ),
                         label: 'Events',
-                        color: const Color(0xFF67E8F9),
+                        color: OnyxColorTokens.accentSky,
                         onPressed: openLeadEvents,
                       ),
                     if (canOpenLeadLedger)
@@ -18731,7 +18735,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           'admin-suppressed-scene-open-ledger',
                         ),
                         label: 'Ledger',
-                        color: const Color(0xFFFBBF24),
+                        color: OnyxColorTokens.accentAmber,
                         onPressed: openLeadLedger,
                       ),
                   ],
@@ -18760,7 +18764,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 sourceLabel: 'EVENTS HANDOFF',
                 detail:
                     '${scope.siteName} is now foregrounded in the scoped events review from the suppressed review row.',
-                accent: const Color(0xFF67E8F9),
+                accent: OnyxColorTokens.accentSky,
               );
             }
 
@@ -18776,7 +18780,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 sourceLabel: 'LEDGER HANDOFF',
                 detail:
                     '${scope.siteName} is now foregrounded in the continuity ledger from the suppressed review row.',
-                accent: const Color(0xFFFBBF24),
+                accent: OnyxColorTokens.accentAmber,
               );
             }
 
@@ -18787,7 +18791,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
               decoration: BoxDecoration(
-                color: const Color(0xFF13131E),
+                color: OnyxColorTokens.backgroundSecondary,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: _adminDialogBorderColor),
               ),
@@ -18828,23 +18832,23 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         review.decisionLabel.trim().isEmpty
                             ? 'Suppressed'
                             : review.decisionLabel,
-                        color: const Color(0xFFBFD7F2),
+                        color: OnyxColorTokens.textSecondary,
                       ),
                       if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
                         _watchAuditChip(
                           'Camera',
                           scope.latestCameraLabel!,
-                          color: const Color(0xFF67E8F9),
+                          color: OnyxColorTokens.accentSky,
                         ),
                       _watchAuditChip(
                         'Source',
                         review.sourceLabel,
-                        color: const Color(0xFFFDE68A),
+                        color: OnyxColorTokens.accentAmber,
                       ),
                       _watchAuditChip(
                         'Posture',
                         review.postureLabel,
-                        color: const Color(0xFF86EFAC),
+                        color: OnyxColorTokens.accentGreen,
                       ),
                     ],
                   ),
@@ -18884,7 +18888,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               'admin-suppressed-scene-row-events-${scope.siteId}',
                             ),
                             label: 'Events',
-                            color: const Color(0xFF67E8F9),
+                            color: OnyxColorTokens.accentSky,
                             onPressed: openEntryEvents,
                           ),
                         if (widget.onOpenLedgerForIncident != null)
@@ -18893,7 +18897,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               'admin-suppressed-scene-row-ledger-${scope.siteId}',
                             ),
                             label: 'Ledger',
-                            color: const Color(0xFFFBBF24),
+                            color: OnyxColorTokens.accentAmber,
                             onPressed: openEntryLedger,
                           ),
                       ],
@@ -18922,7 +18926,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -18943,14 +18947,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0x149AB1CF),
+                  color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0x339AB1CF)),
+                  border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2)),
                 ),
                 child: Text(
                   '${entries.length} sites',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFBFD7F2),
+                    color: OnyxColorTokens.textSecondary,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -18973,7 +18977,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             _runtimeFallbackNote(
               message:
                   'Persistence hooks are offline. Save stages the current rule set to the clipboard, and reset applies only inside this local workspace.',
-              accent: const Color(0xFF67E8F9),
+              accent: OnyxColorTokens.accentSky,
             ),
           ],
           if (activeEntry != null) ...[
@@ -19106,17 +19110,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _watchAuditChip(
                         'Flagged',
                         '${activePolicy.flaggedFaceMatchIds.length + activePolicy.flaggedPlateNumbers.length}',
-                        color: const Color(0xFFFFB36B),
+                        color: OnyxColorTokens.accentAmber,
                       ),
                       _watchAuditChip(
                         'Allowlisted',
                         '${activePolicy.allowedFaceMatchIds.length + activePolicy.allowedPlateNumbers.length}',
-                        color: const Color(0xFF4FD1C5),
+                        color: OnyxColorTokens.accentTeal,
                       ),
                       _watchAuditChip(
                         'Runtime',
                         hasOverride ? 'override loaded' : 'defaults live',
-                        color: const Color(0xFF7DD3FC),
+                        color: OnyxColorTokens.accentSky,
                       ),
                     ],
                   ),
@@ -19128,7 +19132,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _opsPollActionButton(
                         key: const ValueKey('identity-rules-focus-copy-site'),
                         label: 'Copy Selected Site',
-                        color: const Color(0xFF67E8F9),
+                        color: OnyxColorTokens.accentSky,
                         onTap: _identityPolicySaving
                             ? null
                             : () => _copyMonitoringIdentitySiteRulesJson(
@@ -19138,7 +19142,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _opsPollActionButton(
                         key: const ValueKey('identity-rules-focus-import-site'),
                         label: 'Import Selected Site',
-                        color: const Color(0xFF93C5FD),
+                        color: OnyxColorTokens.accentSky,
                         onTap: _identityPolicySaving
                             ? null
                             : () => _importMonitoringIdentitySiteRulesJson(
@@ -19148,7 +19152,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       _opsPollActionButton(
                         key: const ValueKey('identity-rules-focus-clear-site'),
                         label: 'Clear Selected Site',
-                        color: const Color(0xFFFCA5A5),
+                        color: OnyxColorTokens.accentRed,
                         onTap: _identityPolicySaving
                             ? null
                             : () => _clearMonitoringIdentitySiteRules(
@@ -19164,9 +19168,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF13131E),
+                            color: OnyxColorTokens.backgroundSecondary,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0x59FFB36B)),
+                            border: Border.all(color: OnyxColorTokens.accentAmber.withValues(alpha: 0.35)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -19174,7 +19178,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 'FLAGGED WATCH',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFFFB36B),
+                                  color: OnyxColorTokens.accentAmber,
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
@@ -19205,9 +19209,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF13131E),
+                            color: OnyxColorTokens.backgroundSecondary,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0x594FD1C5)),
+                            border: Border.all(color: OnyxColorTokens.accentTeal.withValues(alpha: 0.35)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -19215,7 +19219,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               Text(
                                 'ALLOWLIST LIVE',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF4FD1C5),
+                                  color: OnyxColorTokens.accentTeal,
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
@@ -19259,8 +19263,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     : _copyMonitoringIdentityRulesJson,
                 icon: const Icon(Icons.copy_all_rounded, size: 16),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2B5E93),
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  backgroundColor: OnyxColorTokens.accentBlue,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 label: Text(
                   'Copy JSON',
@@ -19274,8 +19278,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     : _importMonitoringIdentityRulesJson,
                 icon: const Icon(Icons.upload_file_rounded, size: 16),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFEAF2FF),
-                  foregroundColor: const Color(0xFF2457C5),
+                  backgroundColor: OnyxColorTokens.textPrimary,
+                  foregroundColor: OnyxColorTokens.accentBlue,
                   disabledBackgroundColor: _adminDialogAltColor,
                   disabledForegroundColor: _adminDialogMutedColor,
                 ),
@@ -19291,8 +19295,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     : _saveMonitoringIdentityRules,
                 icon: const Icon(Icons.save_rounded, size: 16),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFEAF2FF),
-                  foregroundColor: const Color(0xFF2457C5),
+                  backgroundColor: OnyxColorTokens.textPrimary,
+                  foregroundColor: OnyxColorTokens.accentBlue,
                   disabledBackgroundColor: _adminDialogAltColor,
                   disabledForegroundColor: _adminDialogMutedColor,
                 ),
@@ -19311,7 +19315,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 icon: const Icon(Icons.restart_alt_rounded, size: 16),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _adminDialogTitleColor,
-                  backgroundColor: const Color(0xFF13131E),
+                  backgroundColor: OnyxColorTokens.backgroundSecondary,
                   side: const BorderSide(color: _adminDialogBorderColor),
                 ),
                 label: Text(
@@ -19431,7 +19435,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                   ),
                             icon: const Icon(Icons.copy_all_rounded, size: 14),
                             style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF67E8F9),
+                              foregroundColor: OnyxColorTokens.accentSky,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 4,
@@ -19460,7 +19464,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               size: 14,
                             ),
                             style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF93C5FD),
+                              foregroundColor: OnyxColorTokens.accentSky,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 4,
@@ -19487,7 +19491,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               size: 14,
                             ),
                             style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFFFCA5A5),
+                              foregroundColor: OnyxColorTokens.accentRed,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 4,
@@ -19511,19 +19515,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         children: [
                           _identityRuleChip(
                             'Flagged faces ${policy.flaggedFaceMatchIds.length}',
-                            const Color(0xFFFF7A7A),
+                            OnyxColorTokens.accentRed,
                           ),
                           _identityRuleChip(
                             'Flagged plates ${policy.flaggedPlateNumbers.length}',
-                            const Color(0xFFFFB36B),
+                            OnyxColorTokens.accentAmber,
                           ),
                           _identityRuleChip(
                             'Allowed faces ${policy.allowedFaceMatchIds.length}',
-                            const Color(0xFF58D68D),
+                            OnyxColorTokens.accentGreen,
                           ),
                           _identityRuleChip(
                             'Allowed plates ${policy.allowedPlateNumbers.length}',
-                            const Color(0xFF4FD1C5),
+                            OnyxColorTokens.accentTeal,
                           ),
                         ],
                       ),
@@ -19604,16 +19608,16 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0x149AB1CF),
+                              color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
-                                color: const Color(0x339AB1CF),
+                                color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
                               ),
                             ),
                             child: Text(
                               '${filteredHistory.length} recent',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFBFD7F2),
+                                color: OnyxColorTokens.textSecondary,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -19663,8 +19667,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                   _activeIdentityPolicyAuditSource == null,
                               onSelected: (_) =>
                                   _setActiveIdentityPolicyAuditSource(null),
-                              selectedColor: const Color(0x339AB1CF),
-                              checkmarkColor: const Color(0xFFBFD7F2),
+                              selectedColor: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                              checkmarkColor: OnyxColorTokens.textSecondary,
                               labelStyle: GoogleFonts.inter(
                                 color: _adminDialogTitleColor,
                                 fontSize: 10,
@@ -19684,8 +19688,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     _activeIdentityPolicyAuditSource == source,
                                 onSelected: (_) =>
                                     _setActiveIdentityPolicyAuditSource(source),
-                                selectedColor: const Color(0x339AB1CF),
-                                checkmarkColor: const Color(0xFFBFD7F2),
+                                selectedColor: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                                checkmarkColor: OnyxColorTokens.textSecondary,
                                 labelStyle: GoogleFonts.inter(
                                   color: _adminDialogTitleColor,
                                   fontSize: 10,
@@ -19718,18 +19722,18 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0x149AB1CF),
+                                        color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(
                                           999,
                                         ),
                                         border: Border.all(
-                                          color: const Color(0x339AB1CF),
+                                          color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
                                         ),
                                       ),
                                       child: Text(
                                         record.source.label,
                                         style: GoogleFonts.inter(
-                                          color: const Color(0xFFBFD7F2),
+                                          color: OnyxColorTokens.textSecondary,
                                           fontSize: 10,
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -19739,7 +19743,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     Text(
                                       record.recordedAtLabel,
                                       style: GoogleFonts.robotoMono(
-                                        color: const Color(0xFF8EA4C2),
+                                        color: OnyxColorTokens.textMuted,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -19750,7 +19754,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                 Text(
                                   record.message,
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFFBFD7F2),
+                                    color: OnyxColorTokens.textSecondary,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -19788,7 +19792,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -19809,15 +19813,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0x149AB1CF),
+                  color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0x339AB1CF)),
+                  border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2)),
                 ),
                 child: Text(
                   '${_telegramIdentityIntakes.length} pending',
                   style: GoogleFonts.inter(
                     color: _telegramAiAccentTextColor(
-                      const Color(0xFF9AB1CF),
+                      OnyxColorTokens.textSecondary,
                       strength: 0.42,
                     ),
                     fontSize: 10,
@@ -19873,7 +19877,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               decoration: BoxDecoration(
                 color: _adminDialogAltColor,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0x333B82F6)),
+                border: Border.all(color: OnyxColorTokens.accentBlue.withValues(alpha: 0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -19889,7 +19893,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               'TELEGRAM INTAKE COMMAND',
                               style: GoogleFonts.inter(
                                 color: _telegramAiAccentTextColor(
-                                  const Color(0xFF3B82F6),
+                                  OnyxColorTokens.accentBlue,
                                   strength: 0.38,
                                 ),
                                 fontSize: 9.5,
@@ -19928,9 +19932,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0x083B82F6),
+                          color: OnyxColorTokens.accentBlue.withValues(alpha: 0.03),
                           borderRadius: BorderRadius.circular(9),
-                          border: Border.all(color: const Color(0x163B82F6)),
+                          border: Border.all(color: OnyxColorTokens.accentBlue.withValues(alpha: 0.09)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -19939,7 +19943,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               'NEXT MOVE',
                               style: GoogleFonts.inter(
                                 color: _telegramAiAccentTextColor(
-                                  const Color(0xFF3B82F6),
+                                  OnyxColorTokens.accentBlue,
                                   strength: 0.38,
                                 ),
                                 fontSize: 9,
@@ -19968,29 +19972,29 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     children: [
                       _identityRuleChip(
                         leadIntake.siteId,
-                        const Color(0xFF93C5FD),
+                        OnyxColorTokens.accentSky,
                       ),
                       _identityRuleChip(
                         leadIntake.clientId,
-                        const Color(0xFFBFD7F2),
+                        OnyxColorTokens.textSecondary,
                       ),
                       _identityRuleChip(
                         '${(leadIntake.aiConfidence * 100).toStringAsFixed(0)}% parse',
-                        const Color(0xFF67E8F9),
+                        OnyxColorTokens.accentSky,
                       ),
                       if (leadIntake.parsedFaceMatchId.trim().isNotEmpty)
                         _identityRuleChip(
                           'Face ${leadIntake.parsedFaceMatchId.trim()}',
-                          const Color(0xFF58D68D),
+                          OnyxColorTokens.accentGreen,
                         ),
                       if (leadIntake.parsedPlateNumber.trim().isNotEmpty)
                         _identityRuleChip(
                           'Plate ${leadIntake.parsedPlateNumber.trim()}',
-                          const Color(0xFFFBBF24),
+                          OnyxColorTokens.accentAmber,
                         ),
                       _identityRuleChip(
                         _telegramIntakeCreatedAtLabel(leadIntake),
-                        const Color(0xFF9AB1CF),
+                        OnyxColorTokens.textSecondary,
                       ),
                     ],
                   ),
@@ -20027,8 +20031,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               )
                             : const Icon(Icons.schedule_rounded, size: 16),
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2B5E93),
-                          foregroundColor: const Color(0xFFEAF4FF),
+                          backgroundColor: OnyxColorTokens.accentBlue,
+                          foregroundColor: OnyxColorTokens.textPrimary,
                         ),
                         label: Text(
                           'Lead once',
@@ -20054,8 +20058,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               )
                             : const Icon(Icons.verified_user_rounded, size: 16),
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: const Color(0xFFEAF4FF),
+                          backgroundColor: OnyxColorTokens.accentBlue,
+                          foregroundColor: OnyxColorTokens.textPrimary,
                         ),
                         label: Text(
                           'Lead always',
@@ -20071,9 +20075,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             : () => _rejectTelegramIdentityIntake(leadIntake),
                         icon: const Icon(Icons.close_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFB24A4A),
-                          backgroundColor: const Color(0xFF13131E),
-                          side: const BorderSide(color: Color(0xFFE5C1C1)),
+                          foregroundColor: OnyxColorTokens.redBorder,
+                          backgroundColor: OnyxColorTokens.backgroundSecondary,
+                          side: const BorderSide(color: OnyxColorTokens.redBorder),
                         ),
                         label: Text(
                           'Reject lead',
@@ -20153,21 +20157,21 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       children: [
                         _identityRuleChip(
                           intake.category.code.toUpperCase(),
-                          const Color(0xFF67E8F9),
+                          OnyxColorTokens.accentSky,
                         ),
                         if (intake.parsedFaceMatchId.trim().isNotEmpty)
                           _identityRuleChip(
                             'Face ${intake.parsedFaceMatchId.trim()}',
-                            const Color(0xFF58D68D),
+                            OnyxColorTokens.accentGreen,
                           ),
                         if (intake.parsedPlateNumber.trim().isNotEmpty)
                           _identityRuleChip(
                             'Plate ${intake.parsedPlateNumber.trim()}',
-                            const Color(0xFFFBBF24),
+                            OnyxColorTokens.accentAmber,
                           ),
                         _identityRuleChip(
                           '${(intake.aiConfidence * 100).toStringAsFixed(0)}% parse',
-                          const Color(0xFFBFD7F2),
+                          OnyxColorTokens.textSecondary,
                         ),
                       ],
                     ),
@@ -20214,8 +20218,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                 )
                               : const Icon(Icons.schedule_rounded, size: 16),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFEAF4FF),
-                            foregroundColor: const Color(0xFF2F5D8A),
+                            backgroundColor: OnyxColorTokens.textPrimary,
+                            foregroundColor: OnyxColorTokens.accentBlue,
                             disabledBackgroundColor: _adminDialogAltColor,
                             disabledForegroundColor: _adminDialogMutedColor,
                           ),
@@ -20248,8 +20252,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                   size: 16,
                                 ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFEAF2FF),
-                            foregroundColor: const Color(0xFF2457C5),
+                            backgroundColor: OnyxColorTokens.textPrimary,
+                            foregroundColor: OnyxColorTokens.accentBlue,
                             disabledBackgroundColor: _adminDialogAltColor,
                             disabledForegroundColor: _adminDialogMutedColor,
                           ),
@@ -20269,9 +20273,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : () => _rejectTelegramIdentityIntake(intake),
                           icon: const Icon(Icons.close_rounded, size: 16),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFB24A4A),
-                            backgroundColor: const Color(0xFFFFF5F5),
-                            side: const BorderSide(color: Color(0xFFE9CFCF)),
+                            foregroundColor: OnyxColorTokens.redBorder,
+                            backgroundColor: OnyxColorTokens.redSurface,
+                            side: const BorderSide(color: OnyxColorTokens.redBorder),
                           ),
                           label: Text(
                             'Reject',
@@ -20421,20 +20425,20 @@ class _AdministrationPageState extends State<AdministrationPage> {
     onOpenLatestWatchActionDetail,
   }) {
     final statusColor = switch (scope.statusLabel.toUpperCase()) {
-      'LIVE' => const Color(0xFF10B981),
-      'ACTIVE WATCH' => const Color(0xFF22D3EE),
-      'LIMITED WATCH' => const Color(0xFFF59E0B),
-      'WATCH READY' => const Color(0xFFF59E0B),
-      _ => const Color(0xFF8EA4C2),
+      'LIVE' => OnyxColorTokens.accentGreen,
+      'ACTIVE WATCH' => OnyxColorTokens.accentSky,
+      'LIMITED WATCH' => OnyxColorTokens.accentAmber,
+      'WATCH READY' => OnyxColorTokens.accentAmber,
+      _ => OnyxColorTokens.textMuted,
     };
     final watchColor = scope.watchLabel == 'LIMITED'
-        ? const Color(0xFFF59E0B)
-        : const Color(0xFF67E8F9);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentSky;
     final phaseColor = (scope.watchWindowStateLabel ?? '').contains('LIMITED')
-        ? const Color(0xFFF59E0B)
+        ? OnyxColorTokens.accentAmber
         : scope.watchWindowStateLabel == 'IN WINDOW'
-        ? const Color(0xFF86EFAC)
-        : const Color(0xFFFBBF24);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
     final hasTacticalLane =
         scope.hasIncidentContext && widget.onOpenFleetTacticalScope != null;
     final hasDispatchLane =
@@ -20452,12 +20456,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ? 'DISPATCH BOARD'
         : 'Latest detail';
     final primaryActionColor = canRecoverCoverage
-        ? const Color(0xFFFCA5A5)
+        ? OnyxColorTokens.accentRed
         : hasTacticalLane
-        ? const Color(0xFF67E8F9)
+        ? OnyxColorTokens.accentSky
         : hasDispatchLane
-        ? const Color(0xFFFDE68A)
-        : const Color(0xFF8FD1FF);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentSky;
 
     void openFleetDetail() {
       onOpenLatestWatchActionDetail(scope);
@@ -20467,7 +20471,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'FLEET DETAIL',
         detail:
             '${scope.siteName} stays pinned in the system fleet rail while the latest signal detail opens below it.',
-        accent: const Color(0xFF8FD1FF),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -20487,7 +20491,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'TACTICAL TRACK',
         detail:
             '${scope.siteName} is now foregrounded in the scoped tactical track.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
       );
     }
 
@@ -20507,7 +20511,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'DISPATCH BOARD',
         detail:
             '${scope.siteName} is now foregrounded in the incident-backed dispatch board.',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber,
       );
     }
 
@@ -20523,7 +20527,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'COVERAGE RESYNC',
         detail:
             '${scope.siteName} has been queued for watch-window recovery from the fleet command card.',
-        accent: const Color(0xFFFCA5A5),
+        accent: OnyxColorTokens.accentRed,
       );
     }
 
@@ -20642,7 +20646,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _fleetBadge(
                   'Endpoint',
                   scope.endpointLabel,
-                  const Color(0xFF9AB1CF),
+                  OnyxColorTokens.textSecondary,
                 ),
                 _fleetBadge(
                   'Last seen',
@@ -20653,16 +20657,16 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   _fleetBadge(
                     'Reference',
                     scope.latestIncidentReference!,
-                    const Color(0xFFFDE68A),
+                    OnyxColorTokens.accentAmber,
                   ),
                 if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
                   _fleetBadge(
                     'Camera',
                     scope.latestCameraLabel!,
-                    const Color(0xFF9AB1CF),
+                    OnyxColorTokens.textSecondary,
                   ),
                 if (!scope.hasIncidentContext)
-                  _fleetBadge('Context', 'Pending', const Color(0xFFFBBF24)),
+                  _fleetBadge('Context', 'Pending', OnyxColorTokens.accentAmber),
               ],
             ),
           ],
@@ -20689,7 +20693,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         fontWeight: FontWeight.w600,
       ),
       statusDetailStyle: GoogleFonts.inter(
-        color: const Color(0xFFFDE68A),
+        color: OnyxColorTokens.accentAmber,
         fontSize: 10,
         fontWeight: FontWeight.w600,
       ),
@@ -20707,13 +20711,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
       primaryGroupAccent: commandAccent,
       primaryGroupKey: ValueKey('admin-fleet-scope-posture-${scope.siteId}'),
       contextGroupLabel: 'WATCH CONTEXT',
-      contextGroupAccent: const Color(0xFFFDE68A),
+      contextGroupAccent: OnyxColorTokens.accentAmber,
       contextGroupKey: ValueKey('admin-fleet-scope-context-${scope.siteId}'),
       latestGroupLabel: 'LATEST SIGNAL',
-      latestGroupAccent: const Color(0xFF67E8F9),
+      latestGroupAccent: OnyxColorTokens.accentSky,
       latestGroupKey: ValueKey('admin-fleet-scope-latest-${scope.siteId}'),
       secondaryGroupLabel: 'LIVE FEED',
-      secondaryGroupAccent: const Color(0xFF8FD1FF),
+      secondaryGroupAccent: OnyxColorTokens.accentSky,
       secondaryGroupKey: ValueKey('admin-fleet-scope-feed-${scope.siteId}'),
       actionsGroupLabel: 'COMMAND ACTIONS',
       actionsGroupAccent: primaryActionColor,
@@ -20723,23 +20727,23 @@ class _AdministrationPageState extends State<AdministrationPage> {
           _fleetBadge(
             'Cue',
             scope.operatorOutcomeLabel!,
-            const Color(0xFF67E8F9),
+            OnyxColorTokens.accentSky,
           ),
         if ((scope.operatorOutcomeLabel ?? '').trim().isEmpty &&
             (scope.lastRecoveryLabel ?? '').trim().isNotEmpty)
           _fleetBadge(
             'Recovery',
             scope.lastRecoveryLabel!,
-            const Color(0xFF86EFAC),
+            OnyxColorTokens.accentGreen,
           ),
         if (scope.hasWatchActivationGap)
           _fleetBadge(
             'Gap',
             scope.watchActivationGapLabel!,
-            const Color(0xFFF87171),
+            OnyxColorTokens.accentRed,
           ),
         if (!scope.hasIncidentContext)
-          _fleetBadge('Context', 'Pending', const Color(0xFFFBBF24)),
+          _fleetBadge('Context', 'Pending', OnyxColorTokens.accentAmber),
         if (scope.identityPolicyChipValue != null)
           _fleetBadge(
             'Identity',
@@ -20751,10 +20755,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
             'Client',
             scope.clientDecisionChipValue!,
             scope.clientDecisionChipValue == 'Approved'
-                ? const Color(0xFF86EFAC)
+                ? OnyxColorTokens.accentGreen
                 : scope.clientDecisionChipValue == 'Review'
-                ? const Color(0xFFFDE68A)
-                : const Color(0xFFFCA5A5),
+                ? OnyxColorTokens.accentAmber
+                : OnyxColorTokens.accentRed,
           ),
         _fleetBadge('Status', scope.statusLabel, statusColor),
         _fleetBadge('Watch', scope.watchLabel, watchColor),
@@ -20766,7 +20770,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         _fleetBadge(
           'Events 6h',
           '${scope.recentEvents}',
-          const Color(0xFF9AB1CF),
+          OnyxColorTokens.textSecondary,
         ),
       ],
       secondaryChips: [
@@ -20774,7 +20778,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           _fleetBadge(
             'Window',
             scope.watchWindowLabel!,
-            const Color(0xFF86EFAC),
+            OnyxColorTokens.accentGreen,
           ),
         if (scope.watchWindowStateLabel != null)
           _fleetBadge('Phase', scope.watchWindowStateLabel!, phaseColor),
@@ -20788,7 +20792,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           _fleetBadge(
             'Camera',
             scope.latestCameraLabel!,
-            const Color(0xFF9AB1CF),
+            OnyxColorTokens.textSecondary,
           ),
       ],
       actionChildren: [
@@ -20796,27 +20800,27 @@ class _AdministrationPageState extends State<AdministrationPage> {
           _fleetActionButton(
             key: ValueKey('admin-fleet-resync-${scope.siteId}'),
             label: 'Resync',
-            color: const Color(0xFFF87171),
+            color: OnyxColorTokens.accentRed,
             onPressed: recoverFleetScope,
           ),
         if (hasTacticalLane)
           _fleetActionButton(
             key: ValueKey('admin-fleet-tactical-${scope.siteId}'),
             label: 'Tactical',
-            color: const Color(0xFF67E8F9),
+            color: OnyxColorTokens.accentSky,
             onPressed: openFleetTactical,
           ),
         if (hasDispatchLane)
           _fleetActionButton(
             key: ValueKey('admin-fleet-dispatch-${scope.siteId}'),
             label: 'Dispatch',
-            color: const Color(0xFFFBBF24),
+            color: OnyxColorTokens.accentAmber,
             onPressed: openFleetDispatch,
           ),
         _fleetActionButton(
           key: ValueKey('admin-fleet-detail-${scope.siteId}'),
           label: 'Detail',
-          color: const Color(0xFF8FD1FF),
+          color: OnyxColorTokens.accentSky,
           onPressed: openFleetDetail,
         ),
       ],
@@ -20835,7 +20839,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           ? openFleetDispatch
           : openFleetDetail,
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -20857,7 +20861,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         .where((drilldown) => drilldown != primaryDrilldown)
         .take(3)
         .toList(growable: false);
-    final accent = primaryDrilldown?.accentColor ?? const Color(0xFF8FD1FF);
+    final accent = primaryDrilldown?.accentColor ?? OnyxColorTokens.accentSky;
     final detail = activeWatchActionDrilldown != null
         ? 'The system fleet rail is narrowed to ${activeWatchActionDrilldown.focusLabel.toLowerCase()}, so the scope cards below stay pinned to that operating scope.'
         : primaryDrilldown != null
@@ -20869,7 +20873,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
@@ -20980,7 +20984,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _fleetActionButton(
                   key: const ValueKey('admin-fleet-summary-clear'),
                   label: 'Clear focus',
-                  color: const Color(0xFF9AB1CF),
+                  color: OnyxColorTokens.textSecondary,
                   onPressed: onClearFocus,
                 ),
             ],
@@ -20992,19 +20996,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Color _fleetScopeCommandAccent(VideoFleetScopeHealthView scope) {
     if (scope.hasWatchActivationGap) {
-      return const Color(0xFFFCA5A5);
+      return OnyxColorTokens.accentRed;
     }
     if (scope.identityPolicyChipValue != null) {
       return identityPolicyAccentColorForScope(scope);
     }
     if (scope.escalationCount > 0) {
-      return const Color(0xFFFCA5A5);
+      return OnyxColorTokens.accentRed;
     }
     if (scope.alertCount > 0) {
-      return const Color(0xFF67E8F9);
+      return OnyxColorTokens.accentSky;
     }
     if (scope.repeatCount > 0) {
-      return const Color(0xFFFDE68A);
+      return OnyxColorTokens.accentAmber;
     }
     if (scope.latestRiskScore != null) {
       return _fleetRiskColor(scope.latestRiskScore!);
@@ -21129,14 +21133,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'Active',
         '${sections.activeCount}',
         detail: 'Live or limited fleet watch scopes',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
         key: const ValueKey('admin-fleet-summary-tile-active'),
       ),
       _fleetSummaryTile(
         'Limited',
         '${sections.limitedCount}',
         detail: 'Coverage constrained or degraded',
-        accent: const Color(0xFFF59E0B),
+        accent: OnyxColorTokens.accentAmber,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.limited,
@@ -21151,35 +21155,35 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'Gap',
         '${sections.gapCount}',
         detail: 'Watch starts missed or delayed',
-        accent: const Color(0xFFF87171),
+        accent: OnyxColorTokens.accentRed,
         key: const ValueKey('admin-fleet-summary-tile-gap'),
       ),
       _fleetSummaryTile(
         'High Risk',
         '${sections.highRiskCount}',
         detail: '70+ risk scopes in rail',
-        accent: const Color(0xFFF87171),
+        accent: OnyxColorTokens.accentRed,
         key: const ValueKey('admin-fleet-summary-tile-high-risk'),
       ),
       _fleetSummaryTile(
         'Recovered 6h',
         '${sections.recoveredCount}',
         detail: 'Recent operator recovery passes',
-        accent: const Color(0xFF86EFAC),
+        accent: OnyxColorTokens.accentGreen,
         key: const ValueKey('admin-fleet-summary-tile-recovered'),
       ),
       _fleetSummaryTile(
         'Suppressed',
         '${sections.suppressedCount}',
         detail: 'Quiet filtered review holds',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textSecondary,
         key: const ValueKey('admin-fleet-summary-tile-suppressed'),
       ),
       _fleetSummaryTile(
         'Alerts',
         '${sections.alertActionCount}',
         detail: 'Client alerts sent from rail',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.alerts,
@@ -21194,7 +21198,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'Repeat',
         '${sections.repeatActionCount}',
         detail: 'Monitoring loops still repeating',
-        accent: const Color(0xFFFDE68A),
+        accent: OnyxColorTokens.accentAmber,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.repeat,
@@ -21209,7 +21213,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'Escalated',
         '${sections.escalationActionCount}',
         detail: 'Reviews pushed into escalation',
-        accent: const Color(0xFFF87171),
+        accent: OnyxColorTokens.accentRed,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.escalated,
@@ -21224,7 +21228,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'Filtered',
         '${sections.suppressedActionCount}',
         detail: 'Below-threshold review holds',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textSecondary,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.filtered,
@@ -21284,14 +21288,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
         'Stale',
         '${sections.staleCount}',
         detail: 'Feeds aging beyond fresh window',
-        accent: const Color(0xFFFBBF24),
+        accent: OnyxColorTokens.accentAmber,
         key: const ValueKey('admin-fleet-summary-tile-stale'),
       ),
       _fleetSummaryTile(
         'No Incident',
         '${sections.noIncidentCount}',
         detail: 'Telemetry without linked incident',
-        accent: const Color(0xFF9AB1CF),
+        accent: OnyxColorTokens.textSecondary,
         key: const ValueKey('admin-fleet-summary-tile-no-incident'),
       ),
     ];
@@ -21309,7 +21313,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       style: OutlinedButton.styleFrom(
         foregroundColor: color,
         side: BorderSide(color: color.withValues(alpha: 0.45)),
-        backgroundColor: const Color(0xFF13131E),
+        backgroundColor: OnyxColorTokens.backgroundSecondary,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
       ),
@@ -21408,15 +21412,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Color _fleetRiskColor(int score) {
     if (score >= 85) {
-      return const Color(0xFFF87171);
+      return OnyxColorTokens.accentRed;
     }
     if (score >= 70) {
-      return const Color(0xFFFBBF24);
+      return OnyxColorTokens.accentAmber;
     }
     if (score >= 40) {
-      return const Color(0xFF67E8F9);
+      return OnyxColorTokens.accentSky;
     }
-    return const Color(0xFF9AB1CF);
+    return OnyxColorTokens.textSecondary;
   }
 
   String _fleetRiskLabel(int score) {
@@ -21434,11 +21438,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Color _fleetFreshnessColor(VideoFleetScopeHealthView scope) {
     return switch (scope.freshnessLabel) {
-      'Fresh' => const Color(0xFF10B981),
-      'Recent' => const Color(0xFF67E8F9),
-      'Stale' => const Color(0xFFF87171),
-      'Quiet' => const Color(0xFFFBBF24),
-      _ => const Color(0xFF9AB1CF),
+      'Fresh' => OnyxColorTokens.accentGreen,
+      'Recent' => OnyxColorTokens.accentSky,
+      'Stale' => OnyxColorTokens.accentRed,
+      'Quiet' => OnyxColorTokens.accentAmber,
+      _ => OnyxColorTokens.textSecondary,
     };
   }
 
@@ -21575,7 +21579,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   child: Text(
                     'Expire now',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFB95D5D),
+                      color: OnyxColorTokens.accentRed,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -21630,11 +21634,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFFFF1F1),
-                foregroundColor: const Color(0xFFB42318),
+                backgroundColor: OnyxColorTokens.redSurface,
+                foregroundColor: OnyxColorTokens.accentRed,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Color(0xFFE8B6B6)),
+                  side: const BorderSide(color: OnyxColorTokens.redBorder),
                 ),
               ),
               child: const Text('Expire now'),
@@ -21651,7 +21655,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: 220,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -21691,7 +21695,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     Key? editKey,
     String editTooltip = 'Edit',
     IconData editIcon = Icons.edit_rounded,
-    Color editIconColor = const Color(0xFF60A5FA),
+    Color editIconColor = OnyxColorTokens.accentSky,
     required VoidCallback onDelete,
   }) {
     final body = Container(
@@ -21701,7 +21705,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         color: _adminDialogRaisedColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isDemo ? const Color(0xFF8FD1FF) : _adminDialogBorderColor,
+          color: isDemo ? OnyxColorTokens.accentSky : _adminDialogBorderColor,
         ),
       ),
       child: Column(
@@ -21727,14 +21731,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0x223C79BB),
+                    color: OnyxColorTokens.accentBlue.withValues(alpha: 0.13),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: const Color(0x663C79BB)),
+                    border: Border.all(color: OnyxColorTokens.accentBlue.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     'DEMO',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -21757,7 +21761,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 icon: const Icon(
                   Icons.delete_rounded,
                   size: 16,
-                  color: Color(0xFFF87171),
+                  color: OnyxColorTokens.accentRed,
                 ),
                 visualDensity: VisualDensity.compact,
               ),
@@ -21797,21 +21801,21 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final (label, fg, bg, border) = switch (status) {
       _AdminStatus.active => (
         'ACTIVE',
-        const Color(0xFF10B981),
-        const Color(0x1A10B981),
-        const Color(0x6610B981),
+        OnyxColorTokens.accentGreen,
+        OnyxColorTokens.greenSurface,
+        OnyxColorTokens.greenBorder,
       ),
       _AdminStatus.inactive => (
         'INACTIVE',
-        const Color(0xFF94A3B8),
-        const Color(0x1A94A3B8),
-        const Color(0x6694A3B8),
+        OnyxColorTokens.textMuted,
+        OnyxColorTokens.surfaceElevated,
+        OnyxColorTokens.textMuted.withValues(alpha: 0.4),
       ),
       _AdminStatus.suspended => (
         'SUSPENDED',
-        const Color(0xFFEF4444),
-        const Color(0x1AEF4444),
-        const Color(0x66EF4444),
+        OnyxColorTokens.accentRed,
+        OnyxColorTokens.redSurface,
+        OnyxColorTokens.redBorder,
       ),
     };
 
@@ -21848,7 +21852,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: 22,
           height: 3,
           decoration: BoxDecoration(
-            color: const Color(0xFF3C79BB),
+            color: OnyxColorTokens.accentBlue,
             borderRadius: BorderRadius.circular(999),
           ),
         ),
@@ -21947,7 +21951,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ? 'Camera bridge validation is now pinned for $siteName so CCTV routing can be checked without leaving system controls.'
             : 'Camera bridge validation is now pinned for $siteName. Captured Telegram intake: $intakeSummary.',
         sourceLabel: 'CAMERA BRIDGE',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
       );
     });
   }
@@ -21997,7 +22001,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   }) {
     final border = enabled
         ? accent.withValues(alpha: light ? 0.24 : 0.34)
-        : (light ? _adminDialogBorderColor : const Color(0x332B425F));
+        : (light ? _adminDialogBorderColor : OnyxColorTokens.borderSubtle);
     final background = enabled
         ? accent.withValues(alpha: light ? 0.08 : 0.10)
         : _adminDialogAltColor;
@@ -22025,7 +22029,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
               child: Icon(
                 icon,
-                color: enabled ? accent : const Color(0xFF6B7788),
+                color: enabled ? accent : OnyxColorTokens.textMuted,
                 size: 20,
               ),
             ),
@@ -22034,8 +22038,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
               title,
               style: GoogleFonts.inter(
                 color: enabled
-                    ? (light ? _adminDialogTitleColor : const Color(0xFFEAF4FF))
-                    : const Color(0xFF8190A4),
+                    ? (light ? _adminDialogTitleColor : OnyxColorTokens.textPrimary)
+                    : OnyxColorTokens.textMuted,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
@@ -22045,8 +22049,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
               detail,
               style: GoogleFonts.inter(
                 color: enabled
-                    ? (light ? _adminDialogBodyColor : const Color(0xFF9AB1CF))
-                    : const Color(0xFF6B7788),
+                    ? (light ? _adminDialogBodyColor : OnyxColorTokens.textSecondary)
+                    : OnyxColorTokens.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -22098,7 +22102,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   _systemLaunchFlowActionCard(
                     key: const ValueKey('admin-system-launch-flow-client'),
                     icon: Icons.business_center_rounded,
-                    accent: const Color(0xFFF1B872),
+                    accent: OnyxColorTokens.accentAmber,
                     title: 'New Client',
                     detail:
                         'Open the full client onboarding workflow from the system command deck.',
@@ -22111,7 +22115,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   _systemLaunchFlowActionCard(
                     key: const ValueKey('admin-system-launch-flow-site'),
                     icon: Icons.apartment_rounded,
-                    accent: const Color(0xFF7FD8A5),
+                    accent: OnyxColorTokens.accentGreen,
                     title: 'New Site',
                     detail: canCreateScopedRecords
                         ? 'Create a site and keep the new command footprint aligned to an existing client.'
@@ -22125,7 +22129,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   _systemLaunchFlowActionCard(
                     key: const ValueKey('admin-system-launch-flow-employee'),
                     icon: Icons.badge_rounded,
-                    accent: const Color(0xFF8FD1FF),
+                    accent: OnyxColorTokens.accentSky,
                     title: 'New Employee',
                     detail: canCreateScopedRecords
                         ? 'Launch the guard and controller onboarding flow with compliance checks.'
@@ -22139,7 +22143,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   _systemLaunchFlowActionCard(
                     key: const ValueKey('admin-system-launch-flow-chat-lane'),
                     icon: Icons.forum_rounded,
-                    accent: const Color(0xFF22D3EE),
+                    accent: OnyxColorTokens.accentSky,
                     title: 'Link Client Comms Bridge',
                     detail: canLinkChatLane
                         ? 'Open the partner Telegram bridge with the active admin scope data.'
@@ -22155,7 +22159,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       'admin-system-launch-flow-watch-identity',
                     ),
                     icon: Icons.shield_outlined,
-                    accent: const Color(0xFFA855F7),
+                    accent: OnyxColorTokens.accentPurple,
                     title: 'Review Watch & Identity',
                     detail:
                         'Jump straight into the watch recovery and identity intake board.',
@@ -22212,7 +22216,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           sourceLabel: 'SYSTEM FLOW',
           detail:
               'Temporary approvals, watch recovery, and identity intake controls are now pinned in the active admin board.',
-          accent: const Color(0xFFA855F7),
+          accent: OnyxColorTokens.accentPurple,
         );
         return;
     }
@@ -22699,8 +22703,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             label: 'Run Autopilot',
             onTap: () =>
                 widget.onRunDemoAutopilotForIncident!.call(seededIncidentRef),
-            foregroundColor: const Color(0xFF93C5FD),
-            borderColor: const Color(0xFF2B5E93),
+            foregroundColor: OnyxColorTokens.accentSky,
+            borderColor: OnyxColorTokens.accentBlue,
           ),
         if (seededIncidentRef != null &&
             seededIncidentRef.trim().isNotEmpty &&
@@ -22711,8 +22715,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             onTap: () => widget.onRunFullDemoAutopilotForIncident!.call(
               seededIncidentRef,
             ),
-            foregroundColor: const Color(0xFFBFD7F2),
-            borderColor: const Color(0xFF35506F),
+            foregroundColor: OnyxColorTokens.textSecondary,
+            borderColor: OnyxColorTokens.borderStrong,
           ),
         if (_openDispatchesAction(
               clientId: clientId,
@@ -22728,8 +22732,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
               siteId: siteId,
               incidentReference: seededIncidentRef ?? '',
             )!,
-            foregroundColor: const Color(0xFF93C5FD),
-            borderColor: const Color(0xFF35506F),
+            foregroundColor: OnyxColorTokens.accentSky,
+            borderColor: OnyxColorTokens.borderStrong,
           ),
         if (_openTacticalAction(
               clientId: clientId,
@@ -22745,8 +22749,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
               siteId: siteId,
               incidentReference: seededIncidentRef ?? '',
             )!,
-            foregroundColor: const Color(0xFF67E8F9),
-            borderColor: const Color(0xFF2B5E93),
+            foregroundColor: OnyxColorTokens.accentSky,
+            borderColor: OnyxColorTokens.accentBlue,
           ),
         if (seededIncidentRef != null &&
             seededIncidentRef.trim().isNotEmpty &&
@@ -22756,8 +22760,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             label: 'OPEN EVENTS SCOPE',
             onTap: () =>
                 widget.onOpenEventsForIncident!.call(seededIncidentRef),
-            foregroundColor: const Color(0xFFBFD7F2),
-            borderColor: const Color(0xFF35506F),
+            foregroundColor: OnyxColorTokens.textSecondary,
+            borderColor: OnyxColorTokens.borderStrong,
           ),
         if (seededIncidentRef != null &&
             seededIncidentRef.trim().isNotEmpty &&
@@ -22767,32 +22771,32 @@ class _AdministrationPageState extends State<AdministrationPage> {
             label: 'OPEN SOVEREIGN LEDGER',
             onTap: () =>
                 widget.onOpenLedgerForIncident!.call(seededIncidentRef),
-            foregroundColor: const Color(0xFFFDE68A),
-            borderColor: const Color(0xFF5B3A16),
+            foregroundColor: OnyxColorTokens.accentAmber,
+            borderColor: OnyxColorTokens.amberBorder,
           ),
         if (_openGovernanceAction(clientId: clientId, siteId: siteId) != null)
           _SuccessDialogQuickAction(
             icon: Icons.fact_check_rounded,
             label: 'OPEN GOVERNANCE DESK',
             onTap: _openGovernanceAction(clientId: clientId, siteId: siteId)!,
-            foregroundColor: const Color(0xFF86EFAC),
-            borderColor: const Color(0xFF2F5949),
+            foregroundColor: OnyxColorTokens.accentGreen,
+            borderColor: OnyxColorTokens.greenBorder,
           ),
         if (_openClientLaneAction(clientId: clientId, siteId: siteId) != null)
           _SuccessDialogQuickAction(
             icon: Icons.person_outline_rounded,
             label: 'OPEN CLIENT COMMS',
             onTap: _openClientLaneAction(clientId: clientId, siteId: siteId)!,
-            foregroundColor: const Color(0xFFBFD7F2),
-            borderColor: const Color(0xFF35506F),
+            foregroundColor: OnyxColorTokens.textSecondary,
+            borderColor: OnyxColorTokens.borderStrong,
           ),
         if (_openReportsAction(clientId: clientId, siteId: siteId) != null)
           _SuccessDialogQuickAction(
             icon: Icons.assessment_rounded,
             label: 'OPEN REPORTS WORKSPACE',
             onTap: _openReportsAction(clientId: clientId, siteId: siteId)!,
-            foregroundColor: const Color(0xFFFFDDAA),
-            borderColor: const Color(0xFF5B3A16),
+            foregroundColor: OnyxColorTokens.accentAmber,
+            borderColor: OnyxColorTokens.amberBorder,
           ),
       ];
       final continueOperationsAction = _openOperationsAction(
@@ -22806,7 +22810,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         _snack(
           'Security Desk opened with focus: ${seededIncidentRef ?? siteId}',
           sourceLabel: 'SECURITY DESK',
-          accent: const Color(0xFF67E8F9),
+          accent: OnyxColorTokens.accentSky,
           detail:
               'The seeded demo route stays pinned in the desktop command rail while Security Desk opens with the live scope focus.',
         );
@@ -22980,7 +22984,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         return AlertDialog(
           key: _adminDemoResetDialogKey,
           backgroundColor: _adminDialogSurfaceColor,
-          shape: _adminDialogShape(borderColor: const Color(0xFFF3B0B8)),
+          shape: _adminDialogShape(borderColor: OnyxColorTokens.redBorder),
           titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
           contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
           title: Column(
@@ -22989,7 +22993,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               Text(
                 'DEMO CLEANUP',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFB91C1C),
+                  color: OnyxColorTokens.redBorder,
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.9,
@@ -23012,9 +23016,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4E8),
+                  color: OnyxColorTokens.amberSurface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x66F97316)),
+                  border: Border.all(color: OnyxColorTokens.amberBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -23022,7 +23026,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     Text(
                       'NEXT MOVE',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB45309),
+                        color: OnyxColorTokens.amberBorder,
                         fontSize: 9.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.8,
@@ -23068,11 +23072,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
               onPressed: () => Navigator.of(dialogContext).pop(true),
               icon: const Icon(Icons.delete_sweep_rounded, size: 16),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFFFF1F1),
-                foregroundColor: const Color(0xFFB42318),
+                backgroundColor: OnyxColorTokens.redSurface,
+                foregroundColor: OnyxColorTokens.accentRed,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Color(0xFFE8B6B6)),
+                  side: const BorderSide(color: OnyxColorTokens.redBorder),
                 ),
               ),
               label: Text(
@@ -23266,7 +23270,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Demo data cleared: $clearedClients client(s), $clearedSites site(s), $clearedEmployees employee(s).',
         sourceLabel: 'DEMO CLEANUP',
-        accent: const Color(0xFFFDA4AF),
+        accent: OnyxColorTokens.accentRed,
         detail:
             'The cleanup result stays pinned in the desktop command rail while the storyboard returns to an unseeded state.',
       );
@@ -23275,7 +23279,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Failed to clear demo data.',
         sourceLabel: 'DEMO CLEANUP',
-        accent: const Color(0xFFF59E0B),
+        accent: OnyxColorTokens.accentAmber,
         detail:
             'The cleanup failure stays pinned in the desktop command rail so you can retry without losing the current demo context.',
       );
@@ -24053,8 +24057,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         icon: Icons.auto_mode_rounded,
         label: 'Run Autopilot',
         onTap: () => widget.onRunDemoAutopilotForIncident!.call(incidentRef),
-        foregroundColor: const Color(0xFF93C5FD),
-        borderColor: const Color(0xFF2B5E93),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.accentBlue,
       );
     }
 
@@ -24069,8 +24073,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         label: 'Run Full Tour',
         onTap: () =>
             widget.onRunFullDemoAutopilotForIncident!.call(incidentRef),
-        foregroundColor: const Color(0xFFBFD7F2),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.textSecondary,
+        borderColor: OnyxColorTokens.borderStrong,
       );
     }
 
@@ -24085,8 +24089,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         icon: Icons.space_dashboard_rounded,
         label: 'OPEN SECURITY DESK',
         onTap: action,
-        foregroundColor: const Color(0xFFBFD7F2),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.textSecondary,
+        borderColor: OnyxColorTokens.borderStrong,
       );
     }
 
@@ -24101,8 +24105,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         icon: Icons.map_rounded,
         label: 'OPEN TACTICAL TRACK',
         onTap: action,
-        foregroundColor: const Color(0xFF9FE8FF),
-        borderColor: const Color(0xFF2B5E93),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.accentBlue,
       );
     }
 
@@ -24117,8 +24121,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         icon: Icons.hub_rounded,
         label: 'OPEN DISPATCH BOARD',
         onTap: action,
-        foregroundColor: const Color(0xFF93C5FD),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.borderStrong,
       );
     }
 
@@ -24133,8 +24137,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         icon: Icons.person_outline_rounded,
         label: 'OPEN CLIENT COMMS',
         onTap: action,
-        foregroundColor: const Color(0xFFBFD7F2),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.textSecondary,
+        borderColor: OnyxColorTokens.borderStrong,
       );
     }
 
@@ -24148,8 +24152,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         icon: Icons.fact_check_rounded,
         label: 'OPEN GOVERNANCE DESK',
         onTap: action,
-        foregroundColor: const Color(0xFF86EFAC),
-        borderColor: const Color(0xFF2F5949),
+        foregroundColor: OnyxColorTokens.accentGreen,
+        borderColor: OnyxColorTokens.greenBorder,
       );
     }
 
@@ -24164,8 +24168,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         icon: Icons.assessment_rounded,
         label: 'OPEN REPORTS WORKSPACE',
         onTap: action,
-        foregroundColor: const Color(0xFFFFDDAA),
-        borderColor: const Color(0xFF5B3A16),
+        foregroundColor: OnyxColorTokens.accentAmber,
+        borderColor: OnyxColorTokens.amberBorder,
       );
     }
 
@@ -24309,10 +24313,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Color _guardRosterPlannerAccent(_GuardRosterPlannerMode mode) {
     return switch (mode) {
-      _GuardRosterPlannerMode.publishRoster => const Color(0xFF63E6A1),
-      _GuardRosterPlannerMode.fillGaps => const Color(0xFFFFC247),
-      _GuardRosterPlannerMode.createMonth => const Color(0xFF8FD1FF),
-      _GuardRosterPlannerMode.openMonthPlanner => const Color(0xFF8FD1FF),
+      _GuardRosterPlannerMode.publishRoster => OnyxColorTokens.accentGreen,
+      _GuardRosterPlannerMode.fillGaps => OnyxColorTokens.accentAmber,
+      _GuardRosterPlannerMode.createMonth => OnyxColorTokens.accentSky,
+      _GuardRosterPlannerMode.openMonthPlanner => OnyxColorTokens.accentSky,
     };
   }
 
@@ -24434,12 +24438,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _adminDialogBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x050E1A2B),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -24453,14 +24457,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF2F8FD),
+                  color: OnyxColorTokens.surfaceElevated,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFFCADBEC)),
+                  border: Border.all(color: OnyxColorTokens.borderStrong),
                 ),
                 child: Text(
                   'MONTH PLANNER',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF4E7396),
+                    color: OnyxColorTokens.accentBlue,
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.9,
@@ -24575,15 +24579,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           label:
                               'DAY ${_guardRosterPlannerDateLabel(focusDate).toUpperCase()}',
                           foreground: _guardRosterPlannerAccent(mode),
-                          background: const Color(0x1A60A5FA),
-                          border: const Color(0x663C79BB),
+                          background: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+                          border: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
                         ),
                         if (launchedFromHandoff)
                           _adminHeaderChip(
                             label: 'Handoff Entry',
-                            foreground: const Color(0xFF7FD8A5),
-                            background: const Color(0x1A10B981),
-                            border: const Color(0x6610B981),
+                            foreground: OnyxColorTokens.accentGreen,
+                            background: OnyxColorTokens.greenSurface,
+                            border: OnyxColorTokens.greenBorder,
                           ),
                       ],
                     ),
@@ -24627,7 +24631,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       Text(
                         error!,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFF87171),
+                          color: OnyxColorTokens.accentRed,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -24671,7 +24675,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ),
                           style: FilledButton.styleFrom(
                             backgroundColor: _guardRosterPlannerAccent(mode),
-                            foregroundColor: const Color(0xFF081018),
+                            foregroundColor: OnyxColorTokens.backgroundPrimary,
                           ),
                           label: Text(
                             _guardRosterPlannerPrimaryLabel(mode),
@@ -24776,15 +24780,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       children: [
                         _adminHeaderChip(
                           label: 'Role ${_guardRoleLabel(selectedRole)}',
-                          foreground: const Color(0xFF8FD1FF),
-                          background: const Color(0x1A60A5FA),
-                          border: const Color(0x663C79BB),
+                          foreground: OnyxColorTokens.accentSky,
+                          background: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+                          border: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
                         ),
                         _adminHeaderChip(
                           label: 'Status ${_adminStatusLabel(selectedStatus)}',
-                          foreground: const Color(0xFF7FD8A5),
-                          background: const Color(0x1A10B981),
-                          border: const Color(0x6610B981),
+                          foreground: OnyxColorTokens.accentGreen,
+                          background: OnyxColorTokens.greenSurface,
+                          border: OnyxColorTokens.greenBorder,
                         ),
                       ],
                     ),
@@ -24938,7 +24942,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       Text(
                         error!,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFF87171),
+                          color: OnyxColorTokens.accentRed,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -24993,8 +24997,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           },
                           icon: const Icon(Icons.save_rounded, size: 16),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2B5E93),
-                            foregroundColor: const Color(0xFFEAF4FF),
+                            backgroundColor: OnyxColorTokens.accentBlue,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           label: Text(
                             'Save Guard',
@@ -25038,7 +25042,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       sourceLabel: 'GUARD EDITOR',
       detail:
           'The roster update stays pinned in the desktop rail while the guard table remains in focus.',
-      accent: const Color(0xFF8FD1FF),
+      accent: OnyxColorTokens.accentSky,
     );
   }
 
@@ -25112,15 +25116,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       children: [
                         _adminHeaderChip(
                           label: _clientName(row.clientId),
-                          foreground: const Color(0xFF7FD8A5),
-                          background: const Color(0x1A10B981),
-                          border: const Color(0x6610B981),
+                          foreground: OnyxColorTokens.accentGreen,
+                          background: OnyxColorTokens.greenSurface,
+                          border: OnyxColorTokens.greenBorder,
                         ),
                         _adminHeaderChip(
                           label: _adminStatusLabel(selectedStatus),
-                          foreground: const Color(0xFF8FD1FF),
-                          background: const Color(0x1A60A5FA),
-                          border: const Color(0x663C79BB),
+                          foreground: OnyxColorTokens.accentSky,
+                          background: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+                          border: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
                         ),
                       ],
                     ),
@@ -25296,7 +25300,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       Text(
                         error!,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFF87171),
+                          color: OnyxColorTokens.accentRed,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -25378,8 +25382,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           },
                           icon: const Icon(Icons.save_rounded, size: 16),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF2B5E93),
-                            foregroundColor: const Color(0xFFEAF4FF),
+                            backgroundColor: OnyxColorTokens.accentBlue,
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           label: Text(
                             'Save Site',
@@ -25458,7 +25462,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           'Failed to save site ${resolvedUpdated.id}.',
           sourceLabel: 'SITE EDITOR',
           detail: 'Site configuration save failed: $error',
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
         );
       }
       return;
@@ -25475,7 +25479,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       sourceLabel: 'SITE EDITOR',
       detail:
           'The site footprint update stays pinned in the desktop rail while the operations directory remains in focus.',
-      accent: const Color(0xFF7FD8A5),
+      accent: OnyxColorTokens.accentGreen,
     );
   }
 
@@ -25496,10 +25500,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ? Icons.play_arrow_rounded
         : Icons.close_rounded;
     final commandAccent = hasContinueAction
-        ? const Color(0xFF67E8F9)
+        ? OnyxColorTokens.accentSky
         : quickActions.isNotEmpty
         ? quickActions.first.foregroundColor
-        : const Color(0xFF8FD1FF);
+        : OnyxColorTokens.accentSky;
     final nextMoveLabel = hasContinueAction
         ? 'Continue active route'
         : quickActions.isNotEmpty
@@ -25596,9 +25600,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ? 'Inspect handoffs'
         : primaryLabel;
     final actionCount = quickActions.length + (hasContinueAction ? 1 : 0);
-    const dialogSurface = Color(0xFF13131E);
-    const dialogShell = Color(0xFF1A1A2E);
-    const dialogInset = Color(0xFF1A1A2E);
+    const dialogSurface = OnyxColorTokens.backgroundSecondary;
+    const dialogShell = OnyxColorTokens.surfaceElevated;
+    const dialogInset = OnyxColorTokens.surfaceElevated;
     const dialogTitleColor = _adminDialogTitleColor;
     const dialogBodyColor = _adminDialogBodyColor;
     const dialogMutedColor = _adminDialogMutedColor;
@@ -25628,7 +25632,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               border: Border.all(color: commandAccent.withValues(alpha: 0.26)),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0x14203A55),
+                  color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.08),
                   blurRadius: 26,
                   offset: const Offset(0, 10),
                 ),
@@ -25801,8 +25805,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     color: hasContinueAction
                                         ? commandAccent
                                         : quickActions.isNotEmpty
-                                        ? const Color(0xFF8FD1FF)
-                                        : const Color(0xFF34D399),
+                                        ? OnyxColorTokens.accentSky
+                                        : OnyxColorTokens.accentGreen,
                                   ),
                                   light: true,
                                 ),
@@ -25810,7 +25814,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                   _OnboardingCommandChipData(
                                     label: 'Signals',
                                     value: '${highlights.length}',
-                                    color: const Color(0xFFBFD7F2),
+                                    color: OnyxColorTokens.textSecondary,
                                   ),
                                   light: true,
                                 ),
@@ -25987,8 +25991,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                         valueColor: hasContinueAction
                                             ? commandAccent
                                             : quickActions.isNotEmpty
-                                            ? const Color(0xFF8FD1FF)
-                                            : const Color(0xFF34D399),
+                                            ? OnyxColorTokens.accentSky
+                                            : OnyxColorTokens.accentGreen,
                                         light: true,
                                       ),
                                       _previewSnapshotCard(
@@ -26004,8 +26008,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                             ? 'Scoped route live'
                                             : 'No scoped focus',
                                         valueColor: hasFocusReference
-                                            ? const Color(0xFF8FD1FF)
-                                            : const Color(0xFFBFD7F2),
+                                            ? OnyxColorTokens.accentSky
+                                            : OnyxColorTokens.textSecondary,
                                         light: true,
                                       ),
                                       _previewSnapshotCard(
@@ -26016,7 +26020,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                         label: 'Signals',
                                         value: '${highlights.length}',
                                         detail: 'Success cues live',
-                                        valueColor: const Color(0xFFBFD7F2),
+                                        valueColor: OnyxColorTokens.textSecondary,
                                         light: true,
                                       ),
                                       _previewSnapshotCard(
@@ -26071,12 +26075,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           _OnboardingCommandChipData(
                             label: 'Support',
                             value: '${quickActions.length}',
-                            color: const Color(0xFF8FD1FF),
+                            color: OnyxColorTokens.accentSky,
                           ),
                           _OnboardingCommandChipData(
                             label: 'Routes',
                             value: '$actionCount',
-                            color: const Color(0xFFBFD7F2),
+                            color: OnyxColorTokens.textSecondary,
                           ),
                         ],
                         children: [
@@ -26099,9 +26103,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                   dialogContext,
                                 ).pop(_SuccessDialogOutcome.dismissed);
                               },
-                              foregroundColor: const Color(0xFF2F5D8A),
+                              foregroundColor: OnyxColorTokens.accentBlue,
                               borderColor: commandAccent.withValues(alpha: 0.4),
-                              backgroundColor: const Color(0xFFEAF4FF),
+                              backgroundColor: OnyxColorTokens.textPrimary,
                               filled: true,
                             ),
                             light: true,
@@ -26261,7 +26265,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                           const _OnboardingCommandChipData(
                                             label: 'State',
                                             value: 'pinned',
-                                            color: Color(0xFF34D399),
+                                            color: OnyxColorTokens.accentGreen,
                                           ),
                                           light: true,
                                         ),
@@ -26269,7 +26273,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                           _OnboardingCommandChipData(
                                             label: 'Focus',
                                             value: resolvedFocusReference,
-                                            color: const Color(0xFF8FD1FF),
+                                            color: OnyxColorTokens.accentSky,
                                           ),
                                           light: true,
                                         ),
@@ -26324,7 +26328,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                           child: Icon(
                                             Icons.radio_button_checked_rounded,
                                             size: 14,
-                                            color: Color(0xFF8FD1FF),
+                                            color: OnyxColorTokens.accentSky,
                                           ),
                                         ),
                                         const SizedBox(width: 7),
@@ -26369,8 +26373,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                           'Focus reference copied for command review.',
                                         );
                                       },
-                                      foregroundColor: const Color(0xFFBFD7F2),
-                                      borderColor: const Color(0xFF35506F),
+                                      foregroundColor: OnyxColorTokens.textSecondary,
+                                      borderColor: OnyxColorTokens.borderStrong,
                                     ),
                                     light: true,
                                   ),
@@ -26507,7 +26511,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                         _OnboardingCommandChipData(
                                           label: 'Signals',
                                           value: '${highlights.length}',
-                                          color: const Color(0xFF8FD1FF),
+                                          color: OnyxColorTokens.accentSky,
                                         ),
                                         light: true,
                                       ),
@@ -26518,8 +26522,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                               ? 'pending'
                                               : 'sealed',
                                           color: highlights.isEmpty
-                                              ? const Color(0xFFF59E0B)
-                                              : const Color(0xFF34D399),
+                                              ? OnyxColorTokens.accentAmber
+                                              : OnyxColorTokens.accentGreen,
                                         ),
                                         light: true,
                                       ),
@@ -26528,7 +26532,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                           _OnboardingCommandChipData(
                                             label: 'Focus',
                                             value: 'live',
-                                            color: const Color(0xFFBFD7F2),
+                                            color: OnyxColorTokens.textSecondary,
                                           ),
                                           light: true,
                                         ),
@@ -26720,7 +26724,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     _snack(
       payload.$2,
       sourceLabel: 'DIRECTORY EXPORT',
-      accent: const Color(0xFF8FD1FF),
+      accent: OnyxColorTokens.accentSky,
       detail:
           'The copied directory payload stays pinned in the Context Rail for the current admin desk.',
     );
@@ -26740,7 +26744,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'Imported $importedCount $noun${importedCount == 1 ? '' : 's'} from CSV.',
         sourceLabel: 'CSV IMPORT',
-        accent: const Color(0xFF7FD8A5),
+        accent: OnyxColorTokens.accentGreen,
         detail:
             'The import result stays visible in the Context Rail while you continue working the directory.',
       );
@@ -26749,7 +26753,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _snack(
         'CSV import failed: $error',
         sourceLabel: 'CSV IMPORT',
-        accent: const Color(0xFFF59E0B),
+        accent: OnyxColorTokens.accentAmber,
         detail:
             'The import failure remains visible in the Context Rail so you can correct the payload without losing context.',
       );
@@ -26950,9 +26954,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             builder: (context, setDialogState) {
               final helper = _adminCsvImportHelperText(selectedTarget);
               final accent = switch (selectedTarget) {
-                _AdminCsvTarget.guards => const Color(0xFF2B5E93),
-                _AdminCsvTarget.sites => const Color(0xFF2E7D5B),
-                _AdminCsvTarget.clients => const Color(0xFF245B72),
+                _AdminCsvTarget.guards => OnyxColorTokens.accentBlue,
+                _AdminCsvTarget.sites => OnyxColorTokens.greenBorder,
+                _AdminCsvTarget.clients => OnyxColorTokens.accentBlue,
               };
               final targetLabel = switch (selectedTarget) {
                 _AdminCsvTarget.guards => 'EMPLOYEE DIRECTORY',
@@ -26997,7 +27001,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _adminHeaderChip(
                           label: 'HEADER ROW REQUIRED',
                           foreground: _adminDialogBodyColor,
-                          background: const Color(0xFFF4F7FB),
+                          background: OnyxColorTokens.surfaceElevated,
                           border: _adminDialogBorderColor,
                         ),
                       ],
@@ -27095,7 +27099,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ),
                           style: FilledButton.styleFrom(
                             backgroundColor: accent,
-                            foregroundColor: const Color(0xFFEAF4FF),
+                            foregroundColor: OnyxColorTokens.textPrimary,
                           ),
                           child: Text(
                             'Import',
@@ -27633,7 +27637,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'RADIO RUNTIME',
         detail:
             'Persistence hooks are offline, so the validated phrase payload was staged to the clipboard while the system workspace stays in view.',
-        accent: const Color(0xFF67E8F9),
+        accent: OnyxColorTokens.accentSky,
       );
       return;
     }
@@ -27774,7 +27778,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'DEMO ROUTES',
         detail:
             'Persistence hooks are offline, so the validated presenter cue payload was staged to the clipboard for operator handoff.',
-        accent: const Color(0xFF8FD1FF),
+        accent: OnyxColorTokens.accentSky,
       );
       return;
     }
@@ -27959,7 +27963,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
         headline: message,
         detail:
             'Latest client onboarding action stays pinned in this workspace while you keep shaping the contract handoff.',
-        accent: const Color(0xFF2A6CC6),
+        accent: OnyxColorTokens.accentBlue,
       );
     });
   }
@@ -28217,7 +28221,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
         context,
         entityLabel: 'Client',
         gates: _previewGates,
-        accent: const Color(0xFF2A6CC6),
+        accent: OnyxColorTokens.accentBlue,
       );
       if (!proceed) {
         final target = _nextIncompleteStep;
@@ -28510,7 +28514,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
       _allGatesReady ? Icons.task_alt_rounded : Icons.bolt_rounded;
 
   Color get _demoReadyButtonColor =>
-      _allGatesReady ? const Color(0xFF0F766E) : const Color(0xFF1E5AA9);
+      _allGatesReady ? OnyxColorTokens.accentTeal : OnyxColorTokens.accentBlue;
 
   bool get _clientTemplatePending =>
       _selectedClientScenario != _appliedClientScenario;
@@ -28812,11 +28816,11 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   ? _runDemoReady()
                   : 'Client contract is ready for final review.',
             ),
-      foregroundColor: const Color(0xFFEAF4FF),
-      borderColor: const Color(0xFF1D4ED8),
+      foregroundColor: OnyxColorTokens.textPrimary,
+      borderColor: OnyxColorTokens.accentBlue,
       backgroundColor: _allGatesReady
-          ? const Color(0xFF0F766E)
-          : const Color(0xFF1D4ED8),
+          ? OnyxColorTokens.accentTeal
+          : OnyxColorTokens.accentBlue,
       filled: true,
     );
     final clientSecondaryActions = <_OnboardingCommandActionConfig>[
@@ -28826,8 +28830,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
           label: 'Security Desk',
           icon: Icons.space_dashboard_rounded,
           onPressed: _openClientOperationsPreview,
-          foregroundColor: const Color(0xFFBFD7F2),
-          borderColor: const Color(0xFF35506F),
+          foregroundColor: OnyxColorTokens.textSecondary,
+          borderColor: OnyxColorTokens.borderStrong,
         ),
       if (_canOpenClientTacticalPreview &&
           (_clientTemplatePending ||
@@ -28838,24 +28842,24 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
           label: 'Tactical Track',
           icon: Icons.map_rounded,
           onPressed: _openClientTacticalPreview,
-          foregroundColor: const Color(0xFF9FE8FF),
-          borderColor: const Color(0xFF35506F),
+          foregroundColor: OnyxColorTokens.accentSky,
+          borderColor: OnyxColorTokens.borderStrong,
         ),
       _OnboardingCommandActionConfig(
         key: const ValueKey('client-onboarding-snapshot-brief'),
         label: 'Snapshot Brief',
         icon: Icons.receipt_long_rounded,
         onPressed: copyClientSnapshotBrief,
-        foregroundColor: const Color(0xFFD5EBFF),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
       _OnboardingCommandActionConfig(
         key: const ValueKey('client-onboarding-voice-brief'),
         label: 'Voice Brief',
         icon: Icons.mic_rounded,
         onPressed: copyClientPitchBrief,
-        foregroundColor: const Color(0xFFBFE6FF),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
     ];
     return _adminDialogShell(
@@ -28869,7 +28873,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
             title: 'New Client Onboarding',
             subtitle:
                 'Register contract, billing, and sovereign contacts in a clean guided flow.',
-            accent: const Color(0xFF2A6CC6),
+            accent: OnyxColorTokens.accentBlue,
             responseTarget: 'Client onboarding under 60s',
             confidenceLabel: 'Contract readiness 99.2%',
             talkTrackTitle: 'Client Demo Talk Track',
@@ -28886,7 +28890,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
           _onboardingCommandDeck(
             key: const ValueKey('client-onboarding-command-deck'),
             nextMoveKey: const ValueKey('client-onboarding-next-move'),
-            accent: const Color(0xFF2A6CC6),
+            accent: OnyxColorTokens.accentBlue,
             label: 'CLIENT COMMAND',
             headline: clientCommandHeadline,
             detail: clientCommandDetail,
@@ -28896,49 +28900,49 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                 const _OnboardingCommandChipData(
                   label: 'Source',
                   value: 'telegram-approved',
-                  color: Color(0xFF7FD8A5),
+                  color: OnyxColorTokens.accentGreen,
                 ),
               if (telegramPrefill?.cameraCount != null)
                 _OnboardingCommandChipData(
                   label: 'Cameras',
                   value: '${telegramPrefill!.cameraCount}',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
               if (telegramVendor.isNotEmpty)
                 _OnboardingCommandChipData(
                   label: 'Vendor',
                   value: telegramVendor,
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentSky,
                 ),
               if (telegramPrefill?.wantsTelegramBinding ?? false)
                 const _OnboardingCommandChipData(
                   label: 'Bridge',
                   value: 'bind-ready',
-                  color: Color(0xFF7FD8A5),
+                  color: OnyxColorTokens.accentGreen,
                 ),
               _OnboardingCommandChipData(
                 label: 'Step',
                 value: '${_step + 1}/4',
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
               _OnboardingCommandChipData(
                 label: 'Readiness',
                 value: '$readyCount/${_previewGates.length}',
                 color: _allGatesReady
-                    ? const Color(0xFF34D399)
-                    : const Color(0xFFF59E0B),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Scenario',
                 value: widget.demoMode
                     ? _clientScenarioLabel(_selectedClientScenario)
                     : 'live',
-                color: const Color(0xFFBFD7F2),
+                color: OnyxColorTokens.textSecondary,
               ),
               _OnboardingCommandChipData(
                 label: 'SLA',
                 value: _slaTier.toUpperCase(),
-                color: const Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
               ),
             ],
             primaryAction: clientPrimaryAction,
@@ -28978,7 +28982,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                         ),
                         onPressed: focusClientMessagingBridgeFromTelegram,
                         style: _onboardingInlineActionStyle(
-                          accent: const Color(0xFF2A6CC6),
+                          accent: OnyxColorTokens.accentBlue,
                         ),
                         icon: const Icon(
                           Icons.mark_chat_read_rounded,
@@ -28999,7 +29003,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                           ),
                           onPressed: focusClientNextGap,
                           style: _onboardingInlineActionStyle(
-                            accent: const Color(0xFF2A6CC6),
+                            accent: OnyxColorTokens.accentBlue,
                           ),
                           icon: const Icon(
                             Icons.track_changes_rounded,
@@ -29019,7 +29023,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                         ),
                         onPressed: copyTelegramClientOperationalSeedBrief,
                         style: _onboardingInlineActionStyle(
-                          accent: const Color(0xFF2A6CC6),
+                          accent: OnyxColorTokens.accentBlue,
                         ),
                         icon: const Icon(Icons.content_copy_rounded, size: 14),
                         label: Text(
@@ -29040,7 +29044,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
             const SizedBox(height: 8),
             _onboardingWorkflowActionsShelf(
               key: const ValueKey('client-onboarding-workflow-actions'),
-              accent: const Color(0xFF2A6CC6),
+              accent: OnyxColorTokens.accentBlue,
               label: 'WORKFLOW ACTIONS',
               headline: clientWorkflowHeadline,
               detail:
@@ -29061,19 +29065,19 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   label: 'Template',
                   value: _clientTemplatePending ? 'pending' : 'live',
                   color: _clientTemplatePending
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF34D399),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Scenario',
                   value: _clientScenarioLabel(_selectedClientScenario),
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Blockers',
                   value:
                       '${(_previewGates.length - readyCount).clamp(0, _previewGates.length)}',
-                  color: const Color(0xFFBFD7F2),
+                  color: OnyxColorTokens.textSecondary,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Route',
@@ -29082,7 +29086,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                       : _canOpenClientTacticalPreview
                       ? 'tactical track'
                       : 'brief',
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentSky,
                 ),
               ],
               children: [
@@ -29102,9 +29106,9 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: _clientTemplatePending
-                        ? const Color(0xFF9A4D08)
-                        : const Color(0xFF1F3A5A),
-                    foregroundColor: const Color(0xFFEAF4FF),
+                        ? OnyxColorTokens.amberBorder
+                        : OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     _clientTemplatePending
@@ -29127,8 +29131,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   },
                   icon: const Icon(Icons.rocket_launch_rounded, size: 16),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    backgroundColor: OnyxColorTokens.accentTeal,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     'Launch Demo',
@@ -29142,7 +29146,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   icon: Icon(_demoReadyButtonIcon, size: 16),
                   style: FilledButton.styleFrom(
                     backgroundColor: _demoReadyButtonColor,
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     _demoReadyButtonLabel,
@@ -29188,8 +29192,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   onPressed: _resetDemoPace,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8FD1FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Reset Pace',
@@ -29208,8 +29212,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   },
                   icon: const Icon(Icons.cleaning_services_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF9FD6FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Start Fresh',
@@ -29220,8 +29224,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   onPressed: focusClientNextGap,
                   icon: const Icon(Icons.track_changes_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFFE1B8),
-                    side: const BorderSide(color: Color(0xFFB3742C)),
+                    foregroundColor: OnyxColorTokens.accentAmber,
+                    side: const BorderSide(color: OnyxColorTokens.amberBorder),
                   ),
                   label: Text(
                     'Next Gap',
@@ -29234,8 +29238,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                       : null,
                   icon: const Icon(Icons.space_dashboard_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFBFD7F2),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.textSecondary,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'OPEN SECURITY DESK',
@@ -29248,8 +29252,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                       : null,
                   icon: const Icon(Icons.map_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF9FE8FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'OPEN TACTICAL TRACK',
@@ -29260,8 +29264,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   onPressed: copyClientPitchBrief,
                   icon: const Icon(Icons.mic_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFBFE6FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Copy Pitch',
@@ -29272,8 +29276,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   onPressed: copyClientSnapshotBrief,
                   icon: const Icon(Icons.receipt_long_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFD5EBFF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Copy Snapshot',
@@ -29295,7 +29299,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
             Text(
               _error!,
               style: GoogleFonts.inter(
-                color: const Color(0xFFF87171),
+                color: OnyxColorTokens.accentRed,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -29303,14 +29307,14 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
           ],
           _creationPulseBanner(
             visible: _showCreatePulse,
-            accent: const Color(0xFF2A6CC6),
+            accent: OnyxColorTokens.accentBlue,
             label: 'Client profile locked and ready for deployment.',
             keyPrefix: 'client-onboarding-pulse',
           ),
           const SizedBox(height: 8),
           _stepSummary(
             currentStep: _step,
-            accent: const Color(0xFF2A6CC6),
+            accent: OnyxColorTokens.accentBlue,
             keyPrefix: 'client-onboarding-flow',
             labels: const ['Identity', 'Contact', 'Contract', 'Messaging'],
             onStepTap: (step) => setState(() => _step = step),
@@ -29320,7 +29324,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
           _demoPaceMeter(
             startedAt: _sessionStartedAt,
             targetSeconds: 60,
-            accent: const Color(0xFF2A6CC6),
+            accent: OnyxColorTokens.accentBlue,
             compact: compact,
             onRecover: widget.demoMode
                 ? () => _showOnboardingSnackBar(context, _recoverDemoPace())
@@ -29330,7 +29334,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
           const SizedBox(height: 8),
           _demoCoachCard(
             context: context,
-            accent: const Color(0xFF2A6CC6),
+            accent: OnyxColorTokens.accentBlue,
             currentStep: _step,
             compact: compact,
             keyPrefix: 'client-onboarding-coach',
@@ -29372,7 +29376,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
             title: 'Live Payload Preview',
             entityLabel: 'Client',
             keyPrefix: 'client-onboarding-preview',
-            accent: const Color(0xFF2A6CC6),
+            accent: OnyxColorTokens.accentBlue,
             lines: _previewLines,
             gates: _previewGates,
             completion: _completionScore,
@@ -29390,7 +29394,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
             context: context,
             currentStep: _step,
             finalStep: 3,
-            accent: const Color(0xFF2A6CC6),
+            accent: OnyxColorTokens.accentBlue,
             entityLabel: 'Client',
             readyForCreate: _allGatesReady,
             onAdvance: _next,
@@ -29406,7 +29410,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'client-onboarding-step-panel-identity',
                   stageLabel: 'Identity',
-                  accent: const Color(0xFF2A6CC6),
+                  accent: OnyxColorTokens.accentBlue,
                   children: [
                     _textField(
                       _clientIdController,
@@ -29448,7 +29452,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'client-onboarding-step-panel-contact',
                   stageLabel: 'Contact',
-                  accent: const Color(0xFF2A6CC6),
+                  accent: OnyxColorTokens.accentBlue,
                   children: [
                     _textField(_billingAddressController, 'Billing Address'),
                     const SizedBox(height: 8),
@@ -29480,7 +29484,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'client-onboarding-step-panel-contract',
                   stageLabel: 'Contract',
-                  accent: const Color(0xFF2A6CC6),
+                  accent: OnyxColorTokens.accentBlue,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _dropdownField(
@@ -29506,7 +29510,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                           onPressed: _pickContractStart,
                           icon: const Icon(Icons.event_rounded, size: 16),
                           style: _onboardingInlineActionStyle(
-                            accent: const Color(0xFF2A6CC6),
+                            accent: OnyxColorTokens.accentBlue,
                           ),
                           label: Text(
                             _contractStart == null
@@ -29533,7 +29537,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'client-onboarding-step-panel-messaging',
                   stageLabel: 'Messaging',
-                  accent: const Color(0xFF2A6CC6),
+                  accent: OnyxColorTokens.accentBlue,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _onboardingControlShell(
@@ -29547,8 +29551,8 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                           'Keep the outbound operator channel explicit so incident routing stays simple and fast.',
                       child: SwitchListTile.adaptive(
                         contentPadding: EdgeInsets.zero,
-                        activeThumbColor: const Color(0xFF8FD1FF),
-                        activeTrackColor: const Color(0x665FAAFF),
+                        activeThumbColor: OnyxColorTokens.accentSky,
+                        activeTrackColor: OnyxColorTokens.accentSky.withValues(alpha: 0.4),
                         value: _enableTelegramBridge,
                         onChanged: (value) {
                           setState(() => _enableTelegramBridge = value);
@@ -29556,7 +29560,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                         title: Text(
                           'Enable Telegram Bridge',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF4FF),
+                            color: OnyxColorTokens.textPrimary,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
@@ -29566,7 +29570,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                               ? 'Alerts route to client Telegram chat/topic.'
                               : 'Use ONYX in-app messaging only.',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF9AB1CF),
+                            color: OnyxColorTokens.textSecondary,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -29618,7 +29622,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                       title: Text(
                         'Contact consent captured for alert delivery',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF4FF),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -29626,7 +29630,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                       subtitle: Text(
                         'Store consent timestamp for POPIA-aligned messaging records.',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF9AB1CF),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -29781,7 +29785,7 @@ class _ClientMessagingBridgeDialogState
 
   @override
   Widget build(BuildContext context) {
-    final accent = const Color(0xFF2563EB);
+    final accent = OnyxColorTokens.accentBlue;
     final clientItems = widget.clients
         .map(
           (client) => DropdownMenuItem<String>(
@@ -30147,7 +30151,7 @@ class _ClientMessagingBridgeDialogState
               child: Text(
                 _error!,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFF87171),
+                  color: OnyxColorTokens.accentRed,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -30177,7 +30181,7 @@ class _ClientMessagingBridgeDialogState
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: accent,
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 label: Text(
                   _applyToAllClientSites
@@ -30348,7 +30352,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
         headline: message,
         detail:
             'Latest site onboarding action stays pinned in this workspace while you keep tuning the geofence and response pack.',
-        accent: const Color(0xFF0E8B8F),
+        accent: OnyxColorTokens.accentTeal,
       );
     });
   }
@@ -30775,7 +30779,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
         context,
         entityLabel: 'Site',
         gates: _previewGates,
-        accent: const Color(0xFF0E8B8F),
+        accent: OnyxColorTokens.accentTeal,
       );
       if (!proceed) {
         final target = _nextIncompleteStep;
@@ -31002,7 +31006,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
       _allGatesReady ? Icons.task_alt_rounded : Icons.bolt_rounded;
 
   Color get _demoReadyButtonColor =>
-      _allGatesReady ? const Color(0xFF0F766E) : const Color(0xFF0E8B8F);
+      _allGatesReady ? OnyxColorTokens.accentTeal : OnyxColorTokens.accentTeal;
 
   bool get _siteTemplatePending =>
       _selectedSiteScenario != _appliedSiteScenario;
@@ -31221,10 +31225,10 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   ? 'Route live'
                   : 'Apply route',
               microColor: !idReady
-                  ? const Color(0xFFF1B872)
+                  ? OnyxColorTokens.accentAmber
                   : idAlreadyApplied
-                  ? const Color(0xFF8FD1FF)
-                  : const Color(0xFFBFE6FF),
+                  ? OnyxColorTokens.accentSky
+                  : OnyxColorTokens.accentSky,
               keyPrefix: 'site-onboarding-identity-suggestion-id',
             ),
             _identitySuggestionChip(
@@ -31237,10 +31241,10 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   ? 'Code live'
                   : 'Apply code',
               microColor: !codeReady
-                  ? const Color(0xFFF1B872)
+                  ? OnyxColorTokens.accentAmber
                   : codeAlreadyApplied
-                  ? const Color(0xFF8FD1FF)
-                  : const Color(0xFFBFE6FF),
+                  ? OnyxColorTokens.accentSky
+                  : OnyxColorTokens.accentSky,
               keyPrefix: 'site-onboarding-identity-suggestion-code',
             ),
             OutlinedButton.icon(
@@ -31249,7 +31253,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   : null,
               icon: const Icon(Icons.auto_fix_high_rounded, size: 14),
               style: _onboardingInlineActionStyle(
-                accent: const Color(0xFF0E8B8F),
+                accent: OnyxColorTokens.accentTeal,
               ),
               label: Text(
                 'Apply Suggestions',
@@ -31273,7 +31277,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
     required String keyPrefix,
     Color? microColor,
   }) {
-    final accent = ready ? const Color(0xFF38BDF8) : const Color(0xFF6B7F96);
+    final accent = ready ? OnyxColorTokens.accentSky : OnyxColorTokens.textMuted;
     return AnimatedContainer(
       key: ValueKey('$keyPrefix-card'),
       duration: const Duration(milliseconds: 180),
@@ -31421,7 +31425,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
               ? LinearGradient(
                   colors: [
                     accent.withValues(alpha: 0.28),
-                    const Color(0x2234D399),
+                    OnyxColorTokens.accentGreen.withValues(alpha: 0.13),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -31443,7 +31447,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   selected ? Icons.task_alt_rounded : Icons.radio_button_off,
                   size: 14,
                   color: selected
-                      ? const Color(0xFF22C55E)
+                      ? OnyxColorTokens.accentGreen
                       : _adminDialogBodyColor,
                 ),
                 const SizedBox(width: 6),
@@ -31505,7 +31509,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
               child: Text(
                 timerHint,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9FD6FF),
+                  color: OnyxColorTokens.accentSky,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -31517,7 +31521,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   ? 'Profile is active and cadence defaults are staged.'
                   : 'Tap or stage this profile to load its cadence defaults.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF9AB1CF),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10.3,
                 fontWeight: FontWeight.w600,
                 height: 1.25,
@@ -31543,8 +31547,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     'NEXT',
                     style: GoogleFonts.inter(
                       color: selected
-                          ? const Color(0xFF8FD1FF)
-                          : const Color(0xFFBFE6FF),
+                          ? OnyxColorTokens.accentSky
+                          : OnyxColorTokens.accentSky,
                       fontSize: 8.7,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
@@ -31632,7 +31636,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
         (currentLat - lat).abs() < 0.0002 &&
         (currentLng - lng).abs() < 0.0002;
     final keyValue = label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-    const accent = Color(0xFF38BDF8);
+    const accent = OnyxColorTokens.accentSky;
     return InkWell(
       key: ValueKey('site-onboarding-coordinate-preset-$keyValue-card'),
       borderRadius: BorderRadius.circular(12),
@@ -31661,7 +31665,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 const Icon(
                   Icons.pin_drop_rounded,
                   size: 13,
-                  color: Color(0xFF3C79BB),
+                  color: OnyxColorTokens.accentBlue,
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -31745,8 +31749,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     'NEXT',
                     style: GoogleFonts.inter(
                       color: selected
-                          ? const Color(0xFF8FD1FF)
-                          : const Color(0xFFBFE6FF),
+                          ? OnyxColorTokens.accentSky
+                          : OnyxColorTokens.accentSky,
                       fontSize: 8.7,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
@@ -31803,7 +31807,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
             ),
             icon: const Icon(Icons.tune_rounded, size: 14),
             style: _onboardingInlineActionStyle(
-              accent: const Color(0xFF0E8B8F),
+              accent: OnyxColorTokens.accentTeal,
             ),
             label: Text(
               'Risk Default (${recommended}m)',
@@ -31825,7 +31829,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
   }) {
     final selected = current == preset;
     final recommendedTile = recommended == preset;
-    const accent = Color(0xFF34D399);
+    const accent = OnyxColorTokens.accentGreen;
     return InkWell(
       key: ValueKey('site-onboarding-geofence-preset-$preset-card'),
       borderRadius: BorderRadius.circular(12),
@@ -31851,7 +31855,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 const Icon(
                   Icons.radio_button_checked_rounded,
                   size: 13,
-                  color: Color(0xFF3C79BB),
+                  color: OnyxColorTokens.accentBlue,
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -31939,10 +31943,10 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     'NEXT',
                     style: GoogleFonts.inter(
                       color: selected
-                          ? const Color(0xFF8FD1FF)
+                          ? OnyxColorTokens.accentSky
                           : recommendedTile
-                          ? const Color(0xFFBFE6FF)
-                          : const Color(0xFFF1B872),
+                          ? OnyxColorTokens.accentSky
+                          : OnyxColorTokens.accentAmber,
                       fontSize: 8.7,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
@@ -32056,7 +32060,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
   }) {
     final selected = _entryProtocolController.text.trim() == template;
     final keyValue = label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-    const accent = Color(0xFF34D399);
+    const accent = OnyxColorTokens.accentGreen;
     return InkWell(
       key: ValueKey('site-onboarding-entry-protocol-$keyValue-card'),
       borderRadius: BorderRadius.circular(12),
@@ -32082,7 +32086,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 const Icon(
                   Icons.fact_check_rounded,
                   size: 13,
-                  color: Color(0xFF3C79BB),
+                  color: OnyxColorTokens.accentBlue,
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -32167,8 +32171,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     'NEXT',
                     style: GoogleFonts.inter(
                       color: selected
-                          ? const Color(0xFF8FD1FF)
-                          : const Color(0xFFBFE6FF),
+                          ? OnyxColorTokens.accentSky
+                          : OnyxColorTokens.accentSky,
                       fontSize: 8.7,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
@@ -32272,7 +32276,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
     required Color accent,
     required Widget child,
   }) {
-    final resolvedAccent = ready ? accent : const Color(0xFFF59E0B);
+    final resolvedAccent = ready ? accent : OnyxColorTokens.accentAmber;
     return Container(
       key: ValueKey('$keyPrefix-shell'),
       width: double.infinity,
@@ -32415,15 +32419,15 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 label: 'Nudge',
                 value: nudgeReady ? '$nudge min' : 'queue',
                 color: nudgeReady
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Escalation',
                 value: escalationReady ? '$escalation min' : 'queue',
                 color: escalationReady
-                    ? const Color(0xFF7EF2C3)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -32431,7 +32435,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
               label: 'Apply Risk Ops Pack',
               icon: Icons.auto_fix_high_rounded,
               onPressed: _applyRiskOpsPack,
-              foregroundColor: const Color(0xFFEAF4FF),
+              foregroundColor: OnyxColorTokens.textPrimary,
               borderColor: accent.withValues(alpha: 0.85),
               backgroundColor: accent.withValues(alpha: 0.88),
               filled: true,
@@ -32445,7 +32449,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 icon: Icons.restore_rounded,
                 onPressed: () =>
                     setState(() => _applyRiskDefaults(_riskProfile)),
-                foregroundColor: const Color(0xFFEAF4FF),
+                foregroundColor: OnyxColorTokens.textPrimary,
                 borderColor: accent.withValues(alpha: 0.68),
               ),
             ],
@@ -32486,7 +32490,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
           Text(
             'Defaults are auto-loaded from the selected risk profile. Override only when client SLA needs custom cadence.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -32570,8 +32574,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
         ? 'Suggested URL'
         : 'Location Live';
     final accent = readyCount >= 4
-        ? const Color(0xFF22C55E)
-        : (readyCount >= 2 ? const Color(0xFF38BDF8) : const Color(0xFFF97316));
+        ? OnyxColorTokens.accentGreen
+        : (readyCount >= 2 ? OnyxColorTokens.accentSky : OnyxColorTokens.accentAmber);
     return AnimatedContainer(
       key: const ValueKey('site-onboarding-location-integrity-card'),
       duration: const Duration(milliseconds: 200),
@@ -32693,29 +32697,29 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 label: 'Ready',
                 value: '$readyCount/5',
                 color: readyCount >= 4
-                    ? const Color(0xFF7EF2C3)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Radius',
                 value: geofence == null ? 'queue' : '${geofence}m',
                 color: geofenceHealthy
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Flow',
                 value: hasEntryProtocol ? 'live' : 'queue',
                 color: hasEntryProtocol
-                    ? const Color(0xFFBFD7F2)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.textSecondary
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Map',
                 value: hasMap ? 'linked' : 'queue',
                 color: hasMap
-                    ? const Color(0xFF7EF2C3)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -32742,7 +32746,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   ? () =>
                         setState(() => _mapUrlController.text = suggestedMapUrl)
                   : null,
-              foregroundColor: const Color(0xFFEAF4FF),
+              foregroundColor: OnyxColorTokens.textPrimary,
               borderColor: accent.withValues(alpha: 0.85),
               backgroundColor: accent.withValues(alpha: 0.88),
               filled: true,
@@ -32758,7 +32762,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   onPressed: () => setState(
                     () => _geofenceController.text = recommended.toString(),
                   ),
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   borderColor: accent.withValues(alpha: 0.68),
                 ),
               if (!protocolAligned)
@@ -32771,7 +32775,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   onPressed: () => setState(
                     () => _entryProtocolController.text = recommendedProtocol,
                   ),
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   borderColor: accent.withValues(alpha: 0.68),
                 ),
               if (!mapAligned)
@@ -32783,7 +32787,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   icon: Icons.link_rounded,
                   onPressed: () =>
                       setState(() => _mapUrlController.text = suggestedMapUrl),
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   borderColor: accent.withValues(alpha: 0.68),
                 ),
             ],
@@ -32892,9 +32896,9 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 children: [
                   Positioned.fill(
                     child: Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0xFFF8FBFF), Color(0xFFEAF6FF)],
+                          colors: [OnyxColorTokens.surfaceElevated, OnyxColorTokens.textPrimary.withValues(alpha: 0.95)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -32926,12 +32930,12 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     child: Container(
                       width: math.max(10.0, ringRadius * 0.36),
                       height: math.max(10.0, ringRadius * 0.36),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Color(0xFF7EF2C3),
+                        color: OnyxColorTokens.accentGreen,
                         boxShadow: [
                           BoxShadow(
-                            color: Color(0x5522D3EE),
+                            color: OnyxColorTokens.accentSky.withValues(alpha: 0.33),
                             blurRadius: 10,
                             spreadRadius: 2,
                           ),
@@ -33010,8 +33014,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 label: 'Anchor',
                 value: hasCoords ? 'live' : 'queue',
                 color: hasCoords
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Route',
@@ -33021,10 +33025,10 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     ? 'ops-live'
                     : 'local',
                 color: canOpenTactical
-                    ? const Color(0xFF9FE8FF)
+                    ? OnyxColorTokens.accentSky
                     : canOpenOperations
-                    ? const Color(0xFFBFD7F2)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.textSecondary
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -33052,7 +33056,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   : canOpenOperations
                   ? _openOperationsPreview
                   : null,
-              foregroundColor: const Color(0xFFEAF4FF),
+              foregroundColor: OnyxColorTokens.textPrimary,
               borderColor: accent.withValues(alpha: 0.85),
               backgroundColor: accent.withValues(alpha: 0.88),
               filled: true,
@@ -33066,7 +33070,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   label: 'OPEN SECURITY DESK',
                   icon: Icons.space_dashboard_rounded,
                   onPressed: _openOperationsPreview,
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   borderColor: accent.withValues(alpha: 0.68),
                 ),
             ],
@@ -33085,7 +33089,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
     String? readyMicroValue,
     String? pendingMicroValue,
   }) {
-    final accent = ready ? const Color(0xFF34D399) : const Color(0xFFF97316);
+    final accent = ready ? OnyxColorTokens.accentGreen : OnyxColorTokens.accentAmber;
     final statusLabel = ready ? 'LOCKED' : 'PENDING';
     final resolvedValue = value ?? (ready ? 'Ready' : 'Needs input');
     final resolvedMicroValue = ready
@@ -33120,8 +33124,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                       : Icons.error_outline_rounded,
                   size: 12.5,
                   color: ready
-                      ? const Color(0xFF7EF2C3)
-                      : const Color(0xFFB45309),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.amberBorder,
                 ),
               ),
               const SizedBox(width: 6),
@@ -33195,8 +33199,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   'NEXT',
                   style: GoogleFonts.inter(
                     color: ready
-                        ? const Color(0xFF8FD1FF)
-                        : const Color(0xFFF1B872),
+                        ? OnyxColorTokens.accentSky
+                        : OnyxColorTokens.accentAmber,
                     fontSize: 8.7,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
@@ -33354,8 +33358,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 label: 'Timing',
                 value: timingsReady ? 'sealed' : 'queue',
                 color: timingsReady
-                    ? const Color(0xFF7EF2C3)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Route',
@@ -33365,10 +33369,10 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     ? 'ops-live'
                     : 'local',
                 color: canOpenTactical
-                    ? const Color(0xFF9FE8FF)
+                    ? OnyxColorTokens.accentSky
                     : canOpenOperations
-                    ? const Color(0xFFBFD7F2)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.textSecondary
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -33396,7 +33400,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   : canOpenOperations
                   ? _openOperationsPreview
                   : _applyRiskOpsPack,
-              foregroundColor: const Color(0xFFEAF4FF),
+              foregroundColor: OnyxColorTokens.textPrimary,
               borderColor: accent.withValues(alpha: 0.85),
               backgroundColor: accent.withValues(alpha: 0.88),
               filled: true,
@@ -33407,7 +33411,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 label: 'Apply Ops Pack',
                 icon: Icons.auto_fix_high_rounded,
                 onPressed: _applyRiskOpsPack,
-                foregroundColor: const Color(0xFFEAF4FF),
+                foregroundColor: OnyxColorTokens.textPrimary,
                 borderColor: accent.withValues(alpha: 0.68),
               ),
               if (timingsReady && canOpenTactical && canOpenOperations)
@@ -33418,7 +33422,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   label: 'OPEN SECURITY DESK',
                   icon: Icons.space_dashboard_rounded,
                   onPressed: _openOperationsPreview,
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   borderColor: accent.withValues(alpha: 0.68),
                 ),
             ],
@@ -33589,17 +33593,17 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     ? 'tactical'
                     : 'local',
                 color: canOpenOperations
-                    ? const Color(0xFF8FD1FF)
+                    ? OnyxColorTokens.accentSky
                     : canOpenTactical
-                    ? const Color(0xFFBFD7F2)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.textSecondary
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Timers',
                 value: valid ? 'sealed' : 'queue',
                 color: valid
-                    ? const Color(0xFF7EF2C3)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -33627,7 +33631,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   : canOpenTactical
                   ? _openTacticalPreview
                   : null,
-              foregroundColor: const Color(0xFFEAF4FF),
+              foregroundColor: OnyxColorTokens.textPrimary,
               borderColor: cadenceColor.withValues(alpha: 0.85),
               backgroundColor: cadenceColor.withValues(alpha: 0.88),
               filled: true,
@@ -33641,7 +33645,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   label: 'OPEN TACTICAL TRACK',
                   icon: Icons.map_rounded,
                   onPressed: _openTacticalPreview,
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   borderColor: cadenceColor.withValues(alpha: 0.68),
                 ),
             ],
@@ -33663,7 +33667,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
     String? pendingMicroValue,
   }) {
     final statusLabel = ready ? 'LIVE' : 'QUEUE';
-    final resolvedAccent = ready ? accent : const Color(0xFFF97316);
+    final resolvedAccent = ready ? accent : OnyxColorTokens.accentAmber;
     final resolvedMicroValue = ready
         ? (readyMicroValue ?? 'Keep live')
         : (pendingMicroValue ?? 'Stage signal');
@@ -33765,8 +33769,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   'NEXT',
                   style: GoogleFonts.inter(
                     color: ready
-                        ? const Color(0xFF8FD1FF)
-                        : const Color(0xFFF1B872),
+                        ? OnyxColorTokens.accentSky
+                        : OnyxColorTokens.accentAmber,
                     fontSize: 8.7,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
@@ -33798,14 +33802,14 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
   Color _riskProfileAccent(String profile) {
     switch (profile) {
       case 'industrial':
-        return const Color(0xFFF97316);
+        return OnyxColorTokens.accentAmber;
       case 'residential':
-        return const Color(0xFF22C55E);
+        return OnyxColorTokens.accentGreen;
       case 'commercial':
-        return const Color(0xFF38BDF8);
+        return OnyxColorTokens.accentSky;
       case 'mixed_use':
       default:
-        return const Color(0xFFA78BFA);
+        return OnyxColorTokens.accentPurple;
     }
   }
 
@@ -33828,14 +33832,14 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
   Color _riskCadenceTierColor(String tier) {
     switch (tier) {
       case 'Aggressive':
-        return const Color(0xFFF97316);
+        return OnyxColorTokens.accentAmber;
       case 'Balanced':
-        return const Color(0xFF22C55E);
+        return OnyxColorTokens.accentGreen;
       case 'Conservative':
-        return const Color(0xFF38BDF8);
+        return OnyxColorTokens.accentSky;
       case 'Cadence Pending':
       default:
-        return const Color(0xFFA78BFA);
+        return OnyxColorTokens.accentPurple;
     }
   }
 
@@ -33954,7 +33958,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
       context,
       'Client demo script copied for command review.',
       sourceLabel: 'CLIENT PROMISE',
-      accent: const Color(0xFF7FD8A5),
+      accent: OnyxColorTokens.accentGreen,
       detail:
           'The promise script stays visible in the desktop rail while you keep tuning the client briefing flow.',
     );
@@ -34006,7 +34010,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
       padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.14), const Color(0xFFF8FBFF)],
+          colors: [accent.withValues(alpha: 0.14), OnyxColorTokens.surfaceElevated],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -34041,7 +34045,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 child: Text(
                   nextMoveLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 9.2,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.3,
@@ -34104,7 +34108,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
               escalationMinutes: escalationMinutes,
             ),
             style: GoogleFonts.inter(
-              color: const Color(0xFFCEE4FA),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 10.6,
               fontWeight: FontWeight.w600,
               height: 1.28,
@@ -34132,15 +34136,15 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     ? 'tactical'
                     : 'copy',
                 color: _canOpenOperationsPreviewAction
-                    ? const Color(0xFF8FD1FF)
+                    ? OnyxColorTokens.accentSky
                     : _canOpenTacticalPreviewAction
-                    ? const Color(0xFFBFD7F2)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.textSecondary
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Proof',
                 value: 'timings-live',
-                color: const Color(0xFF7EF2C3),
+                color: OnyxColorTokens.accentGreen,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -34160,7 +34164,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   : _canOpenTacticalPreviewAction
                   ? _openTacticalPreview
                   : () => _copyClientPromiseScript(script),
-              foregroundColor: const Color(0xFFEAF4FF),
+              foregroundColor: OnyxColorTokens.textPrimary,
               borderColor: accent.withValues(alpha: 0.85),
               backgroundColor: accent.withValues(alpha: 0.88),
               filled: true,
@@ -34173,7 +34177,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   label: 'OPEN TACTICAL TRACK',
                   icon: Icons.map_rounded,
                   onPressed: _openTacticalPreview,
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   borderColor: accent.withValues(alpha: 0.68),
                 ),
               _OnboardingCommandActionConfig(
@@ -34181,7 +34185,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 label: 'Copy Demo Script',
                 icon: Icons.content_copy_rounded,
                 onPressed: () => _copyClientPromiseScript(script),
-                foregroundColor: const Color(0xFFEAF4FF),
+                foregroundColor: OnyxColorTokens.textPrimary,
                 borderColor: accent.withValues(alpha: 0.68),
               ),
             ],
@@ -34429,11 +34433,11 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   ? _runDemoReady()
                   : 'Site deployment pack is ready for final review.',
             ),
-      foregroundColor: const Color(0xFFEAF4FF),
-      borderColor: const Color(0xFF1D4ED8),
+      foregroundColor: OnyxColorTokens.textPrimary,
+      borderColor: OnyxColorTokens.accentBlue,
       backgroundColor: _allGatesReady
-          ? const Color(0xFF0F766E)
-          : const Color(0xFF1D4ED8),
+          ? OnyxColorTokens.accentTeal
+          : OnyxColorTokens.accentBlue,
       filled: true,
     );
     final siteSecondaryActions = <_OnboardingCommandActionConfig>[
@@ -34443,8 +34447,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
           label: 'Security Desk',
           icon: Icons.space_dashboard_rounded,
           onPressed: _openOperationsPreview,
-          foregroundColor: const Color(0xFFBFD7F2),
-          borderColor: const Color(0xFF35506F),
+          foregroundColor: OnyxColorTokens.textSecondary,
+          borderColor: OnyxColorTokens.borderStrong,
         ),
       if (_canOpenTacticalPreviewAction &&
           (_siteTemplatePending ||
@@ -34455,24 +34459,24 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
           label: 'Tactical Track',
           icon: Icons.map_rounded,
           onPressed: _openTacticalPreview,
-          foregroundColor: const Color(0xFF9FE8FF),
-          borderColor: const Color(0xFF35506F),
+          foregroundColor: OnyxColorTokens.accentSky,
+          borderColor: OnyxColorTokens.borderStrong,
         ),
       _OnboardingCommandActionConfig(
         key: const ValueKey('site-onboarding-snapshot-brief'),
         label: 'Snapshot Brief',
         icon: Icons.receipt_long_rounded,
         onPressed: copySiteSnapshotBrief,
-        foregroundColor: const Color(0xFFD5EBFF),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
       _OnboardingCommandActionConfig(
         key: const ValueKey('site-onboarding-voice-brief'),
         label: 'Voice Brief',
         icon: Icons.mic_rounded,
         onPressed: copySitePitchBrief,
-        foregroundColor: const Color(0xFFBFE6FF),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
     ];
     return _adminDialogShell(
@@ -34486,7 +34490,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
             title: 'New Site Onboarding',
             subtitle:
                 'Configure location intelligence, entry protocols, and risk-driven automation defaults.',
-            accent: const Color(0xFF0E8B8F),
+            accent: OnyxColorTokens.accentTeal,
             responseTarget: 'Risk profile + geofence under 75s',
             confidenceLabel: 'Geo validation confidence 97.8%',
             talkTrackTitle: 'Site Demo Talk Track',
@@ -34503,7 +34507,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
           _onboardingCommandDeck(
             key: const ValueKey('site-onboarding-command-deck'),
             nextMoveKey: const ValueKey('site-onboarding-next-move'),
-            accent: const Color(0xFF0E8B8F),
+            accent: OnyxColorTokens.accentTeal,
             label: 'SITE COMMAND',
             headline: siteCommandHeadline,
             detail: siteCommandDetail,
@@ -34513,49 +34517,49 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 const _OnboardingCommandChipData(
                   label: 'Source',
                   value: 'telegram-approved',
-                  color: Color(0xFF7FD8A5),
+                  color: OnyxColorTokens.accentGreen,
                 ),
               if (telegramPrefill?.cameraCount != null)
                 _OnboardingCommandChipData(
                   label: 'Cameras',
                   value: '${telegramPrefill!.cameraCount}',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
               if (telegramVendor.isNotEmpty)
                 _OnboardingCommandChipData(
                   label: 'Vendor',
                   value: telegramVendor,
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentSky,
                 ),
               if (telegramPrefill?.wantsTelegramBinding ?? false)
                 const _OnboardingCommandChipData(
                   label: 'Bridge',
                   value: 'bind-ready',
-                  color: Color(0xFF7FD8A5),
+                  color: OnyxColorTokens.accentGreen,
                 ),
               _OnboardingCommandChipData(
                 label: 'Step',
                 value: '${_step + 1}/3',
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
               _OnboardingCommandChipData(
                 label: 'Readiness',
                 value: '$readyCount/${_previewGates.length}',
                 color: _allGatesReady
-                    ? const Color(0xFF34D399)
-                    : const Color(0xFFF59E0B),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Risk',
                 value: _riskProfile.replaceAll('_', ' '),
-                color: const Color(0xFFBFD7F2),
+                color: OnyxColorTokens.textSecondary,
               ),
               _OnboardingCommandChipData(
                 label: 'Scenario',
                 value: widget.demoMode
                     ? _siteScenarioLabel(_selectedSiteScenario)
                     : 'live',
-                color: const Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
               ),
             ],
             primaryAction: sitePrimaryAction,
@@ -34595,7 +34599,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                         ),
                         onPressed: focusSiteLocationFromTelegram,
                         style: _onboardingInlineActionStyle(
-                          accent: const Color(0xFF0E8B8F),
+                          accent: OnyxColorTokens.accentTeal,
                         ),
                         icon: const Icon(Icons.place_rounded, size: 14),
                         label: Text(
@@ -34612,7 +34616,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                         ),
                         onPressed: focusSiteRiskFromTelegram,
                         style: _onboardingInlineActionStyle(
-                          accent: const Color(0xFF0E8B8F),
+                          accent: OnyxColorTokens.accentTeal,
                         ),
                         icon: const Icon(Icons.shield_moon_rounded, size: 14),
                         label: Text(
@@ -34629,7 +34633,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                         ),
                         onPressed: copyTelegramSiteOperationalSeedBrief,
                         style: _onboardingInlineActionStyle(
-                          accent: const Color(0xFF0E8B8F),
+                          accent: OnyxColorTokens.accentTeal,
                         ),
                         icon: const Icon(Icons.content_copy_rounded, size: 14),
                         label: Text(
@@ -34646,7 +34650,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                         ),
                         onPressed: openCameraBridgeFromTelegramSeed,
                         style: _onboardingInlineActionStyle(
-                          accent: const Color(0xFF0E8B8F),
+                          accent: OnyxColorTokens.accentTeal,
                         ),
                         icon: const Icon(Icons.cameraswitch_rounded, size: 14),
                         label: Text(
@@ -34667,7 +34671,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
             const SizedBox(height: 8),
             _onboardingWorkflowActionsShelf(
               key: const ValueKey('site-onboarding-workflow-actions'),
-              accent: const Color(0xFF0E8B8F),
+              accent: OnyxColorTokens.accentTeal,
               label: 'WORKFLOW ACTIONS',
               headline: siteWorkflowHeadline,
               detail:
@@ -34686,19 +34690,19 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   label: 'Template',
                   value: _siteTemplatePending ? 'pending' : 'live',
                   color: _siteTemplatePending
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF34D399),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Scenario',
                   value: _siteScenarioLabel(_selectedSiteScenario),
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Blockers',
                   value:
                       '${(_previewGates.length - readyCount).clamp(0, _previewGates.length)}',
-                  color: const Color(0xFFBFD7F2),
+                  color: OnyxColorTokens.textSecondary,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Route',
@@ -34707,7 +34711,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                       : _canOpenTacticalPreviewAction
                       ? 'tactical track'
                       : 'brief',
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentSky,
                 ),
               ],
               children: [
@@ -34727,9 +34731,9 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: _siteTemplatePending
-                        ? const Color(0xFF9A4D08)
-                        : const Color(0xFF1F3A5A),
-                    foregroundColor: const Color(0xFFEAF4FF),
+                        ? OnyxColorTokens.amberBorder
+                        : OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     _siteTemplatePending
@@ -34752,8 +34756,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   },
                   icon: const Icon(Icons.rocket_launch_rounded, size: 16),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    backgroundColor: OnyxColorTokens.accentTeal,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     'Launch Demo',
@@ -34767,7 +34771,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   icon: Icon(_demoReadyButtonIcon, size: 16),
                   style: FilledButton.styleFrom(
                     backgroundColor: _demoReadyButtonColor,
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     _demoReadyButtonLabel,
@@ -34813,8 +34817,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   onPressed: _resetDemoPace,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8FD1FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Reset Pace',
@@ -34833,8 +34837,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   },
                   icon: const Icon(Icons.cleaning_services_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF9FD6FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Start Fresh',
@@ -34845,8 +34849,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   onPressed: focusSiteNextGap,
                   icon: const Icon(Icons.track_changes_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFFE1B8),
-                    side: const BorderSide(color: Color(0xFFB3742C)),
+                    foregroundColor: OnyxColorTokens.accentAmber,
+                    side: const BorderSide(color: OnyxColorTokens.amberBorder),
                   ),
                   label: Text(
                     'Next Gap',
@@ -34857,8 +34861,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   onPressed: copySitePitchBrief,
                   icon: const Icon(Icons.mic_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFBFE6FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Copy Pitch',
@@ -34870,8 +34874,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   onPressed: copySiteSnapshotBrief,
                   icon: const Icon(Icons.receipt_long_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFD5EBFF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Copy Snapshot',
@@ -34893,7 +34897,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
             Text(
               _error!,
               style: GoogleFonts.inter(
-                color: const Color(0xFFF87171),
+                color: OnyxColorTokens.accentRed,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -34901,14 +34905,14 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
           ],
           _creationPulseBanner(
             visible: _showCreatePulse,
-            accent: const Color(0xFF0E8B8F),
+            accent: OnyxColorTokens.accentTeal,
             label: 'Site footprint committed with risk automation defaults.',
             keyPrefix: 'site-onboarding-pulse',
           ),
           const SizedBox(height: 8),
           _stepSummary(
             currentStep: _step,
-            accent: const Color(0xFF0E8B8F),
+            accent: OnyxColorTokens.accentTeal,
             keyPrefix: 'site-onboarding-flow',
             labels: const ['Identity', 'Location', 'Risk'],
             onStepTap: (step) => setState(() => _step = step),
@@ -34918,7 +34922,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
           _demoPaceMeter(
             startedAt: _sessionStartedAt,
             targetSeconds: 75,
-            accent: const Color(0xFF0E8B8F),
+            accent: OnyxColorTokens.accentTeal,
             compact: compact,
             onRecover: widget.demoMode
                 ? () => _showOnboardingSnackBar(context, _recoverDemoPace())
@@ -34928,7 +34932,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
           const SizedBox(height: 8),
           _demoCoachCard(
             context: context,
-            accent: const Color(0xFF0E8B8F),
+            accent: OnyxColorTokens.accentTeal,
             currentStep: _step,
             compact: compact,
             keyPrefix: 'site-onboarding-coach',
@@ -34965,7 +34969,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
             title: 'Deployment Preview',
             entityLabel: 'Site',
             keyPrefix: 'site-onboarding-preview',
-            accent: const Color(0xFF0E8B8F),
+            accent: OnyxColorTokens.accentTeal,
             lines: _previewLines,
             gates: _previewGates,
             completion: _completionScore,
@@ -34983,7 +34987,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
             context: context,
             currentStep: _step,
             finalStep: 2,
-            accent: const Color(0xFF0E8B8F),
+            accent: OnyxColorTokens.accentTeal,
             entityLabel: 'Site',
             readyForCreate: _allGatesReady,
             onAdvance: _next,
@@ -34999,7 +35003,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'site-onboarding-step-panel-identity',
                   stageLabel: 'Identity',
-                  accent: const Color(0xFF0E8B8F),
+                  accent: OnyxColorTokens.accentTeal,
                   children: [
                     _dropdownField(
                       label: 'Client',
@@ -35050,7 +35054,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                             ),
                             icon: const Icon(Icons.tag_rounded, size: 14),
                             style: _onboardingInlineActionStyle(
-                              accent: const Color(0xFF0E8B8F),
+                              accent: OnyxColorTokens.accentTeal,
                             ),
                             label: Text(
                               'Generate Site ID',
@@ -35070,7 +35074,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                             ),
                             icon: const Icon(Icons.qr_code_2_rounded, size: 14),
                             style: _onboardingInlineActionStyle(
-                              accent: const Color(0xFF0E8B8F),
+                              accent: OnyxColorTokens.accentTeal,
                             ),
                             label: Text(
                               'Generate Site Code',
@@ -35095,7 +35099,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'site-onboarding-step-panel-location',
                   stageLabel: 'Location',
-                  accent: const Color(0xFF0E8B8F),
+                  accent: OnyxColorTokens.accentTeal,
                   children: [
                     _textField(_addressController, 'Physical Address'),
                     const SizedBox(height: 8),
@@ -35152,7 +35156,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                             size: 14,
                           ),
                           style: _onboardingInlineActionStyle(
-                            accent: const Color(0xFF0E8B8F),
+                            accent: OnyxColorTokens.accentTeal,
                           ),
                           label: Text(
                             'Use Suggested URL',
@@ -35180,7 +35184,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'site-onboarding-step-panel-risk',
                   stageLabel: 'Risk',
-                  accent: const Color(0xFF0E8B8F),
+                  accent: OnyxColorTokens.accentTeal,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _onboardingControlShell(
@@ -35198,7 +35202,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                           Text(
                             'Is this site High-Risk (Industrial) or Residential?',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
@@ -35343,7 +35347,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                                       ? 'Site-specific messaging is armed for this footprint.'
                                       : 'Client-level messaging will stay in control until you opt into a dedicated site bridge.',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFFEAF4FF),
+                                    color: OnyxColorTokens.textPrimary,
                                     fontSize: 11.2,
                                     fontWeight: FontWeight.w700,
                                     height: 1.28,
@@ -35362,8 +35366,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                                     }
                                   });
                                 },
-                                activeThumbColor: const Color(0xFF22C55E),
-                                activeTrackColor: const Color(0x6634D399),
+                                activeThumbColor: OnyxColorTokens.accentGreen,
+                                activeTrackColor: OnyxColorTokens.accentGreen.withValues(alpha: 0.4),
                               ),
                             ],
                           ),
@@ -35387,7 +35391,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                             Text(
                               'Tip: use /whoami in the admin Telegram group to capture chat_id/thread_id values quickly.',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF9AB1CF),
+                                color: OnyxColorTokens.textSecondary,
                                 fontSize: 10.8,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -35497,7 +35501,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
         headline: message,
         detail:
             'Latest employee onboarding action stays pinned in this workspace while you keep shaping readiness and roster handoff.',
-        accent: const Color(0xFF5C66D6),
+        accent: OnyxColorTokens.accentPurple,
       );
     });
   }
@@ -35787,7 +35791,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
         context,
         entityLabel: 'Employee',
         gates: _previewGates,
-        accent: const Color(0xFF5C66D6),
+        accent: OnyxColorTokens.accentPurple,
       );
       if (!proceed) {
         final target = _nextIncompleteStep;
@@ -36129,7 +36133,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
       _allGatesReady ? Icons.task_alt_rounded : Icons.bolt_rounded;
 
   Color get _demoReadyButtonColor =>
-      _allGatesReady ? const Color(0xFF0F766E) : const Color(0xFF5C66D6);
+      _allGatesReady ? OnyxColorTokens.accentTeal : OnyxColorTokens.accentPurple;
 
   bool get _employeeTemplatePending =>
       _selectedEmployeeScenario != _appliedEmployeeScenario;
@@ -36191,7 +36195,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     required String hint,
     required bool ready,
   }) {
-    final accent = ready ? const Color(0xFF5C66D6) : const Color(0xFFF97316);
+    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
     return AnimatedContainer(
       key: ValueKey('$keyPrefix-card'),
       duration: const Duration(milliseconds: 180),
@@ -36340,7 +36344,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       }),
                 icon: const Icon(Icons.apartment_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   clientAnchored ? 'Primary Client' : 'Stage First Client',
@@ -36357,7 +36361,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 onPressed: () => setState(() => _role = suggestedRole),
                 icon: const Icon(Icons.work_history_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   roleAligned ? 'Scenario Role Live' : 'Stage Scenario Role',
@@ -36380,7 +36384,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : null,
                 icon: const Icon(Icons.refresh_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Reset Scope',
@@ -36434,7 +36438,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : () => setState(() => _assignedSiteId = firstSiteId),
                 icon: const Icon(Icons.add_task_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   hasAssignment ? 'Reassign First Site' : 'Assign First Site',
@@ -36451,7 +36455,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : null,
                 icon: const Icon(Icons.backspace_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Clear Assignment',
@@ -36553,7 +36557,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 }),
                 icon: const Icon(Icons.drive_eta_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Stage Driver Pack',
@@ -36580,7 +36584,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 }),
                 icon: const Icon(Icons.verified_user_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Stage PDP Pack',
@@ -36605,7 +36609,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : null,
                 icon: const Icon(Icons.backspace_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Clear Mobility',
@@ -36650,7 +36654,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
             'Client Comms: ${_selectedEmployeeClientLabel()}',
             key: const ValueKey('employee-onboarding-assignment-route-client'),
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB3CC),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 9.8,
               fontWeight: FontWeight.w700,
             ),
@@ -36676,8 +36680,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   child: DropdownButton<String>(
                     value: _assignedSiteId,
                     isExpanded: true,
-                    iconEnabledColor: const Color(0xFF9FD6FF),
-                    dropdownColor: const Color(0xFF13131E),
+                    iconEnabledColor: OnyxColorTokens.accentSky,
+                    dropdownColor: OnyxColorTokens.backgroundSecondary,
                     items: [
                       const DropdownMenuItem<String>(
                         value: '',
@@ -36695,7 +36699,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       setState(() => _assignedSiteId = value);
                     },
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF4FF),
+                      color: OnyxColorTokens.textPrimary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -36718,7 +36722,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : () => setState(() => _assignedSiteId = firstSiteId),
                 icon: const Icon(Icons.domain_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   hasAssignment ? 'Re-stage First Site' : 'Stage First Site',
@@ -36737,7 +36741,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : null,
                 icon: const Icon(Icons.pause_circle_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Hold Standby',
@@ -36945,8 +36949,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               'employee-onboarding-compliance-command-next-move',
             ),
             accent: compliant
-                ? const Color(0xFF5C66D6)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentPurple
+                : OnyxColorTokens.accentAmber,
             label: 'COMPLIANCE COMMAND',
             headline: compliant
                 ? 'Compliance seal is ready for handoff'
@@ -36968,15 +36972,15 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Grade',
                 value: _psiraGrade,
                 color: _psiraGrade == suggestedGrade
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Expiry',
                 value: hasExpiry ? 'SEALED' : 'PENDING',
                 color: hasExpiry
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -36990,9 +36994,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 _psiraGrade = suggestedGrade;
                 _psiraExpiry ??= DateTime.now().add(const Duration(days: 540));
               }),
-              foregroundColor: const Color(0xFFEAF4FF),
-              borderColor: const Color(0x665C66D6),
-              backgroundColor: const Color(0xFF5C66D6),
+              foregroundColor: OnyxColorTokens.textPrimary,
+              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+              backgroundColor: OnyxColorTokens.accentPurple,
               filled: true,
             ),
             secondaryActions: [
@@ -37006,8 +37010,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                         _psiraExpiry = null;
                       })
                     : null,
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -37046,8 +37050,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               'employee-onboarding-identity-quick-focus-next-move',
             ),
             accent: roleAligned && codeAligned && identityAligned
-                ? const Color(0xFF5C66D6)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentPurple
+                : OnyxColorTokens.accentAmber,
             label: 'IDENTITY QUICK FOCUS',
             headline: roleAligned && codeAligned && identityAligned
                 ? 'Scenario identity pack is staged'
@@ -37063,15 +37067,15 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Role',
                 value: _selectedEmployeeRoleLabel(),
                 color: roleAligned
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Code',
                 value: codeAligned ? 'ALIGNED' : 'PENDING',
                 color: codeAligned
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -37087,9 +37091,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 _surnameController.text = suggestedSurname;
                 _idNumberController.text = suggestedId;
               }),
-              foregroundColor: const Color(0xFFEAF4FF),
-              borderColor: const Color(0x665C66D6),
-              backgroundColor: const Color(0xFF5C66D6),
+              foregroundColor: OnyxColorTokens.textPrimary,
+              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+              backgroundColor: OnyxColorTokens.accentPurple,
               filled: true,
             ),
             secondaryActions: [
@@ -37100,8 +37104,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Stage Role',
                 icon: Icons.work_rounded,
                 onPressed: () => setState(() => _role = suggestedRole),
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -37112,8 +37116,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 onPressed: () => setState(
                   () => _employeeCodeController.text = suggestedCode,
                 ),
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -37126,8 +37130,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   _surnameController.text = suggestedSurname;
                   _idNumberController.text = suggestedId;
                 }),
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -37151,8 +37155,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? 'Scope live'
                     : 'Drive scope',
                 microColor: _role == suggestedRole
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _employeeQuickPickCard(
                 keyPrefix: 'employee-onboarding-identity-code',
@@ -37171,8 +37175,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? 'Registry live'
                     : 'Seed registry',
                 microColor: _employeeCodeController.text.trim() == suggestedCode
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _employeeQuickPickCard(
                 keyPrefix: 'employee-onboarding-identity-pack',
@@ -37193,8 +37197,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 microLabel: 'NEXT',
                 microValue: identityAligned ? 'Proof live' : 'Seed proof',
                 microColor: identityAligned
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
           ),
@@ -37231,8 +37235,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               'employee-onboarding-client-quick-focus-next-move',
             ),
             accent: hasClient
-                ? const Color(0xFF5C66D6)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentPurple
+                : OnyxColorTokens.accentAmber,
             label: 'CLIENT QUICK FOCUS',
             headline: hasClient
                 ? 'Client scope is already anchored'
@@ -37246,13 +37250,13 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Current',
                 value: _selectedEmployeeClientLabel(),
                 color: hasClient
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Scenario',
                 value: _employeeScenarioLabel(_selectedEmployeeScenario),
-                color: const Color(0xFFB6C9DF),
+                color: OnyxColorTokens.textSecondary,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -37267,9 +37271,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       _clientId = firstClientId;
                       _assignedSiteId = '';
                     }),
-              foregroundColor: const Color(0xFFEAF4FF),
-              borderColor: const Color(0x665C66D6),
-              backgroundColor: const Color(0xFF5C66D6),
+              foregroundColor: OnyxColorTokens.textPrimary,
+              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+              backgroundColor: OnyxColorTokens.accentPurple,
               filled: true,
             ),
             secondaryActions: [
@@ -37282,8 +37286,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 onPressed: _assignedSiteId.trim().isNotEmpty
                     ? () => setState(() => _assignedSiteId = '')
                     : null,
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -37312,8 +37316,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       ? 'Stage identity'
                       : 'Drive scope',
                   microColor: _clientId == client.id
-                      ? const Color(0xFF8FD1FF)
-                      : const Color(0xFFF1B872),
+                      ? OnyxColorTokens.accentSky
+                      : OnyxColorTokens.accentAmber,
                 ),
             ],
           ),
@@ -37348,8 +37352,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               'employee-onboarding-role-quick-focus-next-move',
             ),
             accent: roleAligned
-                ? const Color(0xFF5C66D6)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentPurple
+                : OnyxColorTokens.accentAmber,
             label: 'ROLE QUICK FOCUS',
             headline: roleAligned
                 ? 'Scenario role is already staged'
@@ -37363,13 +37367,13 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Current',
                 value: _selectedEmployeeRoleLabel(),
                 color: hasRole
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Scenario',
                 value: suggestedRole.replaceAll('_', ' ').toUpperCase(),
-                color: const Color(0xFFB6C9DF),
+                color: OnyxColorTokens.textSecondary,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -37381,9 +37385,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   : 'Stage Scenario Role',
               icon: Icons.work_rounded,
               onPressed: () => setState(() => _role = suggestedRole),
-              foregroundColor: const Color(0xFFEAF4FF),
-              borderColor: const Color(0x665C66D6),
-              backgroundColor: const Color(0xFF5C66D6),
+              foregroundColor: OnyxColorTokens.textPrimary,
+              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+              backgroundColor: OnyxColorTokens.accentPurple,
               filled: true,
             ),
             secondaryActions: [
@@ -37396,8 +37400,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? Icons.task_alt_rounded
                     : Icons.pending_actions_rounded,
                 onPressed: null,
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -37427,8 +37431,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   microLabel: 'NEXT',
                   microValue: _role == role ? 'Stage registry' : 'Drive role',
                   microColor: _role == role
-                      ? const Color(0xFF8FD1FF)
-                      : const Color(0xFFF1B872),
+                      ? OnyxColorTokens.accentSky
+                      : OnyxColorTokens.accentAmber,
                 ),
             ],
           ),
@@ -37502,8 +37506,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               'employee-onboarding-identity-registry-command-next-move',
             ),
             accent: hasCode && hasName && hasId
-                ? const Color(0xFF5C66D6)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentPurple
+                : OnyxColorTokens.accentAmber,
             label: 'REGISTRY COMMAND',
             headline: hasCode && hasName && hasId
                 ? 'Identity registry is ready for handoff'
@@ -37525,15 +37529,15 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Code',
                 value: hasCode ? 'LIVE' : 'PENDING',
                 color: hasCode
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Identity',
                 value: hasName && hasId ? 'VERIFIED' : 'QUEUE',
                 color: hasName && hasId
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -37548,9 +37552,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 _surnameController.text = _suggestedEmployeeSurname();
                 _idNumberController.text = _suggestedEmployeeIdentityNumber();
               }),
-              foregroundColor: const Color(0xFFEAF4FF),
-              borderColor: const Color(0x665C66D6),
-              backgroundColor: const Color(0xFF5C66D6),
+              foregroundColor: OnyxColorTokens.textPrimary,
+              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+              backgroundColor: OnyxColorTokens.accentPurple,
               filled: true,
             ),
             secondaryActions: [
@@ -37568,8 +37572,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                         _idNumberController.clear();
                       })
                     : null,
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -37691,7 +37695,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     String? microValue,
     Color? microColor,
   }) {
-    final accent = active ? const Color(0xFF5C66D6) : const Color(0xFF35506F);
+    final accent = active ? OnyxColorTokens.accentPurple : OnyxColorTokens.borderStrong;
     return InkWell(
       key: ValueKey('$keyPrefix-card'),
       borderRadius: BorderRadius.circular(12),
@@ -37851,8 +37855,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               'employee-onboarding-compliance-quick-focus-next-move',
             ),
             accent: numberAligned && gradeAligned
-                ? const Color(0xFF5C66D6)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentPurple
+                : OnyxColorTokens.accentAmber,
             label: 'COMPLIANCE QUICK FOCUS',
             headline: numberAligned && gradeAligned
                 ? 'Compliance pack is already staged'
@@ -37868,15 +37872,15 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Number',
                 value: numberAligned ? 'ALIGNED' : 'PENDING',
                 color: numberAligned
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Grade',
                 value: _psiraGrade.trim().isEmpty ? 'UNSET' : _psiraGrade,
                 color: gradeAligned
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -37889,9 +37893,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 _psiraNumberController.text = suggestedNumber;
                 _psiraGrade = suggestedGrade;
               }),
-              foregroundColor: const Color(0xFFEAF4FF),
-              borderColor: const Color(0x665C66D6),
-              backgroundColor: const Color(0xFF5C66D6),
+              foregroundColor: OnyxColorTokens.textPrimary,
+              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+              backgroundColor: OnyxColorTokens.accentPurple,
               filled: true,
             ),
             secondaryActions: [
@@ -37904,8 +37908,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 onPressed: () => setState(
                   () => _psiraNumberController.text = suggestedNumber,
                 ),
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -37914,8 +37918,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Stage Grade',
                 icon: Icons.shield_rounded,
                 onPressed: () => setState(() => _psiraGrade = suggestedGrade),
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -37943,8 +37947,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : 'Seed number',
                 microColor:
                     _psiraNumberController.text.trim() == suggestedNumber
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _employeeQuickPickCard(
                 keyPrefix: 'employee-onboarding-compliance-role-grade',
@@ -37961,8 +37965,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? 'Grade live'
                     : 'Match role',
                 microColor: _psiraGrade == suggestedGrade
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
           ),
@@ -37993,8 +37997,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               'employee-onboarding-assignment-quick-focus-next-move',
             ),
             accent: hasAssignment
-                ? const Color(0xFF5C66D6)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentPurple
+                : OnyxColorTokens.accentAmber,
             label: 'ASSIGNMENT QUICK FOCUS',
             headline: hasAssignment
                 ? 'Primary site route is already anchored'
@@ -38008,13 +38012,13 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Current',
                 value: _assignedEmployeeSiteLabel(),
                 color: hasAssignment
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Client',
                 value: _selectedEmployeeClientLabel(),
-                color: const Color(0xFFB6C9DF),
+                color: OnyxColorTokens.textSecondary,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -38026,9 +38030,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               onPressed: firstSiteId == null
                   ? null
                   : () => setState(() => _assignedSiteId = firstSiteId),
-              foregroundColor: const Color(0xFFEAF4FF),
-              borderColor: const Color(0x665C66D6),
-              backgroundColor: const Color(0xFF5C66D6),
+              foregroundColor: OnyxColorTokens.textPrimary,
+              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+              backgroundColor: OnyxColorTokens.accentPurple,
               filled: true,
             ),
             secondaryActions: [
@@ -38041,8 +38045,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 onPressed: hasAssignment
                     ? () => setState(() => _assignedSiteId = '')
                     : null,
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -38068,8 +38072,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       ? 'Route live'
                       : 'Stage route',
                   microColor: _assignedSiteId == site.id
-                      ? const Color(0xFF8FD1FF)
-                      : const Color(0xFFF1B872),
+                      ? OnyxColorTokens.accentSky
+                      : OnyxColorTokens.accentAmber,
                 ),
               _employeeQuickPickCard(
                 keyPrefix: 'employee-onboarding-assignment-site-unassigned',
@@ -38088,8 +38092,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? 'Roster held'
                     : 'Clear route',
                 microColor: _assignedSiteId.trim().isEmpty
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
           ),
@@ -38130,7 +38134,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 ),
                 icon: const Icon(Icons.badge_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Stage Number',
@@ -38148,7 +38152,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     setState(() => _psiraGrade = _suggestedPsiraGradeForRole()),
                 icon: const Icon(Icons.shield_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   gradeAligned ? 'Role Grade Live' : 'Stage Role Grade',
@@ -38170,7 +38174,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : null,
                 icon: const Icon(Icons.backspace_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Clear Overrides',
@@ -38226,7 +38230,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
             nextMoveKey: const ValueKey(
               'employee-onboarding-contact-quick-focus-next-move',
             ),
-            accent: hasAll ? const Color(0xFF5C66D6) : const Color(0xFFF59E0B),
+            accent: hasAll ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber,
             label: 'CONTACT QUICK FOCUS',
             headline: hasAll
                 ? 'Scenario contact pack is fully staged'
@@ -38240,15 +38244,15 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 label: 'Channels',
                 value: '$stagedCount/3',
                 color: hasAll
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Scenario',
                 value: _employeeScenarioLabel(
                   _selectedEmployeeScenario,
                 ).toUpperCase(),
-                color: const Color(0xFFB6C9DF),
+                color: OnyxColorTokens.textSecondary,
               ),
             ],
             primaryAction: _OnboardingCommandActionConfig(
@@ -38262,9 +38266,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 _phoneController.text = suggestedPhone;
                 _emailController.text = suggestedEmail;
               }),
-              foregroundColor: const Color(0xFFEAF4FF),
-              borderColor: const Color(0x665C66D6),
-              backgroundColor: const Color(0xFF5C66D6),
+              foregroundColor: OnyxColorTokens.textPrimary,
+              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+              backgroundColor: OnyxColorTokens.accentPurple,
               filled: true,
             ),
             secondaryActions: [
@@ -38276,8 +38280,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 icon: Icons.devices_rounded,
                 onPressed: () =>
                     setState(() => _deviceUidController.text = suggestedDevice),
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -38287,8 +38291,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 icon: Icons.phone_rounded,
                 onPressed: () =>
                     setState(() => _phoneController.text = suggestedPhone),
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -38298,8 +38302,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 icon: Icons.alternate_email_rounded,
                 onPressed: () =>
                     setState(() => _emailController.text = suggestedEmail),
-                foregroundColor: const Color(0xFFEAF4FF),
-                borderColor: const Color(0x665C66D6),
+                foregroundColor: OnyxColorTokens.textPrimary,
+                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -38324,8 +38328,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? 'Channel live'
                     : 'Stage device',
                 microColor: _deviceUidController.text.trim() == suggestedDevice
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _employeeQuickPickCard(
                 keyPrefix: 'employee-onboarding-contact-phone',
@@ -38343,8 +38347,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? 'Channel live'
                     : 'Stage phone',
                 microColor: _phoneController.text.trim() == suggestedPhone
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
               _employeeQuickPickCard(
                 keyPrefix: 'employee-onboarding-contact-email',
@@ -38362,8 +38366,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? 'Channel live'
                     : 'Stage email',
                 microColor: _emailController.text.trim() == suggestedEmail
-                    ? const Color(0xFF8FD1FF)
-                    : const Color(0xFFF1B872),
+                    ? OnyxColorTokens.accentSky
+                    : OnyxColorTokens.accentAmber,
               ),
             ],
           ),
@@ -38421,7 +38425,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 }),
                 icon: const Icon(Icons.drive_eta_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   hasCode ? 'Restage Code 10' : 'Stage Code 10',
@@ -38440,7 +38444,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : null,
                 icon: const Icon(Icons.backspace_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Clear Code',
@@ -38531,7 +38535,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 }),
                 icon: const Icon(Icons.auto_fix_high_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Stage Contact',
@@ -38554,7 +38558,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : null,
                 icon: const Icon(Icons.backspace_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Clear Contact',
@@ -38609,7 +38613,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 ),
                 icon: const Icon(Icons.devices_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Stage Device',
@@ -38628,7 +38632,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 ),
                 icon: const Icon(Icons.phone_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Stage Phone',
@@ -38647,7 +38651,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 ),
                 icon: const Icon(Icons.alternate_email_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Stage Email',
@@ -38670,7 +38674,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : null,
                 icon: const Icon(Icons.backspace_rounded, size: 14),
                 style: _onboardingInlineActionStyle(
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                 ),
                 label: Text(
                   'Clear Overrides',
@@ -38742,7 +38746,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     required String pendingHint,
   }) {
     final ready = value != null;
-    final accent = ready ? const Color(0xFF5C66D6) : const Color(0xFFF97316);
+    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
     return AnimatedContainer(
       key: ValueKey('$keyPrefix-card'),
       duration: const Duration(milliseconds: 180),
@@ -38836,7 +38840,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     List<_OnboardingCommandActionConfig> secondaryActions =
         const <_OnboardingCommandActionConfig>[],
   }) {
-    final accent = ready ? const Color(0xFF5C66D6) : const Color(0xFFF59E0B);
+    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
     return _onboardingCommandDeck(
       key: ValueKey('$keyPrefix-shell'),
       nextMoveKey: ValueKey('$keyPrefix-next-move'),
@@ -38849,7 +38853,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
         _OnboardingCommandChipData(
           label: 'Anchor',
           value: ready ? 'LIVE' : 'QUEUE',
-          color: ready ? const Color(0xFF8FD1FF) : const Color(0xFFF1B872),
+          color: ready ? OnyxColorTokens.accentSky : OnyxColorTokens.accentAmber,
         ),
       ],
       primaryAction: primaryAction,
@@ -38869,7 +38873,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     List<_OnboardingCommandActionConfig> secondaryActions =
         const <_OnboardingCommandActionConfig>[],
   }) {
-    final accent = ready ? const Color(0xFF5C66D6) : const Color(0xFFF59E0B);
+    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
     return _onboardingCommandDeck(
       key: ValueKey('$keyPrefix-shell'),
       nextMoveKey: ValueKey('$keyPrefix-next-move'),
@@ -38882,7 +38886,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
         _OnboardingCommandChipData(
           label: 'Posture',
           value: ready ? 'LIVE' : 'HOLD',
-          color: ready ? const Color(0xFF8FD1FF) : const Color(0xFFF1B872),
+          color: ready ? OnyxColorTokens.accentSky : OnyxColorTokens.accentAmber,
         ),
       ],
       primaryAction: primaryAction,
@@ -38898,7 +38902,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     required IconData icon,
     required Widget child,
   }) {
-    final accent = ready ? const Color(0xFF5C66D6) : const Color(0xFFF59E0B);
+    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
     return Container(
       key: ValueKey('$keyPrefix-shell'),
       width: double.infinity,
@@ -39166,11 +39170,11 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   ? _runDemoReady()
                   : 'Employee readiness pack is ready for final review.',
             ),
-      foregroundColor: const Color(0xFFEAF4FF),
-      borderColor: const Color(0xFF1D4ED8),
+      foregroundColor: OnyxColorTokens.textPrimary,
+      borderColor: OnyxColorTokens.accentBlue,
       backgroundColor: _allGatesReady
-          ? const Color(0xFF0F766E)
-          : const Color(0xFF1D4ED8),
+          ? OnyxColorTokens.accentTeal
+          : OnyxColorTokens.accentBlue,
       filled: true,
     );
     final employeeSecondaryActions = <_OnboardingCommandActionConfig>[
@@ -39180,8 +39184,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           label: 'Security Desk',
           icon: Icons.space_dashboard_rounded,
           onPressed: _openEmployeeOperationsPreview,
-          foregroundColor: const Color(0xFFBFD7F2),
-          borderColor: const Color(0xFF35506F),
+          foregroundColor: OnyxColorTokens.textSecondary,
+          borderColor: OnyxColorTokens.borderStrong,
         ),
       if (_canOpenEmployeeTacticalPreview &&
           (_employeeTemplatePending ||
@@ -39192,24 +39196,24 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           label: 'Tactical Track',
           icon: Icons.map_rounded,
           onPressed: _openEmployeeTacticalPreview,
-          foregroundColor: const Color(0xFF9FE8FF),
-          borderColor: const Color(0xFF35506F),
+          foregroundColor: OnyxColorTokens.accentSky,
+          borderColor: OnyxColorTokens.borderStrong,
         ),
       _OnboardingCommandActionConfig(
         key: const ValueKey('employee-onboarding-snapshot-brief'),
         label: 'Snapshot Brief',
         icon: Icons.receipt_long_rounded,
         onPressed: copyEmployeeSnapshotBrief,
-        foregroundColor: const Color(0xFFD5EBFF),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
       _OnboardingCommandActionConfig(
         key: const ValueKey('employee-onboarding-voice-brief'),
         label: 'Voice Brief',
         icon: Icons.mic_rounded,
         onPressed: copyEmployeePitchBrief,
-        foregroundColor: const Color(0xFFBFE6FF),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
     ];
     return _adminDialogShell(
@@ -39223,7 +39227,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
             title: 'New Employee Onboarding',
             subtitle:
                 'Capture PSIRA, licensing, and assignment data with operational readiness checks.',
-            accent: const Color(0xFF5C66D6),
+            accent: OnyxColorTokens.accentPurple,
             responseTarget: 'Registry + assignment under 90s',
             confidenceLabel: 'Compliance confidence 98.6%',
             talkTrackTitle: 'Employee Demo Talk Track',
@@ -39240,7 +39244,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           _onboardingCommandDeck(
             key: const ValueKey('employee-onboarding-command-deck'),
             nextMoveKey: const ValueKey('employee-onboarding-next-move'),
-            accent: const Color(0xFF5C66D6),
+            accent: OnyxColorTokens.accentPurple,
             label: 'EMPLOYEE COMMAND',
             headline: employeeCommandHeadline,
             detail: employeeCommandDetail,
@@ -39249,24 +39253,24 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
               _OnboardingCommandChipData(
                 label: 'Step',
                 value: '${_step + 1}/3',
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
               _OnboardingCommandChipData(
                 label: 'Readiness',
                 value: '$readyCount/${_previewGates.length}',
                 color: _allGatesReady
-                    ? const Color(0xFF34D399)
-                    : const Color(0xFFF59E0B),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
               _OnboardingCommandChipData(
                 label: 'Role',
                 value: _role.replaceAll('_', ' '),
-                color: const Color(0xFFBFD7F2),
+                color: OnyxColorTokens.textSecondary,
               ),
               _OnboardingCommandChipData(
                 label: 'Assignment',
                 value: assignmentLabel,
-                color: const Color(0xFF67E8F9),
+                color: OnyxColorTokens.accentSky,
               ),
             ],
             primaryAction: employeePrimaryAction,
@@ -39276,7 +39280,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
             const SizedBox(height: 8),
             _onboardingWorkflowActionsShelf(
               key: const ValueKey('employee-onboarding-workflow-actions'),
-              accent: const Color(0xFF5C66D6),
+              accent: OnyxColorTokens.accentPurple,
               label: 'WORKFLOW ACTIONS',
               headline: employeeWorkflowHeadline,
               detail:
@@ -39299,19 +39303,19 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   label: 'Template',
                   value: _employeeTemplatePending ? 'pending' : 'live',
                   color: _employeeTemplatePending
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF34D399),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Scenario',
                   value: _employeeScenarioLabel(_selectedEmployeeScenario),
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Blockers',
                   value:
                       '${(_previewGates.length - readyCount).clamp(0, _previewGates.length)}',
-                  color: const Color(0xFFBFD7F2),
+                  color: OnyxColorTokens.textSecondary,
                 ),
                 _OnboardingCommandChipData(
                   label: 'Route',
@@ -39320,7 +39324,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       : _canOpenEmployeeTacticalPreview
                       ? 'tactical track'
                       : 'brief',
-                  color: const Color(0xFF67E8F9),
+                  color: OnyxColorTokens.accentSky,
                 ),
               ],
               children: [
@@ -39340,9 +39344,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: _employeeTemplatePending
-                        ? const Color(0xFF9A4D08)
-                        : const Color(0xFF1F3A5A),
-                    foregroundColor: const Color(0xFFEAF4FF),
+                        ? OnyxColorTokens.amberBorder
+                        : OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     _employeeTemplatePending
@@ -39365,8 +39369,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   },
                   icon: const Icon(Icons.rocket_launch_rounded, size: 16),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    backgroundColor: OnyxColorTokens.accentTeal,
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     'Launch Demo',
@@ -39380,7 +39384,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   icon: Icon(_demoReadyButtonIcon, size: 16),
                   style: FilledButton.styleFrom(
                     backgroundColor: _demoReadyButtonColor,
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     _demoReadyButtonLabel,
@@ -39426,8 +39430,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   onPressed: _resetDemoPace,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8FD1FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Reset Pace',
@@ -39446,8 +39450,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   },
                   icon: const Icon(Icons.cleaning_services_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF9FD6FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Start Fresh',
@@ -39458,8 +39462,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   onPressed: focusEmployeeNextGap,
                   icon: const Icon(Icons.track_changes_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFFE1B8),
-                    side: const BorderSide(color: Color(0xFFB3742C)),
+                    foregroundColor: OnyxColorTokens.accentAmber,
+                    side: const BorderSide(color: OnyxColorTokens.amberBorder),
                   ),
                   label: Text(
                     'Next Gap',
@@ -39472,8 +39476,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       : null,
                   icon: const Icon(Icons.space_dashboard_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFBFD7F2),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.textSecondary,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'OPEN SECURITY DESK',
@@ -39486,8 +39490,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       : null,
                   icon: const Icon(Icons.map_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF9FE8FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'OPEN TACTICAL TRACK',
@@ -39498,8 +39502,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   onPressed: copyEmployeePitchBrief,
                   icon: const Icon(Icons.mic_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFBFE6FF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Copy Pitch',
@@ -39510,8 +39514,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   onPressed: copyEmployeeSnapshotBrief,
                   icon: const Icon(Icons.receipt_long_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFD5EBFF),
-                    side: const BorderSide(color: Color(0xFF35506F)),
+                    foregroundColor: OnyxColorTokens.accentSky,
+                    side: const BorderSide(color: OnyxColorTokens.borderStrong),
                   ),
                   label: Text(
                     'Copy Snapshot',
@@ -39533,7 +39537,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
             Text(
               _error!,
               style: GoogleFonts.inter(
-                color: const Color(0xFFF87171),
+                color: OnyxColorTokens.accentRed,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -39541,14 +39545,14 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           ],
           _creationPulseBanner(
             visible: _showCreatePulse,
-            accent: const Color(0xFF5C66D6),
+            accent: OnyxColorTokens.accentPurple,
             label: 'Employee readiness profile is live and assignable.',
             keyPrefix: 'employee-onboarding-pulse',
           ),
           const SizedBox(height: 8),
           _stepSummary(
             currentStep: _step,
-            accent: const Color(0xFF5C66D6),
+            accent: OnyxColorTokens.accentPurple,
             keyPrefix: 'employee-onboarding-flow',
             labels: const ['Identity', 'Compliance', 'Assignment'],
             onStepTap: (step) => setState(() => _step = step),
@@ -39558,7 +39562,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           _demoPaceMeter(
             startedAt: _sessionStartedAt,
             targetSeconds: 90,
-            accent: const Color(0xFF5C66D6),
+            accent: OnyxColorTokens.accentPurple,
             compact: compact,
             onRecover: widget.demoMode
                 ? () => _showOnboardingSnackBar(context, _recoverDemoPace())
@@ -39568,7 +39572,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           const SizedBox(height: 8),
           _demoCoachCard(
             context: context,
-            accent: const Color(0xFF5C66D6),
+            accent: OnyxColorTokens.accentPurple,
             currentStep: _step,
             compact: compact,
             keyPrefix: 'employee-onboarding-coach',
@@ -39603,7 +39607,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
             title: 'Readiness Preview',
             entityLabel: 'Employee',
             keyPrefix: 'employee-onboarding-preview',
-            accent: const Color(0xFF5C66D6),
+            accent: OnyxColorTokens.accentPurple,
             lines: _previewLines,
             gates: _previewGates,
             completion: _completionScore,
@@ -39622,7 +39626,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
             context: context,
             currentStep: _step,
             finalStep: 2,
-            accent: const Color(0xFF5C66D6),
+            accent: OnyxColorTokens.accentPurple,
             entityLabel: 'Employee',
             readyForCreate: _allGatesReady,
             onAdvance: _next,
@@ -39638,7 +39642,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'employee-onboarding-step-panel-identity',
                   stageLabel: 'Identity',
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                   children: [
                     _employeeIdentityQuickPickStrip(),
                     const SizedBox(height: 8),
@@ -39697,9 +39701,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                               onPressed: () => setState(
                                 () => _dob = _suggestedEmployeeDobForScenario(),
                               ),
-                              foregroundColor: const Color(0xFFEAF4FF),
-                              borderColor: const Color(0x665C66D6),
-                              backgroundColor: const Color(0xFF5C66D6),
+                              foregroundColor: OnyxColorTokens.textPrimary,
+                              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                              backgroundColor: OnyxColorTokens.accentPurple,
                               filled: true,
                             ),
                             secondaryActions: [
@@ -39712,8 +39716,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                 onPressed: _dob == null
                                     ? null
                                     : () => setState(() => _dob = null),
-                                foregroundColor: const Color(0xFFEAF4FF),
-                                borderColor: const Color(0x665C66D6),
+                                foregroundColor: OnyxColorTokens.textPrimary,
+                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                               ),
                               _OnboardingCommandActionConfig(
                                 key: const ValueKey(
@@ -39728,8 +39732,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                   onSelected: (date) =>
                                       setState(() => _dob = date),
                                 ),
-                                foregroundColor: const Color(0xFFEAF4FF),
-                                borderColor: const Color(0x665C66D6),
+                                foregroundColor: OnyxColorTokens.textPrimary,
+                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                               ),
                             ],
                           ),
@@ -39750,7 +39754,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'employee-onboarding-step-panel-compliance',
                   stageLabel: 'Compliance',
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                   children: [
                     _employeeComplianceFocusCard(),
                     const SizedBox(height: 8),
@@ -39808,9 +39812,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                   base.day,
                                 );
                               }),
-                              foregroundColor: const Color(0xFFEAF4FF),
-                              borderColor: const Color(0x665C66D6),
-                              backgroundColor: const Color(0xFF5C66D6),
+                              foregroundColor: OnyxColorTokens.textPrimary,
+                              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                              backgroundColor: OnyxColorTokens.accentPurple,
                               filled: true,
                             ),
                             secondaryActions: [
@@ -39823,8 +39827,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                 onPressed: _psiraExpiry == null
                                     ? null
                                     : () => setState(() => _psiraExpiry = null),
-                                foregroundColor: const Color(0xFFEAF4FF),
-                                borderColor: const Color(0x665C66D6),
+                                foregroundColor: OnyxColorTokens.textPrimary,
+                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                               ),
                               _OnboardingCommandActionConfig(
                                 key: const ValueKey(
@@ -39839,8 +39843,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                   onSelected: (date) =>
                                       setState(() => _psiraExpiry = date),
                                 ),
-                                foregroundColor: const Color(0xFFEAF4FF),
-                                borderColor: const Color(0x665C66D6),
+                                foregroundColor: OnyxColorTokens.textPrimary,
+                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                               ),
                             ],
                           ),
@@ -39861,7 +39865,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 content: _stepPanel(
                   keyPrefix: 'employee-onboarding-step-panel-assignment',
                   stageLabel: 'Assignment',
-                  accent: const Color(0xFF5C66D6),
+                  accent: OnyxColorTokens.accentPurple,
                   children: [
                     _onboardingControlShell(
                       keyPrefix: 'employee-onboarding-driver-license',
@@ -39925,8 +39929,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       _hasPdp = false;
                                       _pdpExpiry = null;
                                     }),
-                                    foregroundColor: const Color(0xFFEAF4FF),
-                                    borderColor: const Color(0x665C66D6),
+                                    foregroundColor: OnyxColorTokens.textPrimary,
+                                    borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                   )
                                 : _OnboardingCommandActionConfig(
                                     key: const ValueKey(
@@ -39937,9 +39941,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     onPressed: () => setState(
                                       () => _hasDriverLicense = true,
                                     ),
-                                    foregroundColor: const Color(0xFFEAF4FF),
-                                    borderColor: const Color(0x665C66D6),
-                                    backgroundColor: const Color(0xFF5C66D6),
+                                    foregroundColor: OnyxColorTokens.textPrimary,
+                                    borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                    backgroundColor: OnyxColorTokens.accentPurple,
                                     filled: true,
                                   ),
                             secondaryActions: [
@@ -39951,8 +39955,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       label: 'License Live',
                                       icon: Icons.drive_eta_rounded,
                                       onPressed: null,
-                                      foregroundColor: const Color(0xFFEAF4FF),
-                                      borderColor: const Color(0x665C66D6),
+                                      foregroundColor: OnyxColorTokens.textPrimary,
+                                      borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                     )
                                   : _OnboardingCommandActionConfig(
                                       key: const ValueKey(
@@ -39961,8 +39965,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       label: 'No Vehicle',
                                       icon: Icons.block_rounded,
                                       onPressed: null,
-                                      foregroundColor: const Color(0xFFEAF4FF),
-                                      borderColor: const Color(0x665C66D6),
+                                      foregroundColor: OnyxColorTokens.textPrimary,
+                                      borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                     ),
                             ],
                           ),
@@ -40022,9 +40026,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     const Duration(days: 900),
                                   );
                                 }),
-                                foregroundColor: const Color(0xFFEAF4FF),
-                                borderColor: const Color(0x665C66D6),
-                                backgroundColor: const Color(0xFF5C66D6),
+                                foregroundColor: OnyxColorTokens.textPrimary,
+                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                backgroundColor: OnyxColorTokens.accentPurple,
                                 filled: true,
                               ),
                               secondaryActions: [
@@ -40043,8 +40047,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       base.day,
                                     );
                                   }),
-                                  foregroundColor: const Color(0xFFEAF4FF),
-                                  borderColor: const Color(0x665C66D6),
+                                  foregroundColor: OnyxColorTokens.textPrimary,
+                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                 ),
                                 _OnboardingCommandActionConfig(
                                   key: const ValueKey(
@@ -40057,8 +40061,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       : () => setState(
                                           () => _licenseExpiry = null,
                                         ),
-                                  foregroundColor: const Color(0xFFEAF4FF),
-                                  borderColor: const Color(0x665C66D6),
+                                  foregroundColor: OnyxColorTokens.textPrimary,
+                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                 ),
                                 _OnboardingCommandActionConfig(
                                   key: const ValueKey(
@@ -40073,8 +40077,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     onSelected: (date) =>
                                         setState(() => _licenseExpiry = date),
                                   ),
-                                  foregroundColor: const Color(0xFFEAF4FF),
-                                  borderColor: const Color(0x665C66D6),
+                                  foregroundColor: OnyxColorTokens.textPrimary,
+                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                 ),
                               ],
                             ),
@@ -40137,8 +40141,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       _hasPdp = false;
                                       _pdpExpiry = null;
                                     }),
-                                    foregroundColor: const Color(0xFFEAF4FF),
-                                    borderColor: const Color(0x665C66D6),
+                                    foregroundColor: OnyxColorTokens.textPrimary,
+                                    borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                   )
                                 : _OnboardingCommandActionConfig(
                                     key: const ValueKey(
@@ -40161,9 +40165,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                         _driverCodeController.text = 'Code 10';
                                       }
                                     }),
-                                    foregroundColor: const Color(0xFFEAF4FF),
-                                    borderColor: const Color(0x665C66D6),
-                                    backgroundColor: const Color(0xFF5C66D6),
+                                    foregroundColor: OnyxColorTokens.textPrimary,
+                                    borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                    backgroundColor: OnyxColorTokens.accentPurple,
                                     filled: true,
                                   ),
                             secondaryActions: [
@@ -40175,8 +40179,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       label: 'PDP Live',
                                       icon: Icons.verified_user_rounded,
                                       onPressed: null,
-                                      foregroundColor: const Color(0xFFEAF4FF),
-                                      borderColor: const Color(0x665C66D6),
+                                      foregroundColor: OnyxColorTokens.textPrimary,
+                                      borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                     )
                                   : _OnboardingCommandActionConfig(
                                       key: const ValueKey(
@@ -40185,8 +40189,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       label: 'No PDP',
                                       icon: Icons.block_rounded,
                                       onPressed: null,
-                                      foregroundColor: const Color(0xFFEAF4FF),
-                                      borderColor: const Color(0x665C66D6),
+                                      foregroundColor: OnyxColorTokens.textPrimary,
+                                      borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                     ),
                             ],
                           ),
@@ -40241,9 +40245,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     const Duration(days: 700),
                                   );
                                 }),
-                                foregroundColor: const Color(0xFFEAF4FF),
-                                borderColor: const Color(0x665C66D6),
-                                backgroundColor: const Color(0xFF5C66D6),
+                                foregroundColor: OnyxColorTokens.textPrimary,
+                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                backgroundColor: OnyxColorTokens.accentPurple,
                                 filled: true,
                               ),
                               secondaryActions: [
@@ -40261,8 +40265,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       base.day,
                                     );
                                   }),
-                                  foregroundColor: const Color(0xFFEAF4FF),
-                                  borderColor: const Color(0x665C66D6),
+                                  foregroundColor: OnyxColorTokens.textPrimary,
+                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                 ),
                                 _OnboardingCommandActionConfig(
                                   key: const ValueKey(
@@ -40273,8 +40277,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                   onPressed: _pdpExpiry == null
                                       ? null
                                       : () => setState(() => _pdpExpiry = null),
-                                  foregroundColor: const Color(0xFFEAF4FF),
-                                  borderColor: const Color(0x665C66D6),
+                                  foregroundColor: OnyxColorTokens.textPrimary,
+                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                 ),
                                 _OnboardingCommandActionConfig(
                                   key: const ValueKey(
@@ -40289,8 +40293,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     onSelected: (date) =>
                                         setState(() => _pdpExpiry = date),
                                   ),
-                                  foregroundColor: const Color(0xFFEAF4FF),
-                                  borderColor: const Color(0x665C66D6),
+                                  foregroundColor: OnyxColorTokens.textPrimary,
+                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
                                 ),
                               ],
                             ),
@@ -40333,7 +40337,7 @@ void _showAdminFeedback(
   String message, {
   String? sourceLabel,
   String? detail,
-  Color accent = const Color(0xFF8FD1FF),
+  Color accent = OnyxColorTokens.accentSky,
 }) {
   final adminState = _findAdministrationPageState(context);
   if (adminState != null) {
@@ -40657,11 +40661,11 @@ Widget _onboardingCommandActionButton(
   if (action.filled) {
     final resolvedBackgroundColor = action.backgroundColor == null
         ? Color.alphaBlend(
-            Colors.white.withValues(alpha: 0.62),
+            OnyxColorTokens.textPrimary.withValues(alpha: 0.62),
             action.foregroundColor.withValues(alpha: 0.12),
           )
         : Color.alphaBlend(
-            Colors.white.withValues(alpha: 0.36),
+            OnyxColorTokens.textPrimary.withValues(alpha: 0.36),
             action.backgroundColor!,
           );
     final resolvedForegroundColor = light
@@ -40775,7 +40779,7 @@ Widget _onboardingWorkflowActionsShelf({
                             style: GoogleFonts.inter(
                               color: light
                                   ? _adminDialogTitleColor
-                                  : const Color(0xFFEAF4FF),
+                                  : OnyxColorTokens.textPrimary,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w800,
                             ),
@@ -40786,7 +40790,7 @@ Widget _onboardingWorkflowActionsShelf({
                             style: GoogleFonts.inter(
                               color: light
                                   ? _adminDialogBodyColor
-                                  : const Color(0xFFB5C7DD),
+                                  : OnyxColorTokens.textSecondary,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
@@ -40828,7 +40832,7 @@ Widget _onboardingWorkflowActionsShelf({
                               style: GoogleFonts.inter(
                                 color: light
                                     ? _adminDialogTitleColor
-                                    : const Color(0xFFEAF4FF),
+                                    : OnyxColorTokens.textPrimary,
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -40868,7 +40872,7 @@ Widget _onboardingWorkflowActionsShelf({
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: light ? _adminDialogBodyColor : const Color(0xFFB5C7DD),
+              color: light ? _adminDialogBodyColor : OnyxColorTokens.textSecondary,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -40880,7 +40884,7 @@ Widget _onboardingWorkflowActionsShelf({
           Text(
             primaryActionsLabel,
             style: GoogleFonts.inter(
-              color: light ? _adminDialogMutedColor : const Color(0xFF8EA4C2),
+              color: light ? _adminDialogMutedColor : OnyxColorTokens.textMuted,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -40899,7 +40903,7 @@ Widget _onboardingWorkflowActionsShelf({
           Text(
             utilityActionsLabel,
             style: GoogleFonts.inter(
-              color: light ? _adminDialogMutedColor : const Color(0xFF8EA4C2),
+              color: light ? _adminDialogMutedColor : OnyxColorTokens.textMuted,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -40954,7 +40958,7 @@ void _showOnboardingSnackBar(BuildContext context, String message) {
     sourceLabel: 'ONBOARDING PREVIEW',
     detail:
         'The latest onboarding drill action stays visible in the desktop command rail.',
-    accent: const Color(0xFF67E8F9),
+    accent: OnyxColorTokens.accentSky,
   );
 }
 
@@ -40981,9 +40985,9 @@ Widget _onboardingHero({
       ),
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: accent.withValues(alpha: 0.28)),
-      boxShadow: const [
+      boxShadow: [
         BoxShadow(
-          color: Color(0x0C0F2235),
+          color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.05),
           blurRadius: 18,
           offset: Offset(0, 10),
         ),
@@ -41197,10 +41201,10 @@ Widget _demoScenarioPicker({
               child: Container(
                 padding: const EdgeInsets.fromLTRB(6, 5, 6, 5),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0x1634D399) : null,
+                  color: selected ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09) : null,
                   borderRadius: BorderRadius.circular(8),
                   border: selected
-                      ? Border.all(color: const Color(0xAA34D399))
+                      ? Border.all(color: OnyxColorTokens.accentGreen.withValues(alpha: 0.67))
                       : null,
                 ),
                 child: Row(
@@ -41212,7 +41216,7 @@ Widget _demoScenarioPicker({
                           ? const Icon(
                               Icons.check_circle_rounded,
                               size: 14,
-                              color: Color(0xFF34D399),
+                              color: OnyxColorTokens.accentGreen,
                             )
                           : const SizedBox.shrink(),
                     ),
@@ -41262,7 +41266,7 @@ Widget _demoScenarioPicker({
           const Icon(
             Icons.layers_clear_rounded,
             size: 16,
-            color: Color(0xFF8FD1FF),
+            color: OnyxColorTokens.accentSky,
           ),
           const SizedBox(width: 6),
           Text(
@@ -41279,13 +41283,13 @@ Widget _demoScenarioPicker({
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: isApplied
-                    ? const Color(0x2234D399)
-                    : const Color(0x22F59E0B),
+                    ? OnyxColorTokens.accentGreen.withValues(alpha: 0.13)
+                    : OnyxColorTokens.accentAmber.withValues(alpha: 0.13),
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: isApplied
-                      ? const Color(0xAA34D399)
-                      : const Color(0xAAF59E0B),
+                      ? OnyxColorTokens.accentGreen.withValues(alpha: 0.67)
+                      : OnyxColorTokens.accentAmber.withValues(alpha: 0.67),
                 ),
               ),
               child: Text(
@@ -41302,7 +41306,7 @@ Widget _demoScenarioPicker({
           const Icon(
             Icons.expand_more_rounded,
             size: 16,
-            color: Color(0xFF8FD1FF),
+            color: OnyxColorTokens.accentSky,
           ),
         ],
       ),
@@ -41416,7 +41420,7 @@ Future<void> _showTalkTrackDialog(
                 onPressed: () => Navigator.of(dialogContext).pop(),
                 style: FilledButton.styleFrom(
                   backgroundColor: accent,
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 child: Text(
                   'Continue',
@@ -41525,7 +41529,7 @@ Future<bool> _confirmIncompleteReadiness(
                   icon: const Icon(Icons.warning_amber_rounded, size: 16),
                   style: FilledButton.styleFrom(
                     backgroundColor: accent,
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    foregroundColor: OnyxColorTokens.textPrimary,
                   ),
                   label: Text(
                     'Create Anyway',
@@ -41561,8 +41565,8 @@ Widget _demoPaceMeter({
       final delaySeconds = elapsed - targetSeconds;
       final statusLabel = ahead ? 'Ahead' : (onTrack ? 'On Track' : 'Behind');
       final statusColor = ahead
-          ? const Color(0xFF34D399)
-          : (onTrack ? const Color(0xFF8FD1FF) : const Color(0xFFF59E0B));
+          ? OnyxColorTokens.accentGreen
+          : (onTrack ? OnyxColorTokens.accentSky : OnyxColorTokens.accentAmber);
       final mm = (elapsed ~/ 60).toString().padLeft(2, '0');
       final ss = (elapsed % 60).toString().padLeft(2, '0');
       return Container(
@@ -41581,7 +41585,7 @@ Widget _demoPaceMeter({
                 const Icon(
                   Icons.timer_rounded,
                   size: 14,
-                  color: Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -41642,7 +41646,7 @@ Widget _demoPaceMeter({
                   Text(
                     '+${delaySeconds}s',
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFFFBBF24),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: compact ? 10 : 10.5,
                       fontWeight: FontWeight.w800,
                     ),
@@ -41656,8 +41660,8 @@ Widget _demoPaceMeter({
                 onPressed: onRecover,
                 icon: const Icon(Icons.flash_on_rounded, size: 15),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF9A4D08),
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  backgroundColor: OnyxColorTokens.amberBorder,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -41833,14 +41837,14 @@ Widget _demoCoachCard({
                       _OnboardingCommandChipData(
                         label: 'Cue',
                         value: '${clamped + 1}/${cues.length}',
-                        color: const Color(0xFF8FD1FF),
+                        color: OnyxColorTokens.accentSky,
                       ),
                     ),
                     _onboardingCommandChip(
                       _OnboardingCommandChipData(
                         label: 'Stage',
                         value: cue.stage,
-                        color: const Color(0xFFBFD7F2),
+                        color: OnyxColorTokens.textSecondary,
                       ),
                     ),
                     _onboardingCommandChip(
@@ -41877,7 +41881,7 @@ Widget _demoCoachCard({
                             : hasPrevious
                             ? () => onStageTap(clamped - 1)
                             : null,
-                        foregroundColor: const Color(0xFFEAF4FF),
+                        foregroundColor: OnyxColorTokens.textPrimary,
                         borderColor: accent.withValues(alpha: 0.85),
                         backgroundColor: accent.withValues(alpha: 0.88),
                         filled: true,
@@ -41892,8 +41896,8 @@ Widget _demoCoachCard({
                           onPressed: onStageTap == null
                               ? null
                               : () => onStageTap(clamped - 1),
-                          foregroundColor: const Color(0xFFBFD7F2),
-                          borderColor: const Color(0xFF35506F),
+                          foregroundColor: OnyxColorTokens.textSecondary,
+                          borderColor: OnyxColorTokens.borderStrong,
                         ),
                       ),
                     _onboardingCommandActionButton(
@@ -41915,8 +41919,8 @@ Widget _demoCoachCard({
                             accent: accent,
                           );
                         },
-                        foregroundColor: const Color(0xFF9FE8FF),
-                        borderColor: const Color(0xFF35506F),
+                        foregroundColor: OnyxColorTokens.accentSky,
+                        borderColor: OnyxColorTokens.borderStrong,
                       ),
                     ),
                   ],
@@ -42232,7 +42236,7 @@ Widget _onboardingLivePreview({
         : nextBlocker != null && onJumpToStep != null
         ? () => onJumpToStep(nextBlocker.step)
         : copyDemoBrief,
-    foregroundColor: const Color(0xFFEAF4FF),
+    foregroundColor: OnyxColorTokens.textPrimary,
     borderColor: accent.withValues(alpha: 0.85),
     backgroundColor: accent.withValues(alpha: 0.88),
     filled: true,
@@ -42248,8 +42252,8 @@ Widget _onboardingLivePreview({
         onPressed: nextBlocker == null
             ? null
             : () => onJumpToStep(nextBlocker.step),
-        foregroundColor: const Color(0xFFFFE1B8),
-        borderColor: const Color(0xFFB3742C),
+        foregroundColor: OnyxColorTokens.accentAmber,
+        borderColor: OnyxColorTokens.amberBorder,
       ),
     if (!(blockers.isNotEmpty && onAutoFillMissing != null))
       _OnboardingCommandActionConfig(
@@ -42257,8 +42261,8 @@ Widget _onboardingLivePreview({
         label: 'Copy $entityLabel Update',
         icon: Icons.chat_bubble_rounded,
         onPressed: copyEntityUpdate,
-        foregroundColor: const Color(0xFFBFD7F2),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.textSecondary,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
   ];
   return Container(
@@ -42318,7 +42322,7 @@ Widget _onboardingLivePreview({
                 Text(
                   commandSupportHeadline,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 10.8,
                     fontWeight: FontWeight.w800,
                   ),
@@ -42367,8 +42371,8 @@ Widget _onboardingLivePreview({
                 value: verdictLabel,
                 detail: demoReady ? 'Ready' : 'Staging',
                 valueColor: demoReady
-                    ? const Color(0xFF34D399)
-                    : const Color(0xFFF59E0B),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
               ),
               _previewSnapshotCard(
                 key: ValueKey('$keyPrefix-snapshot-readiness'),
@@ -42376,7 +42380,7 @@ Widget _onboardingLivePreview({
                 label: 'Readiness',
                 value: '$readyCount/$gateTotal',
                 detail: 'Gates live',
-                valueColor: const Color(0xFF8FD1FF),
+                valueColor: OnyxColorTokens.accentSky,
               ),
               _previewSnapshotCard(
                 key: ValueKey('$keyPrefix-snapshot-completion'),
@@ -42384,7 +42388,7 @@ Widget _onboardingLivePreview({
                 label: 'Completion',
                 value: '$pct%',
                 detail: 'Progress locked',
-                valueColor: const Color(0xFFBFD7F2),
+                valueColor: OnyxColorTokens.textSecondary,
               ),
               _previewSnapshotCard(
                 key: ValueKey('$keyPrefix-snapshot-bundle'),
@@ -42471,7 +42475,7 @@ Widget _onboardingLivePreview({
                     _OnboardingCommandChipData(
                       label: 'Completion',
                       value: '$pct%',
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                     ),
                   ),
                   _onboardingCommandChip(
@@ -42479,8 +42483,8 @@ Widget _onboardingLivePreview({
                       label: 'Gates',
                       value: '$readyCount/$gateTotal',
                       color: demoReady
-                          ? const Color(0xFF34D399)
-                          : const Color(0xFFF59E0B),
+                          ? OnyxColorTokens.accentGreen
+                          : OnyxColorTokens.accentAmber,
                     ),
                   ),
                 ],
@@ -42533,7 +42537,7 @@ Widget _onboardingLivePreview({
                               Text(
                                 readinessHeadline,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFEAF4FF),
+                                  color: OnyxColorTokens.textPrimary,
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -42542,7 +42546,7 @@ Widget _onboardingLivePreview({
                               Text(
                                 readinessDetail,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFB5C7DD),
+                                  color: OnyxColorTokens.textSecondary,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
                                   height: 1.35,
@@ -42581,7 +42585,7 @@ Widget _onboardingLivePreview({
                               Text(
                                 readinessNextMoveLabel,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFEAF4FF),
+                                  color: OnyxColorTokens.textPrimary,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -42601,22 +42605,22 @@ Widget _onboardingLivePreview({
                             label: 'Status',
                             value: verdictLabel,
                             color: demoReady
-                                ? const Color(0xFF34D399)
-                                : const Color(0xFFF59E0B),
+                                ? OnyxColorTokens.accentGreen
+                                : OnyxColorTokens.accentAmber,
                           ),
                         ),
                         _onboardingCommandChip(
                           _OnboardingCommandChipData(
                             label: 'Gates',
                             value: '$readyCount/$gateTotal',
-                            color: const Color(0xFF8FD1FF),
+                            color: OnyxColorTokens.accentSky,
                           ),
                         ),
                         _onboardingCommandChip(
                           _OnboardingCommandChipData(
                             label: 'Steps',
                             value: '${sortedSteps.length}',
-                            color: const Color(0xFFBFD7F2),
+                            color: OnyxColorTokens.textSecondary,
                           ),
                         ),
                         _onboardingCommandChip(
@@ -42644,7 +42648,7 @@ Widget _onboardingLivePreview({
                     child: Text(
                       'Readiness gates: $readyCount/$gateTotal',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFBFD7F2),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: compact ? 10.5 : 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -42784,7 +42788,7 @@ Widget _onboardingLivePreview({
                               Text(
                                 highlightsDetail,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFB5C7DD),
+                                  color: OnyxColorTokens.textSecondary,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
                                   height: 1.35,
@@ -42823,7 +42827,7 @@ Widget _onboardingLivePreview({
                               Text(
                                 highlightsNextMoveLabel,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFEAF4FF),
+                                  color: OnyxColorTokens.textPrimary,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -42842,7 +42846,7 @@ Widget _onboardingLivePreview({
                           _OnboardingCommandChipData(
                             label: 'Signals',
                             value: '${lines.length}',
-                            color: const Color(0xFF8FD1FF),
+                            color: OnyxColorTokens.accentSky,
                           ),
                         ),
                         _onboardingCommandChip(
@@ -42850,15 +42854,15 @@ Widget _onboardingLivePreview({
                             label: 'Lead',
                             value: lines.isEmpty ? 'pending' : 'live',
                             color: lines.isEmpty
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFF34D399),
+                                ? OnyxColorTokens.accentAmber
+                                : OnyxColorTokens.accentGreen,
                           ),
                         ),
                         _onboardingCommandChip(
                           _OnboardingCommandChipData(
                             label: 'Blockers',
                             value: '${blockers.length}',
-                            color: const Color(0xFFBFD7F2),
+                            color: OnyxColorTokens.textSecondary,
                           ),
                         ),
                         _onboardingCommandChip(
@@ -42962,7 +42966,7 @@ Widget _onboardingLivePreview({
                               child: Text(
                                 '${i + 2}',
                                 style: GoogleFonts.robotoMono(
-                                  color: const Color(0xFFEAF4FF),
+                                  color: OnyxColorTokens.textPrimary,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -42973,7 +42977,7 @@ Widget _onboardingLivePreview({
                               child: Text(
                                 supportingHighlights[i],
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFBFD7F2),
+                                  color: OnyxColorTokens.textSecondary,
                                   fontSize: compact ? 10.5 : 11,
                                   fontWeight: FontWeight.w600,
                                   height: 1.25,
@@ -43009,18 +43013,18 @@ Widget _onboardingLivePreview({
               label: 'Brief',
               value: demoReady ? 'ready' : 'draft',
               color: demoReady
-                  ? const Color(0xFF34D399)
-                  : const Color(0xFFF59E0B),
+                  ? OnyxColorTokens.accentGreen
+                  : OnyxColorTokens.accentAmber,
             ),
             _OnboardingCommandChipData(
               label: 'Update',
               value: '$entityLabel live',
-              color: const Color(0xFF8FD1FF),
+              color: OnyxColorTokens.accentSky,
             ),
             _OnboardingCommandChipData(
               label: 'SQL',
               value: filteredSqlExtras.isEmpty ? 'upsert' : 'bundle',
-              color: const Color(0xFFBFD7F2),
+              color: OnyxColorTokens.textSecondary,
             ),
             _OnboardingCommandChipData(
               label: 'Payload',
@@ -43035,8 +43039,8 @@ Widget _onboardingLivePreview({
                 label: 'Copy $entityLabel Update',
                 icon: Icons.chat_bubble_rounded,
                 onPressed: copyEntityUpdate,
-                foregroundColor: const Color(0xFFBFD7F2),
-                borderColor: const Color(0xFF35506F),
+                foregroundColor: OnyxColorTokens.textSecondary,
+                borderColor: OnyxColorTokens.borderStrong,
               ),
             ),
             _onboardingCommandActionButton(
@@ -43045,7 +43049,7 @@ Widget _onboardingLivePreview({
                 label: 'Copy Demo Brief',
                 icon: Icons.summarize_rounded,
                 onPressed: copyDemoBrief,
-                foregroundColor: const Color(0xFFEAF4FF),
+                foregroundColor: OnyxColorTokens.textPrimary,
                 borderColor: accent.withValues(alpha: 0.8),
                 backgroundColor: accent.withValues(alpha: 0.88),
                 filled: true,
@@ -43059,8 +43063,8 @@ Widget _onboardingLivePreview({
                 label: sqlActionLabel,
                 icon: Icons.storage_rounded,
                 onPressed: copySqlBundle,
-                foregroundColor: const Color(0xFF9FE8FF),
-                borderColor: const Color(0xFF35506F),
+                foregroundColor: OnyxColorTokens.accentSky,
+                borderColor: OnyxColorTokens.borderStrong,
               ),
             ),
             _onboardingCommandActionButton(
@@ -43069,8 +43073,8 @@ Widget _onboardingLivePreview({
                 label: 'Copy JSON',
                 icon: Icons.content_copy_rounded,
                 onPressed: copyPayloadJson,
-                foregroundColor: const Color(0xFFD5EBFF),
-                borderColor: const Color(0xFF35506F),
+                foregroundColor: OnyxColorTokens.accentSky,
+                borderColor: OnyxColorTokens.borderStrong,
               ),
             ),
           ],
@@ -43086,7 +43090,7 @@ Widget _onboardingLivePreview({
             tilePadding: EdgeInsets.zero,
             childrenPadding: EdgeInsets.zero,
             iconColor: accent.withValues(alpha: 0.95),
-            collapsedIconColor: const Color(0xFF8EA4C2),
+            collapsedIconColor: OnyxColorTokens.textMuted,
             title: Text(
               'Payload JSON Inspector',
               style: GoogleFonts.inter(
@@ -43138,15 +43142,15 @@ Widget _readinessStatusChip({
   required bool ready,
   required Color accent,
 }) {
-  final resolvedAccent = ready ? const Color(0xFF34D399) : accent;
+  final resolvedAccent = ready ? OnyxColorTokens.accentGreen : accent;
   final foreground = _adminAccentTextColor(resolvedAccent, strength: 0.52);
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: ready ? const Color(0x2234D399) : accent.withValues(alpha: 0.15),
+      color: ready ? OnyxColorTokens.accentGreen.withValues(alpha: 0.13) : accent.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(999),
       border: Border.all(
-        color: ready ? const Color(0x8834D399) : accent.withValues(alpha: 0.34),
+        color: ready ? OnyxColorTokens.accentGreen.withValues(alpha: 0.53) : accent.withValues(alpha: 0.34),
       ),
     ),
     child: Row(
@@ -43155,7 +43159,7 @@ Widget _readinessStatusChip({
         Icon(
           ready ? Icons.verified_rounded : Icons.warning_amber_rounded,
           size: 13,
-          color: ready ? const Color(0xFF34D399) : foreground,
+          color: ready ? OnyxColorTokens.accentGreen : foreground,
         ),
         const SizedBox(width: 5),
         Text(
@@ -43185,7 +43189,7 @@ Widget _previewSnapshotCard({
     constraints: const BoxConstraints(minWidth: 132),
     padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
     decoration: BoxDecoration(
-      color: light ? const Color(0xFF13131E) : _adminDialogAltColor,
+      color: light ? OnyxColorTokens.backgroundSecondary : _adminDialogAltColor,
       borderRadius: BorderRadius.circular(10),
       border: Border.all(color: accent.withValues(alpha: 0.18)),
     ),
@@ -43232,17 +43236,17 @@ Widget _blockerChip({
 }) {
   return ActionChip(
     onPressed: onPressed,
-    backgroundColor: const Color(0xFFFFF4E8),
+    backgroundColor: OnyxColorTokens.amberSurface,
     side: BorderSide(color: accent.withValues(alpha: 0.55)),
     avatar: const Icon(
       Icons.error_outline_rounded,
       size: 14,
-      color: Color(0xFFB36A18),
+      color: OnyxColorTokens.accentAmber,
     ),
     label: Text(
       onPressed == null ? gate.label : '${gate.label} (Step ${gate.step + 1})',
       style: GoogleFonts.inter(
-        color: const Color(0xFF8B4B0F),
+        color: OnyxColorTokens.amberBorder,
         fontSize: 10.5,
         fontWeight: FontWeight.w700,
       ),
@@ -43262,17 +43266,17 @@ Widget _stepReadinessChip({
   return ActionChip(
     onPressed: onPressed,
     backgroundColor: complete
-        ? const Color(0x1634D399)
+        ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09)
         : accent.withValues(alpha: 0.1),
     side: BorderSide(
       color: complete
-          ? const Color(0xAA34D399)
+          ? OnyxColorTokens.accentGreen.withValues(alpha: 0.67)
           : accent.withValues(alpha: 0.55),
     ),
     avatar: Icon(
       complete ? Icons.task_alt_rounded : Icons.tune_rounded,
       size: 14,
-      color: complete ? const Color(0xFF34D399) : const Color(0xFF8FD1FF),
+      color: complete ? OnyxColorTokens.accentGreen : OnyxColorTokens.accentSky,
     ),
     label: Text(
       'Step ${step + 1}: $ready/$total',
@@ -43291,10 +43295,10 @@ Widget _previewGateChip({required _PreviewGate gate, required Color accent}) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: ready ? const Color(0x1634D399) : accent.withValues(alpha: 0.1),
+      color: ready ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09) : accent.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(999),
       border: Border.all(
-        color: ready ? const Color(0xAA34D399) : accent.withValues(alpha: 0.45),
+        color: ready ? OnyxColorTokens.accentGreen.withValues(alpha: 0.67) : accent.withValues(alpha: 0.45),
       ),
     ),
     child: Row(
@@ -43303,7 +43307,7 @@ Widget _previewGateChip({required _PreviewGate gate, required Color accent}) {
         Icon(
           ready ? Icons.check_circle_rounded : Icons.pending_rounded,
           size: 13,
-          color: ready ? const Color(0xFF34D399) : const Color(0xFF8FD1FF),
+          color: ready ? OnyxColorTokens.accentGreen : OnyxColorTokens.accentSky,
         ),
         const SizedBox(width: 5),
         Text(
@@ -43396,10 +43400,10 @@ Widget _stepSummary({
     onPressed: primaryTarget == null
         ? null
         : () => onStepTap?.call(primaryTarget),
-    foregroundColor: const Color(0xFFEAF4FF),
+    foregroundColor: OnyxColorTokens.textPrimary,
     borderColor: accent.withValues(alpha: 0.85),
     backgroundColor: activeStatus.complete
-        ? const Color(0xFF0F766E)
+        ? OnyxColorTokens.accentTeal
         : accent.withValues(alpha: 0.88),
     filled: true,
   );
@@ -43410,8 +43414,8 @@ Widget _stepSummary({
         label: 'Previous Stage',
         icon: Icons.arrow_back_rounded,
         onPressed: () => onStepTap(activeIndex - 1),
-        foregroundColor: const Color(0xFFBFD7F2),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.textSecondary,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
     if (onStepTap != null && activeIndex != labels.length - 1)
       _OnboardingCommandActionConfig(
@@ -43419,8 +43423,8 @@ Widget _stepSummary({
         label: 'Final Stage',
         icon: Icons.flag_rounded,
         onPressed: () => onStepTap(labels.length - 1),
-        foregroundColor: const Color(0xFF9FE8FF),
-        borderColor: const Color(0xFF35506F),
+        foregroundColor: OnyxColorTokens.accentSky,
+        borderColor: OnyxColorTokens.borderStrong,
       ),
   ];
   return Container(
@@ -43532,14 +43536,14 @@ Widget _stepSummary({
                     _OnboardingCommandChipData(
                       label: 'Current',
                       value: labels[activeIndex],
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                     ),
                   ),
                   _onboardingCommandChip(
                     _OnboardingCommandChipData(
                       label: 'Step',
                       value: '${activeIndex + 1}/${labels.length}',
-                      color: const Color(0xFFBFD7F2),
+                      color: OnyxColorTokens.textSecondary,
                     ),
                   ),
                   _onboardingCommandChip(
@@ -43549,8 +43553,8 @@ Widget _stepSummary({
                           ? 'n/a'
                           : '${activeStatus.readyCount}/${activeStatus.total}',
                       color: activeStatus.complete
-                          ? const Color(0xFF34D399)
-                          : const Color(0xFFF59E0B),
+                          ? OnyxColorTokens.accentGreen
+                          : OnyxColorTokens.accentAmber,
                     ),
                   ),
                   _onboardingCommandChip(
@@ -43628,7 +43632,7 @@ Widget _stepSummary({
                 value: value,
                 backgroundColor: _adminDialogBorderColor,
                 valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF5FAAFF),
+                  OnyxColorTokens.accentSky,
                 ),
               ),
             );
@@ -43758,14 +43762,14 @@ Widget _stepPanel({
                 _OnboardingCommandChipData(
                   label: 'Stage',
                   value: stageLabel,
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
               ),
               _onboardingCommandChip(
                 const _OnboardingCommandChipData(
                   label: 'Mode',
                   value: 'form-live',
-                  color: Color(0xFFBFD7F2),
+                  color: OnyxColorTokens.textSecondary,
                 ),
               ),
               _onboardingCommandChip(
@@ -43812,12 +43816,12 @@ Widget _stepTitle(
   final Color border;
   final Color text;
   if (done) {
-    background = const Color(0x1634D399);
-    border = const Color(0xAA34D399);
+    background = OnyxColorTokens.accentGreen.withValues(alpha: 0.09);
+    border = OnyxColorTokens.accentGreen.withValues(alpha: 0.67);
     text = _adminDialogTitleColor;
   } else if (active) {
-    background = const Color(0x143C79BB);
-    border = const Color(0xFF5FAAFF);
+    background = OnyxColorTokens.accentBlue.withValues(alpha: 0.08);
+    border = OnyxColorTokens.accentSky;
     text = _adminDialogTitleColor;
   } else {
     background = _adminDialogAltColor;
@@ -43828,8 +43832,8 @@ Widget _stepTitle(
       ? Icons.check_circle_rounded
       : (active ? Icons.play_circle_fill_rounded : Icons.circle_outlined);
   final iconColor = done
-      ? const Color(0xFF7EF2C3)
-      : (active ? const Color(0xFF9FD6FF) : const Color(0xFFD3E6FA));
+      ? OnyxColorTokens.accentGreen
+      : (active ? OnyxColorTokens.accentSky : OnyxColorTokens.textPrimary);
   return AnimatedScale(
     duration: const Duration(milliseconds: 220),
     curve: Curves.easeOutCubic,
@@ -43883,7 +43887,7 @@ Widget _stepTitle(
                         ? _adminDialogBodyColor
                         : active
                         ? _adminAccentTextColor(
-                            const Color(0xFF3C79BB),
+                            OnyxColorTokens.accentBlue,
                             strength: 0.42,
                           )
                         : _adminDialogMutedColor,
@@ -43901,16 +43905,16 @@ Widget _stepTitle(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
               color: done
-                  ? const Color(0x1634D399)
+                  ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09)
                   : active
-                  ? const Color(0x145FAAFF)
-                  : const Color(0xFF13131E),
+                  ? OnyxColorTokens.accentSky.withValues(alpha: 0.08)
+                  : OnyxColorTokens.backgroundSecondary,
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: done
-                    ? const Color(0xAA34D399)
+                    ? OnyxColorTokens.accentGreen.withValues(alpha: 0.67)
                     : active
-                    ? const Color(0xFF5FAAFF)
+                    ? OnyxColorTokens.accentSky
                     : _adminDialogBorderColor,
               ),
             ),
@@ -43938,8 +43942,8 @@ ThemeData _onboardingStepperTheme(BuildContext context) {
     hintColor: _adminDialogMutedColor,
     canvasColor: _adminDialogSurfaceColor,
     colorScheme: base.colorScheme.copyWith(
-      primary: const Color(0xFF3C79BB),
-      onPrimary: const Color(0xFFEAF4FF),
+      primary: OnyxColorTokens.accentBlue,
+      onPrimary: OnyxColorTokens.textPrimary,
       onSurface: _adminDialogTitleColor,
       surface: _adminDialogSurfaceColor,
     ),
@@ -43956,11 +43960,11 @@ ButtonStyle _onboardingPrimaryActionStyle({
   required bool readyForCreate,
 }) {
   final background = isFinalStep
-      ? (readyForCreate ? const Color(0xFF0F766E) : const Color(0xFFB45309))
+      ? (readyForCreate ? OnyxColorTokens.accentTeal : OnyxColorTokens.amberBorder)
       : accent;
   return FilledButton.styleFrom(
     backgroundColor: background,
-    foregroundColor: const Color(0xFFEAF4FF),
+    foregroundColor: OnyxColorTokens.textPrimary,
     elevation: 0.6,
     minimumSize: const Size(172, 42),
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
@@ -43970,7 +43974,7 @@ ButtonStyle _onboardingPrimaryActionStyle({
 
 ButtonStyle _onboardingSecondaryActionStyle() {
   return OutlinedButton.styleFrom(
-    foregroundColor: const Color(0xFF365E94),
+    foregroundColor: OnyxColorTokens.accentBlue,
     backgroundColor: _adminDialogRaisedColor,
     side: const BorderSide(color: _adminDialogStrongBorderColor),
     minimumSize: const Size(112, 42),
@@ -43981,9 +43985,9 @@ ButtonStyle _onboardingSecondaryActionStyle() {
 
 ButtonStyle _onboardingMissingStepActionStyle() {
   return OutlinedButton.styleFrom(
-    foregroundColor: const Color(0xFF9A4D08),
-    backgroundColor: const Color(0xFFFFF4E8),
-    side: const BorderSide(color: Color(0xFFE3B16D)),
+    foregroundColor: OnyxColorTokens.amberBorder,
+    backgroundColor: OnyxColorTokens.amberSurface,
+    side: const BorderSide(color: OnyxColorTokens.amberBorder),
     minimumSize: const Size(178, 42),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -44195,7 +44199,7 @@ Widget _creationPulseBanner({
                       const _OnboardingCommandChipData(
                         label: 'Status',
                         value: 'locked',
-                        color: Color(0xFF34D399),
+                        color: OnyxColorTokens.accentGreen,
                       ),
                     ),
                     _onboardingCommandChip(
@@ -44209,7 +44213,7 @@ Widget _creationPulseBanner({
                       const _OnboardingCommandChipData(
                         label: 'Input',
                         value: 'sealed',
-                        color: Color(0xFFBFD7F2),
+                        color: OnyxColorTokens.textSecondary,
                       ),
                     ),
                   ],
@@ -44223,7 +44227,7 @@ Widget _creationPulseBanner({
                     value: 1,
                     backgroundColor: _adminDialogBorderColor,
                     valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF7EF2C3),
+                      OnyxColorTokens.accentGreen,
                     ),
                   ),
                 ),
@@ -44249,17 +44253,17 @@ Widget _summaryChip({
   final Color text;
   switch (state) {
     case _SummaryChipState.done:
-      background = const Color(0x1634D399);
-      border = const Color(0xAA34D399);
+      background = OnyxColorTokens.accentGreen.withValues(alpha: 0.09);
+      border = OnyxColorTokens.accentGreen.withValues(alpha: 0.67);
       text = _adminDialogTitleColor;
       break;
     case _SummaryChipState.active:
-      background = const Color(0x143C79BB);
-      border = const Color(0xFF5FAAFF);
+      background = OnyxColorTokens.accentBlue.withValues(alpha: 0.08);
+      border = OnyxColorTokens.accentSky;
       text = _adminDialogTitleColor;
       break;
     case _SummaryChipState.pending:
-      background = const Color(0xFF13131E);
+      background = OnyxColorTokens.backgroundSecondary;
       border = _adminDialogBorderColor;
       text = _adminDialogTitleColor;
       break;
@@ -44271,10 +44275,10 @@ Widget _summaryChip({
       ? Icons.adjust_rounded
       : Icons.circle_outlined;
   final iconColor = done
-      ? const Color(0xFF7EF2C3)
+      ? OnyxColorTokens.accentGreen
       : state == _SummaryChipState.active
-      ? const Color(0xFF9FD6FF)
-      : const Color(0xFFD3E6FA);
+      ? OnyxColorTokens.accentSky
+      : OnyxColorTokens.textPrimary;
   final content = Row(
     mainAxisSize: MainAxisSize.min,
     children: [
@@ -44479,7 +44483,7 @@ class _TacticalMapGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final gridPaint = Paint()
-      ..color = const Color(0x223C79BB)
+      ..color = OnyxColorTokens.accentBlue.withValues(alpha: 0.13)
       ..strokeWidth = 1;
     final majorPaint = Paint()
       ..color = accent.withValues(alpha: 0.26)
@@ -44499,7 +44503,7 @@ class _TacticalMapGridPainter extends CustomPainter {
     }
 
     final routePaint = Paint()
-      ..color = const Color(0x447EF2C3)
+      ..color = OnyxColorTokens.accentGreen.withValues(alpha: 0.27)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6;
     final route = Path()
@@ -44519,7 +44523,7 @@ class _TacticalMapGridPainter extends CustomPainter {
     canvas.drawPath(route, routePaint);
 
     final perimeterPaint = Paint()
-      ..color = const Color(0x228FD1FF)
+      ..color = OnyxColorTokens.accentSky.withValues(alpha: 0.13)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.1;
     final perimeter = RRect.fromRectAndRadius(
@@ -44575,7 +44579,7 @@ Widget _textField(
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
-      cursorColor: const Color(0xFF3C79BB),
+      cursorColor: OnyxColorTokens.accentBlue,
       decoration: _onboardingInputDecoration(label),
     ),
   );
@@ -44603,7 +44607,7 @@ Widget _onboardingControlShell({
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 15, color: const Color(0xFF3C79BB)),
+            Icon(icon, size: 15, color: OnyxColorTokens.accentBlue),
             const SizedBox(width: 7),
             Expanded(
               child: Column(
@@ -44637,9 +44641,9 @@ Widget _onboardingControlShell({
               key: ValueKey('$keyPrefix-status'),
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0x143C79BB),
+                color: OnyxColorTokens.accentBlue.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: const Color(0x4D5FAAFF)),
+                border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.3)),
               ),
               child: Text(
                 modeLabel,
@@ -44677,7 +44681,7 @@ Widget _dropdownField({
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          iconEnabledColor: const Color(0xFF3C79BB),
+          iconEnabledColor: OnyxColorTokens.accentBlue,
           dropdownColor: _adminDialogSurfaceColor,
           items: items
               .map(
@@ -44726,7 +44730,7 @@ Widget _onboardingFieldShell({
       children: [
         Row(
           children: [
-            Icon(icon, size: 14, color: const Color(0xFF3C79BB)),
+            Icon(icon, size: 14, color: OnyxColorTokens.accentBlue),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -44743,9 +44747,9 @@ Widget _onboardingFieldShell({
               key: ValueKey('onboarding-field-$keySegment-status'),
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0x143C79BB),
+                color: OnyxColorTokens.accentBlue.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: const Color(0x4D5FAAFF)),
+                border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.3)),
               ),
               child: Text(
                 modeLabel,
@@ -44780,7 +44784,7 @@ String _onboardingFieldKeySegment(String label) {
 
 ButtonStyle _onboardingInlineActionStyle({
   required Color accent,
-  Color foregroundColor = const Color(0xFF245B72),
+  Color foregroundColor = OnyxColorTokens.accentBlue,
 }) {
   return OutlinedButton.styleFrom(
     foregroundColor: foregroundColor,
@@ -44818,7 +44822,7 @@ InputDecoration _onboardingInputDecoration(String label) {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: Color(0xFF67C5FF), width: 1.4),
+      borderSide: const BorderSide(color: OnyxColorTokens.accentSky, width: 1.4),
     ),
   );
 }
@@ -44879,7 +44883,7 @@ InputDecoration _adminDialogInputDecoration(String label) {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: Color(0xFF67C5FF), width: 1.4),
+      borderSide: const BorderSide(color: OnyxColorTokens.accentSky, width: 1.4),
     ),
   );
 }
