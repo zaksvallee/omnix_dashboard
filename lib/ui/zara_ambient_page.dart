@@ -44,10 +44,12 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
   late final Animation<Offset> _surfaceSlide;
   late final Animation<double> _surfaceFade;
   Timer? _clockTimer;
+  Timer? _statementTimer;
   String _timeLabel = '';
   bool _actionCardVisible = false;
   int _previousIncidentCount = 0;
   int _previousDispatchCount = 0;
+  int _statementIndex = 0;
 
   @override
   void initState() {
@@ -90,6 +92,12 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
       const Duration(seconds: 30),
       (_) => _updateTime(),
     );
+    _statementTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) {
+        if (mounted) setState(() => _statementIndex++);
+      },
+    );
   }
 
   void _updateTime() {
@@ -109,6 +117,7 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     _pulseController.dispose();
     _surfaceController.dispose();
     _clockTimer?.cancel();
+    _statementTimer?.cancel();
     super.dispose();
   }
 
@@ -204,7 +213,9 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
                                   statusAccent: statusAccent,
                                   allClear: allClear,
                                 ),
-                                const SizedBox(height: 40),
+                                const SizedBox(height: 24),
+                                _zaraIntelligenceStatement(projection),
+                                const SizedBox(height: 32),
                                 _systemHealthBar(
                                   siteCount: siteCount,
                                   guardCount: guardCount,
@@ -408,6 +419,105 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Intelligence statement ─────────────────────────────────────────────────
+
+  List<String> _intelligenceStatements(OperationsHealthSnapshot projection) {
+    final statements = <String>[];
+    final now = DateTime.now();
+    final hour = now.hour;
+    final minuteStr = now.minute.toString().padLeft(2, '0');
+
+    if (projection.totalFailed > 0) {
+      statements.add(
+        'Monitoring ${projection.totalFailed} unresolved '
+        'incident${projection.totalFailed == 1 ? '' : 's'}. '
+        'Response chain analysis in progress.',
+      );
+    }
+    if (projection.highRiskIntelligence > 0) {
+      statements.add(
+        '${projection.highRiskIntelligence} high-risk intelligence '
+        'signal${projection.highRiskIntelligence == 1 ? '' : 's'} detected. '
+        'Threat posture elevated for affected areas.',
+      );
+    }
+    if (projection.totalPatrols > 0) {
+      statements.add(
+        '${projection.totalPatrols} patrol route'
+        '${projection.totalPatrols == 1 ? '' : 's'} verified. '
+        'All checkpoints confirmed — no anomalies.',
+      );
+    }
+    statements.add(
+      '${projection.totalSites} site'
+      '${projection.totalSites == 1 ? '' : 's'} under continuous watch. '
+      'Next system audit at ${(hour + 1) % 24}:$minuteStr.',
+    );
+    if (projection.averageResponseMinutes > 0) {
+      statements.add(
+        'Average response time: '
+        '${projection.averageResponseMinutes.toStringAsFixed(1)} minutes. '
+        '${projection.averageResponseMinutes < 10 ? 'Within operational target.' : 'Monitoring for improvement.'}',
+      );
+    }
+    statements.add(
+      'Event chain integrity maintained. '
+      '${projection.totalDecisions} decisions processed, '
+      '${projection.totalExecuted} confirmed.',
+    );
+    return statements;
+  }
+
+  Widget _zaraIntelligenceStatement(OperationsHealthSnapshot projection) {
+    final statements = _intelligenceStatements(projection);
+    if (statements.isEmpty) return const SizedBox.shrink();
+    final current = statements[_statementIndex % statements.length];
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 600),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: Container(
+        key: ValueKey<int>(_statementIndex % statements.length),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.brand.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: OnyxColorTokens.brand.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                size: 14,
+                color: OnyxColorTokens.brand.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                current,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: OnyxColorTokens.textSecondary,
+                  height: 1.5,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
