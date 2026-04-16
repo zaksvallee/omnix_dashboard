@@ -4281,7 +4281,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: OnyxColorTokens.backgroundSecondary,
-          borderRadius: BorderRadius.circular(5),
           border: Border(
             left: BorderSide(
               color: OnyxColorTokens.accentGreen.withValues(alpha: 0.5),
@@ -5470,7 +5469,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: _commandPanelColor,
-        borderRadius: BorderRadius.circular(16),
         border: Border(
           top: const BorderSide(color: _commandBorderColor),
           right: const BorderSide(color: _commandBorderColor),
@@ -5521,9 +5519,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
             decoration: BoxDecoration(
               color: _commandPanelTintColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
               border: Border(bottom: BorderSide(color: _commandBorderColor)),
             ),
             child: Row(

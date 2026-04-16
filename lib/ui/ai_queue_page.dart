@@ -2445,7 +2445,6 @@ class _AIQueuePageState extends State<AIQueuePage> {
         color: showInlineContext
             ? OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.98)
             : OnyxColorTokens.backgroundSecondary,
-        borderRadius: BorderRadius.circular(16),
         border: Border(
           top: const BorderSide(color: OnyxColorTokens.borderSubtle),
           right: const BorderSide(color: OnyxColorTokens.borderSubtle),
@@ -3102,10 +3101,6 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                       decoration: BoxDecoration(
                                         color: OnyxColorTokens.backgroundPrimary
                                             .withValues(alpha: 0.80),
-                                        borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(5),
-                                          bottomRight: Radius.circular(5),
-                                        ),
                                         border: Border(
                                           top: BorderSide(
                                             color: OnyxColorTokens.accentPurple

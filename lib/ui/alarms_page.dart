@@ -874,7 +874,6 @@ class _AlarmsPageState extends State<AlarmsPage> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: _alarmSurface,
-        borderRadius: OnyxRadiusTokens.radiusMd,
         border: Border(
           left: BorderSide(color: severityColor, width: 3),
           top: BorderSide(color: _alarmDivider),

@@ -2157,9 +2157,6 @@ class TacticalPage extends StatelessWidget {
                                 color: OnyxColorTokens.textPrimary.withValues(
                                   alpha: 0.03,
                                 ),
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(5),
-                                ),
                                 border: Border(
                                   bottom: BorderSide(
                                     color: OnyxColorTokens.divider,
