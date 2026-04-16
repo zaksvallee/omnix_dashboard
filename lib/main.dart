@@ -17411,10 +17411,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         action: 'dispatch',
         update: update,
       );
-      await _markSiteAwarenessAlertHandled(
-        alert: alert,
-        removeAlert: false,
-      );
+      await _markSiteAwarenessAlertHandled(alert: alert, removeAlert: false);
       await _answerTelegramCallbackSafe(
         callbackQueryId: callbackId,
         text: '🚨 Dispatch logged for $siteId. Guard notified.',
@@ -17448,7 +17445,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }) async {
     final callbackId = (update.callbackQueryId ?? '').trim();
     final action = falseAlarm ? 'dismiss' : 'ack';
-    final eventType = falseAlarm ? 'telegram_false_alarm' : 'telegram_acknowledged';
+    final eventType = falseAlarm
+        ? 'telegram_false_alarm'
+        : 'telegram_acknowledged';
     final successText = falseAlarm
         ? '🔕 Marked as false alarm.'
         : '✅ Acknowledged.';
@@ -17549,7 +17548,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'Telegram camera view follow-up failed for CH$normalizedChannelId.',
         name: 'TelegramBridge',
         error:
-            result.failureReasonsByMessageKey[message.messageKey] ?? 'unknown failure',
+            result.failureReasonsByMessageKey[message.messageKey] ??
+            'unknown failure',
       );
     }
   }
@@ -17625,7 +17625,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       }
     }
     if (!updated) {
-      throw lastError ?? StateError('No matching event row found for $alertId.');
+      throw lastError ??
+          StateError('No matching event row found for $alertId.');
     }
   }
 
@@ -17640,7 +17641,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final rows = await Supabase.instance.client
           .from('site_awareness_snapshots')
           .select('site_id,active_alerts')
-          .eq('site_id', alert.siteId.trim().isEmpty ? _selectedSite : alert.siteId)
+          .eq(
+            'site_id',
+            alert.siteId.trim().isEmpty ? _selectedSite : alert.siteId,
+          )
           .limit(1);
       if (rows.isEmpty) {
         return;
@@ -17656,7 +17660,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           updatedAlerts.add(entry);
           continue;
         }
-        final alertMap = Map<String, Object?>.from(entry.cast<Object?, Object?>());
+        final alertMap = Map<String, Object?>.from(
+          entry.cast<Object?, Object?>(),
+        );
         final entryAlertId = (alertMap['alert_id'] ?? '').toString().trim();
         if (entryAlertId != alert.alertId.trim()) {
           updatedAlerts.add(alertMap);
@@ -37254,6 +37260,25 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _operationsFocusIncidentReference = ref;
       _tacticalAgentReturnIncidentReference = null;
       _pendingTacticalAgentReturnIncidentReference = null;
+      _route = OnyxRoute.tactical;
+    });
+    _configureTacticalMapLiveData(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+  }
+
+  void _openTacticalForRiskIntelScope(String clientId, String siteId) {
+    _cancelDemoAutopilot();
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    setState(() {
+      _tacticalRouteClientId = normalizedClientId;
+      _tacticalRouteSiteId = normalizedSiteId;
+      _operationsFocusIncidentReference = '';
+      _tacticalAgentReturnIncidentReference = null;
+      _pendingTacticalAgentReturnIncidentReference = null;
+      _pendingTacticalEvidenceReturnReceipt = null;
       _route = OnyxRoute.tactical;
     });
     _configureTacticalMapLiveData(

@@ -16,6 +16,26 @@ const _intelMutedColor = OnyxColorTokens.textMuted;
 String _intelKeySegment(String value) =>
     value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
 
+String _intelTitleCaseWords(String value) {
+  final cleaned = value
+      .trim()
+      .replaceAll(RegExp(r'[_-]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ');
+  if (cleaned.isEmpty) {
+    return 'Unknown';
+  }
+  return cleaned
+      .split(' ')
+      .map((segment) {
+        if (segment.isEmpty) {
+          return segment;
+        }
+        final lower = segment.toLowerCase();
+        return '${lower[0].toUpperCase()}${lower.substring(1)}';
+      })
+      .join(' ');
+}
+
 class RiskIntelAreaSummary {
   final String title;
   final String level;
@@ -24,6 +44,9 @@ class RiskIntelAreaSummary {
   final int signalCount;
   final List<String> eventIds;
   final String? selectedEventId;
+  final String clientId;
+  final String siteId;
+  final String? zoneLabel;
 
   const RiskIntelAreaSummary({
     required this.title,
@@ -33,6 +56,9 @@ class RiskIntelAreaSummary {
     this.signalCount = 0,
     this.eventIds = const <String>[],
     this.selectedEventId,
+    this.clientId = '',
+    this.siteId = '',
+    this.zoneLabel,
   });
 }
 
@@ -47,6 +73,10 @@ class RiskIntelFeedItem {
   final IconData icon;
   final Color iconColor;
   final String summary;
+  final int confidenceScore;
+  final String clientId;
+  final String siteId;
+  final String? zoneLabel;
 
   const RiskIntelFeedItem({
     required this.id,
@@ -59,6 +89,10 @@ class RiskIntelFeedItem {
     required this.icon,
     required this.iconColor,
     required this.summary,
+    this.confidenceScore = 0,
+    this.clientId = '',
+    this.siteId = '',
+    this.zoneLabel,
   });
 }
 
@@ -82,6 +116,8 @@ class RiskIntelligencePage extends StatelessWidget {
   final VoidCallback? onAddManualIntel;
   final ValueChanged<RiskIntelAreaSummary>? onViewAreaIntel;
   final ValueChanged<RiskIntelFeedItem>? onViewRecentIntel;
+  final ValueChanged<RiskIntelAreaSummary>? onSendAreaToTrack;
+  final ValueChanged<RiskIntelFeedItem>? onSendSignalToTrack;
   final List<RiskIntelAreaSummary> areas;
   final List<RiskIntelFeedItem> recentItems;
   final RiskIntelAutoAuditReceipt? latestAutoAuditReceipt;
@@ -92,6 +128,8 @@ class RiskIntelligencePage extends StatelessWidget {
     this.onAddManualIntel,
     this.onViewAreaIntel,
     this.onViewRecentIntel,
+    this.onSendAreaToTrack,
+    this.onSendSignalToTrack,
     this.areas = kDebugMode ? defaultAreas : const <RiskIntelAreaSummary>[],
     this.recentItems = kDebugMode
         ? defaultRecentItems
@@ -106,58 +144,83 @@ class RiskIntelligencePage extends StatelessWidget {
       level: 'LOW',
       accent: OnyxColorTokens.accentGreen,
       border: OnyxColorTokens.greenBorder,
+      clientId: 'CLIENT-SANDTON',
+      siteId: 'SITE-SANDTON-CBD',
+      zoneLabel: 'Sandton Core',
     ),
     RiskIntelAreaSummary(
       title: 'Hyde Park',
       level: 'LOW',
       accent: OnyxColorTokens.accentGreen,
       border: OnyxColorTokens.greenBorder,
+      clientId: 'CLIENT-HYDE-PARK',
+      siteId: 'SITE-HYDE-PARK',
+      zoneLabel: 'Hyde Park North',
     ),
     RiskIntelAreaSummary(
       title: 'Waterfall',
       level: 'MEDIUM',
       accent: OnyxColorTokens.accentAmber,
       border: OnyxColorTokens.amberBorder,
+      signalCount: 2,
+      clientId: 'CLIENT-WATERFALL',
+      siteId: 'SITE-WATERFALL',
+      zoneLabel: 'Business Park',
     ),
     RiskIntelAreaSummary(
       title: 'Rosebank',
       level: 'LOW',
       accent: OnyxColorTokens.accentGreen,
       border: OnyxColorTokens.greenBorder,
+      clientId: 'CLIENT-ROSEBANK',
+      siteId: 'SITE-ROSEBANK',
+      zoneLabel: 'Rosebank Core',
     ),
   ];
 
   static const List<RiskIntelFeedItem> defaultRecentItems = [
     RiskIntelFeedItem(
       id: 'intel-twitter-rosebank',
-      sourceType: 'community',
+      sourceType: 'community-feed',
       provider: 'twitter',
       timeLabel: '23:15',
-      sourceLabel: 'TWITTER',
+      sourceLabel: 'COMMUNITY-FEED',
       icon: Icons.alternate_email_rounded,
       iconColor: OnyxColorTokens.accentAmber,
       summary: 'Protest planned near Rosebank Metro Station tomorrow at 10:00',
+      confidenceScore: 72,
+      clientId: 'CLIENT-ROSEBANK',
+      siteId: 'SITE-ROSEBANK',
+      zoneLabel: 'Rosebank Metro',
     ),
     RiskIntelFeedItem(
       id: 'intel-news24-loadshedding',
-      sourceType: 'news',
+      sourceType: 'news-watch',
       provider: 'news24',
       timeLabel: '22:45',
-      sourceLabel: 'NEWS24',
+      sourceLabel: 'NEWS-WATCH',
       icon: Icons.public_rounded,
       iconColor: OnyxColorTokens.accentSky,
       summary: 'Load shedding Stage 3 announced - affects all monitored areas',
+      confidenceScore: 54,
+      clientId: 'CLIENT-MS-VALLEE',
+      siteId: 'SITE-MS-VALLEE-RESIDENCE',
+      zoneLabel: 'Grid Supply',
     ),
     RiskIntelFeedItem(
       id: 'intel-scanner-waterfall',
-      sourceType: 'radio',
+      sourceType: 'patrol-report',
       provider: 'police-scanner',
       timeLabel: '21:30',
-      sourceLabel: 'POLICE SCANNER',
+      sourceLabel: 'PATROL-REPORT',
       icon: Icons.sensors_rounded,
       iconColor: OnyxColorTokens.accentRed,
       summary:
           'Armed robbery reported in Midrand - 5km from Waterfall Business Park',
+      confidenceScore: 86,
+      clientId: 'CLIENT-WATERFALL',
+      siteId: 'SITE-WATERFALL',
+      zoneLabel: 'Midrand Corridor',
     ),
   ];
 
@@ -247,41 +310,6 @@ class RiskIntelligencePage extends StatelessWidget {
     );
   }
 
-  void _showRecentIntelDialog(BuildContext context, RiskIntelFeedItem item) {
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return _IntelDialogFrame(
-          dialogKey: ValueKey(
-            'intel-detail-${_intelKeySegment(item.provider)}-dialog',
-          ),
-          title: item.sourceLabel,
-          eyebrow: item.timeLabel,
-          accent: item.iconColor,
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _IntelDialogSection(label: 'Summary', value: item.summary),
-              const SizedBox(height: 12),
-              _IntelDialogSection(
-                label: 'Triage Guidance',
-                value:
-                    'Confirm source confidence, assess client proximity, and escalate to dispatch if posture changes.',
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   void _addManualIntel(BuildContext context) {
     if (onAddManualIntel != null) {
       onAddManualIntel!.call();
@@ -298,14 +326,6 @@ class RiskIntelligencePage extends StatelessWidget {
     _showAreaIntelDialog(context, area);
   }
 
-  void _viewIntelDetail(BuildContext context, RiskIntelFeedItem item) {
-    if (onViewRecentIntel != null) {
-      onViewRecentIntel!(item);
-      return;
-    }
-    _showRecentIntelDialog(context, item);
-  }
-
   Color _sourceColor(String source) {
     return switch (source.toLowerCase()) {
       'twitter' => OnyxColorTokens.accentSky,
@@ -318,269 +338,662 @@ class RiskIntelligencePage extends StatelessWidget {
     };
   }
 
-  Widget _areaRiskCard(BuildContext context, RiskIntelAreaSummary area) {
-    final level = area.level.trim().toUpperCase();
-    final isHigh = level == 'CRITICAL' || level == 'HIGH';
-    final isMed = level == 'MEDIUM' || level == 'MED';
-    final dotColor = isHigh
-        ? OnyxColorTokens.accentRed
-        : isMed
-        ? OnyxColorTokens.accentAmber
-        : OnyxColorTokens.accentGreen;
-    final borderColor = isHigh
-        ? OnyxColorTokens.redBorder
-        : isMed
-        ? OnyxColorTokens.amberBorder
-        : OnyxColorTokens.divider;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(
-            color: isHigh
-                ? OnyxColorTokens.accentRed
-                : isMed
-                ? OnyxColorTokens.accentAmber
-                : Colors.transparent,
-            width: 2,
-          ),
-          bottom: BorderSide(color: OnyxColorTokens.divider),
+  int _areaSeverity(RiskIntelAreaSummary area) {
+    return switch (area.level.trim().toUpperCase()) {
+      'HIGH' || 'CRITICAL' => 3,
+      'MEDIUM' || 'MED' => 2,
+      _ => 1,
+    };
+  }
+
+  bool get _allAreasStable =>
+      areas.isEmpty || areas.every((area) => _areaSeverity(area) == 1);
+
+  RiskIntelAreaSummary? _topRiskArea() {
+    if (areas.isEmpty) {
+      return null;
+    }
+    final ranked = [...areas]
+      ..sort((left, right) {
+        final severityCompare = _areaSeverity(
+          right,
+        ).compareTo(_areaSeverity(left));
+        if (severityCompare != 0) {
+          return severityCompare;
+        }
+        return right.signalCount.compareTo(left.signalCount);
+      });
+    return ranked.first;
+  }
+
+  RiskIntelFeedItem? _primarySignal() {
+    if (recentItems.isEmpty) {
+      return null;
+    }
+    final ranked = [...recentItems]
+      ..sort((left, right) {
+        final confidenceCompare = right.confidenceScore.compareTo(
+          left.confidenceScore,
+        );
+        if (confidenceCompare != 0) {
+          return confidenceCompare;
+        }
+        final leftTime = left.occurredAtUtc;
+        final rightTime = right.occurredAtUtc;
+        if (leftTime == null || rightTime == null) {
+          return 0;
+        }
+        return rightTime.compareTo(leftTime);
+      });
+    return ranked.first;
+  }
+
+  String _displaySiteLabel(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 'Scope pending';
+    }
+    return _intelTitleCaseWords(trimmed);
+  }
+
+  String _zoneOrSiteLabel({required String siteId, String? zoneLabel}) {
+    final trimmedZone = zoneLabel?.trim() ?? '';
+    if (trimmedZone.isNotEmpty) {
+      return _intelTitleCaseWords(trimmedZone);
+    }
+    return _displaySiteLabel(siteId);
+  }
+
+  String _areaStateLabel(RiskIntelAreaSummary area) {
+    return switch (_areaSeverity(area)) {
+      3 => 'HIGH ALERT',
+      2 => 'ELEVATED WATCH',
+      _ => 'STABLE',
+    };
+  }
+
+  Color _areaStateAccent(RiskIntelAreaSummary area) {
+    return switch (_areaSeverity(area)) {
+      3 => OnyxColorTokens.accentRed,
+      2 => OnyxColorTokens.accentAmber,
+      _ => OnyxColorTokens.accentGreen,
+    };
+  }
+
+  String _signalTypeBadge(RiskIntelFeedItem item) {
+    final base = item.sourceType.trim().isNotEmpty
+        ? item.sourceType
+        : item.sourceLabel;
+    return base.trim().replaceAll(RegExp(r'[_\s]+'), '-').toUpperCase();
+  }
+
+  String _signalAssessment(RiskIntelFeedItem item) {
+    final threatType = _intelTitleCaseWords(
+      item.sourceType.trim().isEmpty ? item.sourceLabel : item.sourceType,
+    );
+    if (item.confidenceScore > 70) {
+      return 'Pattern may indicate $threatType activity. Recommend flagging for Track.';
+    }
+    if (item.confidenceScore >= 40) {
+      return 'Unconfirmed. Continue monitoring.';
+    }
+    return 'Low confidence. Watch for repeat.';
+  }
+
+  String _signalTrendLabel(RiskIntelFeedItem item) {
+    if (item.confidenceScore >= 70) {
+      return '↑ Increasing';
+    }
+    if (item.confidenceScore >= 40) {
+      return '→ Stable';
+    }
+    return '↓ Decreasing';
+  }
+
+  Color _signalTrendColor(RiskIntelFeedItem item) {
+    if (item.confidenceScore >= 70) {
+      return OnyxColorTokens.accentAmber;
+    }
+    if (item.confidenceScore >= 40) {
+      return OnyxColorTokens.textMuted;
+    }
+    return OnyxColorTokens.accentGreen;
+  }
+
+  List<({String description, int count})> _activePatterns() {
+    final patterns = <({String description, int count})>[];
+    for (final area in areas.where((area) => area.signalCount >= 2)) {
+      patterns.add((
+        description: '${area.title} recurring activity cluster',
+        count: area.signalCount,
+      ));
+    }
+
+    final bySignalType = <String, int>{};
+    for (final item in recentItems) {
+      final key = _signalTypeBadge(item);
+      bySignalType.update(key, (count) => count + 1, ifAbsent: () => 1);
+    }
+    for (final entry in bySignalType.entries) {
+      if (entry.value >= 2) {
+        patterns.add((
+          description: '${entry.key} pattern emerging',
+          count: entry.value,
+        ));
+      }
+    }
+
+    return patterns;
+  }
+
+  Widget _sectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: OnyxColorTokens.textDisabled,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.3,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    );
+  }
+
+  Widget _forecastLine({required Color dotColor, required String text}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(top: 5),
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _forecastBlock() {
+    final topArea = _topRiskArea();
+    final signal = _primarySignal();
+    final elevatedArea = topArea != null && _areaSeverity(topArea) >= 2;
+    final signalLine = signal != null && signal.confidenceScore > 60
+        ? '${_intelTitleCaseWords(signal.sourceType.isEmpty ? signal.sourceLabel : signal.sourceType)} emerging. Recommend increased monitoring.'
+        : 'No hardening signal detected. Continue monitoring.';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.22),
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 760;
+          final postureChip = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: _allAreasStable
+                  ? OnyxColorTokens.accentGreen.withValues(alpha: 0.08)
+                  : OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: _allAreasStable
+                    ? OnyxColorTokens.accentGreen.withValues(alpha: 0.18)
+                    : OnyxColorTokens.accentAmber.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Text(
+              _allAreasStable ? 'ALL AREAS STABLE' : 'ELEVATED WATCH',
+              style: GoogleFonts.inter(
+                color: _allAreasStable
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+
+          final leftContent = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 8,
-                height: 8,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: dotColor,
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(7),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.35),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Z',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.accentPurple,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ZARA · THREAT FORECAST',
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.60,
+                        ),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _forecastLine(
+                      dotColor: elevatedArea
+                          ? OnyxColorTokens.accentRed
+                          : OnyxColorTokens.accentGreen,
+                      text: elevatedArea
+                          ? '${topArea.title} elevated activity detected.'
+                          : 'All areas stable.',
+                    ),
+                    const SizedBox(height: 5),
+                    _forecastLine(
+                      dotColor: OnyxColorTokens.accentAmber,
+                      text: signalLine,
+                    ),
+                    const SizedBox(height: 5),
+                    _forecastLine(
+                      dotColor: OnyxColorTokens.accentPurple,
+                      text: 'Recommend review before next shift.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [leftContent, const SizedBox(height: 12), postureChip],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: leftContent),
+              const SizedBox(width: 12),
+              postureChip,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _areaStateCard(BuildContext context, RiskIntelAreaSummary area) {
+    final accent = _areaStateAccent(area);
+    final severity = _areaSeverity(area);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   area.title,
                   style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: OnyxColorTokens.textPrimary,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: dotColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: dotColor.withValues(alpha: 0.25)),
-                ),
-                child: Text(
-                  level,
-                  style: GoogleFonts.inter(
-                    fontSize: 9,
+                    color: OnyxColorTokens.textPrimary.withValues(alpha: 0.85),
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: dotColor,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'RISK LEVEL',
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: OnyxColorTokens.textMuted,
-              letterSpacing: 0.7,
-            ),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: () => _viewAreaIntel(context, area),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: OnyxColorTokens.textSecondary,
-              side: BorderSide(color: borderColor),
-              minimumSize: const Size(double.infinity, 32),
-              textStyle: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            child: const Text('View intel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _intelFeedCard(BuildContext context, RiskIntelFeedItem item) {
-    final source = item.sourceLabel.isNotEmpty
-        ? item.sourceLabel
-        : item.provider;
-    final sourceColor = _sourceColor(source);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OnyxColorTokens.backgroundSecondary,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: OnyxColorTokens.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                item.timeLabel,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: OnyxColorTokens.textMuted,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: sourceColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: sourceColor.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Text(
-                  source.toUpperCase(),
-                  style: GoogleFonts.inter(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: sourceColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            item.summary,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: OnyxColorTokens.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton(
-            onPressed: () => _viewIntelDetail(context, item),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: OnyxColorTokens.textSecondary,
-              side: BorderSide(color: OnyxColorTokens.divider),
-              minimumSize: const Size(0, 30),
-              textStyle: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            child: const Text('View details'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAreaPanel(BuildContext context, {double? width}) {
-    return Container(
-      width: width,
-      decoration: BoxDecoration(
-        color: OnyxColorTokens.backgroundSecondary,
-        border: Border.all(color: OnyxColorTokens.divider),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.location_on_rounded,
-                  size: 14,
-                  color: OnyxColorTokens.accentPurple,
-                ),
-                const SizedBox(width: 6),
+                const SizedBox(height: 3),
                 Text(
-                  'AREA RISK LEVELS',
+                  'Risk area · ${_zoneOrSiteLabel(siteId: area.siteId, zoneLabel: area.zoneLabel)}',
                   style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: OnyxColorTokens.textMuted,
-                    letterSpacing: 0.7,
+                    color: OnyxColorTokens.textDisabled,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
-          Divider(color: OnyxColorTokens.divider, height: 1),
-          for (final area in areas) _areaRiskCard(context, area),
-          Divider(color: OnyxColorTokens.divider, height: 1),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.add, size: 14),
-              label: const Text('Add manual intel'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: OnyxColorTokens.accentPurple,
-                side: BorderSide(color: OnyxColorTokens.borderSubtle),
-                minimumSize: const Size(double.infinity, 36),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accent.withValues(
+                    alpha: severity == 1
+                        ? 0.10
+                        : severity == 2
+                        ? 0.10
+                        : 0.12,
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: accent.withValues(
+                      alpha: severity == 1
+                          ? 0.22
+                          : severity == 2
+                          ? 0.25
+                          : 0.30,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  _areaStateLabel(area),
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-              onPressed: () => _addManualIntel(context),
-            ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => _viewAreaIntel(context, area),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: OnyxColorTokens.textMuted,
+                      side: const BorderSide(color: OnyxColorTokens.divider),
+                      minimumSize: const Size(0, 28),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    child: const Text('View intel'),
+                  ),
+                  OutlinedButton(
+                    onPressed: onSendAreaToTrack == null
+                        ? null
+                        : () => onSendAreaToTrack!(area),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.70,
+                      ),
+                      backgroundColor: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.10,
+                      ),
+                      side: BorderSide(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.22,
+                        ),
+                      ),
+                      minimumSize: const Size(0, 28),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    child: const Text('Send to Track →'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFeedPanel(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  Widget _signalCard(BuildContext context, RiskIntelFeedItem item) {
+    final source = item.sourceLabel.isNotEmpty
+        ? item.sourceLabel
+        : item.provider;
+    final sourceColor = _sourceColor(source);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(5),
+        child: Stack(
           children: [
-            Icon(
-              Icons.trending_up_rounded,
-              size: 14,
-              color: OnyxColorTokens.accentPurple,
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 2,
+                color: OnyxColorTokens.accentAmber.withValues(alpha: 0.50),
+              ),
             ),
-            const SizedBox(width: 6),
-            Text(
-              'RECENT INTELLIGENCE',
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: OnyxColorTokens.textMuted,
-                letterSpacing: 0.7,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.backgroundPrimary,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: OnyxColorTokens.divider),
+                        ),
+                        child: Text(
+                          _signalTypeBadge(item),
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.textMuted,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        item.timeLabel,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textDisabled,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.summary,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        margin: const EdgeInsets.only(top: 2),
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.18,
+                          ),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Z',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentPurple,
+                            fontSize: 7,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'ZARA: ${_signalAssessment(item)}',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.60,
+                            ),
+                            fontSize: 9,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        _signalTrendLabel(item),
+                        style: GoogleFonts.inter(
+                          color: _signalTrendColor(item),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          OutlinedButton(
+                            onPressed: onSendSignalToTrack == null
+                                ? null
+                                : () => onSendSignalToTrack!(item),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: OnyxColorTokens.accentPurple
+                                  .withValues(alpha: 0.70),
+                              backgroundColor: OnyxColorTokens.accentPurple
+                                  .withValues(alpha: 0.10),
+                              side: BorderSide(
+                                color: OnyxColorTokens.accentPurple.withValues(
+                                  alpha: 0.22,
+                                ),
+                              ),
+                              minimumSize: const Size(0, 28),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              textStyle: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            child: const Text('Send to Track →'),
+                          ),
+                          OutlinedButton(
+                            onPressed: () {},
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: OnyxColorTokens.textDisabled,
+                              side: const BorderSide(
+                                color: OnyxColorTokens.divider,
+                              ),
+                              minimumSize: const Size(0, 28),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              textStyle: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            child: const Text('Dismiss'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _zoneOrSiteLabel(
+                      siteId: item.siteId,
+                      zoneLabel: item.zoneLabel,
+                    ),
+                    style: GoogleFonts.inter(
+                      color: sourceColor.withValues(alpha: 0.55),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        for (final item in recentItems) _intelFeedCard(context, item),
-      ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final patterns = _activePatterns();
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -594,55 +1007,179 @@ class RiskIntelligencePage extends StatelessWidget {
             viewportWidth: constraints.maxWidth,
             widescreenFillFactor: ultrawideSurface ? 1 : 0.95,
           );
-          final narrow = constraints.maxWidth < 900;
 
           return Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: surfaceMaxWidth),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Risk intelligence',
-                              style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: OnyxColorTokens.textPrimary,
-                              ),
-                            ),
-                            Text(
-                              'Area threat assessment and news monitoring',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: OnyxColorTokens.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    if (narrow) ...[
-                      _buildAreaPanel(context),
-                      const SizedBox(height: 18),
-                      _buildFeedPanel(context),
-                    ] else
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    _forecastBlock(),
+                    _sectionLabel('AREA STATES'),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
                         children: [
-                          _buildAreaPanel(context, width: 320),
-                          const SizedBox(width: 18),
-                          Expanded(child: _buildFeedPanel(context)),
+                          if (areas.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: OnyxColorTokens.backgroundSecondary,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: OnyxColorTokens.divider,
+                                ),
+                              ),
+                              child: Text(
+                                'No active area states.',
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.textDisabled,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            )
+                          else
+                            for (final area in areas)
+                              _areaStateCard(context, area),
                         ],
                       ),
+                    ),
+                    _sectionLabel('ACTIVE SIGNALS'),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          if (recentItems.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: OnyxColorTokens.backgroundSecondary,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: OnyxColorTokens.divider,
+                                ),
+                              ),
+                              child: Text(
+                                'No active signals.',
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.textDisabled,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            )
+                          else
+                            for (final item in recentItems)
+                              _signalCard(context, item),
+                        ],
+                      ),
+                    ),
+                    if (patterns.isNotEmpty) ...[
+                      _sectionLabel('ACTIVE PATTERNS'),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            for (final pattern in patterns)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 9,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: OnyxColorTokens.backgroundSecondary,
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(
+                                    color: OnyxColorTokens.divider,
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      margin: const EdgeInsets.only(top: 5),
+                                      decoration: const BoxDecoration(
+                                        color: OnyxColorTokens.accentAmber,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            pattern.description,
+                                            style: GoogleFonts.inter(
+                                              color: OnyxColorTokens.textMuted,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Ongoing — ${pattern.count} signals',
+                                            style: GoogleFonts.inter(
+                                              color:
+                                                  OnyxColorTokens.textDisabled,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton(
+                          onPressed: () => _addManualIntel(context),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: OnyxColorTokens.textMuted,
+                            backgroundColor:
+                                OnyxColorTokens.backgroundSecondary,
+                            side: const BorderSide(
+                              color: OnyxColorTokens.divider,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            minimumSize: const Size(0, 36),
+                            textStyle: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: const Text('Add manual intel'),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

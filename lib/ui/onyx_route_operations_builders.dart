@@ -36,6 +36,8 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
       onAddManualIntel: _openManualIntelFromRiskIntelRoute,
       onViewAreaIntel: _openEventsForRiskIntelAreaFromRoute,
       onViewRecentIntel: _openEventsForRiskIntelItemFromRoute,
+      onSendAreaToTrack: _openTrackForRiskIntelAreaFromRoute,
+      onSendSignalToTrack: _openTrackForRiskIntelItemFromRoute,
       areas: areas,
       recentItems: recentItems,
       latestAutoAuditReceipt: _latestRiskIntelAutoAuditReceipt,
@@ -76,6 +78,29 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
     _openEventsForRiskIntelArea(area);
   }
 
+  void _openTrackForRiskIntelAreaFromRoute(RiskIntelAreaSummary area) {
+    _auditRiskIntelActionFromRoute(
+      'area_sent_to_track',
+      'Sent ${area.title} risk area to Track from Risk Intel.',
+      selectedEventId: area.selectedEventId,
+      eventIds: area.eventIds,
+    );
+    _openTrackForRiskIntelScope(clientId: area.clientId, siteId: area.siteId);
+  }
+
+  void _openTrackForRiskIntelItemFromRoute(RiskIntelFeedItem item) {
+    final eventIds = item.eventId == null || item.eventId!.trim().isEmpty
+        ? const <String>[]
+        : <String>[item.eventId!.trim()];
+    _auditRiskIntelActionFromRoute(
+      'signal_sent_to_track',
+      'Sent ${item.id} signal to Track from Risk Intel.',
+      selectedEventId: item.eventId,
+      eventIds: eventIds,
+    );
+    _openTrackForRiskIntelScope(clientId: item.clientId, siteId: item.siteId);
+  }
+
   List<RiskIntelAreaSummary> _buildRiskIntelAreas(List<DispatchEvent> events) {
     final intelligenceEvents = events.whereType<IntelligenceReceived>().toList(
       growable: false,
@@ -113,6 +138,9 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
       signalCount: matched.length,
       eventIds: matched.map((event) => event.eventId).toList(growable: false),
       selectedEventId: matched.first.eventId,
+      clientId: matched.first.clientId,
+      siteId: matched.first.siteId,
+      zoneLabel: matched.first.zone,
     );
   }
 
@@ -145,6 +173,10 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
       icon: _riskIntelIcon(event),
       iconColor: _riskIntelIconColor(event),
       summary: event.headline.trim().isEmpty ? event.summary : event.headline,
+      confidenceScore: event.riskScore,
+      clientId: event.clientId,
+      siteId: event.siteId,
+      zoneLabel: event.zone,
     );
   }
 
@@ -202,11 +234,7 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
 
   (String, Color, Color) _riskIntelAreaTone(int maxRiskScore) {
     if (maxRiskScore >= 80) {
-      return (
-        'HIGH',
-        OnyxColorTokens.accentRed,
-        OnyxColorTokens.redBorder,
-      );
+      return ('HIGH', OnyxColorTokens.accentRed, OnyxColorTokens.redBorder);
     }
     if (maxRiskScore >= 55) {
       return (
@@ -215,11 +243,7 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
         OnyxColorTokens.amberBorder,
       );
     }
-    return (
-      'LOW',
-      OnyxColorTokens.accentGreen,
-      OnyxColorTokens.greenBorder,
-    );
+    return ('LOW', OnyxColorTokens.accentGreen, OnyxColorTokens.greenBorder);
   }
 
   void _openEventsForRiskIntelItem(RiskIntelFeedItem item) {
@@ -244,6 +268,15 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
       selectedEventId: area.selectedEventId,
       scopeMode: 'risk-intel',
     );
+  }
+
+  void _openTrackForRiskIntelScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    _openTacticalForRiskIntelScope(normalizedClientId, normalizedSiteId);
   }
 
   void _openClientRoomForScopeRoute(
