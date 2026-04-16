@@ -7,6 +7,7 @@ import 'package:supabase/supabase.dart';
 
 import '../../engine/dispatch/action_status.dart';
 import '../../engine/dispatch/dispatch_action.dart';
+import '../events/client_message_sent_event.dart';
 import '../events/decision_created.dart';
 import '../events/dispatch_decided_event.dart';
 import '../events/dispatch_event.dart';
@@ -14,6 +15,7 @@ import '../events/execution_completed.dart';
 import '../events/execution_completed_event.dart';
 import '../events/execution_denied.dart';
 import '../events/guard_checked_in.dart';
+import '../events/guard_status_changed_event.dart';
 import '../events/incident_closed.dart';
 import '../events/intelligence_received.dart';
 import '../events/listener_alarm_advisory_recorded.dart';
@@ -40,6 +42,8 @@ class InMemoryEventStore implements EventStore {
   final Map<String, String> _lastHashBySite = <String, String>{};
   final Map<String, _PersistedEventEnvelope> _retryQueueByEventId =
       <String, _PersistedEventEnvelope>{};
+  final StreamController<List<DispatchEvent>> _eventsController =
+      StreamController<List<DispatchEvent>>.broadcast();
 
   Future<void>? _restoreFuture;
   bool _retryInFlight = false;
@@ -79,6 +83,7 @@ class InMemoryEventStore implements EventStore {
 
     _events.add(sequencedEvent);
     _eventIds.add(sequencedEvent.eventId);
+    _eventsController.add(List<DispatchEvent>.unmodifiable(_events));
 
     if (_supabaseClient != null) {
       unawaited(_persistSequencedEvent(sequencedEvent));
@@ -90,6 +95,11 @@ class InMemoryEventStore implements EventStore {
     return List.unmodifiable(_events);
   }
 
+  @override
+  Stream<List<DispatchEvent>> watchAllEvents() {
+    return _eventsController.stream;
+  }
+
   void clear() {
     _events.clear();
     _eventIds.clear();
@@ -97,6 +107,7 @@ class InMemoryEventStore implements EventStore {
     _persistedSequenceBySite.clear();
     _lastHashBySite.clear();
     _currentSequence = 0;
+    _eventsController.add(List<DispatchEvent>.unmodifiable(_events));
   }
 
   Future<void> _persistSequencedEvent(DispatchEvent event) async {
@@ -222,6 +233,9 @@ class InMemoryEventStore implements EventStore {
         }
         restoredCount += 1;
       }
+      if (restoredCount > 0) {
+        _eventsController.add(List<DispatchEvent>.unmodifiable(_events));
+      }
       developer.log(
         '[ONYX] EventStore restored: $restoredCount events from Supabase',
         name: 'InMemoryEventStore',
@@ -333,6 +347,21 @@ class InMemoryEventStore implements EventStore {
           clientId: _stringValue(payload['clientId']),
           regionId: _stringValue(payload['regionId']),
           siteId: _stringValue(payload['siteId']),
+        );
+      case GuardStatusChangedEvent.auditTypeKey:
+        return GuardStatusChangedEvent(
+          eventId: eventId,
+          sequence: sequence,
+          version: version,
+          occurredAt: occurredAt,
+          guardId: _stringValue(payload['guardId']),
+          assignmentId: _stringValue(payload['assignmentId']),
+          dispatchId: _stringValue(payload['dispatchId']),
+          status: _stringValue(payload['status']),
+          clientId: _stringValue(payload['clientId']),
+          regionId: _stringValue(payload['regionId']),
+          siteId: _stringValue(payload['siteId']),
+          sourceLabel: _stringValue(payload['sourceLabel']),
         );
       case IncidentClosed.auditTypeKey:
         return IncidentClosed(
@@ -525,6 +554,22 @@ class InMemoryEventStore implements EventStore {
             fallback: true,
           ),
         );
+      case ClientMessageSentEvent.auditTypeKey:
+        return ClientMessageSentEvent(
+          eventId: eventId,
+          sequence: sequence,
+          version: version,
+          occurredAt: occurredAt,
+          messageKey: _stringValue(payload['messageKey']),
+          clientId: _stringValue(payload['clientId']),
+          regionId: _stringValue(payload['regionId']),
+          siteId: _stringValue(payload['siteId']),
+          author: _stringValue(payload['author']),
+          channel: _stringValue(payload['channel']),
+          provider: _stringValue(payload['provider']),
+          incidentStatusLabel: _stringValue(payload['incidentStatusLabel']),
+          summary: _stringValue(payload['summary']),
+        );
       case ResponseArrived.auditTypeKey:
         return ResponseArrived(
           eventId: eventId,
@@ -617,6 +662,18 @@ class InMemoryEventStore implements EventStore {
           'clientId': event.clientId,
           'regionId': event.regionId,
           'siteId': event.siteId,
+        };
+      case GuardStatusChangedEvent():
+        return <String, Object?>{
+          ...base,
+          'guardId': event.guardId,
+          'assignmentId': event.assignmentId,
+          'dispatchId': event.dispatchId,
+          'status': event.status,
+          'clientId': event.clientId,
+          'regionId': event.regionId,
+          'siteId': event.siteId,
+          'sourceLabel': event.sourceLabel,
         };
       case IncidentClosed():
         return <String, Object?>{
@@ -756,6 +813,19 @@ class InMemoryEventStore implements EventStore {
           'includeAiDecisionLog': event.includeAiDecisionLog,
           'includeGuardMetrics': event.includeGuardMetrics,
         };
+      case ClientMessageSentEvent():
+        return <String, Object?>{
+          ...base,
+          'messageKey': event.messageKey,
+          'clientId': event.clientId,
+          'regionId': event.regionId,
+          'siteId': event.siteId,
+          'author': event.author,
+          'channel': event.channel,
+          'provider': event.provider,
+          'incidentStatusLabel': event.incidentStatusLabel,
+          'summary': event.summary,
+        };
       case ResponseArrived():
         return <String, Object?>{
           ...base,
@@ -820,6 +890,11 @@ class InMemoryEventStore implements EventStore {
           siteId: event.siteId.trim(),
           clientId: event.clientId.trim(),
         );
+      case GuardStatusChangedEvent():
+        return _ResolvedEventScope(
+          siteId: event.siteId.trim(),
+          clientId: event.clientId.trim(),
+        );
       case PartnerDispatchStatusDeclared():
         return _ResolvedEventScope(
           siteId: event.siteId.trim(),
@@ -846,6 +921,11 @@ class InMemoryEventStore implements EventStore {
           clientId: event.clientId.trim(),
         );
       case VehicleVisitReviewRecorded():
+        return _ResolvedEventScope(
+          siteId: event.siteId.trim(),
+          clientId: event.clientId.trim(),
+        );
+      case ClientMessageSentEvent():
         return _ResolvedEventScope(
           siteId: event.siteId.trim(),
           clientId: event.clientId.trim(),
@@ -906,6 +986,16 @@ class InMemoryEventStore implements EventStore {
           siteId: event.siteId.trim(),
           clientId: event.clientId.trim(),
         );
+      case GuardStatusChangedEvent():
+        return _ResolvedEventScope(
+          siteId: event.siteId.trim(),
+          clientId: event.clientId.trim(),
+        );
+      case ClientMessageSentEvent():
+        return _ResolvedEventScope(
+          siteId: event.siteId.trim(),
+          clientId: event.clientId.trim(),
+        );
       case ExecutionCompleted():
         return _ResolvedEventScope(
           siteId: event.siteId.trim(),
@@ -934,6 +1024,8 @@ class InMemoryEventStore implements EventStore {
       case ExecutionCompleted():
         return event.dispatchId.trim();
       case ExecutionDenied():
+        return event.dispatchId.trim();
+      case GuardStatusChangedEvent():
         return event.dispatchId.trim();
       case DispatchDecidedEvent():
         return event.action.dispatchId.trim();

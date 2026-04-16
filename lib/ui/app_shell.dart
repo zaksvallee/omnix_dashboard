@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
+import '../application/event_sourcing_service.dart';
 import '../application/system_flow_service.dart';
 import '../domain/authority/onyx_route.dart';
 import 'components/onyx_incident_lifecycle_view.dart';
@@ -239,6 +240,7 @@ class AppShell extends StatefulWidget {
   final int liveAlarmCount;
   final List<OnyxIntelTickerItem> intelTickerItems;
   final OnyxIncidentLifecycleSnapshot incidentLifecycleSnapshot;
+  final OnyxEventSourcingSnapshot eventSourcingSnapshot;
   final String demoAutopilotStatusLabel;
   final VoidCallback? onStopDemoAutopilot;
   final VoidCallback? onSkipDemoAutopilot;
@@ -268,6 +270,37 @@ class AppShell extends StatefulWidget {
           'No active lifecycle in focus. Awaiting the next verified incident.',
       active: false,
       entries: <OnyxIncidentLifecycleEntry>[],
+    ),
+    this.eventSourcingSnapshot = const OnyxEventSourcingSnapshot(
+      eventCount: 0,
+      latestSequence: 0,
+      live: true,
+      deterministicSummary:
+          'EventStore is live. No auditable operational events are in focus yet.',
+      latestSemanticLabel: 'Standby',
+      latestOccurredAtUtc: null,
+      systemState: OnyxSystemStateSnapshot(
+        state: OnyxGlobalSystemState.nominal,
+        activeIncidentCount: 0,
+        aiActionCount: 0,
+        guardsOnlineCount: 0,
+        complianceIssuesCount: 0,
+        tacticalSosAlerts: 0,
+        elevatedRiskCount: 0,
+        liveAlarmCount: 0,
+      ),
+      lifecycle: OnyxIncidentLifecycleSnapshot(
+        incidentReference: 'INC-STANDBY',
+        summary:
+            'No active lifecycle in focus. Awaiting the next verified incident.',
+        active: false,
+        entries: <OnyxIncidentLifecycleEntry>[],
+      ),
+      shellFlow: OnyxFlowBreadcrumbData(
+        chainLabel: 'Intel → Track → Queue → Dispatch',
+      ),
+      auditTrail: <OnyxEventSemanticRecord>[],
+      replayFrames: <EventDrivenPageState>[],
     ),
     this.demoAutopilotStatusLabel = '',
     this.onStopDemoAutopilot,
@@ -432,6 +465,7 @@ class _AppShellState extends State<AppShell> {
                           onRouteChanged: widget.onRouteChanged,
                           incidentLifecycleSnapshot:
                               widget.incidentLifecycleSnapshot,
+                          eventSourcingSnapshot: widget.eventSourcingSnapshot,
                           demoAutopilotStatusLabel:
                               widget.demoAutopilotStatusLabel,
                           onStopDemoAutopilot: widget.onStopDemoAutopilot,
@@ -478,6 +512,7 @@ class _ShellTopBar extends StatelessWidget {
   final String operatorShiftLabel;
   final ValueChanged<OnyxRoute> onRouteChanged;
   final OnyxIncidentLifecycleSnapshot incidentLifecycleSnapshot;
+  final OnyxEventSourcingSnapshot eventSourcingSnapshot;
   final String demoAutopilotStatusLabel;
   final VoidCallback? onStopDemoAutopilot;
   final VoidCallback? onSkipDemoAutopilot;
@@ -498,6 +533,7 @@ class _ShellTopBar extends StatelessWidget {
     required this.operatorShiftLabel,
     required this.onRouteChanged,
     required this.incidentLifecycleSnapshot,
+    required this.eventSourcingSnapshot,
     this.demoAutopilotStatusLabel = '',
     this.onStopDemoAutopilot,
     this.onSkipDemoAutopilot,
@@ -526,21 +562,11 @@ class _ShellTopBar extends StatelessWidget {
               ? 196.0
               : 160.0;
           final totalAlerts = activeIncidentCount + aiActionCount;
-          final systemSnapshot = OnyxSystemStateService.deriveSnapshot(
-            activeIncidentCount: activeIncidentCount,
-            aiActionCount: aiActionCount,
-            guardsOnlineCount: guardsOnlineCount,
-            complianceIssuesCount: complianceIssuesCount,
-            tacticalSosAlerts: tacticalSosAlerts,
-            elevatedRiskCount: elevatedRiskCount,
-            liveAlarmCount: liveAlarmCount,
-          );
+          final systemSnapshot = eventSourcingSnapshot.systemState;
           final systemState = systemSnapshot.state;
-          final shellFlow = OnyxFlowIndicatorService.shellFlow(
-            snapshot: systemSnapshot,
-            incidentReference: incidentLifecycleSnapshot.incidentReference,
-          );
+          final shellFlow = eventSourcingSnapshot.shellFlow;
           final compactSystemState = constraints.maxWidth < 1500;
+          final compactEventStoreState = constraints.maxWidth < 1580;
           final showFlowBreadcrumb = constraints.maxWidth >= 1760;
           final compactLifecycleButton = constraints.maxWidth < 1320;
 
@@ -603,6 +629,11 @@ class _ShellTopBar extends StatelessWidget {
                     compact: compactSystemState,
                   ),
                 ),
+              ),
+              const SizedBox(width: 10),
+              OnyxEventStoreStatusChip(
+                snapshot: eventSourcingSnapshot,
+                compact: compactEventStoreState,
               ),
               if (showFlowBreadcrumb) ...[
                 const SizedBox(width: 10),
@@ -670,6 +701,7 @@ class _ShellTopBar extends StatelessWidget {
                   onPressed: () => showOnyxIncidentLifecycleDialog(
                     context: context,
                     snapshot: incidentLifecycleSnapshot,
+                    eventSourcingSnapshot: eventSourcingSnapshot,
                   ),
                   icon: Icons.timeline_rounded,
                   foregroundColor: OnyxColorTokens.accentPurple,
@@ -682,6 +714,7 @@ class _ShellTopBar extends StatelessWidget {
                   onPressed: () => showOnyxIncidentLifecycleDialog(
                     context: context,
                     snapshot: incidentLifecycleSnapshot,
+                    eventSourcingSnapshot: eventSourcingSnapshot,
                   ),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(0, 32),

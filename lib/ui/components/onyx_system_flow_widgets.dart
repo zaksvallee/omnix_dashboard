@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../application/event_sourcing_service.dart';
 import '../../application/system_flow_service.dart';
 import '../theme/onyx_design_tokens.dart';
 
@@ -229,6 +230,74 @@ class OnyxFlowIndicator extends StatelessWidget {
       flow: resolvedFlow,
       accent: accent,
       padding: padding,
+    );
+  }
+}
+
+class OnyxEventStoreStatusChip extends StatelessWidget {
+  final OnyxEventSourcingSnapshot snapshot;
+  final bool compact;
+
+  const OnyxEventStoreStatusChip({
+    super.key,
+    required this.snapshot,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 5 : 6,
+      ),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _OnyxPulseDot(
+            color: OnyxColorTokens.accentPurple,
+            animate: snapshot.eventCount > 0,
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'EVENTSTORE LIVE',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.accentPurple,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              if (!compact) ...[
+                const SizedBox(height: 2),
+                Text(
+                  '${snapshot.eventCount} events • ${snapshot.latestSemanticLabel}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textMuted,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
