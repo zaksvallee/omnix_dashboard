@@ -38,10 +38,16 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     with TickerProviderStateMixin {
   late final AnimationController _fadeController;
   late final AnimationController _pulseController;
+  late final AnimationController _surfaceController;
   late final Animation<double> _fadeIn;
   late final Animation<double> _pulseAnimation;
+  late final Animation<Offset> _surfaceSlide;
+  late final Animation<double> _surfaceFade;
   Timer? _clockTimer;
   String _timeLabel = '';
+  bool _actionCardVisible = false;
+  int _previousIncidentCount = 0;
+  int _previousDispatchCount = 0;
 
   @override
   void initState() {
@@ -62,6 +68,21 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     )..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _surfaceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _surfaceSlide = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _surfaceController,
+      curve: Curves.easeInOutCubic,
+    ));
+    _surfaceFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _surfaceController, curve: Curves.easeOut),
     );
 
     _updateTime();
@@ -86,8 +107,28 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
   void dispose() {
     _fadeController.dispose();
     _pulseController.dispose();
+    _surfaceController.dispose();
     _clockTimer?.cancel();
     super.dispose();
+  }
+
+  void _evaluateEventSurface(int incidentCount, int dispatchCount) {
+    final shouldSurface =
+        incidentCount > _previousIncidentCount ||
+        (dispatchCount > _previousDispatchCount && dispatchCount > 0);
+    _previousIncidentCount = incidentCount;
+    _previousDispatchCount = dispatchCount;
+
+    if (shouldSurface && !_actionCardVisible) {
+      setState(() => _actionCardVisible = true);
+      _surfaceController.forward(from: 0.0);
+    }
+  }
+
+  void _dismissActionCard() {
+    _surfaceController.reverse().then((_) {
+      if (mounted) setState(() => _actionCardVisible = false);
+    });
   }
 
   @override
@@ -128,54 +169,89 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
                 ? OnyxColorTokens.accentAmber
                 : OnyxColorTokens.accentAmber;
 
+    _evaluateEventSurface(incidentCount, activeDispatchCount);
+
+    final autonomousOps = _buildAutonomousLog(projection);
+
     return OnyxPageScaffold(
       child: FadeTransition(
         opacity: _fadeIn,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 700;
-            return Column(
+            return Stack(
               children: [
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: compact ? 24 : 48,
-                        vertical: 32,
+                Column(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 24 : 48,
+                            vertical: 32,
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 640),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _zaraIdentity(),
+                                const SizedBox(height: 32),
+                                _greetingCard(
+                                  operatorName: operatorName,
+                                  siteLabel: widget.siteLabel,
+                                  statusMessage: statusMessage,
+                                  statusAccent: statusAccent,
+                                  allClear: allClear,
+                                ),
+                                const SizedBox(height: 40),
+                                _systemHealthBar(
+                                  siteCount: siteCount,
+                                  guardCount: guardCount,
+                                  dispatchCount: activeDispatchCount,
+                                  pressure: pressure,
+                                ),
+                                if (autonomousOps.isNotEmpty) ...[
+                                  const SizedBox(height: 32),
+                                  _autonomousOpsSection(autonomousOps),
+                                ],
+                                const SizedBox(height: 32),
+                                if (projection.liveSignals.isNotEmpty) ...[
+                                  _liveSignalFeed(projection.liveSignals),
+                                  const SizedBox(height: 32),
+                                ],
+                                _quickActions(compact: compact),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
+                    ),
+                  ],
+                ),
+                if (_actionCardVisible)
+                  Positioned(
+                    left: compact ? 16 : 32,
+                    right: compact ? 16 : 32,
+                    bottom: 24,
+                    child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 640),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _zaraIdentity(),
-                            const SizedBox(height: 32),
-                            _greetingCard(
-                              operatorName: operatorName,
-                              siteLabel: widget.siteLabel,
-                              statusMessage: statusMessage,
-                              statusAccent: statusAccent,
-                              allClear: allClear,
-                            ),
-                            const SizedBox(height: 40),
-                            _systemHealthBar(
-                              siteCount: siteCount,
-                              guardCount: guardCount,
+                        child: SlideTransition(
+                          position: _surfaceSlide,
+                          child: FadeTransition(
+                            opacity: _surfaceFade,
+                            child: _surfacedActionCard(
+                              incidentCount: incidentCount,
                               dispatchCount: activeDispatchCount,
-                              pressure: pressure,
+                              dispatchFeed: projection.dispatchFeed,
+                              statusAccent: statusAccent,
                             ),
-                            const SizedBox(height: 32),
-                            if (projection.liveSignals.isNotEmpty) ...[
-                              _liveSignalFeed(projection.liveSignals),
-                              const SizedBox(height: 32),
-                            ],
-                            _quickActions(compact: compact),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
               ],
             );
           },
@@ -514,6 +590,285 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Autonomous operations log ─────────────────────────────────────────────
+
+  List<String> _buildAutonomousLog(OperationsHealthSnapshot projection) {
+    final log = <String>[];
+    if (projection.totalPatrols > 0) {
+      log.add(
+        'Verified ${projection.totalPatrols} patrol'
+        '${projection.totalPatrols == 1 ? '' : 's'} — all routes clear.',
+      );
+    }
+    if (projection.totalCheckIns > 0) {
+      log.add(
+        'Processed ${projection.totalCheckIns} guard check-in'
+        '${projection.totalCheckIns == 1 ? '' : 's'} autonomously.',
+      );
+    }
+    if (projection.totalExecuted > 0) {
+      log.add(
+        'Confirmed ${projection.totalExecuted} dispatch'
+        '${projection.totalExecuted == 1 ? '' : 'es'} — response chain intact.',
+      );
+    }
+    if (projection.totalIntelligenceReceived > 0) {
+      final lowRisk =
+          projection.totalIntelligenceReceived - projection.highRiskIntelligence;
+      if (lowRisk > 0) {
+        log.add(
+          'Processed $lowRisk low-risk intelligence signal'
+          '${lowRisk == 1 ? '' : 's'} — no escalation required.',
+        );
+      }
+    }
+    if (projection.sites.isNotEmpty) {
+      final strongSites = projection.sites
+          .where((s) => s.healthStatus == 'STRONG' || s.healthStatus == 'STABLE')
+          .length;
+      if (strongSites > 0) {
+        log.add(
+          '$strongSites site${strongSites == 1 ? '' : 's'} maintaining '
+          'healthy operational posture.',
+        );
+      }
+    }
+    return log;
+  }
+
+  Widget _autonomousOpsSection(List<String> ops) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.auto_awesome_rounded,
+              size: 12,
+              color: OnyxColorTokens.brand.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'ZARA AUTONOMOUS OPERATIONS',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: OnyxColorTokens.textMuted,
+                letterSpacing: 0.7,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.brand.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: OnyxColorTokens.brand.withValues(alpha: 0.12),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < ops.length; i++) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 5),
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        size: 12,
+                        color: OnyxColorTokens.accentGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        ops[i],
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: OnyxColorTokens.textSecondary,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (i < ops.length - 1) const SizedBox(height: 6),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Surfaced action card (cinematic slide-up) ─────────────────────────────
+
+  Widget _surfacedActionCard({
+    required int incidentCount,
+    required int dispatchCount,
+    required List<String> dispatchFeed,
+    required Color statusAccent,
+  }) {
+    final isIncident = incidentCount > 0;
+    final headline = isIncident
+        ? 'Incident detected — human decision required'
+        : 'New dispatch activity detected';
+    final detail = dispatchFeed.isNotEmpty
+        ? dispatchFeed.last
+        : isIncident
+            ? '$incidentCount active incident${incidentCount == 1 ? '' : 's'}'
+            : '$dispatchCount dispatch${dispatchCount == 1 ? '' : 'es'} in progress';
+    final actionLabel = isIncident ? 'OPEN DISPATCHES' : 'VIEW ACTIVITY';
+    final actionCallback = isIncident
+        ? widget.onOpenDispatches
+        : widget.onOpenCommandCenter;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(14),
+        border: Border(
+          left: BorderSide(color: statusAccent, width: 3),
+          top: BorderSide(color: statusAccent.withValues(alpha: 0.3)),
+          right: BorderSide(color: statusAccent.withValues(alpha: 0.3)),
+          bottom: BorderSide(color: statusAccent.withValues(alpha: 0.3)),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusAccent.withValues(alpha: 0.15),
+            blurRadius: 30,
+            spreadRadius: 2,
+            offset: const Offset(0, -4),
+          ),
+          BoxShadow(
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.6),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: statusAccent,
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusAccent.withValues(alpha: 0.6),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  headline,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: OnyxColorTokens.textPrimary,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: _dismissActionCard,
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: OnyxColorTokens.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: OnyxColorTokens.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              if (actionCallback != null)
+                Expanded(
+                  child: SizedBox(
+                    height: 40,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        _dismissActionCard();
+                        actionCallback();
+                      },
+                      icon: Icon(
+                        isIncident
+                            ? Icons.warning_amber_rounded
+                            : Icons.bolt_rounded,
+                        size: 16,
+                      ),
+                      label: Text(actionLabel),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: statusAccent,
+                        foregroundColor: OnyxColorTokens.textPrimary,
+                        elevation: 0,
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 40,
+                child: OutlinedButton(
+                  onPressed: _dismissActionCard,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: OnyxColorTokens.textSecondary,
+                    side: const BorderSide(color: OnyxColorTokens.divider),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Dismiss'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
