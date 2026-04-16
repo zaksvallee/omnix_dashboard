@@ -1828,6 +1828,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 980;
+        final directoryCount = _guards.length + _sites.length + _clients.length;
+        final aiDraftCount = widget.telegramAiPendingDrafts.length;
+        final watchScopeCount = widget.fleetScopeHealth.length;
         final actionButtons = Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -1837,8 +1840,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
               onPressed: _openAdminExportFlow,
               icon: const Icon(Icons.download_rounded, size: 13),
               style: OutlinedButton.styleFrom(
-                foregroundColor: OnyxColorTokens.accentSky,
-                side: BorderSide(color: OnyxColorTokens.divider),
+                foregroundColor: OnyxColorTokens.accentPurple,
+                side: BorderSide(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.22),
+                ),
+                backgroundColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.08,
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: const Size(0, 28),
                 shape: RoundedRectangleBorder(
@@ -1858,7 +1866,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               onPressed: _directorySaving ? null : _openAdminImportCsvFlow,
               icon: const Icon(Icons.upload_rounded, size: 13),
               style: FilledButton.styleFrom(
-                backgroundColor: OnyxColorTokens.accentBlue,
+                backgroundColor: OnyxColorTokens.accentPurple,
                 foregroundColor: OnyxColorTokens.textPrimary,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: const Size(0, 28),
@@ -1878,36 +1886,83 @@ class _AdministrationPageState extends State<AdministrationPage> {
         );
 
         final titleBlock = Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Administration',
+                'ZARA · SYSTEM HEALTH',
                 style: GoogleFonts.inter(
-                  color: OnyxColorTokens.textPrimary,
-                  fontSize: compact ? 13 : 14,
-                  fontWeight: FontWeight.w600,
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.7),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.9,
                 ),
               ),
-              const SizedBox(width: 8),
-              _adminHeaderChip(
-                label: bridgeTone.$1,
-                foreground: bridgeTone.$2,
-                background: bridgeTone.$3,
-                border: bridgeTone.$4,
+              const SizedBox(height: 5),
+              Text(
+                'Admin & Reports Control',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textPrimary,
+                  fontSize: compact ? 20 : 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
               ),
-              const SizedBox(width: 4),
-              _adminHeaderChip(
-                label: widget.supabaseReady ? 'Sync Ready' : 'Sync Offline',
-                foreground: widget.supabaseReady
-                    ? OnyxColorTokens.accentGreen
-                    : OnyxColorTokens.accentAmber,
-                background: widget.supabaseReady
-                    ? OnyxColorTokens.greenSurface
-                    : OnyxColorTokens.amberSurface,
-                border: widget.supabaseReady
-                    ? OnyxColorTokens.greenBorder
-                    : OnyxColorTokens.amberBorder,
+              const SizedBox(height: 5),
+              Text(
+                'ZARA: Runtime posture is ${widget.supabaseReady ? 'stable' : 'degraded'}. Directory, communications, and watch controls remain pinned for operator review.',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _adminHeaderMetricCard(
+                    label: 'Directory',
+                    value: '$directoryCount live entities',
+                    accent: OnyxColorTokens.accentGreen,
+                  ),
+                  _adminHeaderMetricCard(
+                    label: 'AI Comms',
+                    value: aiDraftCount == 0
+                        ? 'Draft queue clear'
+                        : '$aiDraftCount drafts waiting',
+                    accent: aiDraftCount > 0
+                        ? OnyxColorTokens.accentAmber
+                        : OnyxColorTokens.accentPurple,
+                  ),
+                  _adminHeaderMetricCard(
+                    label: 'Watch',
+                    value: '$watchScopeCount active scopes',
+                    accent: watchScopeCount > 0
+                        ? OnyxColorTokens.accentPurple
+                        : OnyxColorTokens.textMuted,
+                  ),
+                  _adminHeaderChip(
+                    label: bridgeTone.$1,
+                    foreground: bridgeTone.$2,
+                    background: bridgeTone.$3,
+                    border: bridgeTone.$4,
+                  ),
+                  _adminHeaderChip(
+                    label: widget.supabaseReady ? 'Sync Ready' : 'Sync Offline',
+                    foreground: widget.supabaseReady
+                        ? OnyxColorTokens.accentGreen
+                        : OnyxColorTokens.accentAmber,
+                    background: widget.supabaseReady
+                        ? OnyxColorTokens.greenSurface
+                        : OnyxColorTokens.amberSurface,
+                    border: widget.supabaseReady
+                        ? OnyxColorTokens.greenBorder
+                        : OnyxColorTokens.amberBorder,
+                  ),
+                ],
               ),
             ],
           ),
@@ -1915,16 +1970,20 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: _adminDialogSurfaceColor,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _adminDialogBorderColor),
+            color: OnyxColorTokens.backgroundSecondary,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.18),
+            ),
             boxShadow: [
               BoxShadow(
-                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.05),
-                blurRadius: 18,
-                offset: Offset(0, 10),
+                color: OnyxColorTokens.backgroundPrimary.withValues(
+                  alpha: 0.16,
+                ),
+                blurRadius: 22,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
@@ -1979,9 +2038,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: 260,
           child: _adminWorkspacePanel(
             key: const ValueKey('admin-workspace-panel-rail'),
-            title: 'Command Rail',
+            title: 'CONTROL RAIL',
             subtitle:
-                'Pivot between live boards, control scopes, and desktop command tools without leaving the active command surface.',
+                'Move between entity governance, AI comms, and system controls without losing operational context.',
             shellless: useEmbeddedPanels,
             child: _adminOpsRail(),
           ),
@@ -2030,11 +2089,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
           key: key,
           decoration: BoxDecoration(
             color: OnyxColorTokens.backgroundSecondary,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: OnyxColorTokens.divider),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: OnyxColorTokens.borderSubtle),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2042,9 +2101,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   title,
                   style: GoogleFonts.inter(
                     color: OnyxColorTokens.textMuted,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textSecondary,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    letterSpacing: 0.9,
+                    height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -2073,43 +2142,63 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final bannerChild = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          'SYSTEM HEALTH',
+          style: GoogleFonts.inter(
+            color: OnyxColorTokens.textMuted,
+            fontSize: 8.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.15,
+          ),
+        ),
+        const SizedBox(height: 8),
         Wrap(
-          spacing: 4,
-          runSpacing: 4,
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            _adminWorkspaceChip(
-              'Focus: ${_adminWorkspaceTitle()}',
-              accent: OnyxColorTokens.accentSky,
+            _adminHeaderMetricCard(
+              label: 'Focus',
+              value: _adminWorkspaceTitle(),
+              accent: OnyxColorTokens.accentPurple,
             ),
-            _adminWorkspaceChip(
-              '$entityTotal Directory',
+            _adminHeaderMetricCard(
+              label: 'Directory',
+              value: '$entityTotal entities',
               accent: OnyxColorTokens.accentGreen,
             ),
-            _adminWorkspaceChip(
-              '$aiDraftCount AI Draft${aiDraftCount == 1 ? '' : 's'}',
+            _adminHeaderMetricCard(
+              label: 'AI Drafts',
+              value: aiDraftCount == 0 ? 'Clear' : '$aiDraftCount pending',
               accent: aiDraftCount > 0
                   ? OnyxColorTokens.accentAmber
-                  : OnyxColorTokens.textMuted,
+                  : OnyxColorTokens.accentGreen,
             ),
-            _adminWorkspaceChip(
-              '$auditCount Audit${auditCount == 1 ? '' : 's'}',
+            _adminHeaderMetricCard(
+              label: 'Audits',
+              value: '$auditCount client reviews',
               accent: auditCount > 0
-                  ? OnyxColorTokens.accentSky
+                  ? OnyxColorTokens.accentPurple
                   : OnyxColorTokens.textMuted,
             ),
-            _adminWorkspaceChip(
-              '$intakeCount Intake${intakeCount == 1 ? '' : 's'}',
+            _adminHeaderMetricCard(
+              label: 'Intakes',
+              value: '$intakeCount staged',
               accent: intakeCount > 0
                   ? OnyxColorTokens.accentAmber
                   : OnyxColorTokens.textMuted,
             ),
-            _adminWorkspaceChip(
-              '$watchScopeCount Recovery Scope${watchScopeCount == 1 ? '' : 's'}',
+            _adminHeaderMetricCard(
+              label: 'Watch',
+              value: '$watchScopeCount scope${watchScopeCount == 1 ? '' : 's'}',
               accent: watchScopeCount > 0
-                  ? OnyxColorTokens.accentSky
+                  ? OnyxColorTokens.accentPurple
                   : OnyxColorTokens.textMuted,
             ),
-            _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
+            _adminHeaderMetricCard(
+              label: 'Bridge',
+              value: bridgeTone.$1,
+              accent: bridgeTone.$2,
+            ),
           ],
         ),
       ],
@@ -2123,11 +2212,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return Container(
       key: const ValueKey('admin-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: OnyxColorTokens.backgroundSecondary,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: OnyxColorTokens.divider),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: bannerChild,
     );
@@ -2256,7 +2345,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             onPressed: _directorySaving ? null : _openSystemLaunchFlow,
             icon: const Icon(Icons.add_rounded, size: 14),
             style: FilledButton.styleFrom(
-              backgroundColor: OnyxColorTokens.accentBlue,
+              backgroundColor: OnyxColorTokens.accentPurple,
               foregroundColor: OnyxColorTokens.textPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: const Size(0, 28),
@@ -2307,7 +2396,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 key: const ValueKey('admin-workspace-quick-add-staff'),
                 label: 'Add Staff',
                 icon: Icons.badge_rounded,
-                accent: OnyxColorTokens.accentSky,
+                accent: OnyxColorTokens.accentPurple,
                 onPressed: _directorySaving || _clients.isEmpty
                     ? null
                     : () async {
@@ -2328,9 +2417,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
               onPressed: _openAdminExportFlow,
               icon: const Icon(Icons.download_rounded, size: 13),
               style: OutlinedButton.styleFrom(
-                foregroundColor: OnyxColorTokens.accentSky,
+                foregroundColor: OnyxColorTokens.accentPurple,
                 backgroundColor: OnyxColorTokens.backgroundSecondary,
-                side: BorderSide(color: OnyxColorTokens.divider),
+                side: BorderSide(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.22),
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: const Size(0, 28),
                 shape: RoundedRectangleBorder(
@@ -2352,7 +2443,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               onPressed: _directorySaving ? null : _openAdminImportCsvFlow,
               icon: const Icon(Icons.upload_rounded, size: 13),
               style: FilledButton.styleFrom(
-                backgroundColor: OnyxColorTokens.accentBlue,
+                backgroundColor: OnyxColorTokens.accentPurple,
                 foregroundColor: OnyxColorTokens.textPrimary,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: const Size(0, 28),
@@ -2400,22 +2491,82 @@ class _AdministrationPageState extends State<AdministrationPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? OnyxColorTokens.surfaceInset : OnyxColorTokens.backgroundSecondary,
+          color: selected
+              ? OnyxColorTokens.accentPurple.withValues(alpha: 0.08)
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected
-                ? OnyxColorTokens.accentCyan.withValues(alpha: 0.4)
+                ? OnyxColorTokens.accentPurple.withValues(alpha: 0.32)
                 : OnyxColorTokens.divider,
           ),
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: selected ? OnyxColorTokens.accentCyan : OnyxColorTokens.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: selected
+                    ? OnyxColorTokens.accentPurple
+                    : OnyxColorTokens.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              detail,
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textMuted,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _adminHeaderMetricCard({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textMuted,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: accent == OnyxColorTokens.textMuted
+                  ? OnyxColorTokens.textSecondary
+                  : accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3957,9 +4108,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: OnyxColorTokens.borderSubtle)),
+      padding: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: OnyxColorTokens.accentPurple.withValues(alpha: 0.12),
+          ),
+        ),
       ),
       child: Wrap(
         spacing: 8,
@@ -3972,18 +4127,18 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
+                    horizontal: 14,
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: active
-                            ? OnyxColorTokens.accentSky
-                            : Colors.transparent,
-                        width: 2,
-                      ),
+                    color: active
+                        ? OnyxColorTokens.accentPurple.withValues(alpha: 0.1)
+                        : OnyxColorTokens.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: active
+                          ? OnyxColorTokens.accentPurple.withValues(alpha: 0.28)
+                          : OnyxColorTokens.borderSubtle,
                     ),
                   ),
                   child: Row(
@@ -3993,7 +4148,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         tab.icon,
                         size: 16,
                         color: active
-                            ? OnyxColorTokens.accentSky
+                            ? OnyxColorTokens.accentPurple
                             : OnyxColorTokens.textMuted,
                       ),
                       const SizedBox(width: 8),
@@ -4001,9 +4156,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         tab.label,
                         style: GoogleFonts.inter(
                           color: active
-                              ? OnyxColorTokens.accentSky
+                              ? OnyxColorTokens.accentPurple
                               : OnyxColorTokens.textSecondary,
-                          fontSize: 13,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.45,
                         ),
@@ -4050,7 +4205,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
         fallback ? 'Bridge Status: Fallback (In-App)' : 'Bridge Status: Ready',
         fallback ? OnyxColorTokens.accentAmber : OnyxColorTokens.accentGreen,
         fallback ? OnyxColorTokens.amberSurface : OnyxColorTokens.greenSurface,
-        fallback ? OnyxColorTokens.amberBorder : OnyxColorTokens.accentGreen.withValues(alpha: 0.4),
+        fallback
+            ? OnyxColorTokens.amberBorder
+            : OnyxColorTokens.accentGreen.withValues(alpha: 0.4),
       ),
       'blocked' => (
         'Bridge Status: Blocked',
@@ -4567,11 +4724,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         label: 'Guards',
         count: _guards.length,
       ),
-      (
-        tab: AdministrationPageTab.sites,
-        label: 'Sites',
-        count: _sites.length,
-      ),
+      (tab: AdministrationPageTab.sites, label: 'Sites', count: _sites.length),
       (
         tab: AdministrationPageTab.clients,
         label: 'Clients',
@@ -4607,7 +4760,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? OnyxColorTokens.surfaceInset : OnyxColorTokens.backgroundSecondary,
+          color: active
+              ? OnyxColorTokens.surfaceInset
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: active
@@ -4621,7 +4776,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               label,
               style: GoogleFonts.inter(
-                color: active ? OnyxColorTokens.accentCyan : OnyxColorTokens.textSecondary,
+                color: active
+                    ? OnyxColorTokens.accentCyan
+                    : OnyxColorTokens.textSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -4638,7 +4795,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
               child: Text(
                 '$count',
                 style: GoogleFonts.inter(
-                  color: active ? OnyxColorTokens.accentCyan : OnyxColorTokens.textMuted,
+                  color: active
+                      ? OnyxColorTokens.accentCyan
+                      : OnyxColorTokens.textMuted,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4649,7 +4808,6 @@ class _AdministrationPageState extends State<AdministrationPage> {
       ),
     );
   }
-
 
   Widget _activeEntityWorkspace() {
     return switch (_activeTab) {
@@ -4696,11 +4854,16 @@ class _AdministrationPageState extends State<AdministrationPage> {
               side: BorderSide(color: OnyxColorTokens.divider),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: const Size(0, 28),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: Text(
               'Jump to Queue',
-              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700),
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           child: _clientCommsAuditPanel(),
@@ -5449,7 +5612,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: OnyxColorTokens.accentGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: OnyxColorTokens.accentGreen.withValues(alpha: 0.27)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentGreen.withValues(alpha: 0.27),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -5661,7 +5826,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 if (badge != null) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: OnyxColorTokens.greenSurface,
                       borderRadius: BorderRadius.circular(999),
@@ -5778,7 +5946,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: OnyxColorTokens.accentGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: OnyxColorTokens.accentGreen.withValues(alpha: 0.27)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentGreen.withValues(alpha: 0.27),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -6498,7 +6668,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       icon: const Icon(Icons.summarize_rounded, size: 16),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: OnyxColorTokens.accentSky,
-                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                        side: const BorderSide(
+                          color: OnyxColorTokens.borderStrong,
+                        ),
                       ),
                       label: Text(
                         'Copy Runbook',
@@ -6514,7 +6686,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         icon: const Icon(Icons.auto_mode_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: OnyxColorTokens.accentSky,
-                          side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                          side: const BorderSide(
+                            color: OnyxColorTokens.borderStrong,
+                          ),
                         ),
                         label: Text(
                           'Autopilot',
@@ -6531,7 +6705,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         icon: const Icon(Icons.route_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: OnyxColorTokens.accentSky,
-                          side: const BorderSide(color: OnyxColorTokens.accentBlue),
+                          side: const BorderSide(
+                            color: OnyxColorTokens.accentBlue,
+                          ),
                         ),
                         label: Text(
                           'Full Tour',
@@ -6547,7 +6723,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         icon: const Icon(Icons.content_copy_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: OnyxColorTokens.textSecondary,
-                          side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                          side: const BorderSide(
+                            color: OnyxColorTokens.borderStrong,
+                          ),
                         ),
                         label: Text(
                           'Copy Incident',
@@ -6572,7 +6750,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: OnyxColorTokens.accentBlue.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentSky.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Text(
                   'Stack Profile: $stackProfileLabel',
@@ -6649,7 +6829,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     ? OnyxColorTokens.accentGreen.withValues(alpha: 0.4)
                     : (stackReady
                           ? OnyxColorTokens.accentSky.withValues(alpha: 0.4)
-                          : OnyxColorTokens.borderStrong.withValues(alpha: 0.33)),
+                          : OnyxColorTokens.borderStrong.withValues(
+                              alpha: 0.33,
+                            )),
               ),
             ),
             child: Text(
@@ -6850,7 +7032,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
         color: _adminDialogRaisedColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: done ? OnyxColorTokens.accentGreen.withValues(alpha: 0.4) : _adminDialogBorderColor,
+          color: done
+              ? OnyxColorTokens.accentGreen.withValues(alpha: 0.4)
+              : _adminDialogBorderColor,
         ),
       ),
       child: Row(
@@ -6859,7 +7043,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
           Icon(
             done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
             size: 16,
-            color: done ? OnyxColorTokens.accentGreen : OnyxColorTokens.textMuted,
+            color: done
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.textMuted,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -7199,8 +7385,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
             reached ? _partnerEventTimeLabel(timestamp) : 'Pending',
             style: GoogleFonts.inter(
               color: reached
-                  ? (light ? _adminDialogTitleColor : OnyxColorTokens.textPrimary)
-                  : (light ? _adminDialogMutedColor : OnyxColorTokens.textMuted),
+                  ? (light
+                        ? _adminDialogTitleColor
+                        : OnyxColorTokens.textPrimary)
+                  : (light
+                        ? _adminDialogMutedColor
+                        : OnyxColorTokens.textMuted),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -7296,7 +7486,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Days ${row.reportDays} • Dispatches ${row.dispatchCount} • Strong ${row.strongCount} • On track ${row.onTrackCount} • Watch ${row.watchCount} • Critical ${row.criticalCount}',
               style: GoogleFonts.inter(
-                color: light ? _adminDialogBodyColor : OnyxColorTokens.textSecondary,
+                color: light
+                    ? _adminDialogBodyColor
+                    : OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -7305,7 +7497,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             Text(
               'Avg accept ${row.averageAcceptedDelayMinutes.toStringAsFixed(1)}m • Avg on site ${row.averageOnSiteDelayMinutes.toStringAsFixed(1)}m',
               style: GoogleFonts.inter(
-                color: light ? _adminDialogMutedColor : OnyxColorTokens.textMuted,
+                color: light
+                    ? _adminDialogMutedColor
+                    : OnyxColorTokens.textMuted,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -8256,7 +8450,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     foreground: _guardRosterPlannerAccent(
                       _guardRosterPlannerSession!.mode,
                     ),
-                    background: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+                    background: OnyxColorTokens.accentSky.withValues(
+                      alpha: 0.1,
+                    ),
                     border: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
                   ),
               ],
@@ -9318,7 +9514,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: selected ? accent.withValues(alpha: 0.12) : OnyxColorTokens.backgroundSecondary,
+        color: selected
+            ? accent.withValues(alpha: 0.12)
+            : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(9),
         border: Border.all(
           color: selected
@@ -9673,7 +9871,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: _adminDialogAltColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentSky.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -9834,7 +10034,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           icon: const Icon(Icons.restart_alt_rounded, size: 16),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: OnyxColorTokens.textSecondary,
-                            side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                            side: const BorderSide(
+                              color: OnyxColorTokens.borderStrong,
+                            ),
                           ),
                           label: Text(
                             widget.onResetRadioIntentPhrasesJson == null
@@ -9887,7 +10089,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(
-                      color: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.4,
+                      ),
                     ),
                   ),
                 ),
@@ -9995,7 +10199,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: _adminDialogAltColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentSky.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -10156,7 +10362,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           icon: const Icon(Icons.restart_alt_rounded, size: 16),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: OnyxColorTokens.textSecondary,
-                            side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                            side: const BorderSide(
+                              color: OnyxColorTokens.borderStrong,
+                            ),
                           ),
                           label: Text(
                             widget.onResetDemoRouteCuesJson == null
@@ -10209,7 +10417,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(
-                      color: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.4,
+                      ),
                     ),
                   ),
                 ),
@@ -10460,7 +10670,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       icon: const Icon(Icons.handshake_outlined, size: 16),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: OnyxColorTokens.textSecondary,
-                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                        side: const BorderSide(
+                          color: OnyxColorTokens.borderStrong,
+                        ),
                       ),
                       label: Text(
                         'Partner Scorecard',
@@ -10486,7 +10698,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: OnyxColorTokens.textSecondary,
-                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                        side: const BorderSide(
+                          color: OnyxColorTokens.borderStrong,
+                        ),
                       ),
                       label: Text(
                         'Listener Alarm',
@@ -10804,7 +11018,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       icon: const Icon(Icons.public_rounded, size: 16),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: OnyxColorTokens.textSecondary,
-                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                        side: const BorderSide(
+                          color: OnyxColorTokens.borderStrong,
+                        ),
                       ),
                       label: Text(
                         'Readiness',
@@ -10827,7 +11043,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       icon: const Icon(Icons.hearing_rounded, size: 16),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: OnyxColorTokens.textSecondary,
-                        side: const BorderSide(color: OnyxColorTokens.borderStrong),
+                        side: const BorderSide(
+                          color: OnyxColorTokens.borderStrong,
+                        ),
                       ),
                       label: Text(
                         'Listener Alarm',
@@ -12469,7 +12687,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ActionChip(
                             onPressed: () =>
                                 _copyTelegramChecklistCommand(entry.prompt),
-                            backgroundColor: OnyxColorTokens.backgroundSecondary,
+                            backgroundColor:
+                                OnyxColorTokens.backgroundSecondary,
                             side: BorderSide(color: _adminDialogBorderColor),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(999),
@@ -13174,7 +13393,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
           (selected
               ? _adminDialogTitleColor
               : _telegramAiAccentTextColor(accent, strength: 0.42)),
-      backgroundColor: selected ? accent.withValues(alpha: 0.12) : OnyxColorTokens.backgroundSecondary,
+      backgroundColor: selected
+          ? accent.withValues(alpha: 0.12)
+          : OnyxColorTokens.backgroundSecondary,
       side: BorderSide(
         color: selected
             ? accent.withValues(alpha: 0.5)
@@ -15147,7 +15368,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : () => _editTelegramAiDraft(draft),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _adminDialogTitleColor,
-                            backgroundColor: OnyxColorTokens.backgroundSecondary,
+                            backgroundColor:
+                                OnyxColorTokens.backgroundSecondary,
                             side: const BorderSide(
                               color: _adminDialogBorderColor,
                             ),
@@ -15172,8 +15394,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : () => _rejectTelegramAiDraft(draft),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: OnyxColorTokens.redBorder,
-                            backgroundColor: OnyxColorTokens.backgroundSecondary,
-                            side: const BorderSide(color: OnyxColorTokens.redBorder),
+                            backgroundColor:
+                                OnyxColorTokens.backgroundSecondary,
+                            side: const BorderSide(
+                              color: OnyxColorTokens.redBorder,
+                            ),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 8,
@@ -15208,7 +15433,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                 accent,
                                 strength: 0.42,
                               ),
-                              backgroundColor: OnyxColorTokens.backgroundSecondary,
+                              backgroundColor:
+                                  OnyxColorTokens.backgroundSecondary,
                               side: BorderSide(
                                 color: accent.withValues(alpha: 0.4),
                               ),
@@ -15318,486 +15544,250 @@ class _AdministrationPageState extends State<AdministrationPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.history_edu_rounded,
-                size: 16,
-                color: OnyxColorTokens.accentSky,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Client Comms Audit',
-                  style: GoogleFonts.inter(
-                    color: _adminDialogTitleColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+            Row(
+              children: [
+                const Icon(
+                  Icons.history_edu_rounded,
+                  size: 16,
+                  color: OnyxColorTokens.accentSky,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Client Comms Audit',
+                    style: GoogleFonts.inter(
+                      color: _adminDialogTitleColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Latest push sync pressure, SMS fallback, and VoIP handoff results across active Client Comms scopes, so control can verify what ONYX actually tried.',
-            style: GoogleFonts.inter(
-              color: _adminDialogBodyColor,
-              fontSize: 10.4,
-              fontWeight: FontWeight.w600,
-              height: 1.32,
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          if (audits.isEmpty)
+            const SizedBox(height: 8),
             Text(
-              'Client Comms delivery history will appear here as soon as ONYX stages, queues, or sends one.',
+              'Latest push sync pressure, SMS fallback, and VoIP handoff results across active Client Comms scopes, so control can verify what ONYX actually tried.',
               style: GoogleFonts.inter(
                 color: _adminDialogBodyColor,
-                fontSize: 11,
+                fontSize: 10.4,
                 fontWeight: FontWeight.w600,
+                height: 1.32,
               ),
-            )
-          else
-            ...audits.take(5).map((audit) {
-              final accent = _clientCommsAuditAccent(audit);
-              final profileSignal = audit.clientProfileOverrideSignal.trim();
-              final profileBusy = _telegramAiProfileBusyScopeKeys.contains(
-                _telegramAiProfileScopeKeyForScope(
-                  audit.clientId,
-                  audit.siteId,
+            ),
+            const SizedBox(height: 8),
+            if (audits.isEmpty)
+              Text(
+                'Client Comms delivery history will appear here as soon as ONYX stages, queues, or sends one.',
+                style: GoogleFonts.inter(
+                  color: _adminDialogBodyColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
-              );
-              final learnedStyleBusy = _telegramAiLearnedStyleBusyScopeKeys
-                  .contains(
-                    _telegramAiProfileScopeKeyForScope(
-                      audit.clientId,
-                      audit.siteId,
-                    ),
-                  );
-              return Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: _adminDialogSurfaceColor,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: accent.withValues(alpha: 0.12)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _clientCommsAuditHeadline(audit),
-                                style: GoogleFonts.inter(
-                                  color: _adminDialogTitleColor,
-                                  fontSize: 11.6,
-                                  fontWeight: FontWeight.w800,
+              )
+            else
+              ...audits.take(5).map((audit) {
+                final accent = _clientCommsAuditAccent(audit);
+                final profileSignal = audit.clientProfileOverrideSignal.trim();
+                final profileBusy = _telegramAiProfileBusyScopeKeys.contains(
+                  _telegramAiProfileScopeKeyForScope(
+                    audit.clientId,
+                    audit.siteId,
+                  ),
+                );
+                final learnedStyleBusy = _telegramAiLearnedStyleBusyScopeKeys
+                    .contains(
+                      _telegramAiProfileScopeKeyForScope(
+                        audit.clientId,
+                        audit.siteId,
+                      ),
+                    );
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _adminDialogSurfaceColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: accent.withValues(alpha: 0.12)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _clientCommsAuditHeadline(audit),
+                                  style: GoogleFonts.inter(
+                                    color: _adminDialogTitleColor,
+                                    fontSize: 11.6,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                _clientCommsAuditSubhead(audit),
-                                style: GoogleFonts.inter(
-                                  color: _adminDialogBodyColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                                const SizedBox(height: 3),
+                                Text(
+                                  _clientCommsAuditSubhead(audit),
+                                  style: GoogleFonts.inter(
+                                    color: _adminDialogBodyColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        _telegramAiInfoChip(
-                          label: audit.matchesSelectedScope
-                              ? 'Selected scope'
-                              : 'Cross-scope',
-                          accent: accent,
-                          icon: audit.matchesSelectedScope
-                              ? Icons.center_focus_strong_rounded
-                              : Icons.layers_rounded,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 7,
-                      runSpacing: 7,
-                      children: [
-                        _telegramAiInfoChip(
-                          label:
-                              'Client voice: ${_telegramAiProfileLabel(profileSignal)}',
-                          accent: profileSignal.isEmpty
-                              ? OnyxColorTokens.textSecondary
-                              : OnyxColorTokens.accentGreen,
-                          icon: Icons.tune_rounded,
-                        ),
-                        _telegramAiInfoChip(
-                          label: audit.pendingApprovalCount > 0
-                              ? '${audit.pendingApprovalCount} pending draft${audit.pendingApprovalCount == 1 ? '' : 's'}'
-                              : 'No pending draft',
-                          accent: audit.pendingApprovalCount > 0
-                              ? OnyxColorTokens.accentAmber
-                              : OnyxColorTokens.accentGreen,
-                          icon: Icons.verified_user_rounded,
-                        ),
-                        _telegramAiInfoChip(
-                          label: audit.awaitingResponseCount > 0
-                              ? '${audit.awaitingResponseCount} live ask${audit.awaitingResponseCount == 1 ? '' : 's'}'
-                              : 'No live ask',
-                          accent: audit.awaitingResponseCount > 0
-                              ? OnyxColorTokens.accentSky
-                              : OnyxColorTokens.textSecondary,
-                          icon: Icons.mark_chat_unread_rounded,
-                        ),
-                        _telegramAiInfoChip(
-                          label:
-                              'Telegram ${audit.telegramHealthLabel.toUpperCase()}',
-                          accent: OnyxColorTokens.accentSky,
-                          icon: Icons.telegram_rounded,
-                        ),
-                        _telegramAiInfoChip(
-                          label:
-                              'Push ${audit.pushSyncStatusLabel.toUpperCase()}',
-                          accent:
-                              audit.pushSyncStatusLabel.trim().toLowerCase() ==
-                                  'failed'
-                              ? OnyxColorTokens.accentAmber
-                              : OnyxColorTokens.textSecondary,
-                          icon: Icons.outbox_rounded,
-                        ),
-                        if (audit.queuedPushCount > 0)
+                          const SizedBox(width: 8),
                           _telegramAiInfoChip(
-                            label: audit.queuedPushCount == 1
-                                ? '1 push item queued'
-                                : '${audit.queuedPushCount} push items queued',
-                            accent: OnyxColorTokens.accentAmber,
-                            icon: Icons.queue_rounded,
+                            label: audit.matchesSelectedScope
+                                ? 'Selected scope'
+                                : 'Cross-scope',
+                            accent: accent,
+                            icon: audit.matchesSelectedScope
+                                ? Icons.center_focus_strong_rounded
+                                : Icons.layers_rounded,
                           ),
-                        if (profileSignal.isNotEmpty)
-                          _telegramAiInfoChip(
-                            label: 'Voice-adjusted',
-                            accent: OnyxColorTokens.accentGreen,
-                            icon: Icons.auto_fix_high_rounded,
-                          ),
-                        if (audit.learnedApprovalStyleCount > 0)
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 7,
+                        runSpacing: 7,
+                        children: [
                           _telegramAiInfoChip(
                             label:
-                                'Learned style (${audit.learnedApprovalStyleCount})',
-                            accent: OnyxColorTokens.accentSky,
-                            icon: Icons.school_rounded,
+                                'Client voice: ${_telegramAiProfileLabel(profileSignal)}',
+                            accent: profileSignal.isEmpty
+                                ? OnyxColorTokens.textSecondary
+                                : OnyxColorTokens.accentGreen,
+                            icon: Icons.tune_rounded,
                           ),
-                        if (audit.pendingLearnedStyleDraftCount > 0)
                           _telegramAiInfoChip(
-                            label: audit.pendingLearnedStyleDraftCount == 1
-                                ? 'ONYX using learned style'
-                                : 'ONYX using learned style on ${audit.pendingLearnedStyleDraftCount} drafts',
-                            accent: OnyxColorTokens.accentSky,
-                            icon: Icons.psychology_alt_rounded,
+                            label: audit.pendingApprovalCount > 0
+                                ? '${audit.pendingApprovalCount} pending draft${audit.pendingApprovalCount == 1 ? '' : 's'}'
+                                : 'No pending draft',
+                            accent: audit.pendingApprovalCount > 0
+                                ? OnyxColorTokens.accentAmber
+                                : OnyxColorTokens.accentGreen,
+                            icon: Icons.verified_user_rounded,
                           ),
-                        for (final option in _orderedTelegramAiProfileOptions(
-                          clientId: audit.clientId,
-                          siteId: audit.siteId,
-                          currentProfileSignal: profileSignal,
-                          learnedTag: audit.learnedApprovalStyleTag,
-                          learnedText: audit.learnedApprovalStyleExample,
-                        ))
-                          OutlinedButton(
-                            onPressed:
-                                (widget.onSetTelegramAiClientProfileOverride ==
-                                        null ||
-                                    profileBusy)
-                                ? null
-                                : () =>
-                                      _setTelegramAiClientProfileOverrideForScope(
-                                        clientId: audit.clientId,
-                                        siteId: audit.siteId,
-                                        profileSignal: option.$2,
-                                      ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor:
-                                  (option.$2 ?? '') == profileSignal ||
-                                      (option.$2 == null &&
-                                          profileSignal.isEmpty)
-                                  ? _adminDialogTitleColor
-                                  : _adminDialogBodyColor,
-                              backgroundColor:
-                                  (option.$2 ?? '') == profileSignal ||
-                                      (option.$2 == null &&
-                                          profileSignal.isEmpty)
-                                  ? accent.withValues(alpha: 0.12)
-                                  : OnyxColorTokens.backgroundSecondary,
-                              side: BorderSide(
-                                color:
+                          _telegramAiInfoChip(
+                            label: audit.awaitingResponseCount > 0
+                                ? '${audit.awaitingResponseCount} live ask${audit.awaitingResponseCount == 1 ? '' : 's'}'
+                                : 'No live ask',
+                            accent: audit.awaitingResponseCount > 0
+                                ? OnyxColorTokens.accentSky
+                                : OnyxColorTokens.textSecondary,
+                            icon: Icons.mark_chat_unread_rounded,
+                          ),
+                          _telegramAiInfoChip(
+                            label:
+                                'Telegram ${audit.telegramHealthLabel.toUpperCase()}',
+                            accent: OnyxColorTokens.accentSky,
+                            icon: Icons.telegram_rounded,
+                          ),
+                          _telegramAiInfoChip(
+                            label:
+                                'Push ${audit.pushSyncStatusLabel.toUpperCase()}',
+                            accent:
+                                audit.pushSyncStatusLabel
+                                        .trim()
+                                        .toLowerCase() ==
+                                    'failed'
+                                ? OnyxColorTokens.accentAmber
+                                : OnyxColorTokens.textSecondary,
+                            icon: Icons.outbox_rounded,
+                          ),
+                          if (audit.queuedPushCount > 0)
+                            _telegramAiInfoChip(
+                              label: audit.queuedPushCount == 1
+                                  ? '1 push item queued'
+                                  : '${audit.queuedPushCount} push items queued',
+                              accent: OnyxColorTokens.accentAmber,
+                              icon: Icons.queue_rounded,
+                            ),
+                          if (profileSignal.isNotEmpty)
+                            _telegramAiInfoChip(
+                              label: 'Voice-adjusted',
+                              accent: OnyxColorTokens.accentGreen,
+                              icon: Icons.auto_fix_high_rounded,
+                            ),
+                          if (audit.learnedApprovalStyleCount > 0)
+                            _telegramAiInfoChip(
+                              label:
+                                  'Learned style (${audit.learnedApprovalStyleCount})',
+                              accent: OnyxColorTokens.accentSky,
+                              icon: Icons.school_rounded,
+                            ),
+                          if (audit.pendingLearnedStyleDraftCount > 0)
+                            _telegramAiInfoChip(
+                              label: audit.pendingLearnedStyleDraftCount == 1
+                                  ? 'ONYX using learned style'
+                                  : 'ONYX using learned style on ${audit.pendingLearnedStyleDraftCount} drafts',
+                              accent: OnyxColorTokens.accentSky,
+                              icon: Icons.psychology_alt_rounded,
+                            ),
+                          for (final option in _orderedTelegramAiProfileOptions(
+                            clientId: audit.clientId,
+                            siteId: audit.siteId,
+                            currentProfileSignal: profileSignal,
+                            learnedTag: audit.learnedApprovalStyleTag,
+                            learnedText: audit.learnedApprovalStyleExample,
+                          ))
+                            OutlinedButton(
+                              onPressed:
+                                  (widget.onSetTelegramAiClientProfileOverride ==
+                                          null ||
+                                      profileBusy)
+                                  ? null
+                                  : () =>
+                                        _setTelegramAiClientProfileOverrideForScope(
+                                          clientId: audit.clientId,
+                                          siteId: audit.siteId,
+                                          profileSignal: option.$2,
+                                        ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor:
                                     (option.$2 ?? '') == profileSignal ||
                                         (option.$2 == null &&
                                             profileSignal.isEmpty)
-                                    ? accent.withValues(alpha: 0.4)
-                                    : _adminDialogBorderColor,
+                                    ? _adminDialogTitleColor
+                                    : _adminDialogBodyColor,
+                                backgroundColor:
+                                    (option.$2 ?? '') == profileSignal ||
+                                        (option.$2 == null &&
+                                            profileSignal.isEmpty)
+                                    ? accent.withValues(alpha: 0.12)
+                                    : OnyxColorTokens.backgroundSecondary,
+                                side: BorderSide(
+                                  color:
+                                      (option.$2 ?? '') == profileSignal ||
+                                          (option.$2 == null &&
+                                              profileSignal.isEmpty)
+                                      ? accent.withValues(alpha: 0.4)
+                                      : _adminDialogBorderColor,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                            ),
-                            child: Text(
-                              option.$1,
-                              style: GoogleFonts.inter(
-                                fontSize: 10.6,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      _clientCommsAuditCue(audit),
-                      style: GoogleFonts.inter(
-                        color: _adminDialogBodyColor,
-                        fontSize: 10.2,
-                        fontWeight: FontWeight.w600,
-                        height: 1.32,
-                      ),
-                    ),
-                    if ((audit.latestSmsFallbackStatus ?? '')
-                        .trim()
-                        .isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _telegramAiReviewTextBlock(
-                        label: 'LATEST SMS FALLBACK',
-                        text:
-                            ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
-                              audit.latestSmsFallbackStatus!.trim(),
-                            ),
-                        borderColor: OnyxColorTokens.greenBorder,
-                        textColor: OnyxColorTokens.textPrimary,
-                      ),
-                    ],
-                    if ((audit.latestVoipStageStatus ?? '')
-                        .trim()
-                        .isNotEmpty) ...[
-                      const SizedBox(height: 7),
-                      _telegramAiReviewTextBlock(
-                        label: 'LATEST VOIP STAGE',
-                        text:
-                            ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
-                              audit.latestVoipStageStatus!.trim(),
-                            ),
-                        borderColor: OnyxColorTokens.accentBlue,
-                        textColor: OnyxColorTokens.textPrimary,
-                      ),
-                    ],
-                    if ((audit.pushSyncFailureReason ?? '')
-                        .trim()
-                        .isNotEmpty) ...[
-                      const SizedBox(height: 7),
-                      _telegramAiReviewTextBlock(
-                        label: 'LATEST PUSH DETAIL',
-                        text:
-                            ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
-                              audit.pushSyncFailureReason!.trim(),
-                            ),
-                        borderColor: OnyxColorTokens.redBorder,
-                        textColor: OnyxColorTokens.textPrimary,
-                      ),
-                    ],
-                    if (audit.recentDeliveryHistoryLines.isNotEmpty) ...[
-                      const SizedBox(height: 7),
-                      _telegramAiReviewTextBlock(
-                        label: 'RECENT DELIVERY HISTORY',
-                        text: audit.recentDeliveryHistoryLines.join('\n'),
-                        borderColor: OnyxColorTokens.borderStrong,
-                        textColor: OnyxColorTokens.accentSky,
-                      ),
-                    ],
-                    if (audit.latestClientAskBody.trim().isNotEmpty) ...[
-                      const SizedBox(height: 7),
-                      _telegramAiReviewTextBlock(
-                        label: 'LATEST CLIENT ASK',
-                        text: audit.latestClientAskBody.trim(),
-                        borderColor: OnyxColorTokens.accentBlue,
-                        textColor: OnyxColorTokens.textPrimary,
-                      ),
-                      if (audit.latestClientAskAtUtc != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          'Client reply still pending • ${_telegramAiAgeLabel(audit.latestClientAskAtUtc!)}',
-                          style: GoogleFonts.inter(
-                            color: _adminDialogBodyColor,
-                            fontSize: 10.2,
-                            fontWeight: FontWeight.w600,
-                            height: 1.32,
-                          ),
-                        ),
-                      ],
-                    ],
-                    if (audit.latestLaneReplyBody.trim().isNotEmpty) ...[
-                      const SizedBox(height: 7),
-                      _telegramAiReviewTextBlock(
-                        label: 'LATEST CLIENT COMMS REPLY',
-                        text: audit.latestLaneReplyBody.trim(),
-                        borderColor: OnyxColorTokens.accentBlue,
-                        textColor: OnyxColorTokens.accentSky,
-                      ),
-                      if (audit.latestLaneReplyAtUtc != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          'Latest Client Comms reply logged • ${_telegramAiAgeLabel(audit.latestLaneReplyAtUtc!)}',
-                          style: GoogleFonts.inter(
-                            color: _adminDialogBodyColor,
-                            fontSize: 10.2,
-                            fontWeight: FontWeight.w600,
-                            height: 1.32,
-                          ),
-                        ),
-                      ],
-                    ],
-                    if (audit.learnedApprovalStyleExample
-                        .trim()
-                        .isNotEmpty) ...[
-                      const SizedBox(height: 7),
-                      if (_telegramAiLearnedStyleTagLabel(
-                        audit.learnedApprovalStyleTag,
-                      ).isNotEmpty) ...[
-                        _telegramAiLearnedStyleTagChip(
-                          audit.learnedApprovalStyleTag,
-                        ),
-                        const SizedBox(height: 7),
-                      ],
-                      _telegramAiReviewTextBlock(
-                        label: 'LEARNED APPROVAL STYLE',
-                        text: audit.learnedApprovalStyleExample.trim(),
-                        borderColor: OnyxColorTokens.accentBlue,
-                        textColor: OnyxColorTokens.accentSky,
-                      ),
-                      if (_telegramAiLearnedStyleMetaLabel(
-                        approvalCount: audit.learnedApprovalStyleApprovalCount,
-                        lastApprovedAtUtc:
-                            audit.learnedApprovalStyleLastApprovedAtUtc,
-                        lastUsedAtUtc: audit.learnedApprovalStyleLastUsedAtUtc,
-                      ).isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          _telegramAiLearnedStyleMetaLabel(
-                            approvalCount:
-                                audit.learnedApprovalStyleApprovalCount,
-                            lastApprovedAtUtc:
-                                audit.learnedApprovalStyleLastApprovedAtUtc,
-                            lastUsedAtUtc:
-                                audit.learnedApprovalStyleLastUsedAtUtc,
-                          ),
-                          style: GoogleFonts.inter(
-                            color: _adminDialogBodyColor,
-                            fontSize: 10.2,
-                            fontWeight: FontWeight.w600,
-                            height: 1.32,
-                          ),
-                        ),
-                      ],
-                      if (audit.learnedApprovalStylePreviews.length > 1) ...[
-                        const SizedBox(height: 7),
-                        _telegramAiLearnedStyleOptionsBlock(
-                          clientId: audit.clientId,
-                          siteId: audit.siteId,
-                          previews: audit.learnedApprovalStylePreviews,
-                          busy: learnedStyleBusy,
-                        ),
-                      ],
-                      const SizedBox(height: 7),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed:
-                                widget.onPinTelegramAiLearnedStyleForScope ==
-                                        null ||
-                                    learnedStyleBusy
-                                ? null
-                                : () => _pinTelegramAiLearnedStyleForScope(
-                                    clientId: audit.clientId,
-                                    siteId: audit.siteId,
-                                  ),
-                            style: _telegramAiOutlineButtonStyle(
-                              accent: OnyxColorTokens.accentBlue,
-                            ),
-                            icon: const Icon(Icons.push_pin_rounded, size: 14),
-                            label: Text(
-                              'Pin Top Style',
-                              style: GoogleFonts.inter(
-                                fontSize: 10.8,
-                                fontWeight: FontWeight.w700,
+                              child: Text(
+                                option.$1,
+                                style: GoogleFonts.inter(
+                                  fontSize: 10.6,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed:
-                                widget.onDemoteTelegramAiLearnedStyleForScope ==
-                                        null ||
-                                    learnedStyleBusy
-                                ? null
-                                : () => _demoteTelegramAiLearnedStyleForScope(
-                                    clientId: audit.clientId,
-                                    siteId: audit.siteId,
-                                  ),
-                            style: _telegramAiOutlineButtonStyle(
-                              accent: OnyxColorTokens.redBorder,
-                            ),
-                            icon: const Icon(Icons.south_rounded, size: 14),
-                            label: Text(
-                              'Demote Top Style',
-                              style: GoogleFonts.inter(
-                                fontSize: 10.8,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed:
-                                widget.onTagTelegramAiLearnedStyleEntryForScope ==
-                                        null ||
-                                    learnedStyleBusy
-                                ? null
-                                : () => _tagTelegramAiLearnedStyleEntryForScope(
-                                    clientId: audit.clientId,
-                                    siteId: audit.siteId,
-                                    learnedText:
-                                        audit.learnedApprovalStyleExample,
-                                    currentTag: audit.learnedApprovalStyleTag,
-                                    rank: 1,
-                                  ),
-                            style: _telegramAiOutlineButtonStyle(
-                              accent: OnyxColorTokens.accentBlue,
-                            ),
-                            icon: const Icon(Icons.label_rounded, size: 14),
-                            label: Text(
-                              'Tag Top Style',
-                              style: GoogleFonts.inter(
-                                fontSize: 10.8,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          _buildLiveOpsTipResetButton(audit: true),
                         ],
                       ),
                       const SizedBox(height: 7),
-                      _buildLiveOpsTipResetNote(),
-                    ],
-                    if ((audit.deliveryReadinessDetail ?? '')
-                        .trim()
-                        .isNotEmpty) ...[
-                      const SizedBox(height: 7),
                       Text(
-                        audit.deliveryReadinessDetail!.trim(),
+                        _clientCommsAuditCue(audit),
                         style: GoogleFonts.inter(
                           color: _adminDialogBodyColor,
                           fontSize: 10.2,
@@ -15805,53 +15795,299 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           height: 1.32,
                         ),
                       ),
-                    ],
-                    if (_openClientLaneAction(
-                          clientId: audit.clientId,
-                          siteId: audit.siteId,
-                        ) !=
-                        null) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          key: _adminClientCommsAuditOpenClientCommsButtonKey(
-                            clientId: audit.clientId,
-                            siteId: audit.siteId,
-                          ),
-                          onPressed: _openClientLaneAction(
-                            clientId: audit.clientId,
-                            siteId: audit.siteId,
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _telegramAiAccentTextColor(
-                              accent,
-                              strength: 0.42,
-                            ),
-                            backgroundColor: OnyxColorTokens.backgroundSecondary,
-                            side: BorderSide(
-                              color: accent.withValues(alpha: 0.4),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                          ),
-                          icon: const Icon(Icons.forum_rounded, size: 14),
-                          label: Text(
-                            'OPEN CLIENT COMMS',
+                      if ((audit.latestSmsFallbackStatus ?? '')
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _telegramAiReviewTextBlock(
+                          label: 'LATEST SMS FALLBACK',
+                          text:
+                              ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+                                audit.latestSmsFallbackStatus!.trim(),
+                              ),
+                          borderColor: OnyxColorTokens.greenBorder,
+                          textColor: OnyxColorTokens.textPrimary,
+                        ),
+                      ],
+                      if ((audit.latestVoipStageStatus ?? '')
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        _telegramAiReviewTextBlock(
+                          label: 'LATEST VOIP STAGE',
+                          text:
+                              ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+                                audit.latestVoipStageStatus!.trim(),
+                              ),
+                          borderColor: OnyxColorTokens.accentBlue,
+                          textColor: OnyxColorTokens.textPrimary,
+                        ),
+                      ],
+                      if ((audit.pushSyncFailureReason ?? '')
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        _telegramAiReviewTextBlock(
+                          label: 'LATEST PUSH DETAIL',
+                          text:
+                              ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+                                audit.pushSyncFailureReason!.trim(),
+                              ),
+                          borderColor: OnyxColorTokens.redBorder,
+                          textColor: OnyxColorTokens.textPrimary,
+                        ),
+                      ],
+                      if (audit.recentDeliveryHistoryLines.isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        _telegramAiReviewTextBlock(
+                          label: 'RECENT DELIVERY HISTORY',
+                          text: audit.recentDeliveryHistoryLines.join('\n'),
+                          borderColor: OnyxColorTokens.borderStrong,
+                          textColor: OnyxColorTokens.accentSky,
+                        ),
+                      ],
+                      if (audit.latestClientAskBody.trim().isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        _telegramAiReviewTextBlock(
+                          label: 'LATEST CLIENT ASK',
+                          text: audit.latestClientAskBody.trim(),
+                          borderColor: OnyxColorTokens.accentBlue,
+                          textColor: OnyxColorTokens.textPrimary,
+                        ),
+                        if (audit.latestClientAskAtUtc != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Client reply still pending • ${_telegramAiAgeLabel(audit.latestClientAskAtUtc!)}',
                             style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              color: _adminDialogBodyColor,
+                              fontSize: 10.2,
+                              fontWeight: FontWeight.w600,
+                              height: 1.32,
+                            ),
+                          ),
+                        ],
+                      ],
+                      if (audit.latestLaneReplyBody.trim().isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        _telegramAiReviewTextBlock(
+                          label: 'LATEST CLIENT COMMS REPLY',
+                          text: audit.latestLaneReplyBody.trim(),
+                          borderColor: OnyxColorTokens.accentBlue,
+                          textColor: OnyxColorTokens.accentSky,
+                        ),
+                        if (audit.latestLaneReplyAtUtc != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Latest Client Comms reply logged • ${_telegramAiAgeLabel(audit.latestLaneReplyAtUtc!)}',
+                            style: GoogleFonts.inter(
+                              color: _adminDialogBodyColor,
+                              fontSize: 10.2,
+                              fontWeight: FontWeight.w600,
+                              height: 1.32,
+                            ),
+                          ),
+                        ],
+                      ],
+                      if (audit.learnedApprovalStyleExample
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        if (_telegramAiLearnedStyleTagLabel(
+                          audit.learnedApprovalStyleTag,
+                        ).isNotEmpty) ...[
+                          _telegramAiLearnedStyleTagChip(
+                            audit.learnedApprovalStyleTag,
+                          ),
+                          const SizedBox(height: 7),
+                        ],
+                        _telegramAiReviewTextBlock(
+                          label: 'LEARNED APPROVAL STYLE',
+                          text: audit.learnedApprovalStyleExample.trim(),
+                          borderColor: OnyxColorTokens.accentBlue,
+                          textColor: OnyxColorTokens.accentSky,
+                        ),
+                        if (_telegramAiLearnedStyleMetaLabel(
+                          approvalCount:
+                              audit.learnedApprovalStyleApprovalCount,
+                          lastApprovedAtUtc:
+                              audit.learnedApprovalStyleLastApprovedAtUtc,
+                          lastUsedAtUtc:
+                              audit.learnedApprovalStyleLastUsedAtUtc,
+                        ).isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            _telegramAiLearnedStyleMetaLabel(
+                              approvalCount:
+                                  audit.learnedApprovalStyleApprovalCount,
+                              lastApprovedAtUtc:
+                                  audit.learnedApprovalStyleLastApprovedAtUtc,
+                              lastUsedAtUtc:
+                                  audit.learnedApprovalStyleLastUsedAtUtc,
+                            ),
+                            style: GoogleFonts.inter(
+                              color: _adminDialogBodyColor,
+                              fontSize: 10.2,
+                              fontWeight: FontWeight.w600,
+                              height: 1.32,
+                            ),
+                          ),
+                        ],
+                        if (audit.learnedApprovalStylePreviews.length > 1) ...[
+                          const SizedBox(height: 7),
+                          _telegramAiLearnedStyleOptionsBlock(
+                            clientId: audit.clientId,
+                            siteId: audit.siteId,
+                            previews: audit.learnedApprovalStylePreviews,
+                            busy: learnedStyleBusy,
+                          ),
+                        ],
+                        const SizedBox(height: 7),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed:
+                                  widget.onPinTelegramAiLearnedStyleForScope ==
+                                          null ||
+                                      learnedStyleBusy
+                                  ? null
+                                  : () => _pinTelegramAiLearnedStyleForScope(
+                                      clientId: audit.clientId,
+                                      siteId: audit.siteId,
+                                    ),
+                              style: _telegramAiOutlineButtonStyle(
+                                accent: OnyxColorTokens.accentBlue,
+                              ),
+                              icon: const Icon(
+                                Icons.push_pin_rounded,
+                                size: 14,
+                              ),
+                              label: Text(
+                                'Pin Top Style',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10.8,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed:
+                                  widget.onDemoteTelegramAiLearnedStyleForScope ==
+                                          null ||
+                                      learnedStyleBusy
+                                  ? null
+                                  : () => _demoteTelegramAiLearnedStyleForScope(
+                                      clientId: audit.clientId,
+                                      siteId: audit.siteId,
+                                    ),
+                              style: _telegramAiOutlineButtonStyle(
+                                accent: OnyxColorTokens.redBorder,
+                              ),
+                              icon: const Icon(Icons.south_rounded, size: 14),
+                              label: Text(
+                                'Demote Top Style',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10.8,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed:
+                                  widget.onTagTelegramAiLearnedStyleEntryForScope ==
+                                          null ||
+                                      learnedStyleBusy
+                                  ? null
+                                  : () =>
+                                        _tagTelegramAiLearnedStyleEntryForScope(
+                                          clientId: audit.clientId,
+                                          siteId: audit.siteId,
+                                          learnedText:
+                                              audit.learnedApprovalStyleExample,
+                                          currentTag:
+                                              audit.learnedApprovalStyleTag,
+                                          rank: 1,
+                                        ),
+                              style: _telegramAiOutlineButtonStyle(
+                                accent: OnyxColorTokens.accentBlue,
+                              ),
+                              icon: const Icon(Icons.label_rounded, size: 14),
+                              label: Text(
+                                'Tag Top Style',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10.8,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            _buildLiveOpsTipResetButton(audit: true),
+                          ],
+                        ),
+                        const SizedBox(height: 7),
+                        _buildLiveOpsTipResetNote(),
+                      ],
+                      if ((audit.deliveryReadinessDetail ?? '')
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        Text(
+                          audit.deliveryReadinessDetail!.trim(),
+                          style: GoogleFonts.inter(
+                            color: _adminDialogBodyColor,
+                            fontSize: 10.2,
+                            fontWeight: FontWeight.w600,
+                            height: 1.32,
+                          ),
+                        ),
+                      ],
+                      if (_openClientLaneAction(
+                            clientId: audit.clientId,
+                            siteId: audit.siteId,
+                          ) !=
+                          null) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            key: _adminClientCommsAuditOpenClientCommsButtonKey(
+                              clientId: audit.clientId,
+                              siteId: audit.siteId,
+                            ),
+                            onPressed: _openClientLaneAction(
+                              clientId: audit.clientId,
+                              siteId: audit.siteId,
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _telegramAiAccentTextColor(
+                                accent,
+                                strength: 0.42,
+                              ),
+                              backgroundColor:
+                                  OnyxColorTokens.backgroundSecondary,
+                              side: BorderSide(
+                                color: accent.withValues(alpha: 0.4),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.forum_rounded, size: 14),
+                            label: Text(
+                              'OPEN CLIENT COMMS',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-              );
-            }),
+                  ),
+                );
+              }),
           ],
         ),
       ),
@@ -15917,7 +16153,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: _adminDialogAltColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -15972,9 +16210,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: OnyxColorTokens.accentSky.withValues(alpha: 0.03),
+                            color: OnyxColorTokens.accentSky.withValues(
+                              alpha: 0.03,
+                            ),
                             borderRadius: BorderRadius.circular(9),
-                            border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.09)),
+                            border: Border.all(
+                              color: OnyxColorTokens.accentSky.withValues(
+                                alpha: 0.09,
+                              ),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -16241,7 +16485,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: _adminDialogAltColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: OnyxColorTokens.accentAmber.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentAmber.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -16296,9 +16542,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                            color: OnyxColorTokens.accentAmber.withValues(
+                              alpha: 0.08,
+                            ),
                             borderRadius: BorderRadius.circular(9),
-                            border: Border.all(color: OnyxColorTokens.accentAmber.withValues(alpha: 0.2)),
+                            border: Border.all(
+                              color: OnyxColorTokens.accentAmber.withValues(
+                                alpha: 0.2,
+                              ),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -16587,7 +16839,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: OnyxColorTokens.accentRed,
                         backgroundColor: OnyxColorTokens.backgroundSecondary,
-                        side: const BorderSide(color: OnyxColorTokens.redBorder),
+                        side: const BorderSide(
+                          color: OnyxColorTokens.redBorder,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -16691,7 +16945,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentSky.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -17822,7 +18078,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentSky.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Text(
                   '${history.length} entries',
@@ -18567,7 +18825,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Text(
                   '${entries.length} internal',
@@ -18597,7 +18857,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             decoration: BoxDecoration(
               color: _adminDialogAltColor,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.4)),
+              border: Border.all(
+                color: OnyxColorTokens.textSecondary.withValues(alpha: 0.4),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -18649,9 +18911,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
+                        color: OnyxColorTokens.textSecondary.withValues(
+                          alpha: 0.08,
+                        ),
                         borderRadius: BorderRadius.circular(9),
-                        border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: OnyxColorTokens.textSecondary.withValues(
+                            alpha: 0.2,
+                          ),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -18948,7 +19216,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Text(
                   '${entries.length} sites',
@@ -19169,7 +19439,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           decoration: BoxDecoration(
                             color: OnyxColorTokens.backgroundSecondary,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: OnyxColorTokens.accentAmber.withValues(alpha: 0.35)),
+                            border: Border.all(
+                              color: OnyxColorTokens.accentAmber.withValues(
+                                alpha: 0.35,
+                              ),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -19210,7 +19484,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           decoration: BoxDecoration(
                             color: OnyxColorTokens.backgroundSecondary,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: OnyxColorTokens.accentTeal.withValues(alpha: 0.35)),
+                            border: Border.all(
+                              color: OnyxColorTokens.accentTeal.withValues(
+                                alpha: 0.35,
+                              ),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -19607,10 +19885,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
+                              color: OnyxColorTokens.textSecondary.withValues(
+                                alpha: 0.08,
+                              ),
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
-                                color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                                color: OnyxColorTokens.textSecondary.withValues(
+                                  alpha: 0.2,
+                                ),
                               ),
                             ),
                             child: Text(
@@ -19666,7 +19948,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                   _activeIdentityPolicyAuditSource == null,
                               onSelected: (_) =>
                                   _setActiveIdentityPolicyAuditSource(null),
-                              selectedColor: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                              selectedColor: OnyxColorTokens.textSecondary
+                                  .withValues(alpha: 0.2),
                               checkmarkColor: OnyxColorTokens.textSecondary,
                               labelStyle: GoogleFonts.inter(
                                 color: _adminDialogTitleColor,
@@ -19687,7 +19970,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                     _activeIdentityPolicyAuditSource == source,
                                 onSelected: (_) =>
                                     _setActiveIdentityPolicyAuditSource(source),
-                                selectedColor: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                                selectedColor: OnyxColorTokens.textSecondary
+                                    .withValues(alpha: 0.2),
                                 checkmarkColor: OnyxColorTokens.textSecondary,
                                 labelStyle: GoogleFonts.inter(
                                   color: _adminDialogTitleColor,
@@ -19721,12 +20005,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
+                                        color: OnyxColorTokens.textSecondary
+                                            .withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(
                                           999,
                                         ),
                                         border: Border.all(
-                                          color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                                          color: OnyxColorTokens.textSecondary
+                                              .withValues(alpha: 0.2),
                                         ),
                                       ),
                                       child: Text(
@@ -19814,7 +20100,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 decoration: BoxDecoration(
                   color: OnyxColorTokens.textSecondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: OnyxColorTokens.textSecondary.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Text(
                   '${_telegramIdentityIntakes.length} pending',
@@ -19876,7 +20164,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
               decoration: BoxDecoration(
                 color: _adminDialogAltColor,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: OnyxColorTokens.accentBlue.withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: OnyxColorTokens.accentBlue.withValues(alpha: 0.2),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -19931,9 +20221,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: OnyxColorTokens.accentBlue.withValues(alpha: 0.03),
+                          color: OnyxColorTokens.accentBlue.withValues(
+                            alpha: 0.03,
+                          ),
                           borderRadius: BorderRadius.circular(9),
-                          border: Border.all(color: OnyxColorTokens.accentBlue.withValues(alpha: 0.09)),
+                          border: Border.all(
+                            color: OnyxColorTokens.accentBlue.withValues(
+                              alpha: 0.09,
+                            ),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -20076,7 +20372,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: OnyxColorTokens.redBorder,
                           backgroundColor: OnyxColorTokens.backgroundSecondary,
-                          side: const BorderSide(color: OnyxColorTokens.redBorder),
+                          side: const BorderSide(
+                            color: OnyxColorTokens.redBorder,
+                          ),
                         ),
                         label: Text(
                           'Reject lead',
@@ -20274,7 +20572,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: OnyxColorTokens.redBorder,
                             backgroundColor: OnyxColorTokens.redSurface,
-                            side: const BorderSide(color: OnyxColorTokens.redBorder),
+                            side: const BorderSide(
+                              color: OnyxColorTokens.redBorder,
+                            ),
                           ),
                           label: Text(
                             'Reject',
@@ -20665,7 +20965,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     OnyxColorTokens.textSecondary,
                   ),
                 if (!scope.hasIncidentContext)
-                  _fleetBadge('Context', 'Pending', OnyxColorTokens.accentAmber),
+                  _fleetBadge(
+                    'Context',
+                    'Pending',
+                    OnyxColorTokens.accentAmber,
+                  ),
               ],
             ),
           ],
@@ -21486,7 +21790,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     if (active == null) {
       return const SizedBox.shrink();
     }
-    final bannerBackground = active.focusBannerBackgroundColor.withValues(alpha: 0.18);
+    final bannerBackground = active.focusBannerBackgroundColor.withValues(
+      alpha: 0.18,
+    );
     final bannerActionColor = _adminAccentTextColor(
       active.focusBannerActionColor,
       strength: 0.56,
@@ -21732,7 +22038,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   decoration: BoxDecoration(
                     color: OnyxColorTokens.accentBlue.withValues(alpha: 0.13),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: OnyxColorTokens.accentBlue.withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: Text(
                     'DEMO',
@@ -22037,7 +22345,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
               title,
               style: GoogleFonts.inter(
                 color: enabled
-                    ? (light ? _adminDialogTitleColor : OnyxColorTokens.textPrimary)
+                    ? (light
+                          ? _adminDialogTitleColor
+                          : OnyxColorTokens.textPrimary)
                     : OnyxColorTokens.textMuted,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
@@ -22048,7 +22358,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
               detail,
               style: GoogleFonts.inter(
                 color: enabled
-                    ? (light ? _adminDialogBodyColor : OnyxColorTokens.textSecondary)
+                    ? (light
+                          ? _adminDialogBodyColor
+                          : OnyxColorTokens.textSecondary)
                     : OnyxColorTokens.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -24578,8 +24890,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           label:
                               'DAY ${_guardRosterPlannerDateLabel(focusDate).toUpperCase()}',
                           foreground: _guardRosterPlannerAccent(mode),
-                          background: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
-                          border: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
+                          background: OnyxColorTokens.accentSky.withValues(
+                            alpha: 0.1,
+                          ),
+                          border: OnyxColorTokens.accentBlue.withValues(
+                            alpha: 0.4,
+                          ),
                         ),
                         if (launchedFromHandoff)
                           _adminHeaderChip(
@@ -24780,8 +25096,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _adminHeaderChip(
                           label: 'Role ${_guardRoleLabel(selectedRole)}',
                           foreground: OnyxColorTokens.accentSky,
-                          background: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
-                          border: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
+                          background: OnyxColorTokens.accentSky.withValues(
+                            alpha: 0.1,
+                          ),
+                          border: OnyxColorTokens.accentBlue.withValues(
+                            alpha: 0.4,
+                          ),
                         ),
                         _adminHeaderChip(
                           label: 'Status ${_adminStatusLabel(selectedStatus)}',
@@ -25122,8 +25442,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         _adminHeaderChip(
                           label: _adminStatusLabel(selectedStatus),
                           foreground: OnyxColorTokens.accentSky,
-                          background: OnyxColorTokens.accentSky.withValues(alpha: 0.1),
-                          border: OnyxColorTokens.accentBlue.withValues(alpha: 0.4),
+                          background: OnyxColorTokens.accentSky.withValues(
+                            alpha: 0.1,
+                          ),
+                          border: OnyxColorTokens.accentBlue.withValues(
+                            alpha: 0.4,
+                          ),
                         ),
                       ],
                     ),
@@ -25631,7 +25955,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
               border: Border.all(color: commandAccent.withValues(alpha: 0.26)),
               boxShadow: [
                 BoxShadow(
-                  color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.08),
+                  color: OnyxColorTokens.backgroundPrimary.withValues(
+                    alpha: 0.08,
+                  ),
                   blurRadius: 26,
                   offset: const Offset(0, 10),
                 ),
@@ -26019,7 +26345,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                         label: 'Signals',
                                         value: '${highlights.length}',
                                         detail: 'Success cues live',
-                                        valueColor: OnyxColorTokens.textSecondary,
+                                        valueColor:
+                                            OnyxColorTokens.textSecondary,
                                         light: true,
                                       ),
                                       _previewSnapshotCard(
@@ -26372,7 +26699,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                           'Focus reference copied for command review.',
                                         );
                                       },
-                                      foregroundColor: OnyxColorTokens.textSecondary,
+                                      foregroundColor:
+                                          OnyxColorTokens.textSecondary,
                                       borderColor: OnyxColorTokens.borderStrong,
                                     ),
                                     light: true,
@@ -26531,7 +26859,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                           _OnboardingCommandChipData(
                                             label: 'Focus',
                                             value: 'live',
-                                            color: OnyxColorTokens.textSecondary,
+                                            color:
+                                                OnyxColorTokens.textSecondary,
                                           ),
                                           light: true,
                                         ),
@@ -29551,7 +29880,9 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                       child: SwitchListTile.adaptive(
                         contentPadding: EdgeInsets.zero,
                         activeThumbColor: OnyxColorTokens.accentSky,
-                        activeTrackColor: OnyxColorTokens.accentSky.withValues(alpha: 0.4),
+                        activeTrackColor: OnyxColorTokens.accentSky.withValues(
+                          alpha: 0.4,
+                        ),
                         value: _enableTelegramBridge,
                         onChanged: (value) {
                           setState(() => _enableTelegramBridge = value);
@@ -31276,7 +31607,9 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
     required String keyPrefix,
     Color? microColor,
   }) {
-    final accent = ready ? OnyxColorTokens.accentSky : OnyxColorTokens.textMuted;
+    final accent = ready
+        ? OnyxColorTokens.accentSky
+        : OnyxColorTokens.textMuted;
     return AnimatedContainer(
       key: ValueKey('$keyPrefix-card'),
       duration: const Duration(milliseconds: 180),
@@ -32574,7 +32907,9 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
         : 'Location Live';
     final accent = readyCount >= 4
         ? OnyxColorTokens.accentGreen
-        : (readyCount >= 2 ? OnyxColorTokens.accentSky : OnyxColorTokens.accentAmber);
+        : (readyCount >= 2
+              ? OnyxColorTokens.accentSky
+              : OnyxColorTokens.accentAmber);
     return AnimatedContainer(
       key: const ValueKey('site-onboarding-location-integrity-card'),
       duration: const Duration(milliseconds: 200),
@@ -32897,7 +33232,10 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [OnyxColorTokens.surfaceElevated, OnyxColorTokens.textPrimary.withValues(alpha: 0.95)],
+                          colors: [
+                            OnyxColorTokens.surfaceElevated,
+                            OnyxColorTokens.textPrimary.withValues(alpha: 0.95),
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -32934,7 +33272,9 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                         color: OnyxColorTokens.accentGreen,
                         boxShadow: [
                           BoxShadow(
-                            color: OnyxColorTokens.accentSky.withValues(alpha: 0.33),
+                            color: OnyxColorTokens.accentSky.withValues(
+                              alpha: 0.33,
+                            ),
                             blurRadius: 10,
                             spreadRadius: 2,
                           ),
@@ -33088,7 +33428,9 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
     String? readyMicroValue,
     String? pendingMicroValue,
   }) {
-    final accent = ready ? OnyxColorTokens.accentGreen : OnyxColorTokens.accentAmber;
+    final accent = ready
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
     final statusLabel = ready ? 'LOCKED' : 'PENDING';
     final resolvedValue = value ?? (ready ? 'Ready' : 'Needs input');
     final resolvedMicroValue = ready
@@ -34009,7 +34351,10 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
       padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.14), OnyxColorTokens.surfaceElevated],
+          colors: [
+            accent.withValues(alpha: 0.14),
+            OnyxColorTokens.surfaceElevated,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -35366,7 +35711,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                                   });
                                 },
                                 activeThumbColor: OnyxColorTokens.accentGreen,
-                                activeTrackColor: OnyxColorTokens.accentGreen.withValues(alpha: 0.4),
+                                activeTrackColor: OnyxColorTokens.accentGreen
+                                    .withValues(alpha: 0.4),
                               ),
                             ],
                           ),
@@ -36131,8 +36477,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
   IconData get _demoReadyButtonIcon =>
       _allGatesReady ? Icons.task_alt_rounded : Icons.bolt_rounded;
 
-  Color get _demoReadyButtonColor =>
-      _allGatesReady ? OnyxColorTokens.accentTeal : OnyxColorTokens.accentPurple;
+  Color get _demoReadyButtonColor => _allGatesReady
+      ? OnyxColorTokens.accentTeal
+      : OnyxColorTokens.accentPurple;
 
   bool get _employeeTemplatePending =>
       _selectedEmployeeScenario != _appliedEmployeeScenario;
@@ -36194,7 +36541,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     required String hint,
     required bool ready,
   }) {
-    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
+    final accent = ready
+        ? OnyxColorTokens.accentPurple
+        : OnyxColorTokens.accentAmber;
     return AnimatedContainer(
       key: ValueKey('$keyPrefix-card'),
       duration: const Duration(milliseconds: 180),
@@ -37010,7 +37359,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       })
                     : null,
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ],
           ),
@@ -37104,7 +37455,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 icon: Icons.work_rounded,
                 onPressed: () => setState(() => _role = suggestedRole),
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -37116,7 +37469,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   () => _employeeCodeController.text = suggestedCode,
                 ),
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -37130,7 +37485,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   _idNumberController.text = suggestedId;
                 }),
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ],
           ),
@@ -37286,7 +37643,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? () => setState(() => _assignedSiteId = '')
                     : null,
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ],
           ),
@@ -37400,7 +37759,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     : Icons.pending_actions_rounded,
                 onPressed: null,
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ],
           ),
@@ -37572,7 +37933,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                       })
                     : null,
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ],
           ),
@@ -37694,7 +38057,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     String? microValue,
     Color? microColor,
   }) {
-    final accent = active ? OnyxColorTokens.accentPurple : OnyxColorTokens.borderStrong;
+    final accent = active
+        ? OnyxColorTokens.accentPurple
+        : OnyxColorTokens.borderStrong;
     return InkWell(
       key: ValueKey('$keyPrefix-card'),
       borderRadius: BorderRadius.circular(12),
@@ -37908,7 +38273,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   () => _psiraNumberController.text = suggestedNumber,
                 ),
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -37918,7 +38285,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 icon: Icons.shield_rounded,
                 onPressed: () => setState(() => _psiraGrade = suggestedGrade),
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ],
           ),
@@ -38045,7 +38414,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     ? () => setState(() => _assignedSiteId = '')
                     : null,
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ],
           ),
@@ -38229,7 +38600,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
             nextMoveKey: const ValueKey(
               'employee-onboarding-contact-quick-focus-next-move',
             ),
-            accent: hasAll ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber,
+            accent: hasAll
+                ? OnyxColorTokens.accentPurple
+                : OnyxColorTokens.accentAmber,
             label: 'CONTACT QUICK FOCUS',
             headline: hasAll
                 ? 'Scenario contact pack is fully staged'
@@ -38280,7 +38653,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 onPressed: () =>
                     setState(() => _deviceUidController.text = suggestedDevice),
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -38291,7 +38666,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 onPressed: () =>
                     setState(() => _phoneController.text = suggestedPhone),
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
               _OnboardingCommandActionConfig(
                 key: const ValueKey(
@@ -38302,7 +38679,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 onPressed: () =>
                     setState(() => _emailController.text = suggestedEmail),
                 foregroundColor: OnyxColorTokens.textPrimary,
-                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                borderColor: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ],
           ),
@@ -38745,7 +39124,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     required String pendingHint,
   }) {
     final ready = value != null;
-    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
+    final accent = ready
+        ? OnyxColorTokens.accentPurple
+        : OnyxColorTokens.accentAmber;
     return AnimatedContainer(
       key: ValueKey('$keyPrefix-card'),
       duration: const Duration(milliseconds: 180),
@@ -38839,7 +39220,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     List<_OnboardingCommandActionConfig> secondaryActions =
         const <_OnboardingCommandActionConfig>[],
   }) {
-    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
+    final accent = ready
+        ? OnyxColorTokens.accentPurple
+        : OnyxColorTokens.accentAmber;
     return _onboardingCommandDeck(
       key: ValueKey('$keyPrefix-shell'),
       nextMoveKey: ValueKey('$keyPrefix-next-move'),
@@ -38852,7 +39235,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
         _OnboardingCommandChipData(
           label: 'Anchor',
           value: ready ? 'LIVE' : 'QUEUE',
-          color: ready ? OnyxColorTokens.accentSky : OnyxColorTokens.accentAmber,
+          color: ready
+              ? OnyxColorTokens.accentSky
+              : OnyxColorTokens.accentAmber,
         ),
       ],
       primaryAction: primaryAction,
@@ -38872,7 +39257,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     List<_OnboardingCommandActionConfig> secondaryActions =
         const <_OnboardingCommandActionConfig>[],
   }) {
-    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
+    final accent = ready
+        ? OnyxColorTokens.accentPurple
+        : OnyxColorTokens.accentAmber;
     return _onboardingCommandDeck(
       key: ValueKey('$keyPrefix-shell'),
       nextMoveKey: ValueKey('$keyPrefix-next-move'),
@@ -38885,7 +39272,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
         _OnboardingCommandChipData(
           label: 'Posture',
           value: ready ? 'LIVE' : 'HOLD',
-          color: ready ? OnyxColorTokens.accentSky : OnyxColorTokens.accentAmber,
+          color: ready
+              ? OnyxColorTokens.accentSky
+              : OnyxColorTokens.accentAmber,
         ),
       ],
       primaryAction: primaryAction,
@@ -38901,7 +39290,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     required IconData icon,
     required Widget child,
   }) {
-    final accent = ready ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentAmber;
+    final accent = ready
+        ? OnyxColorTokens.accentPurple
+        : OnyxColorTokens.accentAmber;
     return Container(
       key: ValueKey('$keyPrefix-shell'),
       width: double.infinity,
@@ -39701,7 +40092,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                 () => _dob = _suggestedEmployeeDobForScenario(),
                               ),
                               foregroundColor: OnyxColorTokens.textPrimary,
-                              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                              borderColor: OnyxColorTokens.accentPurple
+                                  .withValues(alpha: 0.4),
                               backgroundColor: OnyxColorTokens.accentPurple,
                               filled: true,
                             ),
@@ -39716,7 +40108,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     ? null
                                     : () => setState(() => _dob = null),
                                 foregroundColor: OnyxColorTokens.textPrimary,
-                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                borderColor: OnyxColorTokens.accentPurple
+                                    .withValues(alpha: 0.4),
                               ),
                               _OnboardingCommandActionConfig(
                                 key: const ValueKey(
@@ -39732,7 +40125,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       setState(() => _dob = date),
                                 ),
                                 foregroundColor: OnyxColorTokens.textPrimary,
-                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                borderColor: OnyxColorTokens.accentPurple
+                                    .withValues(alpha: 0.4),
                               ),
                             ],
                           ),
@@ -39812,7 +40206,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                 );
                               }),
                               foregroundColor: OnyxColorTokens.textPrimary,
-                              borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                              borderColor: OnyxColorTokens.accentPurple
+                                  .withValues(alpha: 0.4),
                               backgroundColor: OnyxColorTokens.accentPurple,
                               filled: true,
                             ),
@@ -39827,7 +40222,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     ? null
                                     : () => setState(() => _psiraExpiry = null),
                                 foregroundColor: OnyxColorTokens.textPrimary,
-                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                borderColor: OnyxColorTokens.accentPurple
+                                    .withValues(alpha: 0.4),
                               ),
                               _OnboardingCommandActionConfig(
                                 key: const ValueKey(
@@ -39843,7 +40239,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       setState(() => _psiraExpiry = date),
                                 ),
                                 foregroundColor: OnyxColorTokens.textPrimary,
-                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                borderColor: OnyxColorTokens.accentPurple
+                                    .withValues(alpha: 0.4),
                               ),
                             ],
                           ),
@@ -39928,8 +40325,10 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       _hasPdp = false;
                                       _pdpExpiry = null;
                                     }),
-                                    foregroundColor: OnyxColorTokens.textPrimary,
-                                    borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                    foregroundColor:
+                                        OnyxColorTokens.textPrimary,
+                                    borderColor: OnyxColorTokens.accentPurple
+                                        .withValues(alpha: 0.4),
                                   )
                                 : _OnboardingCommandActionConfig(
                                     key: const ValueKey(
@@ -39940,9 +40339,12 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     onPressed: () => setState(
                                       () => _hasDriverLicense = true,
                                     ),
-                                    foregroundColor: OnyxColorTokens.textPrimary,
-                                    borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
-                                    backgroundColor: OnyxColorTokens.accentPurple,
+                                    foregroundColor:
+                                        OnyxColorTokens.textPrimary,
+                                    borderColor: OnyxColorTokens.accentPurple
+                                        .withValues(alpha: 0.4),
+                                    backgroundColor:
+                                        OnyxColorTokens.accentPurple,
                                     filled: true,
                                   ),
                             secondaryActions: [
@@ -39954,8 +40356,10 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       label: 'License Live',
                                       icon: Icons.drive_eta_rounded,
                                       onPressed: null,
-                                      foregroundColor: OnyxColorTokens.textPrimary,
-                                      borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                      foregroundColor:
+                                          OnyxColorTokens.textPrimary,
+                                      borderColor: OnyxColorTokens.accentPurple
+                                          .withValues(alpha: 0.4),
                                     )
                                   : _OnboardingCommandActionConfig(
                                       key: const ValueKey(
@@ -39964,8 +40368,10 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       label: 'No Vehicle',
                                       icon: Icons.block_rounded,
                                       onPressed: null,
-                                      foregroundColor: OnyxColorTokens.textPrimary,
-                                      borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                      foregroundColor:
+                                          OnyxColorTokens.textPrimary,
+                                      borderColor: OnyxColorTokens.accentPurple
+                                          .withValues(alpha: 0.4),
                                     ),
                             ],
                           ),
@@ -40026,7 +40432,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                   );
                                 }),
                                 foregroundColor: OnyxColorTokens.textPrimary,
-                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                borderColor: OnyxColorTokens.accentPurple
+                                    .withValues(alpha: 0.4),
                                 backgroundColor: OnyxColorTokens.accentPurple,
                                 filled: true,
                               ),
@@ -40047,7 +40454,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     );
                                   }),
                                   foregroundColor: OnyxColorTokens.textPrimary,
-                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                  borderColor: OnyxColorTokens.accentPurple
+                                      .withValues(alpha: 0.4),
                                 ),
                                 _OnboardingCommandActionConfig(
                                   key: const ValueKey(
@@ -40061,7 +40469,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                           () => _licenseExpiry = null,
                                         ),
                                   foregroundColor: OnyxColorTokens.textPrimary,
-                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                  borderColor: OnyxColorTokens.accentPurple
+                                      .withValues(alpha: 0.4),
                                 ),
                                 _OnboardingCommandActionConfig(
                                   key: const ValueKey(
@@ -40077,7 +40486,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                         setState(() => _licenseExpiry = date),
                                   ),
                                   foregroundColor: OnyxColorTokens.textPrimary,
-                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                  borderColor: OnyxColorTokens.accentPurple
+                                      .withValues(alpha: 0.4),
                                 ),
                               ],
                             ),
@@ -40140,8 +40550,10 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       _hasPdp = false;
                                       _pdpExpiry = null;
                                     }),
-                                    foregroundColor: OnyxColorTokens.textPrimary,
-                                    borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                    foregroundColor:
+                                        OnyxColorTokens.textPrimary,
+                                    borderColor: OnyxColorTokens.accentPurple
+                                        .withValues(alpha: 0.4),
                                   )
                                 : _OnboardingCommandActionConfig(
                                     key: const ValueKey(
@@ -40164,9 +40576,12 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                         _driverCodeController.text = 'Code 10';
                                       }
                                     }),
-                                    foregroundColor: OnyxColorTokens.textPrimary,
-                                    borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
-                                    backgroundColor: OnyxColorTokens.accentPurple,
+                                    foregroundColor:
+                                        OnyxColorTokens.textPrimary,
+                                    borderColor: OnyxColorTokens.accentPurple
+                                        .withValues(alpha: 0.4),
+                                    backgroundColor:
+                                        OnyxColorTokens.accentPurple,
                                     filled: true,
                                   ),
                             secondaryActions: [
@@ -40178,8 +40593,10 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       label: 'PDP Live',
                                       icon: Icons.verified_user_rounded,
                                       onPressed: null,
-                                      foregroundColor: OnyxColorTokens.textPrimary,
-                                      borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                      foregroundColor:
+                                          OnyxColorTokens.textPrimary,
+                                      borderColor: OnyxColorTokens.accentPurple
+                                          .withValues(alpha: 0.4),
                                     )
                                   : _OnboardingCommandActionConfig(
                                       key: const ValueKey(
@@ -40188,8 +40605,10 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       label: 'No PDP',
                                       icon: Icons.block_rounded,
                                       onPressed: null,
-                                      foregroundColor: OnyxColorTokens.textPrimary,
-                                      borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                      foregroundColor:
+                                          OnyxColorTokens.textPrimary,
+                                      borderColor: OnyxColorTokens.accentPurple
+                                          .withValues(alpha: 0.4),
                                     ),
                             ],
                           ),
@@ -40245,7 +40664,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                   );
                                 }),
                                 foregroundColor: OnyxColorTokens.textPrimary,
-                                borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                borderColor: OnyxColorTokens.accentPurple
+                                    .withValues(alpha: 0.4),
                                 backgroundColor: OnyxColorTokens.accentPurple,
                                 filled: true,
                               ),
@@ -40265,7 +40685,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                     );
                                   }),
                                   foregroundColor: OnyxColorTokens.textPrimary,
-                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                  borderColor: OnyxColorTokens.accentPurple
+                                      .withValues(alpha: 0.4),
                                 ),
                                 _OnboardingCommandActionConfig(
                                   key: const ValueKey(
@@ -40277,7 +40698,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                       ? null
                                       : () => setState(() => _pdpExpiry = null),
                                   foregroundColor: OnyxColorTokens.textPrimary,
-                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                  borderColor: OnyxColorTokens.accentPurple
+                                      .withValues(alpha: 0.4),
                                 ),
                                 _OnboardingCommandActionConfig(
                                   key: const ValueKey(
@@ -40293,7 +40715,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                                         setState(() => _pdpExpiry = date),
                                   ),
                                   foregroundColor: OnyxColorTokens.textPrimary,
-                                  borderColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.4),
+                                  borderColor: OnyxColorTokens.accentPurple
+                                      .withValues(alpha: 0.4),
                                 ),
                               ],
                             ),
@@ -40871,7 +41294,9 @@ Widget _onboardingWorkflowActionsShelf({
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: light ? _adminDialogBodyColor : OnyxColorTokens.textSecondary,
+              color: light
+                  ? _adminDialogBodyColor
+                  : OnyxColorTokens.textSecondary,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -41200,10 +41625,16 @@ Widget _demoScenarioPicker({
               child: Container(
                 padding: const EdgeInsets.fromLTRB(6, 5, 6, 5),
                 decoration: BoxDecoration(
-                  color: selected ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09) : null,
+                  color: selected
+                      ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09)
+                      : null,
                   borderRadius: BorderRadius.circular(8),
                   border: selected
-                      ? Border.all(color: OnyxColorTokens.accentGreen.withValues(alpha: 0.67))
+                      ? Border.all(
+                          color: OnyxColorTokens.accentGreen.withValues(
+                            alpha: 0.67,
+                          ),
+                        )
                       : null,
                 ),
                 child: Row(
@@ -43146,10 +43577,14 @@ Widget _readinessStatusChip({
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: ready ? OnyxColorTokens.accentGreen.withValues(alpha: 0.13) : accent.withValues(alpha: 0.15),
+      color: ready
+          ? OnyxColorTokens.accentGreen.withValues(alpha: 0.13)
+          : accent.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(999),
       border: Border.all(
-        color: ready ? OnyxColorTokens.accentGreen.withValues(alpha: 0.53) : accent.withValues(alpha: 0.34),
+        color: ready
+            ? OnyxColorTokens.accentGreen.withValues(alpha: 0.53)
+            : accent.withValues(alpha: 0.34),
       ),
     ),
     child: Row(
@@ -43294,10 +43729,14 @@ Widget _previewGateChip({required _PreviewGate gate, required Color accent}) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: ready ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09) : accent.withValues(alpha: 0.1),
+      color: ready
+          ? OnyxColorTokens.accentGreen.withValues(alpha: 0.09)
+          : accent.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(999),
       border: Border.all(
-        color: ready ? OnyxColorTokens.accentGreen.withValues(alpha: 0.67) : accent.withValues(alpha: 0.45),
+        color: ready
+            ? OnyxColorTokens.accentGreen.withValues(alpha: 0.67)
+            : accent.withValues(alpha: 0.45),
       ),
     ),
     child: Row(
@@ -43306,7 +43745,9 @@ Widget _previewGateChip({required _PreviewGate gate, required Color accent}) {
         Icon(
           ready ? Icons.check_circle_rounded : Icons.pending_rounded,
           size: 13,
-          color: ready ? OnyxColorTokens.accentGreen : OnyxColorTokens.accentSky,
+          color: ready
+              ? OnyxColorTokens.accentGreen
+              : OnyxColorTokens.accentSky,
         ),
         const SizedBox(width: 5),
         Text(
@@ -43959,7 +44400,9 @@ ButtonStyle _onboardingPrimaryActionStyle({
   required bool readyForCreate,
 }) {
   final background = isFinalStep
-      ? (readyForCreate ? OnyxColorTokens.accentTeal : OnyxColorTokens.amberBorder)
+      ? (readyForCreate
+            ? OnyxColorTokens.accentTeal
+            : OnyxColorTokens.amberBorder)
       : accent;
   return FilledButton.styleFrom(
     backgroundColor: background,
@@ -44642,7 +45085,9 @@ Widget _onboardingControlShell({
               decoration: BoxDecoration(
                 color: OnyxColorTokens.accentBlue.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: OnyxColorTokens.accentSky.withValues(alpha: 0.3),
+                ),
               ),
               child: Text(
                 modeLabel,
@@ -44748,7 +45193,9 @@ Widget _onboardingFieldShell({
               decoration: BoxDecoration(
                 color: OnyxColorTokens.accentBlue.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: OnyxColorTokens.accentSky.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: OnyxColorTokens.accentSky.withValues(alpha: 0.3),
+                ),
               ),
               child: Text(
                 modeLabel,
@@ -44821,7 +45268,10 @@ InputDecoration _onboardingInputDecoration(String label) {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: OnyxColorTokens.accentSky, width: 1.4),
+      borderSide: const BorderSide(
+        color: OnyxColorTokens.accentSky,
+        width: 1.4,
+      ),
     ),
   );
 }
@@ -44882,7 +45332,10 @@ InputDecoration _adminDialogInputDecoration(String label) {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: OnyxColorTokens.accentSky, width: 1.4),
+      borderSide: const BorderSide(
+        color: OnyxColorTokens.accentSky,
+        width: 1.4,
+      ),
     ),
   );
 }

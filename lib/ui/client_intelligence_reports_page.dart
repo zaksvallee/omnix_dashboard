@@ -54,12 +54,13 @@ import 'ui_action_logger.dart';
 
 const _reportsPanelColor = OnyxDesignTokens.cardSurface;
 const _reportsPanelAltColor = OnyxDesignTokens.backgroundSecondary;
-const _reportsPanelTintColor = OnyxDesignTokens.surfaceInset;
 const _reportsBorderColor = OnyxDesignTokens.borderSubtle;
 const _reportsTitleColor = OnyxDesignTokens.textPrimary;
 const _reportsBodyColor = OnyxDesignTokens.textSecondary;
 const _reportsMutedColor = OnyxDesignTokens.textMuted;
-final _reportsShadowColor = OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.05);
+final _reportsShadowColor = OnyxColorTokens.backgroundPrimary.withValues(
+  alpha: 0.05,
+);
 const _reportsAccentSky = OnyxDesignTokens.accentSky;
 
 class ClientIntelligenceReportsPage extends StatefulWidget {
@@ -996,14 +997,18 @@ class _ClientIntelligenceReportsPageState
 
   Widget _reportsWorkspaceCommandReceipt({bool shellless = false}) {
     final receipt = _commandReceipt;
-    final titleColor = shellless ? receipt.accent : OnyxColorTokens.textSecondary;
+    final titleColor = shellless
+        ? receipt.accent
+        : OnyxColorTokens.textSecondary;
     final labelColor = shellless
         ? _reportsTitleColor
         : OnyxColorTokens.textPrimary;
     final messageColor = shellless
         ? _reportsTitleColor
         : OnyxColorTokens.textPrimary;
-    final detailColor = shellless ? _reportsBodyColor : OnyxColorTokens.textMuted;
+    final detailColor = shellless
+        ? _reportsBodyColor
+        : OnyxColorTokens.textMuted;
     final receiptContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1686,79 +1691,108 @@ class _ClientIntelligenceReportsPageState
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
     );
-    return OnyxStoryHero(
-      eyebrow: 'Command',
-      title: 'Reports & Documentation',
-      subtitle: 'Pick the right receipt, preview it, and move it out cleanly.',
-      icon: Icons.description_rounded,
-      gradientColors: const [_reportsPanelAltColor, _reportsPanelTintColor],
-      metrics: [
-        OnyxStoryMetric(
-          value: widget.selectedClient,
-          label: 'client',
-          foreground: OnyxColorTokens.accentSky,
-          background: OnyxColorTokens.cyanSurface,
-          border: OnyxColorTokens.cyanBorder,
-        ),
-        OnyxStoryMetric(
-          value: widget.selectedSite,
-          label: 'site',
-          foreground: OnyxColorTokens.accentGreen,
-          background: OnyxColorTokens.greenSurface,
-          border: OnyxColorTokens.greenBorder,
-        ),
-        OnyxStoryMetric(
-          value: '$pendingCount',
-          label: 'building',
-          foreground: pendingCount > 0
-              ? OnyxColorTokens.accentSky
-              : OnyxColorTokens.textSecondary,
-          background: pendingCount > 0
-              ? OnyxColorTokens.cyanSurface
-              : OnyxColorTokens.divider,
-          border: pendingCount > 0
-              ? OnyxColorTokens.cyanBorder
-              : OnyxColorTokens.borderStrong,
-        ),
-        OnyxStoryMetric(
-          value: '$verifiedCount',
-          label: 'verified',
-          foreground: OnyxColorTokens.accentGreen,
-          background: OnyxColorTokens.greenSurface,
-          border: OnyxColorTokens.greenBorder,
-        ),
-        OnyxStoryMetric(
-          value: '${reviewedCount + pendingSceneCount}',
-          label: 'review desk',
-          foreground: OnyxColorTokens.textPrimary,
-          background: OnyxColorTokens.surfaceElevated,
-          border: OnyxColorTokens.borderSubtle,
-        ),
-        OnyxStoryMetric(
-          value: '$totalReceipts',
-          label: 'reports',
-          foreground: OnyxColorTokens.textPrimary,
-          background: OnyxColorTokens.surfaceElevated,
-          border: OnyxColorTokens.borderSubtle,
-        ),
-      ],
-      actions: [
-        _heroActionButton(
-          key: const ValueKey('reports-routed-view-governance-button'),
-          icon: Icons.open_in_new,
-          label: 'OPEN GOVERNANCE DESK',
-          accent: OnyxColorTokens.accentSky,
-          onPressed: governanceAction,
-        ),
-        _heroActionButton(
-          key: const ValueKey('reports-routed-generate-button'),
-          icon: Icons.picture_as_pdf_rounded,
-          label: _isGenerating ? 'Generating...' : 'Generate New Report',
-          accent: OnyxColorTokens.accentGreen,
-          onPressed: _isGenerating ? null : _generateReport,
-        ),
-      ],
-      banner: workspaceBanner,
+    final zaraSummary = pendingCount > 0
+        ? 'ZARA: $totalReceipts reports generated this shift. $pendingCount still need final verification before release.'
+        : 'ZARA: $totalReceipts reports generated this shift. All clients current on documentation.';
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 1080;
+        final actionRow = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: compact ? WrapAlignment.start : WrapAlignment.end,
+          children: [
+            _heroActionButton(
+              key: const ValueKey('reports-routed-view-governance-button'),
+              icon: Icons.open_in_new,
+              label: 'Open Governance Desk',
+              accent: OnyxColorTokens.accentPurple,
+              onPressed: governanceAction,
+            ),
+            _heroActionButton(
+              key: const ValueKey('reports-routed-generate-button'),
+              icon: Icons.picture_as_pdf_rounded,
+              label: _isGenerating ? 'Generating...' : 'Generate New Report',
+              accent: OnyxColorTokens.accentGreen,
+              filled: true,
+              onPressed: _isGenerating ? null : _generateReport,
+            ),
+          ],
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.backgroundSecondary,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.18),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: OnyxColorTokens.backgroundPrimary.withValues(
+                  alpha: 0.18,
+                ),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (compact) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _reportsZaraBadge(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _reportsHeroCopy(
+                        zaraSummary: zaraSummary,
+                        totalReceipts: totalReceipts,
+                        verifiedCount: verifiedCount,
+                        pendingCount: pendingCount,
+                        reviewedCount: reviewedCount,
+                        pendingSceneCount: pendingSceneCount,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                actionRow,
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _reportsZaraBadge(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _reportsHeroCopy(
+                        zaraSummary: zaraSummary,
+                        totalReceipts: totalReceipts,
+                        verifiedCount: verifiedCount,
+                        pendingCount: pendingCount,
+                        reviewedCount: reviewedCount,
+                        pendingSceneCount: pendingSceneCount,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: actionRow,
+                    ),
+                  ],
+                ),
+              if (workspaceBanner != null) ...[
+                const SizedBox(height: 12),
+                workspaceBanner,
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1768,6 +1802,7 @@ class _ClientIntelligenceReportsPageState
     required String label,
     required Color accent,
     required VoidCallback? onPressed,
+    bool filled = false,
   }) {
     return FilledButton.tonalIcon(
       key: key,
@@ -1775,8 +1810,8 @@ class _ClientIntelligenceReportsPageState
       icon: Icon(icon, size: 14),
       label: Text(label),
       style: FilledButton.styleFrom(
-        backgroundColor: accent.withValues(alpha: 0.12),
-        foregroundColor: accent,
+        backgroundColor: filled ? accent : accent.withValues(alpha: 0.12),
+        foregroundColor: filled ? OnyxColorTokens.textPrimary : accent,
         disabledBackgroundColor: OnyxColorTokens.surfaceElevated,
         disabledForegroundColor: OnyxColorTokens.borderStrong,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
@@ -5525,6 +5560,150 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  Widget _reportsZaraBadge() {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.accentPurple.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.34),
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        'Z',
+        style: GoogleFonts.inter(
+          color: OnyxColorTokens.accentPurple,
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _reportsHeroCopy({
+    required String zaraSummary,
+    required int totalReceipts,
+    required int verifiedCount,
+    required int pendingCount,
+    required int reviewedCount,
+    required int pendingSceneCount,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ZARA · REPORTS SUMMARY',
+          style: GoogleFonts.inter(
+            color: OnyxColorTokens.accentPurple.withValues(alpha: 0.72),
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.9,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Reports & Documentation',
+          style: GoogleFonts.inter(
+            color: OnyxColorTokens.textPrimary,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          zaraSummary,
+          style: GoogleFonts.inter(
+            color: OnyxColorTokens.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _reportsHeroMetric(
+              label: 'Client',
+              value: _humanizeClient(widget.selectedClient),
+              accent: OnyxColorTokens.accentPurple,
+            ),
+            _reportsHeroMetric(
+              label: 'Site',
+              value: _humanizeSite(widget.selectedSite),
+              accent: OnyxColorTokens.accentGreen,
+            ),
+            _reportsHeroMetric(
+              label: 'Verified',
+              value: '$verifiedCount ready',
+              accent: OnyxColorTokens.accentGreen,
+            ),
+            _reportsHeroMetric(
+              label: 'Review Desk',
+              value: '${reviewedCount + pendingSceneCount} active',
+              accent: pendingSceneCount > 0
+                  ? OnyxColorTokens.accentAmber
+                  : OnyxColorTokens.textMuted,
+            ),
+            _reportsHeroMetric(
+              label: 'Shift Output',
+              value: '$totalReceipts reports',
+              accent: pendingCount > 0
+                  ? OnyxColorTokens.accentAmber
+                  : OnyxColorTokens.accentPurple,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _reportsHeroMetric({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textMuted,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: accent == OnyxColorTokens.textMuted
+                  ? OnyxColorTokens.textSecondary
+                  : accent,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   BoxDecoration _reportsDrillInCardDecoration({
     bool highlighted = false,
     Color accent = _reportsAccentSky,
@@ -5694,10 +5873,14 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isActive ? OnyxColorTokens.greenSurface : OnyxColorTokens.backgroundSecondary,
+        color: isActive
+            ? OnyxColorTokens.greenSurface
+            : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? OnyxColorTokens.accentGreen : OnyxColorTokens.borderSubtle,
+          color: isActive
+              ? OnyxColorTokens.accentGreen
+              : OnyxColorTokens.borderSubtle,
         ),
       ),
       child: Column(
@@ -6534,10 +6717,14 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isActive ? OnyxColorTokens.greenSurface : OnyxColorTokens.backgroundSecondary,
+        color: isActive
+            ? OnyxColorTokens.greenSurface
+            : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? OnyxColorTokens.accentGreen : OnyxColorTokens.borderSubtle,
+          color: isActive
+              ? OnyxColorTokens.accentGreen
+              : OnyxColorTokens.borderSubtle,
         ),
       ),
       child: Column(
@@ -7936,6 +8123,9 @@ class _ClientIntelligenceReportsPageState
     final hasLiveReceipts = _receipts.isNotEmpty;
     final rows = hasLiveReceipts ? _receipts : _sampleReceipts;
     final filteredRows = _receiptHistoryMetrics(rows).filteredRows;
+    final headline = hasLiveReceipts
+        ? 'ZARA: ${filteredRows.length} report card${filteredRows.length == 1 ? '' : 's'} active in the lane. Keep branded delivery and export proof moving.'
+        : 'ZARA: Sample reporting deck is loaded. Use it to rehearse export flow and client-facing delivery.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -7943,13 +8133,38 @@ class _ClientIntelligenceReportsPageState
         LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 920;
-            final title = Text(
-              hasLiveReceipts ? 'Live Receipts' : 'Sample Receipts',
-              style: GoogleFonts.inter(
-                color: OnyxColorTokens.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+            final title = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'REPORT LANE',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textMuted,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasLiveReceipts ? 'Client Reports' : 'Sample Reports',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  headline,
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    height: 1.45,
+                  ),
+                ),
+              ],
             );
             final controls = Wrap(
               spacing: 8,
@@ -8251,87 +8466,206 @@ class _ClientIntelligenceReportsPageState
     final sceneReviewSummary = row.sceneReviewSummary;
     final sceneAccent = _sceneReviewAccent(sceneReviewSummary);
     final isSelected = row.event.eventId == _selectedReceiptEventId;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: isSelected ? OnyxColorTokens.surfaceElevated : OnyxColorTokens.backgroundSecondary,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
+    return InkWell(
+      onTap: () => _previewReceipt(row, hasLiveReceipts),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
           color: isSelected
-              ? OnyxColorTokens.accentCyanTrue
-              : sceneReviewSummary?.includedInReceipt == true
-              ? sceneAccent.withValues(alpha: 0.5)
-              : statusColor.withValues(alpha: 0.45),
-          width: isSelected ? 1.4 : 1,
+              ? OnyxColorTokens.surfaceElevated
+              : OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? OnyxColorTokens.accentPurple.withValues(alpha: 0.42)
+                : sceneReviewSummary?.includedInReceipt == true
+                ? sceneAccent.withValues(alpha: 0.45)
+                : statusColor.withValues(alpha: 0.32),
+            width: isSelected ? 1.3 : 1,
+          ),
         ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.22,
+                      ),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    clientName.isEmpty ? 'R' : clientName.substring(0, 1),
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.accentPurple,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        clientName,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$siteName · Branded client delivery lane',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textMuted,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    ReportStatusBadge(
+                      label: statusLabel,
+                      textColor: statusColor,
+                      backgroundColor: statusColor.withValues(alpha: 0.18),
+                      borderColor: statusColor.withValues(alpha: 0.5),
+                      fontSize: 10,
+                    ),
+                    if (isSelected) ...[
+                      const SizedBox(height: 6),
+                      ReportStatusBadge(
+                        label: 'ACTIVE BOARD',
+                        textColor: OnyxColorTokens.accentPurple,
+                        backgroundColor: OnyxColorTokens.accentPurple
+                            .withValues(alpha: 0.12),
+                        borderColor: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.32,
+                        ),
+                        fontSize: 9,
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _reportsMetaBadge(
+                  label: 'REPORT ID',
+                  value: row.event.eventId,
+                  accent: OnyxColorTokens.accentPurple,
+                ),
+                _reportsMetaBadge(
+                  label: 'PERIOD',
+                  value: period,
+                  accent: OnyxColorTokens.accentGreen,
+                ),
+                _reportsMetaBadge(
+                  label: 'OUTPUT',
+                  value: row.replayVerified ? 'Client ready' : 'Needs review',
+                  accent: statusColor,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Generated $generatedAt',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _reportCardActionButton(
+                    label: 'Open Preview',
+                    icon: Icons.visibility_rounded,
+                    accent: OnyxColorTokens.accentPurple,
+                    onTap: () => _previewReceipt(row, hasLiveReceipts),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _reportCardActionButton(
+                    label: 'Copy Receipt',
+                    icon: Icons.copy_all_rounded,
+                    accent: OnyxColorTokens.accentGreen,
+                    onTap: () => _copyReceipt(row),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _reportCardActionButton(
+                    label: 'Export PDF',
+                    icon: Icons.download_rounded,
+                    accent: OnyxColorTokens.accentAmber,
+                    onTap: () => _downloadReceipt(row, hasLiveReceipts),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reportsMetaBadge({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      clientName,
-                      style: GoogleFonts.inter(
-                        color: OnyxColorTokens.textPrimary,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      siteName,
-                      style: GoogleFonts.inter(
-                        color: OnyxColorTokens.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              ReportStatusBadge(
-                label: statusLabel,
-                textColor: statusColor,
-                backgroundColor: statusColor.withValues(alpha: 0.18),
-                borderColor: statusColor.withValues(alpha: 0.5),
-                fontSize: 10,
-              ),
-              if (isSelected) ...[
-                const SizedBox(width: 8),
-                const ReportStatusBadge(
-                  label: 'FOCUSED',
-                  textColor: OnyxColorTokens.accentCyanTrue,
-                  backgroundColor: OnyxColorTokens.cyanSurface,
-                  borderColor: OnyxColorTokens.cyanBorder,
-                  fontSize: 10,
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 16,
-            runSpacing: 6,
-            children: [
-              _receiptMeta('Report ID', row.event.eventId),
-              _receiptMeta('Period', period),
-            ],
-          ),
-          const SizedBox(height: 10),
           Text(
-            'Generated: $generatedAt',
+            label,
             style: GoogleFonts.inter(
               color: OnyxColorTokens.textMuted,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: accent,
               fontSize: 10,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -8339,30 +8673,27 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  Widget _receiptMeta(String label, String value) {
-    return SizedBox(
-      width: 170,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: OnyxColorTokens.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: OnyxColorTokens.textPrimary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+  Widget _reportCardActionButton({
+    required String label,
+    required IconData icon,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return TextButton.icon(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+        backgroundColor: accent.withValues(alpha: 0.1),
+        foregroundColor: accent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: accent.withValues(alpha: 0.22)),
+        ),
+      ),
+      icon: Icon(icon, size: 14),
+      label: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w700),
       ),
     );
   }
