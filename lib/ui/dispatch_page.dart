@@ -1324,98 +1324,111 @@ class _DispatchPageState extends State<DispatchPage> {
     final totalAttempts = dispatch == null ? 0 : 2;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(5),
         border: Border.all(color: OnyxColorTokens.divider),
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(
-              color: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
-              width: 2,
-            ),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'AI CALL TRANSCRIPT · ${resolved ? 'COMPLETED' : dispatch == null ? 'STANDBY' : 'ACTIVE'}',
-                      style: GoogleFonts.inter(
-                        color: OnyxColorTokens.accentGreen.withValues(alpha: 0.55),
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 4,
-                    alignment: WrapAlignment.end,
+              Container(
+                width: 2,
+                color: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _transcriptMetaText('Attempt $attemptsMade of $totalAttempts'),
-                      _transcriptMetaText(
-                        transcriptTime == null ? '--:-- UTC' : '${_clockLabel(transcriptTime.toUtc())} UTC',
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'AI CALL TRANSCRIPT · ${resolved ? 'COMPLETED' : dispatch == null ? 'STANDBY' : 'ACTIVE'}',
+                              style: GoogleFonts.inter(
+                                color: OnyxColorTokens.accentGreen.withValues(
+                                  alpha: 0.55,
+                                ),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 4,
+                            alignment: WrapAlignment.end,
+                            children: [
+                              _transcriptMetaText(
+                                'Attempt $attemptsMade of $totalAttempts',
+                              ),
+                              _transcriptMetaText(
+                                transcriptTime == null
+                                    ? '--:-- UTC'
+                                    : '${_clockLabel(transcriptTime.toUtc())} UTC',
+                              ),
+                              _transcriptMetaText(_durationLabel(duration)),
+                            ],
+                          ),
+                        ],
                       ),
-                      _transcriptMetaText(_durationLabel(duration)),
+                      const SizedBox(height: 8),
+                      RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.textMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            height: 1.7,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          children: _transcriptSpansForDispatch(dispatch),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              dispatch == null
+                                  ? 'Recording will appear when an incident is active'
+                                  : 'Full recording available',
+                              style: GoogleFonts.inter(
+                                color: OnyxColorTokens.textDisabled,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: dispatch == null || dispatch.isSeededPlaceholder
+                                ? null
+                                : () => _callClient(dispatch),
+                            child: Text(
+                              'View full transcript →',
+                              style: GoogleFonts.inter(
+                                color: dispatch == null
+                                    ? OnyxColorTokens.textDisabled
+                                    : OnyxColorTokens.accentPurple.withValues(
+                                        alpha: 0.55,
+                                      ),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              RichText(
-                text: TextSpan(
-                  style: GoogleFonts.inter(
-                    color: OnyxColorTokens.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    height: 1.7,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  children: _transcriptSpansForDispatch(dispatch),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      dispatch == null
-                          ? 'Recording will appear when an incident is active'
-                          : 'Full recording available',
-                      style: GoogleFonts.inter(
-                        color: OnyxColorTokens.textDisabled,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: dispatch == null || dispatch.isSeededPlaceholder
-                        ? null
-                        : () => _callClient(dispatch),
-                    child: Text(
-                      'View full transcript →',
-                      style: GoogleFonts.inter(
-                        color: dispatch == null
-                            ? OnyxColorTokens.textDisabled
-                            : OnyxColorTokens.accentPurple.withValues(alpha: 0.55),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -1476,7 +1489,6 @@ class _DispatchPageState extends State<DispatchPage> {
     final outcome = _dispatchOutcomeKindForDispatch(dispatch);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
       decoration: BoxDecoration(
         color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(5),
@@ -1484,48 +1496,58 @@ class _DispatchPageState extends State<DispatchPage> {
           color: OnyxColorTokens.accentRed.withValues(alpha: 0.22),
         ),
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(
-              color: OnyxColorTokens.accentRed.withValues(alpha: 0.55),
-              width: 2,
-            ),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(left: 9),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'CLIENT RESPONSE',
-                style: GoogleFonts.inter(
-                  color: OnyxColorTokens.accentRed.withValues(alpha: 0.55),
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
+              Container(
+                width: 2,
+                color: OnyxColorTokens.accentRed.withValues(alpha: 0.55),
               ),
-              const SizedBox(height: 4),
-              Text(
-                _dispatchOutcomeLabel(outcome),
-                style: GoogleFonts.inter(
-                  color: OnyxColorTokens.textPrimary.withValues(alpha: 0.85),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _dispatchOutcomeSubtext(
-                  outcome,
-                  resolved: _isDispatchResolved(dispatch),
-                ),
-                style: GoogleFonts.inter(
-                  color: OnyxColorTokens.textDisabled,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(9, 10, 11, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'CLIENT RESPONSE',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.accentRed.withValues(
+                            alpha: 0.55,
+                          ),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _dispatchOutcomeLabel(outcome),
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textPrimary.withValues(
+                            alpha: 0.85,
+                          ),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _dispatchOutcomeSubtext(
+                          outcome,
+                          resolved: _isDispatchResolved(dispatch),
+                        ),
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textDisabled,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

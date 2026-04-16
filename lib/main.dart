@@ -22057,6 +22057,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           headline: receiptHeadline,
           detail: receiptDetail,
           accent: receiptAccent,
+          occurredAtUtc: nowUtc,
         );
         if (vipAuditLedgerEntry != null) {
           _latestVipAuditLedgerEntry = vipAuditLedgerEntry;
@@ -22078,6 +22079,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           headline: receiptHeadline,
           detail: receiptDetail,
           accent: receiptAccent,
+          occurredAtUtc: nowUtc,
         );
       });
     }

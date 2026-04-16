@@ -43,6 +43,7 @@ class VipAutoAuditReceipt {
   final String headline;
   final String detail;
   final Color accent;
+  final DateTime? occurredAtUtc;
 
   const VipAutoAuditReceipt({
     required this.auditId,
@@ -50,6 +51,7 @@ class VipAutoAuditReceipt {
     required this.headline,
     required this.detail,
     required this.accent,
+    this.occurredAtUtc,
   });
 }
 
@@ -132,6 +134,7 @@ class VipProtectionPage extends StatelessWidget {
                         ),
                         const Spacer(),
                         ElevatedButton.icon(
+                          key: const ValueKey('vip-create-detail-button'),
                           icon: const Icon(Icons.add, size: 16),
                           label: const Text('New VIP detail'),
                           style: ElevatedButton.styleFrom(
@@ -151,6 +154,8 @@ class VipProtectionPage extends StatelessWidget {
                     if (!hasScheduledDetails) ...[
                       _VipEmptyState(
                         onCreateDetail: () => _createNewVipDetail(context),
+                        latestAutoAuditReceipt: latestAutoAuditReceipt,
+                        onOpenLatestAudit: onOpenLatestAudit,
                       ),
                       const SizedBox(height: 18),
                     ],
@@ -221,19 +226,19 @@ class VipProtectionPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'No packages are queued.',
+            'No upcoming VIP movements scheduled',
             style: GoogleFonts.inter(
-              color: OnyxColorTokens.textPrimary,
-              fontSize: 13,
+              color: OnyxColorTokens.textMuted,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Stage the next movement package to line up convoy, escort, and handoff.',
+            'Stage a convoy route, escort plan, or protection detail to begin.',
             style: GoogleFonts.inter(
-              color: OnyxColorTokens.textSecondary,
-              fontSize: 12,
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 10,
             ),
           ),
         ],
@@ -486,75 +491,361 @@ Future<void> _showVipCreateDetailDialog(BuildContext context) async {
 
 class _VipEmptyState extends StatelessWidget {
   final VoidCallback onCreateDetail;
+  final VipAutoAuditReceipt? latestAutoAuditReceipt;
+  final VoidCallback? onOpenLatestAudit;
 
-  const _VipEmptyState({required this.onCreateDetail});
+  const _VipEmptyState({
+    required this.onCreateDetail,
+    this.latestAutoAuditReceipt,
+    this.onOpenLatestAudit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final receipt = latestAutoAuditReceipt;
+    final timestamp = receipt?.occurredAtUtc?.toUtc();
+    final timestampLabel = timestamp == null
+        ? ''
+        : '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')} UTC';
+    return Container(
+      key: const ValueKey('vip-empty-state'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.backgroundSecondary,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: OnyxColorTokens.accentPurple.withValues(alpha: 0.20),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.35,
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    'Z',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: OnyxColorTokens.accentPurple,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ZARA · VIP READINESS',
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.60,
+                          ),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      _VipPresenceLine(
+                        dotColor: OnyxColorTokens.accentGreen,
+                        text: 'No active VIP protection assignments.',
+                      ),
+                      const SizedBox(height: 5),
+                      _VipPresenceLine(
+                        dotColor: OnyxColorTokens.accentGreen,
+                        text:
+                            'System ready to initiate convoy and close protection operations.',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: onCreateDetail,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: OnyxColorTokens.accentPurple,
+                    foregroundColor: OnyxColorTokens.textPrimary,
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  child: const Text('Start VIP Operation'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _vipSectionLabel('READINESS'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _VipReadinessChip(label: 'Escort units available'),
+              _VipReadinessChip(label: 'Route planning ready'),
+              _VipReadinessChip(label: 'Communication channels clear'),
+              _VipReadinessChip(label: 'Response teams on standby'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _vipSectionLabel('QUICK START'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _VipTemplateButton(
+                label: 'Executive Escort',
+                onTap: onCreateDetail,
+              ),
+              _VipTemplateButton(
+                label: 'High-Risk Convoy',
+                onTap: onCreateDetail,
+              ),
+              _VipTemplateButton(
+                label: 'Airport Transfer',
+                onTap: onCreateDetail,
+              ),
+              _VipTemplateButton(
+                label: 'Static Protection',
+                onTap: onCreateDetail,
+              ),
+            ],
+          ),
+          if (receipt != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.backgroundSecondary,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: OnyxColorTokens.divider),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'LAST OPERATION',
+                          style: GoogleFonts.inter(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: OnyxColorTokens.textDisabled,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          receipt.headline,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: OnyxColorTokens.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Completed · ${receipt.label.toLowerCase()}',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w500,
+                            color: OnyxColorTokens.textDisabled,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onOpenLatestAudit != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (timestampLabel.isNotEmpty)
+                          Text(
+                            timestampLabel,
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: OnyxColorTokens.textDisabled,
+                            ),
+                          ),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: onOpenLatestAudit,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Text(
+                              'View details →',
+                              style: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: OnyxColorTokens.accentPurple.withValues(
+                                  alpha: 0.55,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VipPresenceLine extends StatelessWidget {
+  final Color dotColor;
+  final String text;
+
+  const _VipPresenceLine({required this.dotColor, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(top: 4),
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: OnyxColorTokens.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VipReadinessChip extends StatelessWidget {
+  final String label;
+
+  const _VipReadinessChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const ValueKey('vip-empty-state'),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: OnyxColorTokens.backgroundSecondary,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: OnyxColorTokens.divider),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 64,
-            height: 64,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: OnyxColorTokens.greenSurface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: OnyxColorTokens.greenBorder),
-            ),
-            child: Icon(
-              Icons.shield_rounded,
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
               color: OnyxColorTokens.accentGreen,
-              size: 32,
+              shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(width: 8),
           Text(
-            'No active VIP details',
+            label,
             style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: OnyxColorTokens.textPrimary,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: OnyxColorTokens.textMuted,
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'All VIP protection details have been completed.',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: OnyxColorTokens.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            key: const ValueKey('vip-create-detail-button'),
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Create new VIP detail'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: OnyxColorTokens.accentGreen,
-              foregroundColor: OnyxColorTokens.textPrimary,
-              minimumSize: const Size(0, 40),
-              textStyle: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            onPressed: onCreateDetail,
           ),
         ],
       ),
     );
   }
+}
+
+class _VipTemplateButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _VipTemplateButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(
+            color: OnyxColorTokens.accentPurple.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: OnyxColorTokens.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _vipSectionLabel(String text) {
+  return Text(
+    text,
+    style: GoogleFonts.inter(
+      fontSize: 9,
+      fontWeight: FontWeight.w700,
+      color: OnyxColorTokens.textDisabled,
+      letterSpacing: 1.3,
+    ),
+  );
 }
 
 class _VipDraftField extends StatelessWidget {

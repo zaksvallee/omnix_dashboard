@@ -2829,103 +2829,105 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
 
   Widget _zaraRecommendationCard({required _AgentActionCard action}) {
     final accent = _zaraRecommendationAccent(action);
-    return Stack(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(9, 8, 9, 8),
-          decoration: BoxDecoration(
-            color: OnyxColorTokens.backgroundSecondary,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: OnyxColorTokens.divider),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                _zaraRecommendationAgentLabel(action),
-                style: GoogleFonts.inter(
-                  color: accent.withValues(alpha: 0.60),
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
-                ),
+              Container(
+                width: 2,
+                color: accent.withValues(alpha: 0.50),
               ),
-              const SizedBox(height: 2),
-              Text(
-                action.label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: OnyxColorTokens.textMuted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _zaraCompactText(action.detail, maxLength: 110),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: OnyxColorTokens.textDisabled.withValues(alpha: 0.28),
-                  fontSize: 8,
-                  fontWeight: FontWeight.w500,
-                  height: 1.3,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: InkWell(
-                  onTap: () => unawaited(_handleAction(action)),
-                  borderRadius: BorderRadius.circular(3),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: OnyxColorTokens.accentPurple.withValues(
-                        alpha: 0.10,
-                      ),
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(
-                        color: OnyxColorTokens.accentPurple.withValues(
-                          alpha: 0.22,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(9, 8, 9, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _zaraRecommendationAgentLabel(action),
+                        style: GoogleFonts.inter(
+                          color: accent.withValues(alpha: 0.60),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ),
-                    child: Text(
-                      'Approve',
-                      style: GoogleFonts.inter(
-                        color: OnyxColorTokens.accentPurple.withValues(
-                          alpha: 0.75,
+                      const SizedBox(height: 2),
+                      Text(
+                        action.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textMuted,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                         ),
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
                       ),
-                    ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _zaraCompactText(action.detail, maxLength: 110),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textDisabled.withValues(
+                            alpha: 0.28,
+                          ),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: InkWell(
+                          onTap: () => unawaited(_handleAction(action)),
+                          borderRadius: BorderRadius.circular(3),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: OnyxColorTokens.accentPurple.withValues(
+                                alpha: 0.10,
+                              ),
+                              borderRadius: BorderRadius.circular(3),
+                              border: Border.all(
+                                color: OnyxColorTokens.accentPurple.withValues(
+                                  alpha: 0.22,
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              'Approve',
+                              style: GoogleFonts.inter(
+                                color: OnyxColorTokens.accentPurple.withValues(
+                                  alpha: 0.75,
+                                ),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
         ),
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          child: Container(
-            width: 2,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.50),
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(5),
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
