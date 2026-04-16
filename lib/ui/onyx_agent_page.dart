@@ -1323,8 +1323,8 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
 
   @override
   Widget build(BuildContext context) {
-    final thread = _selectedThread;
     final hasActiveThread = _hasActiveSelectedThread;
+    final thread = hasActiveThread ? _selectedThread : _standbyThread();
     final memory = thread.memory;
     final snapshot = _contextSnapshot();
     final recommendedActions = _zaraRecommendedActions(thread);
@@ -1332,33 +1332,24 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final stacked = constraints.maxWidth < 1240;
-          return Stack(
-            fit: StackFit.expand,
+          return Column(
             children: [
-              Column(
-                children: [
-                  _zaraAgentTopBar(
-                    thread: thread,
-                    memory: memory,
-                    snapshot: snapshot,
-                    recommendedActions: recommendedActions,
-                  ),
-                  Expanded(
-                    child: _zaraAgentBody(
-                      constraints: constraints,
-                      stacked: stacked,
-                      hasActiveThread: hasActiveThread,
-                      thread: thread,
-                      memory: memory,
-                      snapshot: snapshot,
-                      recommendedActions: recommendedActions,
-                    ),
-                  ),
-                ],
+              _zaraAgentTopBar(
+                thread: thread,
+                memory: memory,
+                snapshot: snapshot,
+                recommendedActions: recommendedActions,
               ),
-              Offstage(
-                offstage: true,
-                child: _legacyAgentWorkspaceLayout(constraints),
+              Expanded(
+                child: _zaraAgentBody(
+                  constraints: constraints,
+                  stacked: stacked,
+                  hasActiveThread: hasActiveThread,
+                  thread: thread,
+                  memory: memory,
+                  snapshot: snapshot,
+                  recommendedActions: recommendedActions,
+                ),
               ),
             ],
           );
@@ -1367,6 +1358,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _legacyAgentWorkspaceLayout(BoxConstraints constraints) {
     final widescreen = constraints.maxWidth >= 1380;
     final desktop = constraints.maxWidth >= 1100;

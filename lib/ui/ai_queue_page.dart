@@ -227,7 +227,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   _AiQueueWorkspaceView _workspaceView = _AiQueueWorkspaceView.runbook;
   String? _selectedFocusId;
   _AiQueueCommandReceipt _commandReceipt = _defaultCommandReceipt;
-  bool _showDetailedWorkspace = false;
+  bool _showDetailedWorkspace = true;
   bool _zaraVerificationComplete = false;
   Timer? _zaraVerificationTimer;
   final Set<String> _dismissedCctvAlertIds = <String>{};
