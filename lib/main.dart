@@ -202,7 +202,7 @@ import 'ui/alarms_page.dart';
 import 'ui/dispatch_page.dart';
 import 'ui/events_review_page.dart';
 import 'ui/governance_page.dart';
-import 'ui/guards_page.dart';
+import 'ui/guards_workforce_page.dart';
 import 'ui/guard_mobile_shell_page.dart';
 import 'ui/live_operations_page.dart';
 import 'ui/onyx_agent_page.dart';

@@ -354,7 +354,7 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
 
   Widget _buildGuardsRoute(List<DispatchEvent> events) {
     return _appMode == OnyxAppMode.controller
-        ? GuardsPage(
+        ? GuardsWorkforcePage(
             events: events,
             initialSiteFilter: _guardsInitialSiteFilter,
             guardSyncRepositoryFuture: _guardSyncRepositoryFuture,

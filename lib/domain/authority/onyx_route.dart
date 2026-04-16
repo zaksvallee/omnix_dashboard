@@ -125,12 +125,12 @@ enum OnyxRoute {
     'Deployment footprint and zone definitions.',
   ),
   guards(
-    '/guards',
+    '/guards-workforce',
     'Guards',
-    Icons.groups_rounded,
+    Icons.badge_rounded,
     OnyxRouteSection.operations,
     'GUARDS',
-    'Field force state and sync health.',
+    'Operational readiness intelligence for the workforce layer.',
   ),
   dispatches(
     '/dispatches',
