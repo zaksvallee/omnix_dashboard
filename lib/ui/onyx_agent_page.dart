@@ -1324,6 +1324,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   @override
   Widget build(BuildContext context) {
     final thread = _selectedThread;
+    final hasActiveThread = _hasActiveSelectedThread;
     final memory = thread.memory;
     final snapshot = _contextSnapshot();
     final recommendedActions = _zaraRecommendedActions(thread);
@@ -1346,6 +1347,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                     child: _zaraAgentBody(
                       constraints: constraints,
                       stacked: stacked,
+                      hasActiveThread: hasActiveThread,
                       thread: thread,
                       memory: memory,
                       snapshot: snapshot,
@@ -1612,6 +1614,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   Widget _zaraAgentBody({
     required BoxConstraints constraints,
     required bool stacked,
+    required bool hasActiveThread,
     required _AgentThread thread,
     required _AgentThreadMemory memory,
     required OnyxAgentContextSnapshot snapshot,
@@ -1626,6 +1629,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             SizedBox(height: 40, child: _zaraAgentNavRail(compact: true)),
             Container(height: 1, color: OnyxColorTokens.divider),
             _zaraAgentLeftRail(
+              hasActiveThread: hasActiveThread,
               thread: thread,
               memory: memory,
               snapshot: snapshot,
@@ -1634,6 +1638,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             ),
             Container(height: 1, color: OnyxColorTokens.divider),
             _zaraAgentCenterZone(
+              hasActiveThread: hasActiveThread,
               thread: thread,
               memory: memory,
               snapshot: snapshot,
@@ -1642,6 +1647,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             ),
             Container(height: 1, color: OnyxColorTokens.divider),
             _zaraAgentRightRail(
+              hasActiveThread: hasActiveThread,
               thread: thread,
               memory: memory,
               snapshot: snapshot,
@@ -1663,6 +1669,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           SizedBox(
             width: 170,
             child: _zaraAgentLeftRail(
+              hasActiveThread: hasActiveThread,
               thread: thread,
               memory: memory,
               snapshot: snapshot,
@@ -1672,6 +1679,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           Container(width: 1, color: OnyxColorTokens.divider),
           Expanded(
             child: _zaraAgentCenterZone(
+              hasActiveThread: hasActiveThread,
               thread: thread,
               memory: memory,
               snapshot: snapshot,
@@ -1682,6 +1690,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           SizedBox(
             width: 190,
             child: _zaraAgentRightRail(
+              hasActiveThread: hasActiveThread,
               thread: thread,
               memory: memory,
               snapshot: snapshot,
@@ -1828,6 +1837,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   }
 
   Widget _zaraAgentLeftRail({
+    required bool hasActiveThread,
     required _AgentThread thread,
     required _AgentThreadMemory memory,
     required OnyxAgentContextSnapshot snapshot,
@@ -1847,19 +1857,32 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
         _zaraRailHeader(label: 'ACTIVE SIGNALS'),
         Padding(
           padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
-          child: Column(
-            children: [
-              for (var index = 0; index < signalRows.length; index++) ...[
-                _zaraSignalRow(
-                  label: signalRows[index].label,
-                  status: signalRows[index].status,
-                  dotColor: signalRows[index].dotColor,
-                  active: signalRows[index].active,
+          child: hasActiveThread
+              ? Column(
+                  children: [
+                    for (var index = 0; index < signalRows.length; index++) ...[
+                      _zaraSignalRow(
+                        label: signalRows[index].label,
+                        status: signalRows[index].status,
+                        dotColor: signalRows[index].dotColor,
+                        active: signalRows[index].active,
+                      ),
+                      if (index != signalRows.length - 1)
+                        const SizedBox(height: 3),
+                    ],
+                  ],
+                )
+              : Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'No active signals',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textDisabled,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
-                if (index != signalRows.length - 1) const SizedBox(height: 3),
-              ],
-            ],
-          ),
         ),
         _zaraRailHeader(label: 'ZARA FOCUS', includeDivider: false),
         Padding(
@@ -1869,22 +1892,28 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             children: [
               _zaraFocusItem(
                 label: 'Current task',
-                value: _zaraCurrentTaskLabel(thread: thread, memory: memory),
+                value: hasActiveThread
+                    ? _zaraCurrentTaskLabel(thread: thread, memory: memory)
+                    : 'No active review',
               ),
               _zaraFocusItem(
                 label: 'Cross-referencing',
-                value: _zaraCrossReferenceLabel(
-                  thread: thread,
-                  memory: memory,
-                  snapshot: snapshot,
-                ),
+                value: hasActiveThread
+                    ? _zaraCrossReferenceLabel(
+                        thread: thread,
+                        memory: memory,
+                        snapshot: snapshot,
+                      )
+                    : 'Waiting for the next scoped signal',
               ),
               _zaraFocusItem(
                 label: 'Next action',
-                value: _zaraNextActionLabel(
-                  memory: memory,
-                  recommendedActions: recommendedActions,
-                ),
+                value: hasActiveThread
+                    ? _zaraNextActionLabel(
+                        memory: memory,
+                        recommendedActions: recommendedActions,
+                      )
+                    : 'Standing by',
                 valueColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.6),
               ),
             ],
@@ -1986,6 +2015,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   }
 
   Widget _zaraAgentCenterZone({
+    required bool hasActiveThread,
     required _AgentThread thread,
     required _AgentThreadMemory memory,
     required OnyxAgentContextSnapshot snapshot,
@@ -2134,6 +2164,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             ),
             const SizedBox(height: 10),
             _zaraIntelligenceCard(
+              hasActiveThread: hasActiveThread,
               thread: thread,
               memory: memory,
               snapshot: snapshot,
@@ -2432,6 +2463,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   }
 
   Widget _zaraIntelligenceCard({
+    required bool hasActiveThread,
     required _AgentThread thread,
     required _AgentThreadMemory memory,
     required OnyxAgentContextSnapshot snapshot,
@@ -2441,6 +2473,16 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       memory: memory,
       snapshot: snapshot,
     );
+    final title = hasActiveThread
+        ? _zaraSituationTitle(thread: thread, memory: memory)
+        : 'Standing By';
+    final assessment = hasActiveThread
+        ? _zaraAssessmentText(
+            thread: thread,
+            memory: memory,
+            snapshot: snapshot,
+          )
+        : 'ZARA: Standing by. No active review.';
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -2458,7 +2500,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _zaraSituationTitle(thread: thread, memory: memory),
+                title,
                 style: GoogleFonts.inter(
                   color: OnyxColorTokens.textPrimary,
                   fontSize: 12,
@@ -2467,11 +2509,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                _zaraAssessmentText(
-                  thread: thread,
-                  memory: memory,
-                  snapshot: snapshot,
-                ),
+                assessment,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(
@@ -2487,10 +2525,12 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   Expanded(
                     child: _zaraMetricBlock(
                       label: 'RECOMMENDATION',
-                      value: _zaraRecommendationMetric(
-                        memory: memory,
-                        thread: thread,
-                      ),
+                      value: hasActiveThread
+                          ? _zaraRecommendationMetric(
+                              memory: memory,
+                              thread: thread,
+                            )
+                          : 'Awaiting task',
                       valueColor: OnyxColorTokens.textPrimary.withValues(
                         alpha: 0.75,
                       ),
@@ -2500,7 +2540,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   Expanded(
                     child: _zaraMetricBlock(
                       label: 'CONFIDENCE',
-                      value: _zaraConfidenceMetric(memory),
+                      value: hasActiveThread
+                          ? _zaraConfidenceMetric(memory)
+                          : '--',
                       valueColor: OnyxColorTokens.accentAmber,
                     ),
                   ),
@@ -2508,11 +2550,13 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   Expanded(
                     child: _zaraMetricBlock(
                       label: 'ELAPSED',
-                      value: _zaraElapsedMetric(
-                        thread: thread,
-                        memory: memory,
-                        snapshot: snapshot,
-                      ),
+                      value: hasActiveThread
+                          ? _zaraElapsedMetric(
+                              thread: thread,
+                              memory: memory,
+                              snapshot: snapshot,
+                            )
+                          : '--',
                       valueColor: OnyxColorTokens.accentAmber,
                     ),
                   ),
@@ -2567,7 +2611,8 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   ],
                 ),
               ),
-              if (_zaraReasoningExpanded &&
+              if (hasActiveThread &&
+                  _zaraReasoningExpanded &&
                   reasoningText.trim().isNotEmpty) ...[
                 const SizedBox(height: 9),
                 Container(
@@ -2702,6 +2747,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   }
 
   Widget _zaraAgentRightRail({
+    required bool hasActiveThread,
     required _AgentThread thread,
     required _AgentThreadMemory memory,
     required OnyxAgentContextSnapshot snapshot,
@@ -2714,7 +2760,17 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
         _zaraRailHeader(label: 'ZARA RECOMMENDS'),
         Padding(
           padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
-          child: recommendedActions.isEmpty
+          child: !hasActiveThread
+              ? Text(
+                  'Awaiting task',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textDisabled,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                )
+              : recommendedActions.isEmpty
               ? Text(
                   'No active approvals queued. Zara is monitoring the current thread.',
                   style: GoogleFonts.inter(
@@ -3148,6 +3204,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     required _AgentThreadMemory memory,
     required OnyxAgentContextSnapshot snapshot,
   }) {
+    if (_isStandbyThread(thread)) {
+      return 'Standing by. No active review.';
+    }
     if (memory.lastAdvisory.trim().isNotEmpty) {
       return _zaraCompactText(memory.lastAdvisory);
     }
@@ -3174,6 +3233,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     required _AgentThreadMemory memory,
     required OnyxAgentContextSnapshot snapshot,
   }) {
+    if (_isStandbyThread(thread)) {
+      return 'MONITORING';
+    }
     if (snapshot.hasHumanSafetySignal || snapshot.hasGuardWelfareRisk) {
       return 'CRITICAL';
     }
@@ -6909,8 +6971,22 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     );
   }
 
+  bool get _hasActiveSelectedThread => _threadById(_selectedThreadId) != null;
+
   _AgentThread get _selectedThread =>
-      _threads.firstWhere((thread) => thread.id == _selectedThreadId);
+      _threadById(_selectedThreadId) ??
+      (_threads.isNotEmpty ? _threads.first : _standbyThread());
+
+  bool _isStandbyThread(_AgentThread thread) => thread.id == '__standby__';
+
+  _AgentThread _standbyThread() {
+    return _AgentThread(
+      id: '__standby__',
+      title: 'Standby',
+      summary: 'Zara is standing by for the next task.',
+      messages: const <_AgentMessage>[],
+    );
+  }
 
   _AgentPersona _personaFor(String personaId) {
     return _personas.firstWhere(
