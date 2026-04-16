@@ -3049,6 +3049,34 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required String zaraLine,
     required VoidCallback? onAlert,
   }) {
+    final activeTasksChip = activeTaskCount <= 0
+        ? const SizedBox.shrink()
+        : Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.accentAmber.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(
+                color: OnyxColorTokens.accentAmber.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _commandCenterDot(OnyxColorTokens.accentAmber, size: 7),
+                const SizedBox(width: 6),
+                Text(
+                  '$activeTaskCount ACTIVE TASK${activeTaskCount == 1 ? '' : 'S'}',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.accentAmber,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          );
+
     return Container(
       height: 44,
       decoration: const BoxDecoration(
@@ -3058,44 +3086,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
-          SizedBox(
-            width: 180,
-            child: Row(
-              children: [
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: const BoxDecoration(
-                    color: OnyxColorTokens.brand,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'O',
-                    style: GoogleFonts.inter(
-                      color: OnyxColorTokens.textPrimary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'COMMAND',
-                  style: GoogleFonts.inter(
-                    color: OnyxColorTokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          if (activeTaskCount > 0) ...[
+            activeTasksChip,
+            const SizedBox(width: 12),
+          ],
           Expanded(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
+                constraints: const BoxConstraints(maxWidth: 480),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -3162,75 +3160,47 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
             ),
           ),
-          SizedBox(
-            width: 300,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (activeTaskCount > 0) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: OnyxColorTokens.accentAmber.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(5),
-                      border: Border.all(
-                        color: OnyxColorTokens.accentAmber.withValues(
-                          alpha: 0.25,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        _commandCenterDot(OnyxColorTokens.accentAmber, size: 7),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$activeTaskCount ACTIVE TASK${activeTaskCount == 1 ? '' : 'S'}',
-                          style: GoogleFonts.inter(
-                            color: OnyxColorTokens.accentAmber,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+          const SizedBox(width: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 280),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _commandCenterDot(OnyxColorTokens.accentGreen, size: 7),
+                  const SizedBox(width: 8),
+                  Text(
+                    'CONTROLLER-1 · LIVE OPS',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(width: 10),
+                  FilledButton(
+                    onPressed: onAlert,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: OnyxColorTokens.brand,
+                      foregroundColor: OnyxColorTokens.textPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      minimumSize: const Size(0, 28),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    child: const Text('ALERT'),
+                  ),
                 ],
-                _commandCenterDot(OnyxColorTokens.accentGreen, size: 7),
-                const SizedBox(width: 8),
-                Text(
-                  'CONTROLLER-1 · LIVE OPS',
-                  style: GoogleFonts.inter(
-                    color: OnyxColorTokens.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                FilledButton(
-                  onPressed: onAlert,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: OnyxColorTokens.brand,
-                    foregroundColor: OnyxColorTokens.textPrimary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    minimumSize: const Size(0, 28),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    textStyle: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  child: const Text('ALERT'),
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -3258,7 +3228,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             'SYSTEM',
             style: GoogleFonts.inter(
-              color: OnyxColorTokens.textDisabled,
+              color: OnyxColorTokens.textMuted,
               fontSize: 9,
               fontWeight: FontWeight.w700,
               letterSpacing: 1,
@@ -3289,7 +3259,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             'CONDITIONS',
             style: GoogleFonts.inter(
-              color: OnyxColorTokens.textDisabled,
+              color: OnyxColorTokens.textMuted,
               fontSize: 9,
               fontWeight: FontWeight.w700,
               letterSpacing: 1,
