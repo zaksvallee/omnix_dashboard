@@ -3977,7 +3977,6 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
                     border: Border(
                       bottom: BorderSide(
                         color: active

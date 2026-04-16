@@ -705,7 +705,6 @@ class ClientCommsQueueBoard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 0),
       decoration: BoxDecoration(
         color: _surface,
-        borderRadius: OnyxRadiusTokens.radiusMd,
         border: Border(
           left: BorderSide(color: severityColor, width: 3),
           top: BorderSide(color: _dividerColor),

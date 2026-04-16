@@ -869,9 +869,6 @@ class _GuardsPageState extends State<GuardsPage> {
       decoration: const BoxDecoration(
         color: _surface,
         border: Border(bottom: BorderSide(color: _dividerColor)),
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(OnyxRadiusTokens.md),
-        ),
       ),
       child: Row(
         children: [
