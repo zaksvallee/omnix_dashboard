@@ -34503,6 +34503,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             _aiQueueRouteActivationToken++;
           }
           _route = r;
+          if (r == OnyxRoute.dashboard) {
+            _zaraAmbientActive = true;
+          }
           if (r != OnyxRoute.agent) {
             _aiQueueFocusIncidentReference = '';
             _aiQueueSelectedFeedId = '';

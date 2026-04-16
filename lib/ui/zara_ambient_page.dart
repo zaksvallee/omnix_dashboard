@@ -232,6 +232,8 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
                                   const SizedBox(height: 32),
                                 ],
                                 _quickActions(compact: compact),
+                                const SizedBox(height: 48),
+                                _zaraHeartbeat(),
                               ],
                             ),
                           ),
@@ -671,6 +673,50 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
         for (final action in actions)
           _actionChip(action),
       ],
+    );
+  }
+
+  // ── Zara heartbeat ─────────────────────────────────────────────────────────
+
+  Widget _zaraHeartbeat() {
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: 0.3 + 0.3 * _pulseAnimation.value,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: OnyxColorTokens.brand,
+                  boxShadow: [
+                    BoxShadow(
+                      color: OnyxColorTokens.brand.withValues(
+                        alpha: 0.4 * _pulseAnimation.value,
+                      ),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Zara is watching',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: OnyxColorTokens.textMuted,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
