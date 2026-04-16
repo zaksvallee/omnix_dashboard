@@ -2246,6 +2246,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   static const Duration _yoloHealthRetryDelay = Duration(seconds: 10);
   static const Duration _yoloHealthRecheckInterval = Duration(seconds: 30);
   static const int _yoloHealthFailureThreshold = 3;
+  static const Duration _personAlertConsecutiveWindow = Duration(seconds: 90);
+  static const Duration _personAlertZoneCooldown = Duration(minutes: 5);
+  static const int _requiredConsecutiveHumanDetections = 2;
+  static const double _defaultPersonAlertConfidenceThreshold = 0.55;
+  static const double _pedestrianPersonAlertConfidenceThreshold = 0.72;
+  static const double _personAlertCooldownBypassConfidence = 0.85;
 
   final String host;
   final int port;
@@ -2318,6 +2324,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       <String, Uint8List>{};
   final Map<String, String> _pendingTelegramCaptionNotesByDetectionKey =
       <String, String>{};
+  final Map<String, int> _humanAlertConsecutiveDetectionsByZone =
+      <String, int>{};
+  final Map<String, DateTime> _humanAlertLastQualifiedDetectionAtByZone =
+      <String, DateTime>{};
+  final Map<String, DateTime> _humanAlertLastTriggeredAtByZone =
+      <String, DateTime>{};
   OnyxPowerMode _currentPowerMode = OnyxPowerMode.normal;
 
   OnyxHikIsapiStreamAwarenessService({
@@ -2457,6 +2469,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _telegramRelayBootCutoffUtc = _clock().toUtc();
     _telegramRelayOwnershipNoticeLogged = false;
     _relayedAlertIds.clear();
+    _humanAlertConsecutiveDetectionsByZone.clear();
+    _humanAlertLastQualifiedDetectionAtByZone.clear();
+    _humanAlertLastTriggeredAtByZone.clear();
     _yoloStartupGraceUntilUtc = _clock().toUtc().add(_yoloStartupGracePeriod);
     _startYoloHealthMonitor(_generation);
     _schedulePublishTimer();
@@ -2509,6 +2524,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _telegramRelayOwnershipNoticeLogged = false;
     _telegramRelayPollInFlight = false;
     _relayedAlertIds.clear();
+    _humanAlertConsecutiveDetectionsByZone.clear();
+    _humanAlertLastQualifiedDetectionAtByZone.clear();
+    _humanAlertLastTriggeredAtByZone.clear();
     final subscription = _streamSubscription;
     _streamSubscription = null;
     final proactiveAlertSubscription = _proactiveAlertSubscription;
@@ -2587,6 +2605,64 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         zoneType.contains('perimeter') ||
         zoneType.contains('semi_perimeter') ||
         zoneType.contains('semi-perimeter');
+  }
+
+  String _humanAlertZoneKey({required String channelId, String? zoneName}) {
+    final normalizedZoneName = (zoneName ?? '').trim().toLowerCase();
+    if (normalizedZoneName.isNotEmpty) {
+      return normalizedZoneName;
+    }
+    return 'channel:${channelId.trim().toLowerCase()}';
+  }
+
+  double _minimumHumanAlertConfidenceForZone(String? zoneName) {
+    final normalizedZoneName = (zoneName ?? '').trim().toLowerCase();
+    if (normalizedZoneName.contains('pedestrian')) {
+      return _pedestrianPersonAlertConfidenceThreshold;
+    }
+    return _defaultPersonAlertConfidenceThreshold;
+  }
+
+  void _resetHumanAlertGateForZone(String zoneKey) {
+    _humanAlertConsecutiveDetectionsByZone.remove(zoneKey);
+    _humanAlertLastQualifiedDetectionAtByZone.remove(zoneKey);
+  }
+
+  int _recordQualifiedHumanDetectionForZone(
+    String zoneKey,
+    DateTime detectedAtUtc,
+  ) {
+    final lastQualifiedAt = _humanAlertLastQualifiedDetectionAtByZone[zoneKey];
+    final priorCount = _humanAlertConsecutiveDetectionsByZone[zoneKey] ?? 0;
+    final canContinueStreak =
+        lastQualifiedAt != null &&
+        !detectedAtUtc.isBefore(lastQualifiedAt) &&
+        detectedAtUtc.difference(lastQualifiedAt) <=
+            _personAlertConsecutiveWindow;
+    final nextCount = canContinueStreak ? priorCount + 1 : 1;
+    _humanAlertConsecutiveDetectionsByZone[zoneKey] = nextCount;
+    _humanAlertLastQualifiedDetectionAtByZone[zoneKey] = detectedAtUtc;
+    return nextCount;
+  }
+
+  bool _isHumanAlertCooldownActiveForZone(
+    String zoneKey,
+    DateTime detectedAtUtc,
+    double confidence,
+  ) {
+    final lastTriggeredAt = _humanAlertLastTriggeredAtByZone[zoneKey];
+    if (lastTriggeredAt == null ||
+        confidence > _personAlertCooldownBypassConfidence) {
+      return false;
+    }
+    if (detectedAtUtc.isBefore(lastTriggeredAt)) {
+      return true;
+    }
+    return detectedAtUtc.difference(lastTriggeredAt) < _personAlertZoneCooldown;
+  }
+
+  void _markHumanAlertTriggeredForZone(String zoneKey, DateTime detectedAtUtc) {
+    _humanAlertLastTriggeredAtByZone[zoneKey] = detectedAtUtc;
   }
 
   Future<OnyxPowerHealthSnapshot> _readPowerHealthSnapshot() async {
@@ -3086,6 +3162,18 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (projector == null) {
       return;
     }
+    final zone = projector.cameraZones[event.channelId];
+    final zoneName = zone?.zoneName ?? 'Channel ${event.channelId}';
+    final humanAlertZoneKey = _humanAlertZoneKey(
+      channelId: event.channelId,
+      zoneName: zoneName,
+    );
+    final hasFaceMatch = (event.faceMatchId ?? '').trim().isNotEmpty;
+    final isUnknownHumanCandidate =
+        event.eventType == OnyxEventType.humanDetected && !hasFaceMatch;
+    if (!isUnknownHumanCandidate) {
+      _resetHumanAlertGateForZone(humanAlertZoneKey);
+    }
     _cachePendingAlertReason(event);
     final snapshot = projector.ingest(event);
     _latestSnapshot = snapshot;
@@ -3110,7 +3198,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           name: 'OnyxHikIsapiStream',
         );
       } else {
-        final zone = projector.cameraZones[event.channelId];
         if (_currentPowerMode == OnyxPowerMode.degraded &&
             !(zone?.isPerimeter ?? false) &&
             !((zone?.zoneType ?? '').toLowerCase().contains('perimeter'))) {
@@ -3131,9 +3218,61 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             );
             return;
           }
+          if (event.eventType == OnyxEventType.humanDetected && !hasFaceMatch) {
+            final detectedAtUtc = event.detectedAt.toUtc();
+            final confidence = event.personConfidence ?? 0.0;
+            final minimumConfidence = _minimumHumanAlertConfidenceForZone(
+              zoneName,
+            );
+            if (confidence < minimumConfidence) {
+              _resetHumanAlertGateForZone(humanAlertZoneKey);
+              developer.log(
+                '[ONYX-TELEGRAM] Gate check: suppressed=confidence '
+                'channel=${event.channelId} zone=$zoneName '
+                'confidence=${confidence.toStringAsFixed(2)} '
+                'required=${minimumConfidence.toStringAsFixed(2)}',
+                name: 'OnyxHikIsapiStream',
+                level: 800,
+              );
+              return;
+            }
+            final consecutiveDetections = _recordQualifiedHumanDetectionForZone(
+              humanAlertZoneKey,
+              detectedAtUtc,
+            );
+            if (consecutiveDetections < _requiredConsecutiveHumanDetections) {
+              developer.log(
+                '[ONYX-TELEGRAM] Gate check: suppressed=awaiting consecutive '
+                'human detection channel=${event.channelId} zone=$zoneName '
+                'count=$consecutiveDetections/'
+                '$_requiredConsecutiveHumanDetections '
+                'confidence=${confidence.toStringAsFixed(2)}',
+                name: 'OnyxHikIsapiStream',
+                level: 800,
+              );
+              return;
+            }
+            if (_isHumanAlertCooldownActiveForZone(
+              humanAlertZoneKey,
+              detectedAtUtc,
+              confidence,
+            )) {
+              final lastTriggeredAt =
+                  _humanAlertLastTriggeredAtByZone[humanAlertZoneKey];
+              developer.log(
+                '[ONYX-TELEGRAM] Gate check: suppressed=zone cooldown '
+                'channel=${event.channelId} zone=$zoneName '
+                'confidence=${confidence.toStringAsFixed(2)} '
+                'last_alert=${lastTriggeredAt?.toIso8601String() ?? 'unknown'}',
+                name: 'OnyxHikIsapiStream',
+                level: 800,
+              );
+              return;
+            }
+          }
           developer.log(
             '[ONYX-TELEGRAM] Gate check: proceeding to proactive evaluation '
-            'channel=${event.channelId} zone=${zone?.zoneName ?? 'Channel ${event.channelId}'} '
+            'channel=${event.channelId} zone=$zoneName '
             'unknown_human=${event.unknownPerson} '
             'face=${(event.faceMatchId ?? '').trim().isEmpty ? 'null' : event.faceMatchId}',
             name: 'OnyxHikIsapiStream',
@@ -3220,6 +3359,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         powerMode: _currentPowerMode.name,
       ),
     );
+    if (decision.detectionKind == OnyxProactiveDetectionKind.human) {
+      _markHumanAlertTriggeredForZone(
+        _humanAlertZoneKey(
+          channelId: '${decision.channelId}',
+          zoneName: decision.zoneName,
+        ),
+        decision.detectedAt.toUtc(),
+      );
+    }
     _emitSnapshot(snapshot);
     developer.log(
       '[ONYX-TELEGRAM] Gate check: proceeding to send '
@@ -4433,8 +4581,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final dedupe = <String>{};
     for (final row in rows) {
       final chatId = (row['telegram_chat_id'] ?? '').toString().trim();
-      if (chatId.isEmpty ||
-          (adminChatId.isNotEmpty && chatId == adminChatId)) {
+      if (chatId.isEmpty || (adminChatId.isNotEmpty && chatId == adminChatId)) {
         continue;
       }
       final rowSiteId = (row['site_id'] ?? '').toString().trim();
@@ -4543,8 +4690,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     return <String, Object?>{
       'inline_keyboard': <List<Map<String, String>>>[
         <Map<String, String>>[
-          button('👁 View camera', 'view:$normalizedAlertId:$normalizedChannelId'),
-          button('🚨 Dispatch', 'dispatch:$normalizedAlertId:$normalizedSiteId'),
+          button(
+            '👁 View camera',
+            'view:$normalizedAlertId:$normalizedChannelId',
+          ),
+          button(
+            '🚨 Dispatch',
+            'dispatch:$normalizedAlertId:$normalizedSiteId',
+          ),
         ],
         <Map<String, String>>[
           button('✅ Acknowledge', 'ack:$normalizedAlertId'),
