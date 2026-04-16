@@ -1739,6 +1739,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String? _pendingOperationsAgentReturnIncidentReference;
   String _aiQueueFocusIncidentReference = '';
   String _aiQueueSelectedFeedId = '';
+  int _aiQueueRouteActivationToken = 0;
   String? _aiQueueAgentReturnIncidentReference;
   String? _pendingAiQueueAgentReturnIncidentReference;
   late String _operationsRouteClientId =
@@ -34415,6 +34416,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           if (r == OnyxRoute.agent && _route != OnyxRoute.agent) {
             _agentSourceRoute = _route;
           }
+          if (r == OnyxRoute.aiQueue) {
+            _aiQueueRouteActivationToken++;
+          }
           _route = r;
           if (r != OnyxRoute.agent) {
             _aiQueueFocusIncidentReference = '';
@@ -35834,6 +35838,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void _openAiQueueFromAdmin() {
     _cancelDemoAutopilot();
     setState(() {
+      _aiQueueRouteActivationToken++;
       _aiQueueFocusIncidentReference = '';
       _aiQueueSelectedFeedId = '';
       _aiQueueAgentReturnIncidentReference = null;
@@ -35854,6 +35859,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _cancelDemoAutopilot();
     setState(() {
+      _aiQueueRouteActivationToken++;
       _aiQueueFocusIncidentReference = ref;
       _aiQueueSelectedFeedId = (preferredFeedId ?? '').trim();
       _aiQueueAgentReturnIncidentReference = null;
@@ -35874,6 +35880,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
     _cancelDemoAutopilot();
     setState(() {
+      _aiQueueRouteActivationToken++;
       _aiQueueFocusIncidentReference = ref;
       _aiQueueSelectedFeedId = '';
       _aiQueueAgentReturnIncidentReference = null;
@@ -35894,6 +35901,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _cancelDemoAutopilot();
     setState(() {
+      _aiQueueRouteActivationToken++;
       _aiQueueFocusIncidentReference = ref;
       _aiQueueSelectedFeedId = (preferredFeedId ?? '').trim();
       _aiQueueAgentReturnIncidentReference = ref;

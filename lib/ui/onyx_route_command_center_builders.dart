@@ -281,6 +281,9 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
             ?.trim();
     final initialSelectedFeedId = _aiQueueSelectedFeedId;
     return AIQueuePage(
+      key: ValueKey<String>(
+        'ai-queue:${_aiQueueRouteActivationToken.toString()}:$focusIncidentReference:$initialSelectedFeedId',
+      ),
       events: events,
       focusIncidentReference: focusIncidentReference,
       agentReturnIncidentReference: agentReturnIncidentReference,
