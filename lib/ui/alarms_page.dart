@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -164,12 +162,30 @@ class AlarmsPage extends StatefulWidget {
   final bool supabaseReady;
   final VoidCallback? onOpenDispatches;
   final ValueChanged<String>? onOpenAlarmDetail;
+  final int cameraCount;
+  final int guardCount;
+  final String signalHealthLabel;
+  final String? lastIncidentReference;
+  final String? lastIncidentTitle;
+  final String? lastIncidentStatusLabel;
+  final String? lastIncidentTimestampLabel;
+  final VoidCallback? onRunSystemCheck;
+  final VoidCallback? onOpenLiveFeeds;
 
   const AlarmsPage({
     super.key,
     this.supabaseReady = false,
     this.onOpenDispatches,
     this.onOpenAlarmDetail,
+    this.cameraCount = 0,
+    this.guardCount = 0,
+    this.signalHealthLabel = 'Stable',
+    this.lastIncidentReference,
+    this.lastIncidentTitle,
+    this.lastIncidentStatusLabel,
+    this.lastIncidentTimestampLabel,
+    this.onRunSystemCheck,
+    this.onOpenLiveFeeds,
   });
 
   @override
@@ -360,12 +376,43 @@ class _AlarmsPageState extends State<AlarmsPage> {
               OnyxColorTokens.redBorder,
             ),
           if (!_loading && _alarms.isEmpty)
-            _statusChip(
-              'ALL CLEAR',
-              OnyxDesignTokens.greenNominal,
-              OnyxColorTokens.greenSurface,
-              OnyxColorTokens.greenBorder,
+            _nominalStatusBadge(),
+        ],
+      ),
+    );
+  }
+
+  Widget _nominalStatusBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.accentGreen.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: OnyxColorTokens.accentGreen.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: OnyxColorTokens.accentGreen,
+              shape: BoxShape.circle,
             ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'ALL SYSTEMS NOMINAL',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: OnyxColorTokens.accentGreen,
+              letterSpacing: 0.5,
+            ),
+          ),
         ],
       ),
     );
@@ -411,43 +458,370 @@ class _AlarmsPageState extends State<AlarmsPage> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    final signalLabel = widget.signalHealthLabel.trim().isEmpty
+        ? 'Stable'
+        : widget.signalHealthLabel.trim();
+    final signalNominal = signalLabel.toLowerCase() == 'stable';
+    final hasLastIncident = (widget.lastIncidentTitle ?? '').trim().isNotEmpty;
+    final lastIncidentReference = (widget.lastIncidentReference ?? '').trim();
+    final canReviewLastIncident = hasLastIncident || lastIncidentReference.isNotEmpty;
+
+    VoidCallback? reviewLastIncidentCallback() {
+      if (!canReviewLastIncident) {
+        return null;
+      }
+      return () {
+        final detail = widget.onOpenAlarmDetail;
+        if (detail != null && lastIncidentReference.isNotEmpty) {
+          detail(lastIncidentReference);
+          return;
+        }
+        widget.onOpenDispatches?.call();
+      };
+    }
+
+    final onReviewLastIncident = reviewLastIncidentCallback();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _nominalZaraPresenceBlock(),
+          const SizedBox(height: 14),
+          _sectionLabel('SYSTEM STATUS'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _statusStatChip(
+                label: 'CAMERAS',
+                value: '${widget.cameraCount} active',
+                valueColor: OnyxColorTokens.accentGreen,
+              ),
+              _statusStatChip(
+                label: 'GUARDS',
+                value: '${widget.guardCount} on duty',
+                valueColor: OnyxColorTokens.accentGreen,
+              ),
+              _statusStatChip(
+                label: 'SIGNAL',
+                value: signalLabel,
+                valueColor: signalNominal
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Center(child: _MonitoringHeartbeat()),
+          const SizedBox(height: 14),
+          _lastEventBlock(onReviewLastIncident),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _quickActionButton(
+                label: 'Run System Check',
+                onTap: widget.onRunSystemCheck,
+              ),
+              _quickActionButton(
+                label: 'Review Last Incident',
+                onTap: onReviewLastIncident,
+              ),
+              _quickActionButton(
+                label: 'Open Live Feeds',
+                accent: OnyxColorTokens.accentSky,
+                onTap: widget.onOpenLiveFeeds,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _nominalZaraPresenceBlock() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: OnyxColorTokens.greenSurface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: OnyxColorTokens.greenBorder),
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: OnyxColorTokens.accentPurple.withValues(alpha: 0.35),
+              ),
             ),
-            child: const Icon(
-              Icons.shield_rounded,
-              size: 36,
-              color: OnyxDesignTokens.greenNominal,
+            child: Center(
+              child: Text(
+                'Z',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: OnyxColorTokens.accentPurple,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No active alarms',
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ZARA · MONITORING',
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.60),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _presenceLine(
+                  dotColor: OnyxColorTokens.accentGreen,
+                  text: 'All sites secure. No active threats detected.',
+                ),
+                const SizedBox(height: 5),
+                _presenceLine(
+                  dotColor: OnyxColorTokens.accentGreen,
+                  text: 'Perimeter integrity confirmed across all zones.',
+                ),
+                const SizedBox(height: 5),
+                _presenceLine(
+                  dotColor: OnyxColorTokens.accentPurple,
+                  text: 'Standing by. Alert threshold active.',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _presenceLine({required Color dotColor, required String text}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(top: 4),
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
             style: GoogleFonts.inter(
-              fontSize: 18,
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: OnyxColorTokens.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.inter(
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        color: OnyxColorTokens.textDisabled,
+        letterSpacing: 1.3,
+      ),
+    );
+  }
+
+  Widget _statusStatChip({
+    required String label,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 140),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 8,
               fontWeight: FontWeight.w700,
-              color: _alarmTitle,
+              color: OnyxColorTokens.textDisabled,
+              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'All sites secure.',
+            value,
             style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              color: _alarmBody,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _lastEventBlock(VoidCallback? onReviewLastIncident) {
+    final hasLastIncident = (widget.lastIncidentTitle ?? '').trim().isNotEmpty;
+    final timestamp = (widget.lastIncidentTimestampLabel ?? '').trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'LAST ACTIVITY',
+                  style: GoogleFonts.inter(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    color: OnyxColorTokens.textDisabled,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (hasLastIncident) ...[
+                  Text(
+                    (widget.lastIncidentTitle ?? '').trim(),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: OnyxColorTokens.textMuted,
+                    ),
+                  ),
+                  if ((widget.lastIncidentStatusLabel ?? '').trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        (widget.lastIncidentStatusLabel ?? '').trim(),
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w400,
+                          color: OnyxColorTokens.textDisabled,
+                        ),
+                      ),
+                    ),
+                ] else
+                  Text(
+                    'No recent incidents',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w400,
+                      color: OnyxColorTokens.textDisabled,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (hasLastIncident)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  timestamp,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w400,
+                    color: OnyxColorTokens.textDisabled,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                InkWell(
+                  onTap: onReviewLastIncident,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      'View incident →',
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.55,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickActionButton({
+    required String label,
+    required VoidCallback? onTap,
+    Color accent = OnyxColorTokens.textMuted,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.backgroundSecondary,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: accent == OnyxColorTokens.accentSky
+                  ? OnyxColorTokens.accentSky.withValues(alpha: 0.18)
+                  : OnyxColorTokens.divider,
+            ),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: onTap == null
+                  ? OnyxColorTokens.textDisabled
+                  : accent == OnyxColorTokens.accentSky
+                  ? OnyxColorTokens.accentSky.withValues(alpha: 0.55)
+                  : OnyxColorTokens.textMuted,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1080,6 +1454,67 @@ class _StatusDotState extends State<_StatusDot>
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MonitoringHeartbeat extends StatefulWidget {
+  const _MonitoringHeartbeat();
+
+  @override
+  State<_MonitoringHeartbeat> createState() => _MonitoringHeartbeatState();
+}
+
+class _MonitoringHeartbeatState extends State<_MonitoringHeartbeat>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _opacity = Tween<double>(begin: 1.0, end: 0.40).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FadeTransition(
+          opacity: _opacity,
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: OnyxColorTokens.accentGreen,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'LIVE MONITORING ACTIVE',
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: OnyxColorTokens.textDisabled,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ],
     );
   }
 }

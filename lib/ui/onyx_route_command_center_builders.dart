@@ -1,5 +1,19 @@
 part of '../main.dart';
 
+class _AlarmHistorySnapshot {
+  final String reference;
+  final String title;
+  final String statusLabel;
+  final String timestampLabel;
+
+  const _AlarmHistorySnapshot({
+    required this.reference,
+    required this.title,
+    required this.statusLabel,
+    required this.timestampLabel,
+  });
+}
+
 extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
   void _openClientViewForClientScope(String clientId, String siteId) {
     _openClientViewForScope(
@@ -345,13 +359,94 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
     );
   }
 
-  Widget _buildAlarmsRoute() {
+  Widget _buildAlarmsRoute(List<DispatchEvent> events) {
+    final cameraCount = _cctvEvidenceHealth.cameras.length;
+    final guardCount = _guardsOnlineCount(events);
+    final signalHealthLabel =
+        _cctvOpsHealth.failCount > 0 || _cctvEvidenceHealth.failureCount > 0
+        ? 'Degraded'
+        : 'Stable';
+    final lastIncident = _latestAlarmHistorySnapshot(events);
     return AlarmsPage(
       supabaseReady: _routeBuilderSupabaseReady,
       onOpenDispatches: () => _openCommandCenterRoute(OnyxRoute.dispatches),
       onOpenAlarmDetail: (incidentRef) =>
           _openCommandCenterRoute(OnyxRoute.dispatches),
+      cameraCount: cameraCount,
+      guardCount: guardCount,
+      signalHealthLabel: signalHealthLabel,
+      lastIncidentReference: lastIncident?.reference,
+      lastIncidentTitle: lastIncident?.title,
+      lastIncidentStatusLabel: lastIncident?.statusLabel,
+      lastIncidentTimestampLabel: lastIncident?.timestampLabel,
+      onOpenLiveFeeds: _openAiQueueFromAdmin,
     );
+  }
+
+  _AlarmHistorySnapshot? _latestAlarmHistorySnapshot(
+    List<DispatchEvent> events,
+  ) {
+    DispatchEvent? latest;
+    for (final event in events) {
+      if (event is! DecisionCreated &&
+          event is! ResponseArrived &&
+          event is! IncidentClosed) {
+        continue;
+      }
+      if (latest == null || event.occurredAt.isAfter(latest.occurredAt)) {
+        latest = event;
+      }
+    }
+    if (latest == null) {
+      return null;
+    }
+    final timestamp = latest.occurredAt.toUtc();
+    final timestampLabel =
+        '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')} UTC';
+    if (latest case final IncidentClosed event) {
+      final resolution = event.resolutionType
+          .replaceAll('_', ' ')
+          .trim();
+      return _AlarmHistorySnapshot(
+        reference: event.dispatchId.trim(),
+        title: 'Dispatch ${event.dispatchId.trim()}',
+        statusLabel: resolution.isEmpty
+            ? 'Record sealed'
+            : '${_titleCase(resolution)} recorded',
+        timestampLabel: timestampLabel,
+      );
+    }
+    if (latest case final ResponseArrived event) {
+      final guardId = event.guardId.trim();
+      return _AlarmHistorySnapshot(
+        reference: event.dispatchId.trim(),
+        title: 'Officer arrived · ${event.dispatchId.trim()}',
+        statusLabel: guardId.isEmpty
+            ? 'Hold watch active'
+            : 'Hold watch active · $guardId on site',
+        timestampLabel: timestampLabel,
+      );
+    }
+    if (latest case final DecisionCreated event) {
+      return _AlarmHistorySnapshot(
+        reference: event.dispatchId.trim(),
+        title: 'Dispatch ${event.dispatchId.trim()}',
+        statusLabel: 'Queued for response',
+        timestampLabel: timestampLabel,
+      );
+    }
+    return null;
+  }
+
+  String _titleCase(String value) {
+    return value
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) =>
+              '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+        )
+        .join(' ');
   }
 
   Widget _buildDispatchesRoute(List<DispatchEvent> events) {
