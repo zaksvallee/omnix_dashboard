@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/system_flow_service.dart';
 import 'components/onyx_system_flow_widgets.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
@@ -535,6 +536,18 @@ class RiskIntelligencePage extends StatelessWidget {
     final signalLine = signal != null && signal.confidenceScore > 60
         ? '${_intelTitleCaseWords(signal.sourceType.isEmpty ? signal.sourceLabel : signal.sourceType)} emerging. Recommend increased monitoring.'
         : 'No hardening signal detected. Continue monitoring.';
+    final continuity = OnyxZaraContinuityService.predictiveForecast(
+      areaLabel: topArea?.title ?? 'All areas',
+      elevatedArea: elevatedArea,
+      signalLine: signalLine,
+    );
+    final flow = OnyxFlowIndicatorService.intelToTrack(
+      sourceLabel: elevatedArea
+          ? 'Predictive watch → ${topArea.title}'
+          : 'Predictive watch → All areas stable',
+      nextActionLabel: _forecastNextActionLabel(topArea, signal),
+      referenceLabel: topArea == null ? null : _intelKeySegment(topArea.title),
+    );
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -603,7 +616,7 @@ class RiskIntelligencePage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'ZARA · THREAT FORECAST',
+                      continuity.headline,
                       style: GoogleFonts.inter(
                         color: OnyxColorTokens.accentPurple.withValues(
                           alpha: 0.60,
@@ -618,19 +631,17 @@ class RiskIntelligencePage extends StatelessWidget {
                       dotColor: elevatedArea
                           ? OnyxColorTokens.accentRed
                           : OnyxColorTokens.accentGreen,
-                      text: elevatedArea
-                          ? '${topArea.title} elevated activity detected.'
-                          : 'All areas stable.',
+                      text: continuity.lines[0],
                     ),
                     const SizedBox(height: 5),
                     _forecastLine(
                       dotColor: OnyxColorTokens.accentAmber,
-                      text: signalLine,
+                      text: continuity.lines[1],
                     ),
                     const SizedBox(height: 5),
                     _forecastLine(
                       dotColor: OnyxColorTokens.accentPurple,
-                      text: 'Recommend review before next shift.',
+                      text: continuity.lines[2],
                     ),
                   ],
                 ),
@@ -646,13 +657,7 @@ class RiskIntelligencePage extends StatelessWidget {
                 const SizedBox(height: 12),
                 postureChip,
                 const SizedBox(height: 10),
-                OnyxFlowIndicator(
-                  chainLabel: 'Intel → Track',
-                  sourceLabel: elevatedArea
-                      ? 'Predictive watch → ${topArea.title}'
-                      : 'Predictive watch → All areas stable',
-                  nextActionLabel: _forecastNextActionLabel(topArea, signal),
-                ),
+                OnyxFlowIndicator(flow: flow),
               ],
             );
           }
@@ -669,13 +674,7 @@ class RiskIntelligencePage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              OnyxFlowIndicator(
-                chainLabel: 'Intel → Track',
-                sourceLabel: elevatedArea
-                    ? 'Predictive watch → ${topArea.title}'
-                    : 'Predictive watch → All areas stable',
-                nextActionLabel: _forecastNextActionLabel(topArea, signal),
-              ),
+              OnyxFlowIndicator(flow: flow),
             ],
           );
         },

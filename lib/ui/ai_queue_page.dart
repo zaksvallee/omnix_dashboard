@@ -2723,11 +2723,20 @@ class _AIQueuePageState extends State<AIQueuePage> {
       action,
       recommendationLabel: recommendationLabel,
     );
-    final zaraRecommendationText = showContextPanel
-        ? _zaraVerificationComplete
-              ? 'ZARA: Verification complete. No movement detected. Recommendation unchanged: $recommendationLabel'
-              : 'ZARA: Verifying before decision. Reviewing $feedCameraLabel and signal data.'
-        : 'ZARA: $recommendationLabel';
+    final zaraRecommendationText =
+        OnyxZaraContinuityService.queueDecisionNarrative(
+          recommendationLabel: recommendationLabel,
+          showContextPanel: showContextPanel,
+          verificationComplete: _zaraVerificationComplete,
+          cameraLabel: feedCameraLabel,
+        );
+    final flow = OnyxFlowIndicatorService.queueToDispatch(
+      sourceLabel: flowSourceLabel,
+      nextActionLabel: flowNextActionLabel,
+      referenceLabel: OnyxSystemFlowService.dispatchReference(
+        action.incidentId,
+      ),
+    );
     final decisionActions = Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -2857,11 +2866,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
             ),
             const SizedBox(height: 8),
-            OnyxFlowIndicator(
-              chainLabel: 'Track → Queue',
-              sourceLabel: flowSourceLabel,
-              nextActionLabel: flowNextActionLabel,
-            ),
+            OnyxFlowIndicator(flow: flow),
             const SizedBox(height: 12),
             _activeAutomationMetrics(
               incidentId: action.incidentId,

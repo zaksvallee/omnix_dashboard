@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/system_flow_service.dart';
 import 'components/onyx_system_flow_widgets.dart';
 import 'theme/onyx_design_tokens.dart';
 
@@ -713,19 +714,19 @@ class ClientCommsQueueBoard extends StatelessWidget {
 
   Widget _idleControlSurface() {
     final lastIncidentRef = (lastCommunication?.incidentReference ?? '').trim();
+    final flow = OnyxFlowIndicatorService.dispatchToClient(
+      sourceLabel: lastIncidentRef.isEmpty
+          ? 'Last dispatch lane is clear'
+          : 'Last dispatch → $lastIncidentRef',
+      nextActionLabel: 'Draft and deliver the next client update when needed',
+      referenceLabel: lastIncidentRef.isEmpty ? null : lastIncidentRef,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _zaraCommunicationStateCard(),
         const SizedBox(height: 10),
-        OnyxFlowIndicator(
-          chainLabel: 'Dispatch → Comms → Client',
-          sourceLabel: lastIncidentRef.isEmpty
-              ? 'Last dispatch lane is clear'
-              : 'Last dispatch → $lastIncidentRef',
-          nextActionLabel:
-              'Draft and deliver the next client update when needed',
-        ),
+        OnyxFlowIndicator(flow: flow),
         const SizedBox(height: 10),
         _idleStatusRow(),
         const SizedBox(height: 10),
@@ -1167,6 +1168,9 @@ class ClientCommsQueueBoard extends StatelessWidget {
   };
 
   Widget _zaraCommunicationStateCard() {
+    final lines = OnyxZaraContinuityService.communicationsStatusLines(
+      lastIncidentReference: lastCommunication?.incidentReference,
+    );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1215,9 +1219,9 @@ class ClientCommsQueueBoard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 5),
-                _stateLine('No pending client communications.'),
+                _stateLine(lines[0]),
                 const SizedBox(height: 5),
-                _stateLine('System ready to draft and send updates.'),
+                _stateLine(lines[1]),
               ],
             ),
           ),
@@ -1491,13 +1495,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
   }
 
   String _zaraToneLine() {
-    final label = switch (selectedTone) {
-      'Reassuring' => 'Using reassuring tone',
-      'Concise' => 'Using concise tone',
-      'Formal' => 'Using formal tone',
-      _ => 'Using contextual tone',
-    };
-    return 'ZARA: $label for client-facing updates.';
+    return OnyxZaraContinuityService.communicationsToneLine(selectedTone);
   }
 
   String _formatTime(DateTime utc) {

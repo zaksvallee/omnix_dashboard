@@ -1277,63 +1277,74 @@ class TacticalPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'ZARA · DETECTION SUMMARY',
-                        style: GoogleFonts.inter(
-                          color: OnyxColorTokens.accentPurple.withValues(
-                            alpha: 0.60,
-                          ),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      _summaryLine(
-                        color: OnyxColorTokens.accentRed,
-                        text:
-                            '$totalSignals anomalies detected across active zones.',
-                      ),
-                      const SizedBox(height: 4),
-                      _summaryLine(
-                        color: OnyxColorTokens.accentAmber,
-                        text:
-                            '${math.max(reviewCount, geofenceAlerts)} require verification before escalation.',
-                      ),
-                      const SizedBox(height: 4),
-                      _summaryLine(
-                        color: OnyxColorTokens.accentPurple,
-                        text: topSignal == null
-                            ? 'No likely actionable signal is active right now.'
-                            : '1 likely actionable — ${topSignal.title} at $summaryTime.',
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Text(
-                            '→',
-                            style: GoogleFonts.inter(
-                              color: OnyxColorTokens.accentPurple,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              topSignal == null
-                                  ? 'Detection lanes are nominal.'
-                                  : 'Predictive read: review ${topSignal.title} first before pushing the next queue handoff.',
-                              style: GoogleFonts.inter(
-                                color: OnyxColorTokens.accentPurple.withValues(
-                                  alpha: 0.80,
+                      Builder(
+                        builder: (context) {
+                          final continuity =
+                              OnyxZaraContinuityService.trackDetection(
+                                totalSignals: totalSignals,
+                                reviewCount: reviewCount,
+                                geofenceAlerts: geofenceAlerts,
+                                topSignalTitle: topSignal?.title,
+                                summaryTime: summaryTime,
+                              );
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                continuity.headline,
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.accentPurple
+                                      .withValues(alpha: 0.60),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
                                 ),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
                               ),
-                            ),
-                          ),
-                        ],
+                              const SizedBox(height: 5),
+                              _summaryLine(
+                                color: OnyxColorTokens.accentRed,
+                                text: continuity.lines[0],
+                              ),
+                              const SizedBox(height: 4),
+                              _summaryLine(
+                                color: OnyxColorTokens.accentAmber,
+                                text: continuity.lines[1],
+                              ),
+                              const SizedBox(height: 4),
+                              _summaryLine(
+                                color: OnyxColorTokens.accentPurple,
+                                text: continuity.lines[2],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Text(
+                                    '→',
+                                    style: GoogleFonts.inter(
+                                      color: OnyxColorTokens.accentPurple,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      topSignal == null
+                                          ? 'Detection lanes are nominal.'
+                                          : 'Predictive read: review ${topSignal.title} first before pushing the next queue handoff.',
+                                      style: GoogleFonts.inter(
+                                        color: OnyxColorTokens.accentPurple
+                                            .withValues(alpha: 0.80),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -1392,6 +1403,21 @@ class TacticalPage extends StatelessWidget {
             ],
           );
           if (compact) {
+            final flow = OnyxFlowIndicatorService.trackToQueue(
+              sourceLabel: topSignal == null
+                  ? 'Detection lane standing by'
+                  : 'Strongest signal → ${topSignal.title}',
+              nextActionLabel: sentCount > 0
+                  ? 'Sent to Queue → ${latestQueueReference ?? 'INC-STANDBY'}'
+                  : topSignal == null
+                  ? 'Await the next verified anomaly'
+                  : 'Next queue handoff → ${_trackQueueReference(topSignal.id)}',
+              referenceLabel: sentCount > 0
+                  ? latestQueueReference
+                  : topSignal == null
+                  ? null
+                  : _trackQueueReference(topSignal.id),
+            );
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1399,20 +1425,25 @@ class TacticalPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 rightColumn,
                 const SizedBox(height: 10),
-                OnyxFlowIndicator(
-                  chainLabel: 'Track → Queue',
-                  sourceLabel: topSignal == null
-                      ? 'Detection lane standing by'
-                      : 'Strongest signal → ${topSignal.title}',
-                  nextActionLabel: sentCount > 0
-                      ? 'Sent to Queue → ${latestQueueReference ?? 'INC-STANDBY'}'
-                      : topSignal == null
-                      ? 'Await the next verified anomaly'
-                      : 'Next queue handoff → ${_trackQueueReference(topSignal.id)}',
-                ),
+                OnyxFlowIndicator(flow: flow),
               ],
             );
           }
+          final flow = OnyxFlowIndicatorService.trackToQueue(
+            sourceLabel: topSignal == null
+                ? 'Detection lane standing by'
+                : 'Strongest signal → ${topSignal.title}',
+            nextActionLabel: sentCount > 0
+                ? 'Sent to Queue → ${latestQueueReference ?? 'INC-STANDBY'}'
+                : topSignal == null
+                ? 'Await the next verified anomaly'
+                : 'Next queue handoff → ${_trackQueueReference(topSignal.id)}',
+            referenceLabel: sentCount > 0
+                ? latestQueueReference
+                : topSignal == null
+                ? null
+                : _trackQueueReference(topSignal.id),
+          );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1421,17 +1452,7 @@ class TacticalPage extends StatelessWidget {
                 children: [leftColumn, const SizedBox(width: 16), rightColumn],
               ),
               const SizedBox(height: 10),
-              OnyxFlowIndicator(
-                chainLabel: 'Track → Queue',
-                sourceLabel: topSignal == null
-                    ? 'Detection lane standing by'
-                    : 'Strongest signal → ${topSignal.title}',
-                nextActionLabel: sentCount > 0
-                    ? 'Sent to Queue → ${latestQueueReference ?? 'INC-STANDBY'}'
-                    : topSignal == null
-                    ? 'Await the next verified anomaly'
-                    : 'Next queue handoff → ${_trackQueueReference(topSignal.id)}',
-              ),
+              OnyxFlowIndicator(flow: flow),
             ],
           );
         },

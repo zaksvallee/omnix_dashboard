@@ -5,6 +5,7 @@ import 'dart:async';
 
 import '../application/system_flow_service.dart';
 import '../domain/authority/onyx_route.dart';
+import 'components/onyx_incident_lifecycle_view.dart';
 import 'components/onyx_system_flow_widgets.dart';
 
 export '../domain/authority/onyx_route.dart';
@@ -234,7 +235,10 @@ class AppShell extends StatefulWidget {
   final String operatorShiftLabel;
   final int complianceIssuesCount;
   final int tacticalSosAlerts;
+  final int elevatedRiskCount;
+  final int liveAlarmCount;
   final List<OnyxIntelTickerItem> intelTickerItems;
+  final OnyxIncidentLifecycleSnapshot incidentLifecycleSnapshot;
   final String demoAutopilotStatusLabel;
   final VoidCallback? onStopDemoAutopilot;
   final VoidCallback? onSkipDemoAutopilot;
@@ -255,7 +259,16 @@ class AppShell extends StatefulWidget {
     this.operatorShiftLabel = '',
     this.complianceIssuesCount = 0,
     this.tacticalSosAlerts = 0,
+    this.elevatedRiskCount = 0,
+    this.liveAlarmCount = 0,
     this.intelTickerItems = const [],
+    this.incidentLifecycleSnapshot = const OnyxIncidentLifecycleSnapshot(
+      incidentReference: 'INC-STANDBY',
+      summary:
+          'No active lifecycle in focus. Awaiting the next verified incident.',
+      active: false,
+      entries: <OnyxIncidentLifecycleEntry>[],
+    ),
     this.demoAutopilotStatusLabel = '',
     this.onStopDemoAutopilot,
     this.onSkipDemoAutopilot,
@@ -314,6 +327,8 @@ class _AppShellState extends State<AppShell> {
                   aiActionCount: widget.aiActionCount,
                   complianceIssuesCount: widget.complianceIssuesCount,
                   tacticalSosAlerts: widget.tacticalSosAlerts,
+                  elevatedRiskCount: widget.elevatedRiskCount,
+                  liveAlarmCount: widget.liveAlarmCount,
                   guardsOnlineCount: widget.guardsOnlineCount,
                   onRouteChanged: (route) {
                     Navigator.of(context).maybePop();
@@ -391,6 +406,8 @@ class _AppShellState extends State<AppShell> {
                   aiActionCount: widget.aiActionCount,
                   complianceIssuesCount: widget.complianceIssuesCount,
                   tacticalSosAlerts: widget.tacticalSosAlerts,
+                  elevatedRiskCount: widget.elevatedRiskCount,
+                  liveAlarmCount: widget.liveAlarmCount,
                   guardsOnlineCount: widget.guardsOnlineCount,
                   operatorLabel: widget.operatorLabel,
                   onRouteChanged: widget.onRouteChanged,
@@ -407,10 +424,14 @@ class _AppShellState extends State<AppShell> {
                           guardsOnlineCount: widget.guardsOnlineCount,
                           complianceIssuesCount: widget.complianceIssuesCount,
                           tacticalSosAlerts: widget.tacticalSosAlerts,
+                          elevatedRiskCount: widget.elevatedRiskCount,
+                          liveAlarmCount: widget.liveAlarmCount,
                           operatorLabel: widget.operatorLabel,
                           operatorRoleLabel: widget.operatorRoleLabel,
                           operatorShiftLabel: widget.operatorShiftLabel,
                           onRouteChanged: widget.onRouteChanged,
+                          incidentLifecycleSnapshot:
+                              widget.incidentLifecycleSnapshot,
                           demoAutopilotStatusLabel:
                               widget.demoAutopilotStatusLabel,
                           onStopDemoAutopilot: widget.onStopDemoAutopilot,
@@ -450,10 +471,13 @@ class _ShellTopBar extends StatelessWidget {
   final int guardsOnlineCount;
   final int complianceIssuesCount;
   final int tacticalSosAlerts;
+  final int elevatedRiskCount;
+  final int liveAlarmCount;
   final String operatorLabel;
   final String operatorRoleLabel;
   final String operatorShiftLabel;
   final ValueChanged<OnyxRoute> onRouteChanged;
+  final OnyxIncidentLifecycleSnapshot incidentLifecycleSnapshot;
   final String demoAutopilotStatusLabel;
   final VoidCallback? onStopDemoAutopilot;
   final VoidCallback? onSkipDemoAutopilot;
@@ -467,10 +491,13 @@ class _ShellTopBar extends StatelessWidget {
     required this.guardsOnlineCount,
     required this.complianceIssuesCount,
     required this.tacticalSosAlerts,
+    required this.elevatedRiskCount,
+    required this.liveAlarmCount,
     required this.operatorLabel,
     required this.operatorRoleLabel,
     required this.operatorShiftLabel,
     required this.onRouteChanged,
+    required this.incidentLifecycleSnapshot,
     this.demoAutopilotStatusLabel = '',
     this.onStopDemoAutopilot,
     this.onSkipDemoAutopilot,
@@ -499,14 +526,23 @@ class _ShellTopBar extends StatelessWidget {
               ? 196.0
               : 160.0;
           final totalAlerts = activeIncidentCount + aiActionCount;
-          final systemState = OnyxSystemFlowService.deriveGlobalState(
+          final systemSnapshot = OnyxSystemStateService.deriveSnapshot(
             activeIncidentCount: activeIncidentCount,
             aiActionCount: aiActionCount,
             guardsOnlineCount: guardsOnlineCount,
             complianceIssuesCount: complianceIssuesCount,
             tacticalSosAlerts: tacticalSosAlerts,
+            elevatedRiskCount: elevatedRiskCount,
+            liveAlarmCount: liveAlarmCount,
+          );
+          final systemState = systemSnapshot.state;
+          final shellFlow = OnyxFlowIndicatorService.shellFlow(
+            snapshot: systemSnapshot,
+            incidentReference: incidentLifecycleSnapshot.incidentReference,
           );
           final compactSystemState = constraints.maxWidth < 1500;
+          final showFlowBreadcrumb = constraints.maxWidth >= 1760;
+          final compactLifecycleButton = constraints.maxWidth < 1320;
 
           // Dynamic status chip
           final Color statusFg;
@@ -563,18 +599,26 @@ class _ShellTopBar extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: OnyxGlobalSystemStateChip(
                     state: systemState,
-                    detail: OnyxSystemFlowService.stateDetail(
-                      systemState,
-                      activeIncidentCount: activeIncidentCount,
-                      aiActionCount: aiActionCount,
-                      guardsOnlineCount: guardsOnlineCount,
-                      complianceIssuesCount: complianceIssuesCount,
-                      tacticalSosAlerts: tacticalSosAlerts,
-                    ),
+                    detail: OnyxSystemStateService.detailFor(systemSnapshot),
                     compact: compactSystemState,
                   ),
                 ),
               ),
+              if (showFlowBreadcrumb) ...[
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 360,
+                  child: OnyxFlowBreadcrumb(
+                    flow: shellFlow,
+                    compact: true,
+                    showTitle: false,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                  ),
+                ),
+              ],
               const Spacer(),
               // Quick search field
               GestureDetector(
@@ -620,6 +664,42 @@ class _ShellTopBar extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 10),
+              if (compactLifecycleButton)
+                _TopBarActionIcon(
+                  onPressed: () => showOnyxIncidentLifecycleDialog(
+                    context: context,
+                    snapshot: incidentLifecycleSnapshot,
+                  ),
+                  icon: Icons.timeline_rounded,
+                  foregroundColor: OnyxColorTokens.accentPurple,
+                  borderColor: OnyxColorTokens.accentPurple.withValues(
+                    alpha: 0.20,
+                  ),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed: () => showOnyxIncidentLifecycleDialog(
+                    context: context,
+                    snapshot: incidentLifecycleSnapshot,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    foregroundColor: OnyxColorTokens.accentPurple,
+                    side: BorderSide(
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.20,
+                      ),
+                    ),
+                    textStyle: _appShellTextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  icon: const Icon(Icons.timeline_rounded, size: 14),
+                  label: const Text('Lifecycle'),
+                ),
               const Spacer(),
               // Autopilot controls
               if (showAutopilot) ...[
@@ -811,6 +891,8 @@ class _Sidebar extends StatelessWidget {
   final int guardsOnlineCount;
   final int complianceIssuesCount;
   final int tacticalSosAlerts;
+  final int elevatedRiskCount;
+  final int liveAlarmCount;
   final String operatorLabel;
   final ValueChanged<OnyxRoute> onRouteChanged;
 
@@ -823,6 +905,8 @@ class _Sidebar extends StatelessWidget {
     required this.guardsOnlineCount,
     required this.complianceIssuesCount,
     required this.tacticalSosAlerts,
+    this.elevatedRiskCount = 0,
+    this.liveAlarmCount = 0,
     this.operatorLabel = '',
     required this.onRouteChanged,
   });

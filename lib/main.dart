@@ -149,6 +149,7 @@ import 'application/video_fleet_scope_presentation_service.dart';
 import 'application/video_fleet_scope_runtime_state_resolver.dart';
 import 'application/video_bridge_runtime.dart';
 import 'application/wearable_bridge_service.dart';
+import 'application/system_flow_service.dart';
 import 'infrastructure/bi/vehicle_visit_repository.dart';
 import 'domain/authority/operator_context.dart';
 import 'domain/authority/onyx_authority_scope.dart';
@@ -34439,7 +34440,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         operatorShiftLabel: _signedInShiftLabel(),
         complianceIssuesCount: _complianceIssuesCount(),
         tacticalSosAlerts: _tacticalSosAlerts(),
+        elevatedRiskCount: _elevatedRiskSignalCount(events),
+        liveAlarmCount: _liveMonitoringAlarmCount(events),
         intelTickerItems: _intelTickerItems(events),
+        incidentLifecycleSnapshot: _incidentLifecycleSnapshot(events),
         demoAutopilotStatusLabel: _demoAutopilotRunning
             ? 'Demo $_demoAutopilotCurrentStep/$_demoAutopilotTotalSteps • $_demoAutopilotFlowLabel${_demoAutopilotPaused ? ' • paused' : ''}${_demoAutopilotNextHopSeconds > 0 && _demoAutopilotNextRouteLabel.isNotEmpty && !_demoAutopilotPaused ? ' • next: $_demoAutopilotNextRouteLabel in $_demoAutopilotNextHopSeconds s' : ''}'
             : '',
@@ -40351,6 +40355,255 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                   const Duration(minutes: 30),
         )
         .length;
+  }
+
+  int _elevatedRiskSignalCount(List<DispatchEvent> events) {
+    final windowStartUtc = DateTime.now().toUtc().subtract(
+      const Duration(hours: 6),
+    );
+    return events
+        .whereType<IntelligenceReceived>()
+        .where(
+          (event) =>
+              event.occurredAt.toUtc().isAfter(windowStartUtc) &&
+              event.riskScore >= 60,
+        )
+        .length;
+  }
+
+  int _liveMonitoringAlarmCount(List<DispatchEvent> events) {
+    final windowStartUtc = DateTime.now().toUtc().subtract(
+      const Duration(hours: 4),
+    );
+    return events
+        .whereType<ListenerAlarmAdvisoryRecorded>()
+        .where((event) => event.occurredAt.toUtc().isAfter(windowStartUtc))
+        .length;
+  }
+
+  OnyxIncidentLifecycleSnapshot _incidentLifecycleSnapshot(
+    List<DispatchEvent> events,
+  ) {
+    final decisions = events.whereType<DecisionCreated>().toList(
+      growable: false,
+    )..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    if (decisions.isEmpty) {
+      return OnyxIncidentLifecycleSnapshot.standby();
+    }
+
+    final closedDispatchIds = events
+        .whereType<IncidentClosed>()
+        .map((event) => event.dispatchId.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final selectedDecision = decisions.firstWhere(
+      (decision) => !closedDispatchIds.contains(decision.dispatchId),
+      orElse: () => decisions.first,
+    );
+    final dispatchId = selectedDecision.dispatchId.trim();
+    final incidentReference = OnyxSystemFlowService.incidentReference(
+      dispatchId,
+    );
+    final dispatchReference = OnyxSystemFlowService.dispatchReference(
+      dispatchId,
+    );
+    final isActive = !closedDispatchIds.contains(dispatchId);
+
+    final lifecycleEntries = <OnyxIncidentLifecycleEntry>[];
+    final clientId = selectedDecision.clientId.trim();
+    final siteId = selectedDecision.siteId.trim();
+    final decisionTime = selectedDecision.occurredAt.toUtc();
+    final relatedIntelligence =
+        events
+            .whereType<IntelligenceReceived>()
+            .where(
+              (event) =>
+                  event.clientId.trim() == clientId &&
+                  event.siteId.trim() == siteId &&
+                  event.occurredAt.toUtc().isAfter(
+                    decisionTime.subtract(const Duration(hours: 2)),
+                  ) &&
+                  event.occurredAt.toUtc().isBefore(
+                    decisionTime.add(const Duration(minutes: 20)),
+                  ),
+            )
+            .toList(growable: false)
+          ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    for (final intel in relatedIntelligence.take(2)) {
+      lifecycleEntries.add(
+        OnyxIncidentLifecycleEntry(
+          stage: OnyxIncidentLifecycleStage.detection,
+          actor: OnyxIncidentLifecycleActor.system,
+          title: intel.headline.trim().isEmpty
+              ? 'Signal detected for $siteId'
+              : intel.headline.trim(),
+          detail: intel.summary.trim().isEmpty
+              ? 'Risk score ${intel.riskScore}. Zara carried this signal into Track.'
+              : intel.summary.trim(),
+          occurredAtUtc: intel.occurredAt.toUtc(),
+          reference: incidentReference,
+        ),
+      );
+    }
+
+    lifecycleEntries.add(
+      OnyxIncidentLifecycleEntry(
+        stage: OnyxIncidentLifecycleStage.decision,
+        actor: OnyxIncidentLifecycleActor.zara,
+        title: 'Queue approved — dispatch created',
+        detail:
+            'Track verification carried forward into Queue and created $dispatchReference.',
+        occurredAtUtc: decisionTime,
+        reference: dispatchReference,
+      ),
+    );
+
+    final matchingEvents =
+        events
+            .where((event) {
+              if (event is DecisionCreated) {
+                return event.dispatchId.trim() == dispatchId;
+              }
+              if (event is ExecutionDenied) {
+                return event.dispatchId.trim() == dispatchId;
+              }
+              if (event is ExecutionCompleted) {
+                return event.dispatchId.trim() == dispatchId;
+              }
+              if (event is ResponseArrived) {
+                return event.dispatchId.trim() == dispatchId;
+              }
+              if (event is PartnerDispatchStatusDeclared) {
+                return event.dispatchId.trim() == dispatchId;
+              }
+              if (event is IncidentClosed) {
+                return event.dispatchId.trim() == dispatchId;
+              }
+              return false;
+            })
+            .toList(growable: false)
+          ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+
+    for (final event in matchingEvents) {
+      if (event is DecisionCreated) {
+        continue;
+      }
+      if (event is ExecutionDenied) {
+        lifecycleEntries.add(
+          OnyxIncidentLifecycleEntry(
+            stage: OnyxIncidentLifecycleStage.decision,
+            actor: OnyxIncidentLifecycleActor.dispatch,
+            title: 'Dispatch override denied',
+            detail: event.reason.trim().isEmpty
+                ? 'Operator held the current response posture.'
+                : event.reason.trim(),
+            occurredAtUtc: event.occurredAt.toUtc(),
+            reference: dispatchReference,
+          ),
+        );
+      } else if (event is PartnerDispatchStatusDeclared) {
+        final (stage, actor, title, detail) = switch (event.status) {
+          PartnerDispatchStatus.accepted => (
+            OnyxIncidentLifecycleStage.dispatch,
+            OnyxIncidentLifecycleActor.dispatch,
+            'Dispatch accepted — ${event.partnerLabel}',
+            'Partner dispatch channel accepted the task from ${event.sourceChannel}.',
+          ),
+          PartnerDispatchStatus.onSite => (
+            OnyxIncidentLifecycleStage.confirmation,
+            OnyxIncidentLifecycleActor.officer,
+            'Officer on site — ${event.partnerLabel}',
+            'Field confirmation came back through ${event.actorLabel}.',
+          ),
+          PartnerDispatchStatus.allClear => (
+            OnyxIncidentLifecycleStage.resolution,
+            OnyxIncidentLifecycleActor.officer,
+            'All clear declared — ${event.partnerLabel}',
+            'Field team signalled that the scene has stabilised.',
+          ),
+          PartnerDispatchStatus.cancelled => (
+            OnyxIncidentLifecycleStage.resolution,
+            OnyxIncidentLifecycleActor.dispatch,
+            'Dispatch cancelled — ${event.partnerLabel}',
+            'Partner flow cancelled the current response chain.',
+          ),
+          PartnerDispatchStatus.unknown => (
+            OnyxIncidentLifecycleStage.confirmation,
+            OnyxIncidentLifecycleActor.system,
+            'Dispatch status updated',
+            'Partner dispatch status changed without a resolved operator label.',
+          ),
+        };
+        lifecycleEntries.add(
+          OnyxIncidentLifecycleEntry(
+            stage: stage,
+            actor: actor,
+            title: title,
+            detail: detail,
+            occurredAtUtc: event.occurredAt.toUtc(),
+            reference: dispatchReference,
+            major: event.status != PartnerDispatchStatus.unknown,
+          ),
+        );
+      } else if (event is ResponseArrived) {
+        lifecycleEntries.add(
+          OnyxIncidentLifecycleEntry(
+            stage: OnyxIncidentLifecycleStage.resolution,
+            actor: OnyxIncidentLifecycleActor.officer,
+            title: 'Officer arrived on site',
+            detail:
+                'Response unit ${event.guardId.trim().isEmpty ? 'field unit' : event.guardId.trim()} reached the incident location.',
+            occurredAtUtc: event.occurredAt.toUtc(),
+            reference: dispatchReference,
+          ),
+        );
+      } else if (event is ExecutionCompleted) {
+        lifecycleEntries.add(
+          OnyxIncidentLifecycleEntry(
+            stage: event.success
+                ? OnyxIncidentLifecycleStage.confirmation
+                : OnyxIncidentLifecycleStage.resolution,
+            actor: OnyxIncidentLifecycleActor.system,
+            title: event.success
+                ? 'Execution chain completed'
+                : 'Execution chain closed with a failure marker',
+            detail: event.success
+                ? 'System execution completed without breaking the response chain.'
+                : 'System execution closed without a successful completion flag.',
+            occurredAtUtc: event.occurredAt.toUtc(),
+            reference: dispatchReference,
+            major: event.success,
+          ),
+        );
+      } else if (event is IncidentClosed) {
+        lifecycleEntries.add(
+          OnyxIncidentLifecycleEntry(
+            stage: OnyxIncidentLifecycleStage.recorded,
+            actor: OnyxIncidentLifecycleActor.system,
+            title: 'Incident closed — ${event.resolutionType}',
+            detail:
+                'Ledger sealed and the response record moved into historical truth.',
+            occurredAtUtc: event.occurredAt.toUtc(),
+            reference: incidentReference,
+          ),
+        );
+      }
+    }
+
+    if (lifecycleEntries.isEmpty) {
+      return OnyxIncidentLifecycleSnapshot.standby();
+    }
+
+    lifecycleEntries.sort((a, b) => a.occurredAtUtc.compareTo(b.occurredAtUtc));
+    final summary = isActive
+        ? 'Active incident flowing from detection into dispatch. Zara continuity is preserving the operational chain.'
+        : 'Resolved incident sealed into the ledger. Full chain remains available for review and training.';
+    return OnyxIncidentLifecycleSnapshot(
+      incidentReference: incidentReference,
+      summary: summary,
+      active: isActive,
+      entries: lifecycleEntries,
+    );
   }
 
   Widget _buildClientPage(List<DispatchEvent> events) {

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/guard_sync_repository.dart';
+import '../application/system_flow_service.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/guard/guard_mobile_ops.dart';
 import '../domain/guard/guard_position_summary.dart';
@@ -701,29 +702,41 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
     final anomalyCount = historyEntries
         .where((entry) => entry.flags.isNotEmpty)
         .length;
+    final extended = historyEntries
+        .where((entry) => entry.flags.contains(_HistoryFlag.extendedShift))
+        .length;
+    final noMovement = historyEntries
+        .where((entry) => entry.flags.contains(_HistoryFlag.noMovement))
+        .length;
 
+    late final OnyxZaraContinuitySnapshot continuity;
     late final List<(Color, String)> lines;
     late final String postureLabel;
     late final Color postureColor;
 
     switch (_selectedTab) {
       case _WorkforceTab.activeGuards:
+        continuity = OnyxZaraContinuityService.workforceSummary(
+          tabKey: 'active',
+          readyCount: readyCount,
+          engagedCount: engagedCount,
+          syncIssues: syncIssues,
+          siteCount: _visibleSiteCount(guards),
+          gaps: gaps,
+          thin: thin,
+          anomalyCount: anomalyCount,
+          extendedCount: extended,
+          noMovementCount: noMovement,
+        );
         lines = <(Color, String)>[
-          (
-            _workforceGreen,
-            '$readyCount guards ready for immediate response across ${_visibleSiteCount(guards)} active sites.',
-          ),
+          (_workforceGreen, continuity.lines[0]),
           (
             engagedCount > 0 ? _workforceAmber : _workforceGreen,
-            engagedCount > 0
-                ? '$engagedCount guard engaged on a live task. Queue handoff should prefer the next ready unit.'
-                : 'All active guards are available for controlled dispatch handoff.',
+            continuity.lines[1],
           ),
           (
             syncIssues > 0 ? _workforcePurple : _workforceGreen,
-            syncIssues > 0
-                ? '$syncIssues sync issue flagged. Verify telemetry before rotating that guard into the next incident.'
-                : 'Telemetry is stable. Real-time guard position hooks are ready for live map binding.',
+            continuity.lines[2],
           ),
         ];
         postureLabel = engagedCount > 0
@@ -731,53 +744,52 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
             : 'WORKFORCE READY';
         postureColor = engagedCount > 0 ? _workforceAmber : _workforceGreen;
       case _WorkforceTab.shiftRoster:
+        continuity = OnyxZaraContinuityService.workforceSummary(
+          tabKey: 'roster',
+          readyCount: readyCount,
+          engagedCount: engagedCount,
+          syncIssues: syncIssues,
+          siteCount: _visibleSiteCount(guards),
+          gaps: gaps,
+          thin: thin,
+          anomalyCount: anomalyCount,
+          extendedCount: extended,
+          noMovementCount: noMovement,
+        );
         lines = <(Color, String)>[
-          (
-            gaps > 0 ? _workforceRed : _workforceGreen,
-            gaps > 0
-                ? '$gaps site coverage gap${gaps == 1 ? '' : 's'} detected in the current seven-day layer.'
-                : 'Coverage grid is fully staffed across the current seven-day horizon.',
-          ),
-          (
-            thin > 0 ? _workforceAmber : _workforceGreen,
-            thin > 0
-                ? '$thin site lane${thin == 1 ? '' : 's'} running thin. Add a coverage layer before shift rollover.'
-                : 'No thin lanes detected. Each site keeps at least two operational names on the board.',
-          ),
-          (
-            _workforcePurple,
-            'Zara recommends reviewing Blue Ridge and Waterfall first before the next night turnover.',
-          ),
+          (gaps > 0 ? _workforceRed : _workforceGreen, continuity.lines[0]),
+          (thin > 0 ? _workforceAmber : _workforceGreen, continuity.lines[1]),
+          (_workforcePurple, continuity.lines[2]),
         ];
         postureLabel = gaps > 0 || thin > 0
             ? 'COVERAGE WATCH'
             : 'COVERAGE STABLE';
         postureColor = gaps > 0 || thin > 0 ? _workforceAmber : _workforceGreen;
       case _WorkforceTab.shiftHistory:
-        final extended = historyEntries
-            .where((entry) => entry.flags.contains(_HistoryFlag.extendedShift))
-            .length;
-        final noMovement = historyEntries
-            .where((entry) => entry.flags.contains(_HistoryFlag.noMovement))
-            .length;
+        continuity = OnyxZaraContinuityService.workforceSummary(
+          tabKey: 'history',
+          readyCount: readyCount,
+          engagedCount: engagedCount,
+          syncIssues: syncIssues,
+          siteCount: _visibleSiteCount(guards),
+          gaps: gaps,
+          thin: thin,
+          anomalyCount: anomalyCount,
+          extendedCount: extended,
+          noMovementCount: noMovement,
+        );
         lines = <(Color, String)>[
           (
             anomalyCount > 0 ? _workforceAmber : _workforceGreen,
-            anomalyCount > 0
-                ? '$anomalyCount shift timeline entries include operational flags worth review.'
-                : 'No operational anomalies surfaced in the current history window.',
+            continuity.lines[0],
           ),
           (
             extended > 0 ? _workforceAmber : _workforceGreen,
-            extended > 0
-                ? '$extended extended shift${extended == 1 ? '' : 's'} detected. Watch fatigue on the next roster layer.'
-                : 'No fatigue markers detected from the current shift durations.',
+            continuity.lines[1],
           ),
           (
             noMovement > 0 ? _workforcePurple : _workforceGreen,
-            noMovement > 0
-                ? '$noMovement no-movement flag${noMovement == 1 ? '' : 's'} surfaced. Cross-check patrol continuity against CCTV.'
-                : 'Movement patterns remain healthy across logged shifts.',
+            continuity.lines[2],
           ),
         ];
         postureLabel = anomalyCount > 0
@@ -827,7 +839,7 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'ZARA · WORKFORCE SUMMARY',
+                      continuity.headline,
                       style: textTheme.labelSmall?.copyWith(
                         color: _workforcePurple.withValues(alpha: 0.60),
                         fontSize: 9,
@@ -892,6 +904,16 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
           );
 
           if (stacked) {
+            final flow = OnyxFlowIndicatorService.guardsToDispatch(
+              sourceLabel: _workforceFlowSourceLabel(),
+              nextActionLabel: _workforceFlowNextActionLabel(
+                readyCount: readyCount,
+                engagedCount: engagedCount,
+                gaps: gaps,
+                thin: thin,
+                anomalyCount: anomalyCount,
+              ),
+            );
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -899,21 +921,21 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 const SizedBox(height: 12),
                 posture,
                 const SizedBox(height: 10),
-                OnyxFlowIndicator(
-                  chainLabel: 'Guards → Queue → Dispatch',
-                  sourceLabel: _workforceFlowSourceLabel(),
-                  nextActionLabel: _workforceFlowNextActionLabel(
-                    readyCount: readyCount,
-                    engagedCount: engagedCount,
-                    gaps: gaps,
-                    thin: thin,
-                    anomalyCount: anomalyCount,
-                  ),
-                ),
+                OnyxFlowIndicator(flow: flow),
               ],
             );
           }
 
+          final flow = OnyxFlowIndicatorService.guardsToDispatch(
+            sourceLabel: _workforceFlowSourceLabel(),
+            nextActionLabel: _workforceFlowNextActionLabel(
+              readyCount: readyCount,
+              engagedCount: engagedCount,
+              gaps: gaps,
+              thin: thin,
+              anomalyCount: anomalyCount,
+            ),
+          );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -926,17 +948,7 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 ],
               ),
               const SizedBox(height: 10),
-              OnyxFlowIndicator(
-                chainLabel: 'Guards → Queue → Dispatch',
-                sourceLabel: _workforceFlowSourceLabel(),
-                nextActionLabel: _workforceFlowNextActionLabel(
-                  readyCount: readyCount,
-                  engagedCount: engagedCount,
-                  gaps: gaps,
-                  thin: thin,
-                  anomalyCount: anomalyCount,
-                ),
-              ),
+              OnyxFlowIndicator(flow: flow),
             ],
           );
         },

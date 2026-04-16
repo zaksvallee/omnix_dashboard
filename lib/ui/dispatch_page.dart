@@ -843,6 +843,13 @@ class _DispatchPageState extends State<DispatchPage> {
     required _DispatchItem? selectedDispatch,
     required bool twoColumn,
   }) {
+    final dispatchFlow = OnyxFlowIndicatorService.dispatchLifecycle(
+      sourceLabel: _dispatchFlowSourceLabel(selectedDispatch),
+      nextActionLabel: _dispatchFlowNextActionLabel(selectedDispatch),
+      referenceLabel: selectedDispatch == null
+          ? 'DSP-STANDBY'
+          : OnyxSystemFlowService.dispatchReference(selectedDispatch.id),
+    );
     final leftColumn = Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
@@ -850,11 +857,7 @@ class _DispatchPageState extends State<DispatchPage> {
         children: [
           _incidentHeaderCard(selectedDispatch),
           const SizedBox(height: 10),
-          OnyxFlowIndicator(
-            chainLabel: 'Track → Queue → Dispatch',
-            sourceLabel: _dispatchFlowSourceLabel(selectedDispatch),
-            nextActionLabel: _dispatchFlowNextActionLabel(selectedDispatch),
-          ),
+          OnyxFlowIndicator(flow: dispatchFlow),
           const SizedBox(height: 10),
           _dispatchSectionLabel('INCIDENT TIMELINE'),
           const SizedBox(height: 6),
@@ -2705,28 +2708,17 @@ class _DispatchPageState extends State<DispatchPage> {
         'Awaiting the next verified incident.',
       ];
     }
-    return switch (_dispatchOutcomeKindForDispatch(dispatch)) {
-      _DispatchOutcomeKind.realEmergency => const [
-        'Client confirmed real emergency.',
-        'Dispatch successful.',
-        'No further escalation required.',
-      ],
-      _DispatchOutcomeKind.falseAlarm => const [
-        'Client confirmed false alarm.',
-        'No dispatch required.',
-        'Record sealed.',
-      ],
-      _DispatchOutcomeKind.noResponse => const [
-        'Client did not provide verified confirmation.',
-        'Response chain held its current posture.',
-        'Record remains ready for operator review.',
-      ],
-      _DispatchOutcomeKind.safeWord => const [
-        'Client safe word activated the protected flow.',
-        'Dispatch successful.',
-        'No further escalation required.',
-      ],
+    final outcomeKey = switch (_dispatchOutcomeKindForDispatch(dispatch)) {
+      _DispatchOutcomeKind.realEmergency => 'real_emergency',
+      _DispatchOutcomeKind.falseAlarm => 'false_alarm',
+      _DispatchOutcomeKind.noResponse => 'no_response',
+      _DispatchOutcomeKind.safeWord => 'safe_word',
     };
+    return OnyxZaraContinuityService.dispatchFinalLines(
+      outcomeKey: outcomeKey,
+      dispatchReference: OnyxSystemFlowService.dispatchReference(dispatch.id),
+      resolved: _isDispatchResolved(dispatch),
+    );
   }
 
   String _phaseLabel(_DispatchTimelinePhase phase) {
