@@ -3085,11 +3085,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          if (activeTaskCount > 0) ...[
-            activeTasksChip,
-            const SizedBox(width: 12),
-          ],
+          SizedBox(
+            width: 180,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: activeTasksChip,
+            ),
+          ),
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -3160,46 +3164,54 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 280),
-            child: Align(
+          SizedBox(
+            width: 260,
+            child: OverflowBox(
               alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _commandCenterDot(OnyxColorTokens.accentGreen, size: 7),
-                  const SizedBox(width: 8),
-                  Text(
-                    'CONTROLLER-1 · LIVE OPS',
-                    style: GoogleFonts.inter(
-                      color: OnyxColorTokens.textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  FilledButton(
-                    onPressed: onAlert,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: OnyxColorTokens.brand,
-                      foregroundColor: OnyxColorTokens.textPrimary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      minimumSize: const Size(0, 28),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      textStyle: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+              minWidth: 260,
+              maxWidth: 260,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  children: [
+                    _commandCenterDot(OnyxColorTokens.accentGreen, size: 7),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'CONTROLLER-1 · LIVE OPS',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    child: const Text('ALERT'),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    FilledButton(
+                      onPressed: onAlert,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: OnyxColorTokens.brand,
+                        foregroundColor: OnyxColorTokens.textPrimary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        minimumSize: const Size(0, 28),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: const Text('ALERT'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -3217,12 +3229,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required Color activeConditionAccent,
   }) {
     return Container(
-      height: 32,
       decoration: const BoxDecoration(
         color: OnyxColorTokens.backgroundPrimary,
         border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           Text(
