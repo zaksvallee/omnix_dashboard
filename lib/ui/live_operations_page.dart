@@ -1331,7 +1331,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   Set<String> _verifiedLedgerEntryIds = <String>{};
   DateTime? _lastLedgerVerificationAt;
   _LiveOpsCommandReceipt _commandReceipt = _defaultCommandReceipt;
-  bool _desktopWorkspaceActive = false;
+  final bool _desktopWorkspaceActive = false;
   String? _sidebarItemKey;
   String _lastPlainLanguageCommand = '';
   OnyxCommandSurfacePreview? _lastPlainLanguagePreview;
@@ -2840,64 +2840,1987 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final controlInboxSnapshot = widget.controlInboxSnapshot;
     final ledger = [..._manualLedger, ..._projectedLedger]
       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    final handsetLayout = isHandsetLayout(context);
-    final viewportSize = MediaQuery.sizeOf(context);
-    final viewportWidth = viewportSize.width;
-    final showPageTopBar = viewportWidth < 980 || handsetLayout;
-    final showCommandReceiptBanner =
-        _hasAgentReturnReceipt || _hasAutoAuditReceipt;
 
     return OnyxPageScaffold(
       child: Column(
         children: [
-          if (showPageTopBar) _topBar(),
+          _commandCenterHero(
+            activeIncident: activeIncident,
+            clientCommsSnapshot: clientCommsSnapshot,
+            controlInboxSnapshot: controlInboxSnapshot,
+            ledger: ledger,
+          ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: LayoutBuilder(
-                builder: (context, bodyConstraints) {
-                  final surfaceMaxWidth = bodyConstraints.maxWidth > 1460
-                      ? 1460.0
-                      : bodyConstraints.maxWidth;
-                  _desktopWorkspaceActive = false;
-                  return OnyxCommandSurface(
-                    compactDesktopWidth: surfaceMaxWidth,
-                    viewportWidth: bodyConstraints.maxWidth,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          if (_criticalAlertIncident != null) ...[
-                            _criticalAlertBanner(_criticalAlertIncident!),
-                            const SizedBox(height: 20),
-                          ],
-                          _commandCenterHero(
-                            activeIncident: activeIncident,
-                            clientCommsSnapshot: clientCommsSnapshot,
-                            controlInboxSnapshot: controlInboxSnapshot,
-                            ledger: ledger,
+            child: _commandOverviewDeck(
+              activeIncident: activeIncident,
+              clientCommsSnapshot: clientCommsSnapshot,
+              controlInboxSnapshot: controlInboxSnapshot,
+              ledger: ledger,
+            ),
+          ),
+          Offstage(offstage: true, child: _topBar()),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterHero({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required List<_LedgerEntry> ledger,
+    bool compact = false,
+  }) {
+    if (compact) {
+      return _legacyCommandCenterHero(
+        activeIncident: activeIncident,
+        clientCommsSnapshot: clientCommsSnapshot,
+        controlInboxSnapshot: controlInboxSnapshot,
+        ledger: ledger,
+        compact: true,
+      );
+    }
+
+    final decisionItems = _commandDecisionItems(
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+      controlInboxSnapshot: controlInboxSnapshot,
+      ledger: ledger,
+    );
+    final activeTaskCount = decisionItems.isNotEmpty
+        ? decisionItems.length
+        : _incidents
+              .where((incident) => incident.status != _IncidentStatus.resolved)
+              .length;
+    final focusedGuard = _focusedVigilanceGuard;
+    final activeCondition = _commandCenterActiveConditionLabel(
+      activeIncident: activeIncident,
+      focusedGuard: focusedGuard,
+      controlInboxSnapshot: controlInboxSnapshot,
+    );
+    final activeConditionAccent = _commandCenterConditionAccent(
+      activeIncident: activeIncident,
+      focusedGuard: focusedGuard,
+      controlInboxSnapshot: controlInboxSnapshot,
+    );
+    final cameraPacket = clientCommsSnapshot == null
+        ? null
+        : _clientLaneCameraPacketForScope(clientCommsSnapshot);
+    final dvrHealthy =
+        cameraPacket == null ||
+        cameraPacket.status == ClientCameraHealthStatus.live;
+    final dvrLabel = dvrHealthy
+        ? 'DVR Online'
+        : '${_commandCenterPrimarySiteLabel(activeIncident, clientCommsSnapshot)} ${cameraPacket.status == ClientCameraHealthStatus.limited ? 'DVR Limited' : 'DVR Offline'}';
+    final hasIncidents = _incidents.any(
+      (incident) => incident.status != _IncidentStatus.resolved,
+    );
+    final zaraLine = _commandCenterZaraStripLine(
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+      controlInboxSnapshot: controlInboxSnapshot,
+      decisionItems: decisionItems,
+    );
+    final alertTarget = _criticalAlertIncident ?? activeIncident;
+
+    return Column(
+      children: [
+        _commandCenterTopBar(
+          activeTaskCount: activeTaskCount,
+          zaraLine: zaraLine,
+          onAlert: alertTarget == null
+              ? (_incidents.isEmpty ? null : _focusLeadIncident)
+              : () => unawaited(_openCommandAlarmBoard(alertTarget)),
+        ),
+        _commandCenterStatusStrip(
+          allSitesNominal: !hasIncidents,
+          dvrLabel: dvrLabel,
+          dvrAccent: dvrHealthy
+              ? OnyxColorTokens.accentGreen
+              : OnyxColorTokens.accentRed,
+          guardCount: _vigilance.length,
+          activeCondition: activeCondition,
+          activeConditionAccent: activeConditionAccent,
+        ),
+        Offstage(
+          offstage: true,
+          child: _legacyCommandCenterHero(
+            activeIncident: activeIncident,
+            clientCommsSnapshot: clientCommsSnapshot,
+            controlInboxSnapshot: controlInboxSnapshot,
+            ledger: ledger,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _commandOverviewDeck({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required List<_LedgerEntry> ledger,
+  }) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(
+          color: OnyxColorTokens.backgroundPrimary,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 1240;
+              if (stacked) {
+                return SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 336,
+                        child: _commandCenterLiveContextZone(
+                          activeIncident: activeIncident,
+                          clientCommsSnapshot: clientCommsSnapshot,
+                          controlInboxSnapshot: controlInboxSnapshot,
+                        ),
+                      ),
+                      Container(height: 1, color: OnyxColorTokens.divider),
+                      SizedBox(
+                        height: 456,
+                        child: _commandCenterTaskBoardZone(
+                          activeIncident: activeIncident,
+                          clientCommsSnapshot: clientCommsSnapshot,
+                          controlInboxSnapshot: controlInboxSnapshot,
+                          ledger: ledger,
+                        ),
+                      ),
+                      Container(height: 1, color: OnyxColorTokens.divider),
+                      SizedBox(
+                        height: 320,
+                        child: _commandCenterLedgerZone(ledger: ledger),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: 20,
+                    child: _commandCenterLiveContextZone(
+                      activeIncident: activeIncident,
+                      clientCommsSnapshot: clientCommsSnapshot,
+                      controlInboxSnapshot: controlInboxSnapshot,
+                    ),
+                  ),
+                  Container(width: 1, color: OnyxColorTokens.divider),
+                  Expanded(
+                    flex: 18,
+                    child: _commandCenterTaskBoardZone(
+                      activeIncident: activeIncident,
+                      clientCommsSnapshot: clientCommsSnapshot,
+                      controlInboxSnapshot: controlInboxSnapshot,
+                      ledger: ledger,
+                    ),
+                  ),
+                  Container(width: 1, color: OnyxColorTokens.divider),
+                  Expanded(
+                    flex: 11,
+                    child: _commandCenterLedgerZone(ledger: ledger),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        Offstage(
+          offstage: true,
+          child: _legacyCommandOverviewDeck(
+            activeIncident: activeIncident,
+            clientCommsSnapshot: clientCommsSnapshot,
+            controlInboxSnapshot: controlInboxSnapshot,
+            ledger: ledger,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _commandCenterTopBar({
+    required int activeTaskCount,
+    required String zaraLine,
+    required VoidCallback? onAlert,
+  }) {
+    return Container(
+      height: 44,
+      decoration: const BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 180,
+            child: Row(
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(
+                    color: OnyxColorTokens.brand,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'O',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'COMMAND',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: OnyxColorTokens.brand.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.brand.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: OnyxColorTokens.brand.withValues(alpha: 0.5),
                           ),
-                          if (showCommandReceiptBanner) ...[
-                            const SizedBox(height: 20),
-                            _liveOpsCommandReceiptCard(),
-                          ],
-                          const SizedBox(height: 20),
-                          _commandOverviewDeck(
-                            activeIncident: activeIncident,
-                            clientCommsSnapshot: clientCommsSnapshot,
-                            controlInboxSnapshot: controlInboxSnapshot,
-                            ledger: ledger,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Z',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.brand,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
                           ),
-                        ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ZARA:',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.brand,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          zaraLine,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.textPrimary.withValues(
+                              alpha: 0.8,
+                            ),
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 300,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (activeTaskCount > 0) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: OnyxColorTokens.accentAmber.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(
+                        color: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.25,
+                        ),
                       ),
                     ),
-                  );
-                },
+                    child: Row(
+                      children: [
+                        _commandCenterDot(OnyxColorTokens.accentAmber, size: 7),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$activeTaskCount ACTIVE TASK${activeTaskCount == 1 ? '' : 'S'}',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentAmber,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                _commandCenterDot(OnyxColorTokens.accentGreen, size: 7),
+                const SizedBox(width: 8),
+                Text(
+                  'CONTROLLER-1 · LIVE OPS',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton(
+                  onPressed: onAlert,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OnyxColorTokens.brand,
+                    foregroundColor: OnyxColorTokens.textPrimary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    minimumSize: const Size(0, 28),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  child: const Text('ALERT'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterStatusStrip({
+    required bool allSitesNominal,
+    required String dvrLabel,
+    required Color dvrAccent,
+    required int guardCount,
+    required String? activeCondition,
+    required Color activeConditionAccent,
+  }) {
+    return Container(
+      height: 32,
+      decoration: const BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      child: Row(
+        children: [
+          Text(
+            'SYSTEM',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(width: 8),
+          _commandCenterStatusChip(
+            label: allSitesNominal ? 'All Sites Nominal' : 'Live Sites Active',
+            dotColor: allSitesNominal
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentRed,
+            textColor: allSitesNominal
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentRed,
+          ),
+          const SizedBox(width: 8),
+          _commandCenterStatusChip(
+            label: dvrLabel,
+            dotColor: dvrAccent,
+            textColor: dvrAccent,
+          ),
+          Container(
+            width: 1,
+            height: 18,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            color: OnyxColorTokens.divider,
+          ),
+          Text(
+            'CONDITIONS',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(width: 8),
+          _commandCenterStatusChip(
+            label: '$guardCount Guard${guardCount == 1 ? '' : 's'} Active',
+            dotColor: OnyxColorTokens.accentGreen,
+            textColor: OnyxColorTokens.accentGreen,
+          ),
+          if (activeCondition != null) ...[
+            const SizedBox(width: 8),
+            _commandCenterStatusChip(
+              label: activeCondition,
+              dotColor: activeConditionAccent,
+              textColor: activeConditionAccent,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterStatusChip({
+    required String label,
+    required Color dotColor,
+    required Color textColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _commandCenterDot(dotColor, size: 5),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: textColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterLiveContextZone({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+  }) {
+    final focusedGuard = _focusedVigilanceGuard;
+    final activeCondition = _commandCenterActiveConditionLabel(
+      activeIncident: activeIncident,
+      focusedGuard: focusedGuard,
+      controlInboxSnapshot: controlInboxSnapshot,
+    );
+    final contextBadge =
+        (activeCondition ?? activeIncident?.type ?? 'Monitoring')
+            .replaceAll(' Active', '')
+            .toUpperCase();
+    final contextAccent = _commandCenterConditionAccent(
+      activeIncident: activeIncident,
+      focusedGuard: focusedGuard,
+      controlInboxSnapshot: controlInboxSnapshot,
+    );
+    final latestCheckIn = _latestGuardCheckInFor(focusedGuard);
+    final latestPatrol = _latestPatrolFor(focusedGuard);
+    final latestIntel = _latestIntelligenceFor(activeIncident);
+    final cameraPacket = clientCommsSnapshot == null
+        ? null
+        : _clientLaneCameraPacketForScope(clientCommsSnapshot);
+    final previewUri = cameraPacket?.currentVisualSnapshotUri == null
+        ? null
+        : _cacheBustedPreviewUri(cameraPacket!.currentVisualSnapshotUri!);
+    final verifiedAt =
+        cameraPacket?.currentVisualVerifiedAtUtc ??
+        cameraPacket?.lastSuccessfulVisualAtUtc;
+    final snapshotLive =
+        cameraPacket?.status == ClientCameraHealthStatus.live &&
+        previewUri != null;
+    final cameraLabel =
+        (cameraPacket?.currentVisualCameraId ??
+                latestIntel?.cameraId ??
+                'CAM-1')
+            .trim();
+    final zoneLabel =
+        (latestIntel?.zone ??
+                cameraPacket?.continuousVisualWatchHotZoneLabel ??
+                cameraPacket?.continuousVisualWatchHotAreaLabel ??
+                _commandCenterPrimarySiteLabel(
+                  activeIncident,
+                  clientCommsSnapshot,
+                ))
+            .trim();
+    final guardName = focusedGuard == null
+        ? 'No guard selected'
+        : 'Guard ${focusedGuard.callsign} · ${focusedGuard.callsign}';
+    final lastCheckInValue = latestCheckIn == null
+        ? (focusedGuard?.lastCheckIn ?? 'No check-in captured')
+        : _commandCenterElapsedLabel(latestCheckIn.occurredAt.toLocal());
+    final lastCheckInAccent =
+        latestCheckIn != null &&
+            DateTime.now()
+                    .toUtc()
+                    .difference(latestCheckIn.occurredAt)
+                    .inMinutes >
+                5
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.textSecondary;
+    final lastMovementAt = latestIntel?.occurredAt;
+    final lastMovementValue = latestIntel == null
+        ? 'No movement captured'
+        : '${zoneLabel.isEmpty ? 'Scope watch' : zoneLabel} · ${_commandCenterElapsedLabel(latestIntel.occurredAt.toLocal())}';
+    final lastMovementAccent = lastMovementAt != null
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.textSecondary;
+    final patrolValue = latestPatrol == null
+        ? 'No patrol route synced'
+        : '${_humanizeOpsScopeLabel(latestPatrol.routeId, fallback: latestPatrol.routeId)} · ${_commandCenterElapsedLabel(latestPatrol.occurredAt.toLocal())}';
+
+    final signalPercent = focusedGuard == null
+        ? 92
+        : (100 - focusedGuard.decayLevel).clamp(0, 100);
+    final batteryPercent = focusedGuard == null
+        ? 78
+        : (100 - (focusedGuard.decayLevel ~/ 2)).clamp(0, 100);
+
+    return Container(
+      color: OnyxColorTokens.backgroundSecondary,
+      child: Column(
+        children: [
+          _commandCenterZoneHeader(
+            label: 'LIVE CONTEXT',
+            badgeLabel: contextBadge,
+            badgeColor: contextAccent,
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color:
+                          (snapshotLive
+                                  ? OnyxColorTokens.accentGreen
+                                  : OnyxColorTokens.accentAmber)
+                              .withValues(alpha: 0.3),
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        color: OnyxColorTokens.backgroundPrimary,
+                        child: Row(
+                          children: [
+                            _commandCenterDot(
+                              snapshotLive
+                                  ? OnyxColorTokens.accentGreen
+                                  : OnyxColorTokens.accentAmber,
+                              size: 5,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                snapshotLive
+                                    ? 'LIVE · ${cameraLabel.isEmpty ? 'CAM' : cameraLabel} · ${zoneLabel.isEmpty ? 'ZONE' : zoneLabel}'
+                                    : 'FEED STALE — LAST FRAME ${verifiedAt == null ? '--:--' : _hhmm(verifiedAt.toLocal())} · ${cameraLabel.isEmpty ? 'CAM' : cameraLabel} · ${zoneLabel.isEmpty ? 'ZONE' : zoneLabel}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: snapshotLive
+                                      ? OnyxColorTokens.accentGreen
+                                      : OnyxColorTokens.accentAmber,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 100,
+                        child: ColoredBox(
+                          color: OnyxColorTokens.backgroundPrimary,
+                          child: snapshotLive
+                              ? Image.network(
+                                  previewUri.toString(),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return _commandCenterStaleOverlay(
+                                      verifiedAt: verifiedAt,
+                                    );
+                                  },
+                                )
+                              : _commandCenterStaleOverlay(
+                                  verifiedAt: verifiedAt,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _commandCenterInfoRow(label: 'GUARD', value: guardName),
+                const SizedBox(height: 6),
+                _commandCenterInfoRow(
+                  label: 'LAST CHECK-IN',
+                  value: lastCheckInValue,
+                  valueColor: lastCheckInAccent,
+                ),
+                const SizedBox(height: 6),
+                _commandCenterInfoRow(
+                  label: 'LAST MOVEMENT',
+                  value: lastMovementValue,
+                  valueColor: lastMovementAccent,
+                ),
+                const SizedBox(height: 6),
+                _commandCenterInfoRow(
+                  label: 'PATROL ROUTE',
+                  value: patrolValue,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _commandCenterHealthTile(
+                        label: 'SIGNAL',
+                        value: '$signalPercent%',
+                        accent: signalPercent > 80
+                            ? OnyxColorTokens.accentGreen
+                            : signalPercent > 40
+                            ? OnyxColorTokens.accentAmber
+                            : OnyxColorTokens.accentRed,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _commandCenterHealthTile(
+                        label: 'BATTERY',
+                        value: '$batteryPercent%',
+                        accent: batteryPercent > 50
+                            ? OnyxColorTokens.accentGreen
+                            : batteryPercent > 20
+                            ? OnyxColorTokens.accentAmber
+                            : OnyxColorTokens.accentRed,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _commandCenterHealthTile(
+                        label: 'CAMERA',
+                        value: snapshotLive ? 'READY' : 'STALE',
+                        accent: snapshotLive
+                            ? OnyxColorTokens.accentGreen
+                            : OnyxColorTokens.accentRed,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterTaskBoardZone({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required List<_LedgerEntry> ledger,
+  }) {
+    final decisionItems = _commandDecisionItems(
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+      controlInboxSnapshot: controlInboxSnapshot,
+      ledger: ledger,
+    );
+    final leadTask = decisionItems.isEmpty ? null : decisionItems.first;
+    final focusedGuard = _focusedVigilanceGuard;
+    final timerContext = _commandCenterTaskTimerContext(
+      activeIncident: activeIncident,
+      focusedGuard: focusedGuard,
+    );
+    final stageIndex = _commandCenterStageIndex(
+      activeIncident: activeIncident,
+      focusedGuard: focusedGuard,
+    );
+    final zaraAssessment = _commandCenterZaraAssessment(
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+      controlInboxSnapshot: controlInboxSnapshot,
+      leadTask: leadTask,
+    );
+
+    final activeTitle =
+        activeIncident?.type ?? leadTask?.title ?? 'No active task';
+    final activeWho = activeIncident == null
+        ? (leadTask?.context ?? 'Command queue ready')
+        : '${activeIncident.id} · ${_commandCenterPrimarySiteLabel(activeIncident, clientCommsSnapshot)}';
+    final callAction = _commandCenterActionMatching(leadTask, const [
+      'call',
+      'client comms',
+    ]);
+    final dispatchAction = _commandCenterActionMatching(leadTask, const [
+      'dispatch',
+      'open month planner',
+    ]);
+    final extraTasks = decisionItems
+        .where((item) {
+          if (activeIncident == null) {
+            return item != leadTask;
+          }
+          return !item._keyValue.contains(activeIncident.id);
+        })
+        .toList(growable: false);
+
+    return Container(
+      color: OnyxColorTokens.backgroundPrimary,
+      child: Column(
+        children: [
+          _commandCenterZoneHeader(
+            label: 'ZARA TASK BOARD',
+            badgeLabel: '${decisionItems.length} ACTIVE',
+            badgeColor: OnyxColorTokens.brand,
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              children: [
+                if (leadTask != null || activeIncident != null)
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.35,
+                        ),
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 3,
+                          color: OnyxColorTokens.accentAmber.withValues(
+                            alpha: 0.7,
+                          ),
+                        ),
+                        Container(
+                          color: OnyxColorTokens.backgroundSecondary,
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                timerContext.label,
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.accentAmber.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _commandCenterDurationClock(
+                                  DateTime.now().difference(
+                                    timerContext.atLocal,
+                                  ),
+                                ),
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.accentAmber,
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -2,
+                                  height: 1,
+                                  shadows: [
+                                    Shadow(
+                                      color: OnyxColorTokens.accentAmber
+                                          .withValues(alpha: 0.25),
+                                      blurRadius: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                timerContext.sublabel,
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.accentAmber.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                activeTitle,
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                activeWho,
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.textMuted,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: List.generate(3, (index) {
+                                  final active = index <= stageIndex;
+                                  final radius = BorderRadius.horizontal(
+                                    left: index == 0
+                                        ? const Radius.circular(4)
+                                        : Radius.zero,
+                                    right: index == 2
+                                        ? const Radius.circular(4)
+                                        : Radius.zero,
+                                  );
+                                  final labels = const [
+                                    'MONITORING',
+                                    'WELFARE CHECK',
+                                    'DISPATCH',
+                                  ];
+                                  return Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 7,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: active
+                                            ? OnyxColorTokens.accentAmber
+                                                  .withValues(alpha: 0.15)
+                                            : OnyxColorTokens.backgroundPrimary,
+                                        borderRadius: radius,
+                                        border: Border.all(
+                                          color: active
+                                              ? OnyxColorTokens.accentAmber
+                                                    .withValues(alpha: 0.4)
+                                              : OnyxColorTokens.divider,
+                                        ),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        labels[index],
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.inter(
+                                          color: active
+                                              ? OnyxColorTokens.accentAmber
+                                              : OnyxColorTokens.textDisabled,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: OnyxColorTokens.brand.withValues(
+                                    alpha: 0.08,
+                                  ),
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(
+                                    color: OnyxColorTokens.brand.withValues(
+                                      alpha: 0.18,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                        color: OnyxColorTokens.brand.withValues(
+                                          alpha: 0.25,
+                                        ),
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        'Z',
+                                        style: GoogleFonts.inter(
+                                          color: OnyxColorTokens.brand,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        zaraAssessment,
+                                        style: GoogleFonts.inter(
+                                          color: OnyxColorTokens.textSecondary,
+                                          fontSize: 10,
+                                          fontStyle: FontStyle.italic,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 10,
+                                    child: _commandCenterActionButton(
+                                      label: 'CALL',
+                                      accent: OnyxColorTokens.accentGreen,
+                                      background: OnyxColorTokens.accentGreen
+                                          .withValues(alpha: 0.12),
+                                      border: OnyxColorTokens.accentGreen
+                                          .withValues(alpha: 0.35),
+                                      onTap: callAction?.onPressed == null
+                                          ? () => unawaited(
+                                              activeIncident == null
+                                                  ? _openCommandGuardsBoard(
+                                                      focusedGuard,
+                                                    )
+                                                  : _openActionLadderContextFromBoard(
+                                                      activeIncident,
+                                                      _ContextTab.voip,
+                                                    ),
+                                            )
+                                          : () => unawaited(
+                                              callAction!.onPressed!.call(),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    flex: 13,
+                                    child: _commandCenterActionButton(
+                                      label: 'DISPATCH',
+                                      accent: OnyxColorTokens.accentRed,
+                                      background: OnyxColorTokens.accentRed
+                                          .withValues(alpha: 0.1),
+                                      border: OnyxColorTokens.accentRed
+                                          .withValues(alpha: 0.5),
+                                      borderWidth: 1.5,
+                                      subtitle: 'Send response unit',
+                                      onTap: dispatchAction?.onPressed == null
+                                          ? () => unawaited(
+                                              activeIncident == null
+                                                  ? _openCommandGuardsBoard(
+                                                      focusedGuard,
+                                                    )
+                                                  : _openCommandAlarmBoard(
+                                                      activeIncident,
+                                                    ),
+                                            )
+                                          : () => unawaited(
+                                              dispatchAction!.onPressed!.call(),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    flex: 10,
+                                    child: _commandCenterActionButton(
+                                      label: 'ESCALATE',
+                                      accent: OnyxColorTokens.accentAmber,
+                                      background: OnyxColorTokens.accentAmber
+                                          .withValues(alpha: 0.08),
+                                      border: OnyxColorTokens.accentAmber
+                                          .withValues(alpha: 0.25),
+                                      onTap: () {
+                                        if (activeIncident != null &&
+                                            widget.onOpenAgentForIncident !=
+                                                null) {
+                                          _openAgentFromWarRoom(
+                                            activeIncident.id,
+                                          );
+                                          return;
+                                        }
+                                        if (activeIncident != null) {
+                                          unawaited(
+                                            _openCommandTrackBoard(
+                                              activeIncident,
+                                            ),
+                                          );
+                                          return;
+                                        }
+                                        _focusGuardAttentionFromContext();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: OnyxColorTokens.backgroundSecondary,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: OnyxColorTokens.divider),
+                    ),
+                    child: Text(
+                      'No active tasks are waiting in Zara’s board.',
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if (extraTasks.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  for (final task in extraTasks.take(3)) ...[
+                    _commandCenterCollapsedTaskTile(task: task),
+                    const SizedBox(height: 5),
+                  ],
+                  GestureDetector(
+                    onTap: activeIncident == null
+                        ? null
+                        : () => unawaited(
+                            _openActionLadderQueueFromBoard(activeIncident),
+                          ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '${extraTasks.length} more tasks · tap to expand',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textDisabled,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterLedgerZone({required List<_LedgerEntry> ledger}) {
+    final verifiedCount = ledger.where(_isLedgerEntryVerified).length;
+    final chainIntact = ledger.isNotEmpty && verifiedCount == ledger.length;
+    final visibleEntries = ledger.take(8).toList(growable: false);
+
+    return Container(
+      color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.9),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: OnyxColorTokens.divider),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Sovereign Ledger',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        (chainIntact
+                                ? OnyxColorTokens.accentGreen
+                                : OnyxColorTokens.accentAmber)
+                            .withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color:
+                          (chainIntact
+                                  ? OnyxColorTokens.accentGreen
+                                  : OnyxColorTokens.accentAmber)
+                              .withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _commandCenterDot(
+                        chainIntact
+                            ? OnyxColorTokens.accentGreen
+                            : OnyxColorTokens.accentAmber,
+                        size: 4,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        chainIntact ? 'Chain Intact' : 'Chain Pending',
+                        style: GoogleFonts.inter(
+                          color: chainIntact
+                              ? OnyxColorTokens.accentGreen
+                              : OnyxColorTokens.accentAmber,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: visibleEntries.isEmpty
+                ? Center(
+                    child: Text(
+                      'No ledger events recorded yet.',
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    child: Stack(
+                      children: [
+                        Positioned(
+                          left: 20,
+                          top: 20,
+                          bottom: 8,
+                          child: Container(
+                            width: 1,
+                            color: OnyxColorTokens.divider,
+                          ),
+                        ),
+                        Column(
+                          children: [
+                            for (final entry in visibleEntries) ...[
+                              _commandCenterLedgerEntry(entry: entry),
+                              const SizedBox(height: 14),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterZoneHeader({
+    required String label,
+    required String badgeLabel,
+    required Color badgeColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textDisabled,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.3,
+              ),
+            ),
+          ),
+          Text(
+            badgeLabel,
+            style: GoogleFonts.inter(
+              color: badgeColor,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterStaleOverlay({required DateTime? verifiedAt}) {
+    final staleAt = verifiedAt?.toUtc();
+    final ageMinutes = staleAt == null
+        ? null
+        : DateTime.now().toUtc().difference(staleAt).inMinutes;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'FEED STALE',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.accentAmber,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            staleAt == null
+                ? 'Last frame unavailable'
+                : 'Last frame ${_hhmm(staleAt.toLocal())} UTC · ${ageMinutes ?? 0}m ago',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterInfoRow({
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textDisabled,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: valueColor ?? OnyxColorTokens.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _commandCenterHealthTile({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _commandCenterActionButton({
+    required String label,
+    required Color accent,
+    required Color background,
+    required Color border,
+    required VoidCallback onTap,
+    String? subtitle,
+    double borderWidth = 1,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: border, width: borderWidth),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: accent,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: accent.withValues(alpha: 0.5),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _commandCenterCollapsedTaskTile({required _CommandDecisionItem task}) {
+    return InkWell(
+      onTap: task.onTap == null ? null : () => unawaited(task.onTap!.call()),
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(5),
+          border: Border(
+            left: BorderSide(
+              color: OnyxColorTokens.accentGreen.withValues(alpha: 0.5),
+              width: 2,
+            ),
+            top: const BorderSide(color: OnyxColorTokens.divider),
+            right: const BorderSide(color: OnyxColorTokens.divider),
+            bottom: const BorderSide(color: OnyxColorTokens.divider),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      _commandCenterDot(OnyxColorTokens.accentGreen, size: 5),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          task.context,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.textDisabled,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '›',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textDisabled,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _commandCenterLedgerEntry({required _LedgerEntry entry}) {
+    final badge = _commandCenterLedgerBadge(entry.type);
+    final time = _hhmm(entry.timestamp.toLocal());
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          alignment: Alignment.topCenter,
+          padding: const EdgeInsets.only(top: 3),
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: badge.background,
+              shape: BoxShape.circle,
+              border: Border.all(color: badge.border),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                time,
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textDisabled,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                _humaniseSiteIdsInText(entry.description),
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textMuted.withValues(alpha: 0.9),
+                  fontSize: 10,
+                  height: 1.3,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: badge.background,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: Text(
+                  badge.label,
+                  style: GoogleFonts.inter(
+                    color: badge.foreground,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  ({String label, Color background, Color foreground, Color border})
+  _commandCenterLedgerBadge(_LedgerType type) {
+    return switch (type) {
+      _LedgerType.aiAction => (
+        label: 'ZARA',
+        background: OnyxColorTokens.brand.withValues(alpha: 0.12),
+        foreground: OnyxColorTokens.brand.withValues(alpha: 0.8),
+        border: OnyxColorTokens.brand.withValues(alpha: 0.35),
+      ),
+      _LedgerType.systemEvent => (
+        label: 'SYS',
+        background: OnyxColorTokens.textPrimary.withValues(alpha: 0.05),
+        foreground: OnyxColorTokens.textDisabled,
+        border: OnyxColorTokens.divider,
+      ),
+      _LedgerType.humanOverride || _LedgerType.escalation => (
+        label: 'ONYX',
+        background: OnyxColorTokens.textPrimary.withValues(alpha: 0.04),
+        foreground: OnyxColorTokens.textDisabled,
+        border: OnyxColorTokens.borderSubtle,
+      ),
+    };
+  }
+
+  Widget _commandCenterDot(Color color, {double size = 5}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.32),
+            blurRadius: size * 1.2,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _commandCenterPrimarySiteLabel(
+    _IncidentRecord? activeIncident,
+    LiveClientCommsSnapshot? clientCommsSnapshot,
+  ) {
+    final site = activeIncident?.siteId.trim().isNotEmpty == true
+        ? activeIncident!.siteId
+        : activeIncident?.site.trim().isNotEmpty == true
+        ? activeIncident!.site
+        : (clientCommsSnapshot?.siteId ?? widget.initialScopeSiteId ?? '')
+              .trim();
+    if (site.isEmpty) {
+      return 'Command Scope';
+    }
+    return _humanizeOpsScopeLabel(site, fallback: site);
+  }
+
+  String _commandCenterZaraStripLine({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required List<_CommandDecisionItem> decisionItems,
+  }) {
+    if (activeIncident != null) {
+      final detail = _commandIncidentDetail(
+        activeIncident,
+        critical: activeIncident.priority == _IncidentPriority.p1Critical,
+      );
+      final summary = _commandDecisionForIncident(
+        activeIncident,
+        incidentDetail: detail,
+      ).toRecommendation().summary.trim();
+      if (summary.isNotEmpty) {
+        return _humaniseSiteIdsInText(summary);
+      }
+    }
+
+    final latestReport = _latestMorningSovereignReport;
+    if (latestReport != null) {
+      for (final line in <String>[
+        latestReport.sceneReview.recentActionsSummary,
+        latestReport.sceneReview.latestActionTaken,
+        latestReport.siteActivity.summaryLine,
+        latestReport.partnerProgression.summaryLine,
+        latestReport.receiptPolicy.summaryLine,
+        latestReport.receiptPolicy.latestReportSummary,
+      ]) {
+        final trimmed = line.trim();
+        if (trimmed.isNotEmpty) {
+          return _humaniseSiteIdsInText(trimmed);
+        }
+      }
+    }
+
+    if (decisionItems.isNotEmpty) {
+      return _humaniseSiteIdsInText(decisionItems.first.detail);
+    }
+
+    if (clientCommsSnapshot != null &&
+        (clientCommsSnapshot.latestPendingDraft ?? '').trim().isNotEmpty) {
+      return clientCommsSnapshot.latestPendingDraft!.trim();
+    }
+
+    return 'Command surface is holding nominal watch while Zara tracks the next exception.';
+  }
+
+  String _commandCenterZaraAssessment({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required _CommandDecisionItem? leadTask,
+  }) {
+    if (activeIncident != null) {
+      final detail = _commandIncidentDetail(
+        activeIncident,
+        critical: activeIncident.priority == _IncidentPriority.p1Critical,
+      );
+      final summary = _commandDecisionForIncident(
+        activeIncident,
+        incidentDetail: detail,
+      ).toRecommendation().summary.trim();
+      if (summary.isNotEmpty) {
+        return _humaniseSiteIdsInText(summary);
+      }
+    }
+    if (leadTask != null && leadTask.detail.trim().isNotEmpty) {
+      return _humaniseSiteIdsInText(leadTask.detail.trim());
+    }
+    return _commandCenterZaraStripLine(
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+      controlInboxSnapshot: controlInboxSnapshot,
+      decisionItems: leadTask == null
+          ? const <_CommandDecisionItem>[]
+          : [leadTask],
+    );
+  }
+
+  String? _commandCenterActiveConditionLabel({
+    required _IncidentRecord? activeIncident,
+    required _GuardVigilance? focusedGuard,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+  }) {
+    if (focusedGuard != null && focusedGuard.decayLevel >= 85) {
+      return 'Welfare Check Active';
+    }
+    if (activeIncident != null) {
+      return switch (activeIncident.status) {
+        _IncidentStatus.triaging => 'Alarm Active',
+        _IncidentStatus.dispatched => 'Dispatch Active',
+        _IncidentStatus.investigating => 'Investigation Active',
+        _IncidentStatus.resolved => null,
+      };
+    }
+    if (widget.guardRosterSignalNeedsAttention &&
+        (widget.guardRosterSignalHeadline ?? '').trim().isNotEmpty) {
+      return 'Roster Watch Active';
+    }
+    if ((controlInboxSnapshot?.awaitingResponseCount ?? 0) > 0) {
+      return 'Client Response Active';
+    }
+    return null;
+  }
+
+  Color _commandCenterConditionAccent({
+    required _IncidentRecord? activeIncident,
+    required _GuardVigilance? focusedGuard,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+  }) {
+    if (activeIncident != null &&
+        activeIncident.priority == _IncidentPriority.p1Critical) {
+      return OnyxColorTokens.accentRed;
+    }
+    if (focusedGuard != null && focusedGuard.decayLevel >= 85) {
+      return OnyxColorTokens.accentAmber;
+    }
+    if ((controlInboxSnapshot?.awaitingResponseCount ?? 0) > 0) {
+      return OnyxColorTokens.accentAmber;
+    }
+    return OnyxColorTokens.accentAmber;
+  }
+
+  ({String label, DateTime atLocal, String sublabel})
+  _commandCenterTaskTimerContext({
+    required _IncidentRecord? activeIncident,
+    required _GuardVigilance? focusedGuard,
+  }) {
+    final latestCheckIn = _latestGuardCheckInFor(focusedGuard);
+    if (focusedGuard != null &&
+        focusedGuard.decayLevel >= 85 &&
+        latestCheckIn != null) {
+      final ageMinutes = DateTime.now()
+          .toUtc()
+          .difference(latestCheckIn.occurredAt)
+          .inMinutes;
+      return (
+        label: 'NO CHECK-IN',
+        atLocal: latestCheckIn.occurredAt.toLocal(),
+        sublabel: ageMinutes >= 10
+            ? 'Getting worse — escalation window narrowing'
+            : 'Welfare window is still open, but tightening',
+      );
+    }
+
+    final latestIntel = _latestIntelligenceFor(activeIncident);
+    if (latestIntel != null &&
+        DateTime.now().toUtc().difference(latestIntel.occurredAt).inMinutes >=
+            5) {
+      return (
+        label: 'NO MOVEMENT',
+        atLocal: latestIntel.occurredAt.toLocal(),
+        sublabel: 'Fresh movement has not cleared the live exception',
+      );
+    }
+
+    final latestIncidentEvent = _latestIncidentEventTime(activeIncident);
+    if (latestIncidentEvent != null) {
+      return (
+        label: 'ALARM ACTIVE',
+        atLocal: latestIncidentEvent.toLocal(),
+        sublabel: 'Operator response window is active',
+      );
+    }
+
+    final now = DateTime.now();
+    return (
+      label: 'MONITORING',
+      atLocal: now.subtract(const Duration(seconds: 12)),
+      sublabel: 'Zara is holding the current command posture',
+    );
+  }
+
+  int _commandCenterStageIndex({
+    required _IncidentRecord? activeIncident,
+    required _GuardVigilance? focusedGuard,
+  }) {
+    if (focusedGuard != null && focusedGuard.decayLevel >= 85) {
+      return 1;
+    }
+    if (activeIncident == null) {
+      return 0;
+    }
+    return switch (activeIncident.status) {
+      _IncidentStatus.triaging => 0,
+      _IncidentStatus.dispatched => 2,
+      _IncidentStatus.investigating => 2,
+      _IncidentStatus.resolved => 2,
+    };
+  }
+
+  _CommandDecisionAction? _commandCenterActionMatching(
+    _CommandDecisionItem? item,
+    List<String> keywords,
+  ) {
+    if (item == null) {
+      return null;
+    }
+    for (final action in item.actions) {
+      final normalized = action.label.trim().toLowerCase();
+      if (keywords.any((keyword) => normalized.contains(keyword))) {
+        return action;
+      }
+    }
+    return null;
+  }
+
+  GuardCheckedIn? _latestGuardCheckInFor(_GuardVigilance? guard) {
+    if (guard == null) {
+      return null;
+    }
+    final checkIns =
+        _eventsInCommandScope()
+            .whereType<GuardCheckedIn>()
+            .where((event) => event.guardId.trim() == guard.callsign.trim())
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return checkIns.isEmpty ? null : checkIns.first;
+  }
+
+  PatrolCompleted? _latestPatrolFor(_GuardVigilance? guard) {
+    if (guard == null) {
+      return null;
+    }
+    final patrols =
+        _eventsInCommandScope()
+            .whereType<PatrolCompleted>()
+            .where((event) => event.guardId.trim() == guard.callsign.trim())
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return patrols.isEmpty ? null : patrols.first;
+  }
+
+  IntelligenceReceived? _latestIntelligenceFor(_IncidentRecord? incident) {
+    final clientId = incident?.clientId.trim() ?? '';
+    final siteId = incident?.siteId.trim() ?? '';
+    final intelligence =
+        _eventsInCommandScope()
+            .whereType<IntelligenceReceived>()
+            .where((event) {
+              if (clientId.isNotEmpty && siteId.isNotEmpty) {
+                return event.clientId.trim() == clientId &&
+                    event.siteId.trim() == siteId;
+              }
+              if (siteId.isNotEmpty) {
+                return event.siteId.trim() == siteId;
+              }
+              if ((incident?.site ?? '').trim().isNotEmpty) {
+                return event.siteId.trim() == incident!.site.trim();
+              }
+              return true;
+            })
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return intelligence.isEmpty ? null : intelligence.first;
+  }
+
+  DateTime? _latestIncidentEventTime(_IncidentRecord? incident) {
+    if (incident == null) {
+      return null;
+    }
+    final dispatchId = incident.id.startsWith('INC-')
+        ? incident.id.substring(4)
+        : incident.id;
+    final incidentEvents =
+        _eventsInCommandScope()
+            .where((event) {
+              final eventDispatchId = switch (event) {
+                DecisionCreated value => value.dispatchId.trim(),
+                ResponseArrived value => value.dispatchId.trim(),
+                PartnerDispatchStatusDeclared value => value.dispatchId.trim(),
+                ExecutionCompleted value => value.dispatchId.trim(),
+                ExecutionDenied value => value.dispatchId.trim(),
+                IncidentClosed value => value.dispatchId.trim(),
+                _ => '',
+              };
+              if (eventDispatchId.isNotEmpty) {
+                return eventDispatchId == dispatchId ||
+                    _incidentIdForDispatch(eventDispatchId) == incident.id;
+              }
+              final eventClientId = switch (event) {
+                GuardCheckedIn value => value.clientId.trim(),
+                PatrolCompleted value => value.clientId.trim(),
+                IntelligenceReceived value => value.clientId.trim(),
+                _ => '',
+              };
+              final eventSiteId = switch (event) {
+                GuardCheckedIn value => value.siteId.trim(),
+                PatrolCompleted value => value.siteId.trim(),
+                IntelligenceReceived value => value.siteId.trim(),
+                _ => '',
+              };
+              return incident.clientId.trim().isNotEmpty &&
+                  incident.siteId.trim().isNotEmpty &&
+                  eventClientId == incident.clientId.trim() &&
+                  eventSiteId == incident.siteId.trim();
+            })
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return incidentEvents.isEmpty ? null : incidentEvents.first.occurredAt;
+  }
+
+  SovereignReport? get _latestMorningSovereignReport {
+    if (widget.morningSovereignReportHistory.isEmpty) {
+      return null;
+    }
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    return reports.first;
+  }
+
+  String _commandCenterElapsedLabel(DateTime atLocal) {
+    final age = DateTime.now().difference(atLocal);
+    if (age.inMinutes < 1) {
+      return 'just now';
+    }
+    if (age.inMinutes < 60) {
+      return '${age.inMinutes}m ago';
+    }
+    if (age.inHours < 24) {
+      return '${age.inHours}h ago';
+    }
+    return '${age.inDays}d ago';
+  }
+
+  String _commandCenterDurationClock(Duration duration) {
+    final safeDuration = duration.isNegative ? Duration.zero : duration;
+    final totalMinutes = safeDuration.inMinutes;
+    final seconds = safeDuration.inSeconds.remainder(60);
+    return '${totalMinutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   // ignore: unused_element
@@ -3048,7 +4971,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _commandCenterHero({
+  Widget _legacyCommandCenterHero({
     required _IncidentRecord? activeIncident,
     required LiveClientCommsSnapshot? clientCommsSnapshot,
     required LiveControlInboxSnapshot? controlInboxSnapshot,
@@ -3461,7 +5384,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }).toList();
   }
 
-  Widget _commandOverviewDeck({
+  Widget _legacyCommandOverviewDeck({
     required _IncidentRecord? activeIncident,
     required LiveClientCommsSnapshot? clientCommsSnapshot,
     required LiveControlInboxSnapshot? controlInboxSnapshot,
@@ -7970,9 +9893,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
     );
   }
-
-  bool get _hasAgentReturnReceipt => _commandReceipt.label == 'AGENT RETURN';
-  bool get _hasAutoAuditReceipt => _commandReceipt.label == 'AUTO-AUDIT';
 
   _LiveOpsCommandReceipt _liveOpsCommandReceiptFromAutoAudit(
     LiveOpsAutoAuditReceipt receipt,
