@@ -126,6 +126,7 @@ class ClientsPage extends StatefulWidget {
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
   final ValueChanged<String>? onOpenAgentForIncident;
+  final ValueChanged<String?>? onOpenLiveFeedsForIncident;
   final ClientsAgentDraftHandoff? stagedAgentDraftHandoff;
   final ValueChanged<String>? onConsumeStagedAgentDraftHandoff;
   final ClientsEvidenceReturnReceipt? evidenceReturnReceipt;
@@ -162,6 +163,7 @@ class ClientsPage extends StatefulWidget {
     this.onOpenClientRoomForScope,
     this.onOpenEventsForScope,
     this.onOpenAgentForIncident,
+    this.onOpenLiveFeedsForIncident,
     this.stagedAgentDraftHandoff,
     this.onConsumeStagedAgentDraftHandoff,
     this.evidenceReturnReceipt,
@@ -485,18 +487,36 @@ class _ClientsPageState extends State<ClientsPage> {
       }
     }
     final queueItems = _visibleControllerQueueItems();
+    final latestDraft = _latestStagedAgentDraftHandoffForScope(
+      clientId: selectedClientId,
+      siteId: selectedSiteId,
+    );
     final agentIncidentReference = _agentIncidentReference(
       selectedClientId: selectedClientId,
       selectedSiteId: selectedSiteId,
     );
-    final queuedDraftItemId = _latestStagedAgentDraftHandoffForScope(
-      clientId: selectedClientId,
-      siteId: selectedSiteId,
-    )?.id.trim();
+    final queuedDraftItemId = latestDraft?.id.trim();
     final learnedStyleSummary = _learnedStyleSummaryForScope(
       clientId: selectedClientId,
       siteId: selectedSiteId,
     );
+    final messageHistory = _messageHistoryEntriesFromRows(rows);
+    final lastCommunication = messageHistory.isEmpty
+        ? null
+        : messageHistory.first;
+
+    VoidCallback? viewLastCommunication;
+    final lastEventId = lastCommunication?.eventId?.trim() ?? '';
+    if (lastEventId.isNotEmpty && widget.onOpenEventsForScope != null) {
+      viewLastCommunication = () =>
+          widget.onOpenEventsForScope!(<String>[lastEventId], lastEventId);
+    } else if (lastCommunication != null) {
+      viewLastCommunication = _toggleDetailedWorkspace;
+    }
+
+    final openLiveFeeds = widget.onOpenLiveFeedsForIncident == null
+        ? null
+        : () => widget.onOpenLiveFeedsForIncident!(agentIncidentReference);
 
     return OnyxPageScaffold(
       child: LayoutBuilder(
@@ -686,6 +706,12 @@ class _ClientsPageState extends State<ClientsPage> {
                 onToneChanged: (tone) =>
                     setState(() => _selectedPinnedVoice = tone),
                 messageHistory: const [],
+                lastDraftTimestampLabel: latestDraft == null
+                    ? null
+                    : _utc(latestDraft.createdAtUtc),
+                lastCommunication: lastCommunication,
+                onViewLastCommunication: viewLastCommunication,
+                onOpenLiveFeeds: openLiveFeeds,
               ),
             );
           }
@@ -4449,6 +4475,31 @@ List<_FeedRow> _incidentFeedRows({
   }
 
   return rows;
+}
+
+List<ClientCommsHistoryEntry> _messageHistoryEntriesFromRows(
+  List<_FeedRow> rows,
+) {
+  return rows
+      .map(
+        (row) => ClientCommsHistoryEntry(
+          incidentId: row.incidentReference?.trim().isNotEmpty == true
+              ? row.incidentReference!.trim()
+              : row.title,
+          preview: row.description,
+          timestamp: row.timestampLabel,
+          delivered: row.status != _FeedStatus.warning,
+          statusLabel: switch (row.type) {
+            _FeedType.resolution => 'Sent · Client acknowledged',
+            _FeedType.arrival => 'Sent · Officer update delivered',
+            _FeedType.dispatch => 'Sent · Dispatch update delivered',
+            _FeedType.update => 'Sent · Advisory issued',
+          },
+          eventId: row.eventId,
+          incidentReference: row.incidentReference,
+        ),
+      )
+      .toList(growable: false);
 }
 
 String _eventIncidentReference(DispatchEvent event) {

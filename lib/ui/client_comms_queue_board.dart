@@ -59,12 +59,18 @@ class ClientCommsHistoryEntry {
   final String preview;
   final String timestamp;
   final bool delivered;
+  final String? statusLabel;
+  final String? eventId;
+  final String? incidentReference;
 
   const ClientCommsHistoryEntry({
     required this.incidentId,
     required this.preview,
     required this.timestamp,
     this.delivered = true,
+    this.statusLabel,
+    this.eventId,
+    this.incidentReference,
   });
 }
 
@@ -92,6 +98,10 @@ class ClientCommsQueueBoard extends StatelessWidget {
   final String selectedTone;
   final ValueChanged<String>? onToneChanged;
   final List<ClientCommsHistoryEntry> messageHistory;
+  final String? lastDraftTimestampLabel;
+  final ClientCommsHistoryEntry? lastCommunication;
+  final VoidCallback? onViewLastCommunication;
+  final VoidCallback? onOpenLiveFeeds;
 
   const ClientCommsQueueBoard({
     super.key,
@@ -115,6 +125,10 @@ class ClientCommsQueueBoard extends StatelessWidget {
     this.selectedTone = 'Auto',
     this.onToneChanged,
     this.messageHistory = const [],
+    this.lastDraftTimestampLabel,
+    this.lastCommunication,
+    this.onViewLastCommunication,
+    this.onOpenLiveFeeds,
   });
 
   // ── Build ────────────────────────────────────────────────────────────────
@@ -177,21 +191,22 @@ class ClientCommsQueueBoard extends StatelessWidget {
   // ── Left column ───────────────────────────────────────────────────────────
 
   Widget _leftColumn() {
+    final idleState = items.isEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if ((latestSentFollowUpBody ?? '').trim().isNotEmpty) ...[
+        if (!idleState && (latestSentFollowUpBody ?? '').trim().isNotEmpty) ...[
           _latestSentFollowUpCard(),
           const SizedBox(height: 12),
         ],
-        if (items.isEmpty)
-          _emptyQueueState()
+        if (idleState)
+          _idleControlSurface()
         else
           for (var i = 0; i < items.length; i++) ...[
             _queueCard(items[i]),
             if (i != items.length - 1) const SizedBox(height: 12),
           ],
-        if (messageHistory.isNotEmpty) ...[
+        if (!idleState && messageHistory.isNotEmpty) ...[
           const SizedBox(height: 20),
           _messageHistorySection(),
         ],
@@ -206,7 +221,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _pendingCountCard(),
-        if (learnedStyleLabel != null && learnedStyleLabel!.trim().isNotEmpty) ...[
+        if (learnedStyleLabel != null &&
+            learnedStyleLabel!.trim().isNotEmpty) ...[
           const SizedBox(height: 12),
           _learnedStyleCard(),
         ],
@@ -219,6 +235,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
   // ── Pending count card ────────────────────────────────────────────────────
 
   Widget _pendingCountCard() {
+    final hasDrafts = items.isNotEmpty;
+    final lastDraftLabel = (lastDraftTimestampLabel ?? '').trim();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -240,22 +258,42 @@ class ClientCommsQueueBoard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            '${items.length}',
-            style: GoogleFonts.inter(
-              fontSize: 40,
-              fontWeight: FontWeight.w700,
-              color: OnyxDesignTokens.amberWarning,
-              height: 1.0,
+          if (hasDrafts) ...[
+            Text(
+              '${items.length}',
+              style: GoogleFonts.inter(
+                fontSize: 40,
+                fontWeight: FontWeight.w700,
+                color: OnyxDesignTokens.amberWarning,
+                height: 1.0,
+              ),
             ),
-          ),
+            Text(
+              'AWAITING REVIEW',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _bodyColor,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ] else
+            Text(
+              'Draft Queue: Clear',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: OnyxDesignTokens.greenNominal,
+                letterSpacing: 0.2,
+              ),
+            ),
+          const SizedBox(height: 6),
           Text(
-            'AWAITING REVIEW',
+            'Last draft: ${lastDraftLabel.isEmpty ? 'No drafts yet' : lastDraftLabel}',
             style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _bodyColor,
-              letterSpacing: 0.5,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+              color: _mutedColor,
             ),
           ),
           const SizedBox(height: 12),
@@ -266,8 +304,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: OnyxDesignTokens.amberWarning,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor:
-                    OnyxColorTokens.amberSurface,
+                disabledBackgroundColor: OnyxColorTokens.amberSurface,
                 disabledForegroundColor: _mutedColor,
                 minimumSize: const Size(double.infinity, 36),
                 elevation: 0,
@@ -359,7 +396,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'TONE',
+            'TONE CONTROL',
             style: GoogleFonts.inter(
               fontSize: 10,
               fontWeight: FontWeight.w600,
@@ -368,6 +405,45 @@ class ClientCommsQueueBoard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.35),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Z',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.accentPurple,
+                    fontSize: 6,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _zaraToneLine(),
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.55),
+                    fontSize: 9,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           for (final tone in tones) ...[
             _toneOption(tone),
             if (tone != tones.last) const SizedBox(height: 6),
@@ -385,9 +461,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: selected
-              ? OnyxDesignTokens.brand.withValues(alpha: 0.1)
-              : _bg,
+          color: selected ? OnyxDesignTokens.brand.withValues(alpha: 0.1) : _bg,
           borderRadius: OnyxRadiusTokens.radiusSm,
           border: Border.all(
             color: selected
@@ -513,9 +587,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
     final body = (latestSentFollowUpBody ?? '').trim();
     final occurredAtUtc = latestSentFollowUpOccurredAtUtc;
     final urgent = latestSentFollowUpUrgent;
-    final timePart = occurredAtUtc != null
-        ? _formatTime(occurredAtUtc)
-        : '';
+    final timePart = occurredAtUtc != null ? _formatTime(occurredAtUtc) : '';
     final meta = <String>[
       if (author.isNotEmpty) author,
       if (timePart.isNotEmpty) timePart,
@@ -638,52 +710,64 @@ class ClientCommsQueueBoard extends StatelessWidget {
 
   // ── Empty state ───────────────────────────────────────────────────────────
 
-  Widget _emptyQueueState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: OnyxRadiusTokens.radiusMd,
-        border: Border.all(color: _dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: OnyxColorTokens.greenSurface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: OnyxColorTokens.greenBorder),
+  Widget _idleControlSurface() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _zaraCommunicationStateCard(),
+        const SizedBox(height: 10),
+        _idleStatusRow(),
+        const SizedBox(height: 10),
+        _lastCommunicationSection(),
+        const SizedBox(height: 12),
+        _sectionLabel('READINESS'),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: const [
+            _ReadinessChip(label: 'Client contact channels active'),
+            _ReadinessChip(label: 'Message templates loaded'),
+            _ReadinessChip(label: 'Escalation scripts available'),
+            _ReadinessChip(label: 'Auto-draft enabled'),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _sectionLabel('QUICK ACTIONS'),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: _idleActionButton(
+                label: 'Draft client update',
+                foreground: OnyxColorTokens.accentPurple.withValues(
+                  alpha: 0.70,
+                ),
+                border: OnyxColorTokens.accentPurple.withValues(alpha: 0.22),
+                onTap: onToggleDetailedWorkspace,
+              ),
             ),
-            child: const Icon(
-              Icons.check_rounded,
-              size: 20,
-              color: OnyxDesignTokens.greenNominal,
+            const SizedBox(width: 8),
+            Expanded(
+              child: _idleActionButton(
+                label: 'Review last communication',
+                foreground: _mutedColor,
+                border: _dividerColor,
+                onTap: onViewLastCommunication,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Queue clear',
-            style: GoogleFonts.inter(
-              color: _titleColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+            const SizedBox(width: 8),
+            Expanded(
+              child: _idleActionButton(
+                label: 'Open live feeds',
+                foreground: OnyxColorTokens.accentSky.withValues(alpha: 0.55),
+                border: OnyxColorTokens.accentSky.withValues(alpha: 0.18),
+                onTap: onOpenLiveFeeds,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'No pending client approvals right now.',
-            style: GoogleFonts.inter(
-              color: _bodyColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -800,10 +884,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
 
             // ── Context box ───────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: _bg,
                 borderRadius: OnyxRadiusTokens.radiusSm,
@@ -955,13 +1036,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
         foregroundColor: Colors.white,
         minimumSize: const Size(0, 40),
         elevation: 0,
-        textStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: OnyxRadiusTokens.radiusSm,
-        ),
+        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: OnyxRadiusTokens.radiusSm),
       ),
     );
   }
@@ -976,13 +1052,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
         foregroundColor: _bodyColor,
         minimumSize: const Size(0, 40),
         side: BorderSide(color: _borderColor),
-        textStyle: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: OnyxRadiusTokens.radiusSm,
-        ),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: OnyxRadiusTokens.radiusSm),
       ),
     );
   }
@@ -997,13 +1068,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
         foregroundColor: _bodyColor,
         minimumSize: const Size(0, 40),
         side: BorderSide(color: _dividerColor),
-        textStyle: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: OnyxRadiusTokens.radiusSm,
-        ),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: OnyxRadiusTokens.radiusSm),
       ),
     );
   }
@@ -1019,13 +1085,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
         foregroundColor: OnyxDesignTokens.cyanInteractive,
         minimumSize: const Size(0, 40),
         side: const BorderSide(color: OnyxColorTokens.cyanBorder),
-        textStyle: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: OnyxRadiusTokens.radiusSm,
-        ),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: OnyxRadiusTokens.radiusSm),
       ),
       child: Text(label),
     );
@@ -1039,13 +1100,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
         foregroundColor: OnyxDesignTokens.accentPurple,
         minimumSize: const Size(0, 40),
         side: const BorderSide(color: OnyxColorTokens.purpleBorder),
-        textStyle: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: OnyxRadiusTokens.radiusSm,
-        ),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: OnyxRadiusTokens.radiusSm),
       ),
       child: const Text('ASK AGENT'),
     );
@@ -1099,8 +1155,382 @@ class ClientCommsQueueBoard extends StatelessWidget {
     ClientCommsQueueSeverity.low => OnyxDesignTokens.textMuted,
   };
 
+  Widget _zaraCommunicationStateCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: OnyxRadiusTokens.radiusMd,
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(7),
+              border: Border.all(
+                color: OnyxColorTokens.accentPurple.withValues(alpha: 0.35),
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              'Z',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.accentPurple,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ZARA · COMMUNICATIONS',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.60),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                _stateLine('No pending client communications.'),
+                const SizedBox(height: 5),
+                _stateLine('System ready to draft and send updates.'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stateLine(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(top: 4),
+          decoration: const BoxDecoration(
+            color: OnyxColorTokens.accentGreen,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.inter(
+              color: _bodyColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _idleStatusRow() {
+    final lastDraftLabel = (lastDraftTimestampLabel ?? '').trim();
+    return Row(
+      children: [
+        Expanded(
+          child: _statusChip(
+            label: 'DRAFT QUEUE',
+            value: 'Clear',
+            valueColor: OnyxDesignTokens.greenNominal,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _statusChip(
+            label: 'LAST DRAFT',
+            value: lastDraftLabel.isEmpty ? 'No drafts yet' : lastDraftLabel,
+            valueColor: _mutedColor,
+            valueSize: 11,
+            valueWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _statusChip(
+            label: 'CHANNELS',
+            value: 'Active',
+            valueColor: OnyxDesignTokens.greenNominal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusChip({
+    required String label,
+    required String value,
+    required Color valueColor,
+    double valueSize = 12,
+    FontWeight valueWeight = FontWeight.w700,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: _dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: _mutedColor,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: valueColor,
+              fontSize: valueSize,
+              fontWeight: valueWeight,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _lastCommunicationSection() {
+    final entry = lastCommunication;
+    if (entry == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Center(
+          child: Text(
+            'No previous communications',
+            style: GoogleFonts.inter(
+              color: _mutedColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      );
+    }
+    final statusLine = (entry.statusLabel ?? '').trim().isNotEmpty
+        ? entry.statusLabel!.trim()
+        : (entry.delivered ? 'Sent · Client acknowledged' : 'Draft pending');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: _dividerColor),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 2,
+              color: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'LAST COMMUNICATION',
+                            style: GoogleFonts.inter(
+                              color: _mutedColor,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            entry.preview,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: _mutedColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            statusLine,
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.textDisabled,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          entry.timestamp,
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.textDisabled,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: onViewLastCommunication,
+                          child: Text(
+                            'View →',
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.accentPurple.withValues(
+                                alpha: 0.55,
+                              ),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.inter(
+        color: OnyxColorTokens.textDisabled,
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.3,
+      ),
+    );
+  }
+
+  Widget _idleActionButton({
+    required String label,
+    required Color foreground,
+    required Color border,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: border),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            color: foreground,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _zaraToneLine() {
+    final label = switch (selectedTone) {
+      'Reassuring' => 'Using reassuring tone',
+      'Concise' => 'Using concise tone',
+      'Formal' => 'Using formal tone',
+      _ => 'Using contextual tone',
+    };
+    return 'ZARA: $label for client-facing updates.';
+  }
+
   String _formatTime(DateTime utc) {
     final local = utc.toLocal();
     return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _ReadinessChip extends StatelessWidget {
+  final String label;
+
+  const _ReadinessChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: _dividerColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: const BoxDecoration(
+              color: OnyxColorTokens.accentGreen,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: _mutedColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

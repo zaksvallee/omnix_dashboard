@@ -287,6 +287,15 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
     _openClientViewForScope(clientId: clientId, siteId: siteId, room: room);
   }
 
+  void _openLiveFeedsFromClientsRoute(String? incidentReference) {
+    final ref = (incidentReference ?? '').trim();
+    if (ref.isEmpty) {
+      _openAiQueueFromAdmin();
+      return;
+    }
+    _openAiQueueFromAdminIncident(ref);
+  }
+
   void _openEventsForScopeRoute(
     List<String> eventIds,
     String? selectedEventId,
@@ -315,6 +324,7 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
                 _consumePendingClientsAgentDraftHandoff,
             onRetryPushSync: _retryClientAppPushSync,
             onOpenAgentForIncident: _openAgentFromClientLaneIncident,
+            onOpenLiveFeedsForIncident: _openLiveFeedsFromClientsRoute,
             onOpenClientRoomForScope: _openClientRoomForScopeRoute,
             onOpenEventsForScope: _openEventsForScopeRoute,
             evidenceReturnReceipt: _pendingClientsEvidenceReturnReceipt,
