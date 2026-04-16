@@ -8,6 +8,7 @@ import '../application/guard_sync_repository.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/guard/guard_mobile_ops.dart';
 import '../domain/guard/guard_position_summary.dart';
+import 'components/onyx_system_flow_widgets.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
@@ -311,7 +312,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       obEntries: 24,
       incidents: 3,
       ratingLabel: '4.8',
-      performanceNote: 'High patrol discipline and consistent checkpoint cadence.',
+      performanceNote:
+          'High patrol discipline and consistent checkpoint cadence.',
       zaraHeadline: 'Echo-3 is the fastest clean-response option on this site.',
       zaraDetail:
           'No fatigue markers detected. Recommend Echo-3 for first dispatch on Sandton alarms.',
@@ -335,7 +337,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       lastSyncLabel: '2m ago',
       assignmentLabel: 'Escort in progress · South river approach',
       readinessLabel: 'Engaged on live task',
-      readinessDetail: 'Assignable after current escort closes or a second unit backfills.',
+      readinessDetail:
+          'Assignable after current escort closes or a second unit backfills.',
       locationLabel: 'South river fence line',
       lastMovementLabel: 'Vehicle gate Bravo · 9m ago',
       avgResponseLabel: '03m 01s',
@@ -343,7 +346,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       incidents: 5,
       ratingLabel: '4.6',
       performanceNote: 'High activity load with one telemetry retry required.',
-      zaraHeadline: 'Tango-1 remains reliable but should not take another hot task yet.',
+      zaraHeadline:
+          'Tango-1 remains reliable but should not take another hot task yet.',
       zaraDetail:
           'Signal degradation is likely environmental. Hold as secondary until sync stabilises.',
     ),
@@ -366,7 +370,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       lastSyncLabel: '19s ago',
       assignmentLabel: 'West perimeter watch',
       readinessLabel: 'Ready with thin-site dependency',
-      readinessDetail: 'Primary responder on Blue Ridge until backup rotates in.',
+      readinessDetail:
+          'Primary responder on Blue Ridge until backup rotates in.',
       locationLabel: 'West perimeter lane',
       lastMovementLabel: 'Checkpoint Lima · 4m ago',
       avgResponseLabel: '02m 31s',
@@ -397,15 +402,18 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       lastSyncLabel: 'offline',
       assignmentLabel: 'Standby pool',
       readinessLabel: 'Unavailable until reassigned',
-      readinessDetail: 'No active assignment or duty confirmation in the current window.',
+      readinessDetail:
+          'No active assignment or duty confirmation in the current window.',
       locationLabel: 'No live telemetry',
       lastMovementLabel: 'No movement recorded',
       avgResponseLabel: '--',
       obEntries: 9,
       incidents: 1,
       ratingLabel: '4.5',
-      performanceNote: 'Available for future roster staging, not current response.',
-      zaraHeadline: 'Atlas-5 should stay out of live dispatch decisions until shift confirmation.',
+      performanceNote:
+          'Available for future roster staging, not current response.',
+      zaraHeadline:
+          'Atlas-5 should stay out of live dispatch decisions until shift confirmation.',
       zaraDetail:
           'Use Atlas-5 for coverage planning, not immediate incident response.',
     ),
@@ -428,15 +436,18 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       lastSyncLabel: '15s ago',
       assignmentLabel: 'Lobby and resident access control',
       readinessLabel: 'Ready with full access picture',
-      readinessDetail: 'Best positioned to support resident verification and access incidents.',
+      readinessDetail:
+          'Best positioned to support resident verification and access incidents.',
       locationLabel: 'Main lobby control',
       lastMovementLabel: 'Resident desk · 2m ago',
       avgResponseLabel: '02m 11s',
       obEntries: 19,
       incidents: 1,
       ratingLabel: '4.9',
-      performanceNote: 'Excellent response tempo and high-confidence access logging.',
-      zaraHeadline: 'Echo-7 is the cleanest escalation partner for Sandton access events.',
+      performanceNote:
+          'Excellent response tempo and high-confidence access logging.',
+      zaraHeadline:
+          'Echo-7 is the cleanest escalation partner for Sandton access events.',
       zaraDetail:
           'No delay indicators. Strong choice for controlled handoffs and resident communication.',
     ),
@@ -459,15 +470,18 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       lastSyncLabel: '27s ago',
       assignmentLabel: 'Gatehouse and CCTV cross-check',
       readinessLabel: 'Ready with responder depth',
-      readinessDetail: 'Can backfill Tango-1 immediately if Waterfall load increases.',
+      readinessDetail:
+          'Can backfill Tango-1 immediately if Waterfall load increases.',
       locationLabel: 'Gatehouse Alpha',
       lastMovementLabel: 'Guardhouse exterior · 5m ago',
       avgResponseLabel: '02m 24s',
       obEntries: 14,
       incidents: 2,
       ratingLabel: '4.7',
-      performanceNote: 'Consistent gate coverage and resilient telemetry signal.',
-      zaraHeadline: 'Tango-4 is the preferred Waterfall fallback while Tango-1 is engaged.',
+      performanceNote:
+          'Consistent gate coverage and resilient telemetry signal.',
+      zaraHeadline:
+          'Tango-4 is the preferred Waterfall fallback while Tango-1 is engaged.',
       zaraDetail:
           'Coverage remains intact if Tango-4 stays anchored to gatehouse response lanes.',
     ),
@@ -488,8 +502,10 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
   void initState() {
     super.initState();
     _siteFilter = _resolveSiteFilter(widget.initialSiteFilter);
-    _tabController = TabController(length: _WorkforceTab.values.length, vsync: this)
-      ..addListener(_handleTabChange);
+    _tabController = TabController(
+      length: _WorkforceTab.values.length,
+      vsync: this,
+    )..addListener(_handleTabChange);
     _ingestEvidenceReturnReceipt(widget.evidenceReturnReceipt);
     unawaited(_loadWorkforce());
   }
@@ -504,7 +520,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
         useSetState: true,
       );
     }
-    if (oldWidget.guardSyncRepositoryFuture != widget.guardSyncRepositoryFuture) {
+    if (oldWidget.guardSyncRepositoryFuture !=
+        widget.guardSyncRepositoryFuture) {
       unawaited(_loadWorkforce());
     }
   }
@@ -532,7 +549,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme.merge(OnyxTheme.dark().textTheme);
+    final textTheme = Theme.of(
+      context,
+    ).textTheme.merge(OnyxTheme.dark().textTheme);
     final guards = _filteredGuards();
     final selectedGuard = _resolveSelectedGuard(guards);
     final coverageRows = _buildCoverageRows(guards);
@@ -568,7 +587,12 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                       _evidenceReturnBanner(_activeEvidenceReturnReceipt!),
                     ],
                     const SizedBox(height: 14),
-                    _zaraSummaryStrip(guards, coverageRows, historyEntries, textTheme),
+                    _zaraSummaryStrip(
+                      guards,
+                      coverageRows,
+                      historyEntries,
+                      textTheme,
+                    ),
                     const SizedBox(height: 12),
                     _workforceStatusBar(guards, textTheme),
                     const SizedBox(height: 12),
@@ -661,12 +685,22 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
     List<_HistoryEntry> historyEntries,
     TextTheme textTheme,
   ) {
-    final readyCount = guards.where((guard) => guard.status == _GuardOperationalStatus.ready).length;
-    final engagedCount = guards.where((guard) => guard.status == _GuardOperationalStatus.engaged).length;
+    final readyCount = guards
+        .where((guard) => guard.status == _GuardOperationalStatus.ready)
+        .length;
+    final engagedCount = guards
+        .where((guard) => guard.status == _GuardOperationalStatus.engaged)
+        .length;
     final syncIssues = guards.where((guard) => guard.hasSyncIssue).length;
-    final gaps = coverageRows.where((lane) => lane.quality == _CoverageState.gap).length;
-    final thin = coverageRows.where((lane) => lane.quality == _CoverageState.thin).length;
-    final anomalyCount = historyEntries.where((entry) => entry.flags.isNotEmpty).length;
+    final gaps = coverageRows
+        .where((lane) => lane.quality == _CoverageState.gap)
+        .length;
+    final thin = coverageRows
+        .where((lane) => lane.quality == _CoverageState.thin)
+        .length;
+    final anomalyCount = historyEntries
+        .where((entry) => entry.flags.isNotEmpty)
+        .length;
 
     late final List<(Color, String)> lines;
     late final String postureLabel;
@@ -692,7 +726,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 : 'Telemetry is stable. Real-time guard position hooks are ready for live map binding.',
           ),
         ];
-        postureLabel = engagedCount > 0 ? 'CONTROLLED RESPONSE' : 'WORKFORCE READY';
+        postureLabel = engagedCount > 0
+            ? 'CONTROLLED RESPONSE'
+            : 'WORKFORCE READY';
         postureColor = engagedCount > 0 ? _workforceAmber : _workforceGreen;
       case _WorkforceTab.shiftRoster:
         lines = <(Color, String)>[
@@ -713,7 +749,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
             'Zara recommends reviewing Blue Ridge and Waterfall first before the next night turnover.',
           ),
         ];
-        postureLabel = gaps > 0 || thin > 0 ? 'COVERAGE WATCH' : 'COVERAGE STABLE';
+        postureLabel = gaps > 0 || thin > 0
+            ? 'COVERAGE WATCH'
+            : 'COVERAGE STABLE';
         postureColor = gaps > 0 || thin > 0 ? _workforceAmber : _workforceGreen;
       case _WorkforceTab.shiftHistory:
         final extended = historyEntries
@@ -742,7 +780,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 : 'Movement patterns remain healthy across logged shifts.',
           ),
         ];
-        postureLabel = anomalyCount > 0 ? 'PERFORMANCE WATCH' : 'TRENDLINE CLEAN';
+        postureLabel = anomalyCount > 0
+            ? 'PERFORMANCE WATCH'
+            : 'TRENDLINE CLEAN';
         postureColor = anomalyCount > 0 ? _workforceAmber : _workforceGreen;
     }
 
@@ -858,16 +898,45 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 summary,
                 const SizedBox(height: 12),
                 posture,
+                const SizedBox(height: 10),
+                OnyxFlowIndicator(
+                  chainLabel: 'Guards → Queue → Dispatch',
+                  sourceLabel: _workforceFlowSourceLabel(),
+                  nextActionLabel: _workforceFlowNextActionLabel(
+                    readyCount: readyCount,
+                    engagedCount: engagedCount,
+                    gaps: gaps,
+                    thin: thin,
+                    anomalyCount: anomalyCount,
+                  ),
+                ),
               ],
             );
           }
 
-          return Row(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: summary),
-              const SizedBox(width: 16),
-              posture,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: summary),
+                  const SizedBox(width: 16),
+                  posture,
+                ],
+              ),
+              const SizedBox(height: 10),
+              OnyxFlowIndicator(
+                chainLabel: 'Guards → Queue → Dispatch',
+                sourceLabel: _workforceFlowSourceLabel(),
+                nextActionLabel: _workforceFlowNextActionLabel(
+                  readyCount: readyCount,
+                  engagedCount: engagedCount,
+                  gaps: gaps,
+                  thin: thin,
+                  anomalyCount: anomalyCount,
+                ),
+              ),
             ],
           );
         },
@@ -875,8 +944,48 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
     );
   }
 
-  Widget _workforceStatusBar(List<_WorkforceGuard> guards, TextTheme textTheme) {
-    final readyCount = guards.where((guard) => guard.status == _GuardOperationalStatus.ready).length;
+  String _workforceFlowSourceLabel() {
+    return switch (_selectedTab) {
+      _WorkforceTab.activeGuards => 'Evaluating who can act right now',
+      _WorkforceTab.shiftRoster =>
+        'Evaluating coverage before the next shift handoff',
+      _WorkforceTab.shiftHistory =>
+        'Evaluating anomalies across completed shifts',
+    };
+  }
+
+  String _workforceFlowNextActionLabel({
+    required int readyCount,
+    required int engagedCount,
+    required int gaps,
+    required int thin,
+    required int anomalyCount,
+  }) {
+    return switch (_selectedTab) {
+      _WorkforceTab.activeGuards =>
+        engagedCount > 0
+            ? 'Next → Queue should prefer one of $readyCount ready guards for the next response'
+            : 'Next → $readyCount ready guards can promote directly into Queue and Dispatch',
+      _WorkforceTab.shiftRoster =>
+        gaps > 0
+            ? 'Next → Add a coverage layer before Dispatch demand lands on a gap'
+            : thin > 0
+            ? 'Next → Reinforce thin coverage before the next incident wave'
+            : 'Next → Coverage is stable for the next dispatch cycle',
+      _WorkforceTab.shiftHistory =>
+        anomalyCount > 0
+            ? 'Next → Review flagged shifts before placing the same guards into live response'
+            : 'Next → Performance remains within range for the next response cycle',
+    };
+  }
+
+  Widget _workforceStatusBar(
+    List<_WorkforceGuard> guards,
+    TextTheme textTheme,
+  ) {
+    final readyCount = guards
+        .where((guard) => guard.status == _GuardOperationalStatus.ready)
+        .length;
     final activeCount = guards
         .where(
           (guard) =>
@@ -902,8 +1011,16 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
             spacing: 8,
             runSpacing: 8,
             children: [
-              _statusMetricChip('$readyCount READY', _workforceGreen, textTheme),
-              _statusMetricChip('$activeCount ACTIVE SHIFTS', _workforcePurple, textTheme),
+              _statusMetricChip(
+                '$readyCount READY',
+                _workforceGreen,
+                textTheme,
+              ),
+              _statusMetricChip(
+                '$activeCount ACTIVE SHIFTS',
+                _workforcePurple,
+                textTheme,
+              ),
               _statusMetricChip(
                 '$syncIssues SYNC ISSUE${syncIssues == 1 ? '' : 'S'}',
                 syncIssues > 0 ? _workforceAmber : _workforceGreen,
@@ -916,17 +1033,14 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
             runSpacing: 6,
             children: [
               Text('SITE FILTER', style: _sectionLabelStyle(textTheme)),
-              for (final siteCode in siteFilters) _siteFilterChip(siteCode, textTheme),
+              for (final siteCode in siteFilters)
+                _siteFilterChip(siteCode, textTheme),
             ],
           );
           if (stacked) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                counts,
-                const SizedBox(height: 10),
-                filters,
-              ],
+              children: [counts, const SizedBox(height: 10), filters],
             );
           }
           return Row(
@@ -954,10 +1068,7 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
         dividerColor: Colors.transparent,
         indicatorSize: TabBarIndicatorSize.label,
         indicator: UnderlineTabIndicator(
-          borderSide: BorderSide(
-            color: _workforcePurple,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: _workforcePurple, width: 2),
         ),
         labelStyle: textTheme.labelLarge?.copyWith(
           color: _workforcePurple,
@@ -1061,9 +1172,7 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
           color: selected
               ? _workforcePurple.withValues(alpha: 0.08)
               : Colors.transparent,
-          border: Border(
-            bottom: BorderSide(color: _workforceBorder),
-          ),
+          border: Border(bottom: BorderSide(color: _workforceBorder)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1200,10 +1309,22 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _statusBadge(_guardStatusLabel(guard.status), accent, textTheme),
-                        _statusBadge(_signalLabel(guard.signalState), _signalColor(guard.signalState), textTheme),
+                        _statusBadge(
+                          _guardStatusLabel(guard.status),
+                          accent,
+                          textTheme,
+                        ),
+                        _statusBadge(
+                          _signalLabel(guard.signalState),
+                          _signalColor(guard.signalState),
+                          textTheme,
+                        ),
                         _tonalChip(guard.shiftWindow, _workforceSky, textTheme),
-                        _tonalChip(guard.assignmentLabel, _workforcePurple, textTheme),
+                        _tonalChip(
+                          guard.assignmentLabel,
+                          _workforcePurple,
+                          textTheme,
+                        ),
                       ],
                     ),
                   ],
@@ -1225,30 +1346,24 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                     width: cardWidth,
                     child: _detailCard(
                       title: 'IDENTITY',
-                      child: _detailList(
-                        textTheme,
-                        <(String, String)>[
-                          ('Guard', '${guard.fullName} · ${guard.callsign}'),
-                          ('Employee', guard.employeeId),
-                          ('Handler', guard.handler),
-                          ('Contact', guard.contactPhone),
-                        ],
-                      ),
+                      child: _detailList(textTheme, <(String, String)>[
+                        ('Guard', '${guard.fullName} · ${guard.callsign}'),
+                        ('Employee', guard.employeeId),
+                        ('Handler', guard.handler),
+                        ('Contact', guard.contactPhone),
+                      ]),
                     ),
                   ),
                   SizedBox(
                     width: cardWidth,
                     child: _detailCard(
                       title: 'ASSIGNMENT',
-                      child: _detailList(
-                        textTheme,
-                        <(String, String)>[
-                          ('Site', guard.siteName),
-                          ('Coverage', guard.assignmentLabel),
-                          ('Shift', guard.shiftWindow),
-                          ('Clock in', guard.clockInLabel),
-                        ],
-                      ),
+                      child: _detailList(textTheme, <(String, String)>[
+                        ('Site', guard.siteName),
+                        ('Coverage', guard.assignmentLabel),
+                        ('Shift', guard.shiftWindow),
+                        ('Clock in', guard.clockInLabel),
+                      ]),
                     ),
                   ),
                   SizedBox(
@@ -1382,7 +1497,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                                 Text(
                                   'ZARA INSIGHT',
                                   style: textTheme.labelSmall?.copyWith(
-                                    color: _workforcePurple.withValues(alpha: 0.68),
+                                    color: _workforcePurple.withValues(
+                                      alpha: 0.68,
+                                    ),
                                     fontSize: 9,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.6,
@@ -1431,9 +1548,15 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
     required List<_WorkforceGuard> guards,
     required TextTheme textTheme,
   }) {
-    final fullCount = coverageRows.where((lane) => lane.quality == _CoverageState.full).length;
-    final thinCount = coverageRows.where((lane) => lane.quality == _CoverageState.thin).length;
-    final gapCount = coverageRows.where((lane) => lane.quality == _CoverageState.gap).length;
+    final fullCount = coverageRows
+        .where((lane) => lane.quality == _CoverageState.full)
+        .length;
+    final thinCount = coverageRows
+        .where((lane) => lane.quality == _CoverageState.thin)
+        .length;
+    final gapCount = coverageRows
+        .where((lane) => lane.quality == _CoverageState.gap)
+        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1446,7 +1569,12 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ZARA · COVERAGE SUMMARY', style: _sectionLabelStyle(textTheme).copyWith(color: _workforcePurple.withValues(alpha: 0.65))),
+                    Text(
+                      'ZARA · COVERAGE SUMMARY',
+                      style: _sectionLabelStyle(textTheme).copyWith(
+                        color: _workforcePurple.withValues(alpha: 0.65),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     _summaryLine(
                       gapCount > 0 ? _workforceRed : _workforceGreen,
@@ -1474,9 +1602,21 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _statusMetricChip('$fullCount FULLY COVERED', _workforceGreen, textTheme),
-                        _statusMetricChip('$thinCount THIN', _workforceAmber, textTheme),
-                        _statusMetricChip('$gapCount GAP', _workforceRed, textTheme),
+                        _statusMetricChip(
+                          '$fullCount FULLY COVERED',
+                          _workforceGreen,
+                          textTheme,
+                        ),
+                        _statusMetricChip(
+                          '$thinCount THIN',
+                          _workforceAmber,
+                          textTheme,
+                        ),
+                        _statusMetricChip(
+                          '$gapCount GAP',
+                          _workforceRed,
+                          textTheme,
+                        ),
                       ],
                     ),
                   ],
@@ -1499,7 +1639,10 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 style: FilledButton.styleFrom(
                   backgroundColor: _workforcePurple,
                   foregroundColor: _workforceTitle,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -1530,9 +1673,20 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                       children: [
                         SizedBox(
                           width: 220,
-                          child: Text('COVERAGE GRID', style: _sectionLabelStyle(textTheme)),
+                          child: Text(
+                            'COVERAGE GRID',
+                            style: _sectionLabelStyle(textTheme),
+                          ),
                         ),
-                        for (final day in const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+                        for (final day in const [
+                          'Mon',
+                          'Tue',
+                          'Wed',
+                          'Thu',
+                          'Fri',
+                          'Sat',
+                          'Sun',
+                        ])
                           SizedBox(
                             width: 120,
                             child: Text(
@@ -1544,7 +1698,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                       ],
                     ),
                   ),
-                  for (final lane in coverageRows) _coverageLaneRow(lane, textTheme),
+                  for (final lane in coverageRows)
+                    _coverageLaneRow(lane, textTheme),
                 ],
               ),
             ),
@@ -1577,9 +1732,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
             children: [
               Text(
                 'ZARA · PERFORMANCE SUMMARY',
-                style: _sectionLabelStyle(textTheme).copyWith(
-                  color: _workforcePurple.withValues(alpha: 0.65),
-                ),
+                style: _sectionLabelStyle(
+                  textTheme,
+                ).copyWith(color: _workforcePurple.withValues(alpha: 0.65)),
               ),
               const SizedBox(height: 8),
               _summaryLine(
@@ -1653,9 +1808,7 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
   Widget _coverageLaneRow(_CoverageLane lane, TextTheme textTheme) {
     return Container(
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: _workforceBorder),
-        ),
+        border: Border(bottom: BorderSide(color: _workforceBorder)),
       ),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Row(
@@ -1713,7 +1866,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      day.assignments.isEmpty ? 'Unassigned' : day.assignments.join(', '),
+                      day.assignments.isEmpty
+                          ? 'Unassigned'
+                          : day.assignments.join(', '),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.bodySmall?.copyWith(
@@ -1748,10 +1903,10 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: index.isOdd ? _workforceCanvas.withValues(alpha: 0.55) : Colors.transparent,
-        border: const Border(
-          bottom: BorderSide(color: _workforceBorder),
-        ),
+        color: index.isOdd
+            ? _workforceCanvas.withValues(alpha: 0.55)
+            : Colors.transparent,
+        border: const Border(bottom: BorderSide(color: _workforceBorder)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1784,7 +1939,12 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
           ),
           _historyBodyCell(entry.siteLabel, 170, textTheme),
           _historyBodyCell(entry.shiftWindow, 110, textTheme),
-          _historyBodyCell(entry.durationLabel, 110, textTheme, accent: _workforcePurple),
+          _historyBodyCell(
+            entry.durationLabel,
+            110,
+            textTheme,
+            accent: _workforcePurple,
+          ),
           SizedBox(
             width: 120,
             child: Column(
@@ -1824,7 +1984,13 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                           _statusBadge('CLEAR', _workforceGreen, textTheme),
                         ]
                       : entry.flags
-                            .map((flag) => _statusBadge(_historyFlagLabel(flag), _historyFlagColor(flag), textTheme))
+                            .map(
+                              (flag) => _statusBadge(
+                                _historyFlagLabel(flag),
+                                _historyFlagColor(flag),
+                                textTheme,
+                              ),
+                            )
                             .toList(growable: false),
                 ),
                 const SizedBox(height: 6),
@@ -2001,7 +2167,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 child: Text(
                   item.$2,
                   style: textTheme.bodySmall?.copyWith(
-                    color: item.$1 == accentKey ? accentColor ?? _workforceTitle : _workforceTitle,
+                    color: item.$1 == accentKey
+                        ? accentColor ?? _workforceTitle
+                        : _workforceTitle,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     height: 1.35,
@@ -2178,10 +2346,7 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
   Widget _historyHeaderCell(String label, double width, TextTheme textTheme) {
     return SizedBox(
       width: width,
-      child: Text(
-        label,
-        style: _sectionLabelStyle(textTheme),
-      ),
+      child: Text(label, style: _sectionLabelStyle(textTheme)),
     );
   }
 
@@ -2410,21 +2575,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       return 'ALL';
     }
     const aliases = <String, List<String>>{
-      'SE-01': <String>[
-        'se-01',
-        'sandton estate north',
-        'sandton',
-      ],
-      'WF-02': <String>[
-        'wf-02',
-        'waterfall estate',
-        'waterfall',
-      ],
-      'BR-03': <String>[
-        'br-03',
-        'blue ridge residence',
-        'blue ridge',
-      ],
+      'SE-01': <String>['se-01', 'sandton estate north', 'sandton'],
+      'WF-02': <String>['wf-02', 'waterfall estate', 'waterfall'],
+      'BR-03': <String>['br-03', 'blue ridge residence', 'blue ridge'],
     };
     for (final entry in aliases.entries) {
       if (entry.value.contains(normalized)) {
@@ -2435,12 +2588,13 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
   }
 
   List<String> _availableSiteFilters(List<_WorkforceGuard> guards) {
-    final codes = guards
-        .map((guard) => guard.siteCode)
-        .where((code) => code != '--')
-        .toSet()
-        .toList(growable: false)
-      ..sort();
+    final codes =
+        guards
+            .map((guard) => guard.siteCode)
+            .where((code) => code != '--')
+            .toSet()
+            .toList(growable: false)
+          ..sort();
     return <String>['ALL', ...codes];
   }
 
@@ -2488,109 +2642,139 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       if (guardId.isEmpty) {
         continue;
       }
-      operationsByGuard.putIfAbsent(guardId, () => <GuardSyncOperation>[]).add(operation);
+      operationsByGuard
+          .putIfAbsent(guardId, () => <GuardSyncOperation>[])
+          .add(operation);
     }
     for (final ops in operationsByGuard.values) {
       ops.sort((left, right) => right.createdAt.compareTo(left.createdAt));
     }
 
-    return _seedGuards.map((seed) {
-      final assignment = assignmentsByGuard[seed.id];
-      final latestPosition = latestPositionByGuard[seed.id];
-      final guardOperations = operationsByGuard[seed.id] ?? const <GuardSyncOperation>[];
-      if (assignment == null && latestPosition == null && guardOperations.isEmpty) {
-        return seed;
-      }
-      final status = _guardStatusFromLive(
-        assignment: assignment,
-        operations: guardOperations,
-        fallback: seed.status,
-      );
-      final hasSyncIssue = guardOperations.any(
-        (operation) => operation.status == GuardSyncOperationStatus.failed,
-      );
-      final clockInAtUtc =
-          assignment?.acknowledgedAt ??
-          assignment?.issuedAt ??
-          seed.clockInAtUtc;
-      final clockInLabel =
-          clockInAtUtc == null ? seed.clockInLabel : _timeLabel(clockInAtUtc);
-      final shiftLabel = _shiftLabelFor(clockInAtUtc, seed.shiftLabel);
-      final shiftWindow = status == _GuardOperationalStatus.offline ||
-              status == _GuardOperationalStatus.unavailable
-          ? '--'
-          : _shiftWindowFor(shiftLabel);
-      final lastSyncAtUtc = latestPosition?.recordedAtUtc ??
-          (guardOperations.isEmpty ? null : guardOperations.first.createdAt.toUtc()) ??
-          seed.lastSyncAtUtc;
-      final signalState = _signalStateFromLive(
-        status: status,
-        latestPosition: latestPosition,
-        operations: guardOperations,
-        hasSyncIssue: hasSyncIssue,
-        fallback: seed.signalState,
-      );
-      final siteSummary = _siteSummary(
-        assignment?.siteId.trim() ?? seed.routeSiteId,
-        seed,
-      );
-      final incidents = guardOperations
-          .where(
-            (operation) =>
-                operation.type == GuardSyncOperationType.incidentCapture ||
-                operation.type == GuardSyncOperationType.panicSignal,
-          )
-          .length;
-      final obEntries = guardOperations
-          .where((operation) => operation.type == GuardSyncOperationType.checkpointScan)
-          .length;
-      final assignmentLabel = _assignmentLabelForStatus(status, seed.siteName);
-      final readinessLabel = _readinessLabel(status);
-      final readinessDetail = _readinessDetail(status, hasSyncIssue, siteSummary.name);
-      final locationLabel = latestPosition == null
-          ? seed.locationLabel
-          : '${latestPosition.latitude.toStringAsFixed(4)}, ${latestPosition.longitude.toStringAsFixed(4)}';
-      final lastMovementLabel = latestPosition == null
-          ? seed.lastMovementLabel
-          : 'Position update · ${_relativeTimeLabel(latestPosition.recordedAtUtc)}';
-      final avgResponse = _avgResponseLabel(
-        assignment: assignment,
-        operations: guardOperations,
-        fallback: seed.avgResponseLabel,
-      );
-      final zaraHeadline = _zaraHeadline(status, hasSyncIssue, seed.callsign);
-      final zaraDetail = _zaraDetail(status, hasSyncIssue, siteSummary.name);
-      return seed.copyWith(
-        siteCode: siteSummary.code,
-        siteName: siteSummary.name,
-        routeSiteId: siteSummary.routeSiteId,
-        shiftLabel: shiftLabel,
-        shiftWindow: shiftWindow,
-        clockInLabel: clockInLabel,
-        status: status,
-        signalState: signalState,
-        hasSyncIssue: hasSyncIssue,
-        lastSyncLabel: lastSyncAtUtc == null
-            ? seed.lastSyncLabel
-            : _relativeTimeLabel(lastSyncAtUtc),
-        assignmentLabel: assignmentLabel,
-        readinessLabel: readinessLabel,
-        readinessDetail: readinessDetail,
-        locationLabel: locationLabel,
-        lastMovementLabel: lastMovementLabel,
-        avgResponseLabel: avgResponse,
-        obEntries: obEntries == 0 ? seed.obEntries : obEntries,
-        incidents: incidents == 0 ? seed.incidents : incidents,
-        performanceNote: hasSyncIssue
-            ? 'Telemetry retries detected. Hold as secondary until sync stabilises.'
-            : seed.performanceNote,
-        zaraHeadline: zaraHeadline,
-        zaraDetail: zaraDetail,
-        lastSyncAtUtc: lastSyncAtUtc,
-        clockInAtUtc: clockInAtUtc,
-        lastPosition: latestPosition,
-      );
-    }).toList(growable: false);
+    return _seedGuards
+        .map((seed) {
+          final assignment = assignmentsByGuard[seed.id];
+          final latestPosition = latestPositionByGuard[seed.id];
+          final guardOperations =
+              operationsByGuard[seed.id] ?? const <GuardSyncOperation>[];
+          if (assignment == null &&
+              latestPosition == null &&
+              guardOperations.isEmpty) {
+            return seed;
+          }
+          final status = _guardStatusFromLive(
+            assignment: assignment,
+            operations: guardOperations,
+            fallback: seed.status,
+          );
+          final hasSyncIssue = guardOperations.any(
+            (operation) => operation.status == GuardSyncOperationStatus.failed,
+          );
+          final clockInAtUtc =
+              assignment?.acknowledgedAt ??
+              assignment?.issuedAt ??
+              seed.clockInAtUtc;
+          final clockInLabel = clockInAtUtc == null
+              ? seed.clockInLabel
+              : _timeLabel(clockInAtUtc);
+          final shiftLabel = _shiftLabelFor(clockInAtUtc, seed.shiftLabel);
+          final shiftWindow =
+              status == _GuardOperationalStatus.offline ||
+                  status == _GuardOperationalStatus.unavailable
+              ? '--'
+              : _shiftWindowFor(shiftLabel);
+          final lastSyncAtUtc =
+              latestPosition?.recordedAtUtc ??
+              (guardOperations.isEmpty
+                  ? null
+                  : guardOperations.first.createdAt.toUtc()) ??
+              seed.lastSyncAtUtc;
+          final signalState = _signalStateFromLive(
+            status: status,
+            latestPosition: latestPosition,
+            operations: guardOperations,
+            hasSyncIssue: hasSyncIssue,
+            fallback: seed.signalState,
+          );
+          final siteSummary = _siteSummary(
+            assignment?.siteId.trim() ?? seed.routeSiteId,
+            seed,
+          );
+          final incidents = guardOperations
+              .where(
+                (operation) =>
+                    operation.type == GuardSyncOperationType.incidentCapture ||
+                    operation.type == GuardSyncOperationType.panicSignal,
+              )
+              .length;
+          final obEntries = guardOperations
+              .where(
+                (operation) =>
+                    operation.type == GuardSyncOperationType.checkpointScan,
+              )
+              .length;
+          final assignmentLabel = _assignmentLabelForStatus(
+            status,
+            seed.siteName,
+          );
+          final readinessLabel = _readinessLabel(status);
+          final readinessDetail = _readinessDetail(
+            status,
+            hasSyncIssue,
+            siteSummary.name,
+          );
+          final locationLabel = latestPosition == null
+              ? seed.locationLabel
+              : '${latestPosition.latitude.toStringAsFixed(4)}, ${latestPosition.longitude.toStringAsFixed(4)}';
+          final lastMovementLabel = latestPosition == null
+              ? seed.lastMovementLabel
+              : 'Position update · ${_relativeTimeLabel(latestPosition.recordedAtUtc)}';
+          final avgResponse = _avgResponseLabel(
+            assignment: assignment,
+            operations: guardOperations,
+            fallback: seed.avgResponseLabel,
+          );
+          final zaraHeadline = _zaraHeadline(
+            status,
+            hasSyncIssue,
+            seed.callsign,
+          );
+          final zaraDetail = _zaraDetail(
+            status,
+            hasSyncIssue,
+            siteSummary.name,
+          );
+          return seed.copyWith(
+            siteCode: siteSummary.code,
+            siteName: siteSummary.name,
+            routeSiteId: siteSummary.routeSiteId,
+            shiftLabel: shiftLabel,
+            shiftWindow: shiftWindow,
+            clockInLabel: clockInLabel,
+            status: status,
+            signalState: signalState,
+            hasSyncIssue: hasSyncIssue,
+            lastSyncLabel: lastSyncAtUtc == null
+                ? seed.lastSyncLabel
+                : _relativeTimeLabel(lastSyncAtUtc),
+            assignmentLabel: assignmentLabel,
+            readinessLabel: readinessLabel,
+            readinessDetail: readinessDetail,
+            locationLabel: locationLabel,
+            lastMovementLabel: lastMovementLabel,
+            avgResponseLabel: avgResponse,
+            obEntries: obEntries == 0 ? seed.obEntries : obEntries,
+            incidents: incidents == 0 ? seed.incidents : incidents,
+            performanceNote: hasSyncIssue
+                ? 'Telemetry retries detected. Hold as secondary until sync stabilises.'
+                : seed.performanceNote,
+            zaraHeadline: zaraHeadline,
+            zaraDetail: zaraDetail,
+            lastSyncAtUtc: lastSyncAtUtc,
+            clockInAtUtc: clockInAtUtc,
+            lastPosition: latestPosition,
+          );
+        })
+        .toList(growable: false);
   }
 
   _GuardOperationalStatus _guardStatusFromLive({
@@ -2623,12 +2807,11 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
     GuardDutyStatus status,
   ) {
     return switch (status) {
-      GuardDutyStatus.available || GuardDutyStatus.clear =>
-        _GuardOperationalStatus.ready,
+      GuardDutyStatus.available ||
+      GuardDutyStatus.clear => _GuardOperationalStatus.ready,
       GuardDutyStatus.enRoute ||
       GuardDutyStatus.onSite ||
-      GuardDutyStatus.panic =>
-        _GuardOperationalStatus.engaged,
+      GuardDutyStatus.panic => _GuardOperationalStatus.engaged,
       GuardDutyStatus.offline => _GuardOperationalStatus.offline,
     };
   }
@@ -2647,7 +2830,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
     if (hasSyncIssue) {
       return _SignalState.degraded;
     }
-    final referenceTime = latestPosition?.recordedAtUtc ??
+    final referenceTime =
+        latestPosition?.recordedAtUtc ??
         (operations.isEmpty ? null : operations.first.createdAt.toUtc());
     if (referenceTime == null) {
       return fallback;
@@ -2665,7 +2849,11 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
   ) {
     final normalized = routeSiteId.trim().toLowerCase();
     if (normalized.isEmpty) {
-      return (code: seed.siteCode, name: seed.siteName, routeSiteId: seed.routeSiteId);
+      return (
+        code: seed.siteCode,
+        name: seed.siteName,
+        routeSiteId: seed.routeSiteId,
+      );
     }
     for (final guard in _seedGuards) {
       if (guard.routeSiteId.trim().toLowerCase() == normalized ||
@@ -2766,7 +2954,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
     }
     for (final operation in operations) {
       final status = _guardDutyStatusFromOperation(operation);
-      if (status != GuardDutyStatus.enRoute && status != GuardDutyStatus.onSite) {
+      if (status != GuardDutyStatus.enRoute &&
+          status != GuardDutyStatus.onSite) {
         continue;
       }
       final delta = operation.createdAt.difference(assignment.issuedAt);
@@ -2837,47 +3026,61 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
       grouped.putIfAbsent(guard.siteCode, () => <_WorkforceGuard>[]).add(guard);
     }
     final siteCodes = grouped.keys.toList(growable: false)..sort();
-    return siteCodes.map((siteCode) {
-      final siteGuards = grouped[siteCode]!;
-      final siteName = siteGuards.first.siteName;
-      final zoneLabel = switch (siteCode) {
-        'SE-01' => 'North boulevard',
-        'WF-02' => 'Gatehouse and south river',
-        'BR-03' => 'West perimeter',
-        _ => 'Primary zone',
-      };
-      final days = List<_CoverageCell>.generate(7, (index) {
-        final assignments = _coverageAssignmentsForDay(siteGuards, siteCode, index);
-        final state = assignments.isEmpty
-            ? _CoverageState.gap
-            : assignments.length == 1
+    return siteCodes
+        .map((siteCode) {
+          final siteGuards = grouped[siteCode]!;
+          final siteName = siteGuards.first.siteName;
+          final zoneLabel = switch (siteCode) {
+            'SE-01' => 'North boulevard',
+            'WF-02' => 'Gatehouse and south river',
+            'BR-03' => 'West perimeter',
+            _ => 'Primary zone',
+          };
+          final days = List<_CoverageCell>.generate(7, (index) {
+            final assignments = _coverageAssignmentsForDay(
+              siteGuards,
+              siteCode,
+              index,
+            );
+            final state = assignments.isEmpty
+                ? _CoverageState.gap
+                : assignments.length == 1
                 ? _CoverageState.thin
                 : _CoverageState.full;
-        final note = switch (state) {
-          _CoverageState.full => 'Fully covered',
-          _CoverageState.thin => 'Thin layer',
-          _CoverageState.gap => 'Gap',
-        };
-        return _CoverageCell(
-          dayLabel: const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index],
-          state: state,
-          assignments: assignments,
-          note: note,
-        );
-      });
-      final quality = days.any((day) => day.state == _CoverageState.gap)
-          ? _CoverageState.gap
-          : days.any((day) => day.state == _CoverageState.thin)
+            final note = switch (state) {
+              _CoverageState.full => 'Fully covered',
+              _CoverageState.thin => 'Thin layer',
+              _CoverageState.gap => 'Gap',
+            };
+            return _CoverageCell(
+              dayLabel: const [
+                'Mon',
+                'Tue',
+                'Wed',
+                'Thu',
+                'Fri',
+                'Sat',
+                'Sun',
+              ][index],
+              state: state,
+              assignments: assignments,
+              note: note,
+            );
+          });
+          final quality = days.any((day) => day.state == _CoverageState.gap)
+              ? _CoverageState.gap
+              : days.any((day) => day.state == _CoverageState.thin)
               ? _CoverageState.thin
               : _CoverageState.full;
-      return _CoverageLane(
-        siteCode: siteCode,
-        siteName: siteName,
-        zoneLabel: zoneLabel,
-        quality: quality,
-        days: days,
-      );
-    }).toList(growable: false);
+          return _CoverageLane(
+            siteCode: siteCode,
+            siteName: siteName,
+            zoneLabel: zoneLabel,
+            quality: quality,
+            days: days,
+          );
+        })
+        .toList(growable: false);
   }
 
   List<String> _coverageAssignmentsForDay(
@@ -2910,7 +3113,8 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
         .where((guard) => guard.siteCode != '--')
         .map((guard) {
           final flags = <_HistoryFlag>[
-            if (_isLateStart(guard.clockInLabel, guard.shiftLabel)) _HistoryFlag.lateStart,
+            if (_isLateStart(guard.clockInLabel, guard.shiftLabel))
+              _HistoryFlag.lateStart,
             if (_isExtendedShift(guard, nowUtc)) _HistoryFlag.extendedShift,
             if (_hasNoMovement(guard)) _HistoryFlag.noMovement,
             if (_hasHighActivity(guard)) _HistoryFlag.highActivity,
@@ -2923,12 +3127,14 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
             shiftWindow: guard.shiftWindow,
             durationLabel: _durationLabelForGuard(guard, nowUtc),
             startLabel: guard.clockInLabel,
-            endLabel: guard.status == _GuardOperationalStatus.engaged ||
+            endLabel:
+                guard.status == _GuardOperationalStatus.engaged ||
                     guard.status == _GuardOperationalStatus.ready
                 ? 'Live'
                 : '--',
             movementLabel: guard.lastMovementLabel,
-            activityLabel: '${guard.obEntries} OB · ${guard.incidents} incident',
+            activityLabel:
+                '${guard.obEntries} OB · ${guard.incidents} incident',
             flags: flags,
             zaraNote: _historyZaraNote(flags, guard),
           );
@@ -3137,9 +3343,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
-        final textTheme = Theme.of(sheetContext).textTheme.merge(
-              OnyxTheme.dark().textTheme,
-            );
+        final textTheme = Theme.of(
+          sheetContext,
+        ).textTheme.merge(OnyxTheme.dark().textTheme);
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
           child: Column(
@@ -3164,26 +3370,27 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                 ),
               ),
               const SizedBox(height: 16),
-              _detailList(
-                textTheme,
-                <(String, String)>[
-                  ('Contact', guard.contactPhone),
-                  ('Site', guard.siteName),
-                  ('Status', _guardStatusLabel(guard.status)),
-                ],
-              ),
+              _detailList(textTheme, <(String, String)>[
+                ('Contact', guard.contactPhone),
+                ('Site', guard.siteName),
+                ('Status', _guardStatusLabel(guard.status)),
+              ]),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   _tonalChip(
-                    clientLaneAvailable ? 'Client lane ready' : 'Client lane offline',
+                    clientLaneAvailable
+                        ? 'Client lane ready'
+                        : 'Client lane offline',
                     clientLaneAvailable ? _workforceGreen : _workforceAmber,
                     textTheme,
                   ),
                   _tonalChip(
-                    voipAvailable ? 'VoIP staging ready' : 'VoIP staging offline',
+                    voipAvailable
+                        ? 'VoIP staging ready'
+                        : 'VoIP staging offline',
                     voipAvailable ? _workforceSky : _workforceAmber,
                     textTheme,
                   ),
@@ -3224,7 +3431,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                           ? () async {
                               Navigator.of(sheetContext).pop();
                               if (clientLaneAvailable) {
-                                widget.onOpenClientLaneForSite?.call(guard.routeSiteId);
+                                widget.onOpenClientLaneForSite?.call(
+                                  guard.routeSiteId,
+                                );
                                 return;
                               }
                               final stageCall = widget.onStageGuardVoipCall;
@@ -3246,7 +3455,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
                                 if (!mounted) {
                                   return;
                                 }
-                                _showSnack('VoIP staging failed for ${guard.callsign}.');
+                                _showSnack(
+                                  'VoIP staging failed for ${guard.callsign}.',
+                                );
                               }
                             }
                           : null,
@@ -3303,7 +3514,9 @@ class _GuardsWorkforcePageState extends State<GuardsWorkforcePage>
   void _showLiveLocation(_WorkforceGuard guard) {
     final position = guard.lastPosition;
     if (position == null) {
-      _showSnack('Live position bridge is ready for ${guard.callsign}, but no coordinates are available yet.');
+      _showSnack(
+        'Live position bridge is ready for ${guard.callsign}, but no coordinates are available yet.',
+      );
       return;
     }
     _showSnack(

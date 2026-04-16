@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'components/onyx_system_flow_widgets.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
@@ -640,16 +641,41 @@ class RiskIntelligencePage extends StatelessWidget {
           if (narrow) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [leftContent, const SizedBox(height: 12), postureChip],
+              children: [
+                leftContent,
+                const SizedBox(height: 12),
+                postureChip,
+                const SizedBox(height: 10),
+                OnyxFlowIndicator(
+                  chainLabel: 'Intel → Track',
+                  sourceLabel: elevatedArea
+                      ? 'Predictive watch → ${topArea.title}'
+                      : 'Predictive watch → All areas stable',
+                  nextActionLabel: _forecastNextActionLabel(topArea, signal),
+                ),
+              ],
             );
           }
 
-          return Row(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: leftContent),
-              const SizedBox(width: 12),
-              postureChip,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: leftContent),
+                  const SizedBox(width: 12),
+                  postureChip,
+                ],
+              ),
+              const SizedBox(height: 10),
+              OnyxFlowIndicator(
+                chainLabel: 'Intel → Track',
+                sourceLabel: elevatedArea
+                    ? 'Predictive watch → ${topArea.title}'
+                    : 'Predictive watch → All areas stable',
+                nextActionLabel: _forecastNextActionLabel(topArea, signal),
+              ),
             ],
           );
         },
@@ -787,6 +813,22 @@ class RiskIntelligencePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _forecastNextActionLabel(
+    RiskIntelAreaSummary? topArea,
+    RiskIntelFeedItem? signal,
+  ) {
+    if (signal != null && signal.confidenceScore > 60) {
+      final label = signal.sourceType.isEmpty
+          ? signal.sourceLabel
+          : signal.sourceType;
+      return 'Next → Send ${_intelTitleCaseWords(label)} to Track before shift change';
+    }
+    if (topArea != null) {
+      return 'Next → Review ${topArea.title} before the next shift handoff';
+    }
+    return 'Next → Keep predictive monitoring active';
   }
 
   Widget _signalCard(BuildContext context, RiskIntelFeedItem item) {

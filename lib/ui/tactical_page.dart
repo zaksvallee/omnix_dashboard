@@ -17,6 +17,7 @@ import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../application/admin/admin_directory_service.dart';
 import '../application/monitoring_scene_review_store.dart';
+import '../application/system_flow_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -26,6 +27,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/guard/guard_position_summary.dart';
+import 'components/onyx_system_flow_widgets.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
@@ -1019,6 +1021,11 @@ class TacticalPage extends StatelessWidget {
           (signal) => host.signalSentStates[signal.id] != SignalSentState.sent,
         )
         .length;
+    final queuedSignals = visibleSignals
+        .where(
+          (signal) => host.signalSentStates[signal.id] == SignalSentState.sent,
+        )
+        .toList(growable: false);
     final actionableCount = visibleSignals
         .where((signal) => signal.confidence >= 85)
         .length;
@@ -1126,6 +1133,10 @@ class TacticalPage extends StatelessWidget {
           totalSignals: visibleSignals.length,
           reviewCount: reviewCount,
           geofenceAlerts: geofenceAlerts,
+          sentCount: queuedSignals.length,
+          latestQueueReference: queuedSignals.isEmpty
+              ? null
+              : _trackQueueReference(queuedSignals.first.id),
           onReviewTopSignal: topSignal == null
               ? null
               : () => scrollToSignal(topSignal),
@@ -1214,6 +1225,8 @@ class TacticalPage extends StatelessWidget {
     required int totalSignals,
     required int reviewCount,
     required int geofenceAlerts,
+    required int sentCount,
+    required String? latestQueueReference,
     required VoidCallback? onReviewTopSignal,
   }) {
     final summaryTime = topSignal == null
@@ -1310,7 +1323,7 @@ class TacticalPage extends StatelessWidget {
                             child: Text(
                               topSignal == null
                                   ? 'Detection lanes are nominal.'
-                                  : 'Review ${topSignal.title} first.',
+                                  : 'Predictive read: review ${topSignal.title} first before pushing the next queue handoff.',
                               style: GoogleFonts.inter(
                                 color: OnyxColorTokens.accentPurple.withValues(
                                   alpha: 0.80,
@@ -1385,12 +1398,41 @@ class TacticalPage extends StatelessWidget {
                 Row(children: [leftColumn]),
                 const SizedBox(height: 12),
                 rightColumn,
+                const SizedBox(height: 10),
+                OnyxFlowIndicator(
+                  chainLabel: 'Track → Queue',
+                  sourceLabel: topSignal == null
+                      ? 'Detection lane standing by'
+                      : 'Strongest signal → ${topSignal.title}',
+                  nextActionLabel: sentCount > 0
+                      ? 'Sent to Queue → ${latestQueueReference ?? 'INC-STANDBY'}'
+                      : topSignal == null
+                      ? 'Await the next verified anomaly'
+                      : 'Next queue handoff → ${_trackQueueReference(topSignal.id)}',
+                ),
               ],
             );
           }
-          return Row(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [leftColumn, const SizedBox(width: 16), rightColumn],
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [leftColumn, const SizedBox(width: 16), rightColumn],
+              ),
+              const SizedBox(height: 10),
+              OnyxFlowIndicator(
+                chainLabel: 'Track → Queue',
+                sourceLabel: topSignal == null
+                    ? 'Detection lane standing by'
+                    : 'Strongest signal → ${topSignal.title}',
+                nextActionLabel: sentCount > 0
+                    ? 'Sent to Queue → ${latestQueueReference ?? 'INC-STANDBY'}'
+                    : topSignal == null
+                    ? 'Await the next verified anomaly'
+                    : 'Next queue handoff → ${_trackQueueReference(topSignal.id)}',
+              ),
+            ],
           );
         },
       ),
@@ -1844,7 +1886,7 @@ class TacticalPage extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Incident created. Awaiting decision in Queue.',
+                        'Sent to Queue → ${_trackQueueReference(signal.id)} · Awaiting decision.',
                         style: GoogleFonts.inter(
                           color: OnyxColorTokens.accentPurple.withValues(
                             alpha: 0.50,
@@ -2440,6 +2482,10 @@ class TacticalPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _trackQueueReference(String rawSignalId) {
+    return OnyxSystemFlowService.incidentReference(rawSignalId);
   }
 
   Widget _buildTacticalMapBar({

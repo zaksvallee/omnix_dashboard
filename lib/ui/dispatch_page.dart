@@ -8,6 +8,7 @@ import '../application/dispatch_models.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/news_source_diagnostic.dart';
+import '../application/system_flow_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -16,6 +17,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
+import 'components/onyx_system_flow_widgets.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
@@ -36,14 +38,7 @@ enum _DispatchFocusState { none, exact, scopeBacked, seeded }
 
 enum _DispatchTimelinePhase { detection, decision, confirmation, resolution }
 
-enum _DispatchTimelineBadgeType {
-  sys,
-  zara,
-  client,
-  dispatch,
-  officer,
-  onyx,
-}
+enum _DispatchTimelineBadgeType { sys, zara, client, dispatch, officer, onyx }
 
 enum _DispatchOutcomeKind { realEmergency, falseAlarm, noResponse, safeWord }
 
@@ -55,7 +50,9 @@ const _dispatchBorderStrongColor = OnyxDesignTokens.borderStrong;
 const _dispatchTitleColor = OnyxDesignTokens.textPrimary;
 const _dispatchBodyColor = OnyxDesignTokens.textSecondary;
 const _dispatchMutedColor = OnyxDesignTokens.textMuted;
-final _dispatchShadowColor = OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.05);
+final _dispatchShadowColor = OnyxColorTokens.backgroundPrimary.withValues(
+  alpha: 0.05,
+);
 const _dispatchAccentSky = OnyxDesignTokens.accentSky;
 
 class _DispatchItem {
@@ -853,6 +850,12 @@ class _DispatchPageState extends State<DispatchPage> {
         children: [
           _incidentHeaderCard(selectedDispatch),
           const SizedBox(height: 10),
+          OnyxFlowIndicator(
+            chainLabel: 'Track → Queue → Dispatch',
+            sourceLabel: _dispatchFlowSourceLabel(selectedDispatch),
+            nextActionLabel: _dispatchFlowNextActionLabel(selectedDispatch),
+          ),
+          const SizedBox(height: 10),
           _dispatchSectionLabel('INCIDENT TIMELINE'),
           const SizedBox(height: 6),
           _incidentTimelineCard(selectedDispatch),
@@ -914,12 +917,17 @@ class _DispatchPageState extends State<DispatchPage> {
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [Expanded(child: leftColumn), rightColumn],
+      children: [
+        Expanded(child: leftColumn),
+        rightColumn,
+      ],
     );
   }
 
   Widget _incidentHeaderCard(_DispatchItem? dispatch) {
-    final intel = dispatch == null ? null : _matchedIntelligenceForDispatch(dispatch);
+    final intel = dispatch == null
+        ? null
+        : _matchedIntelligenceForDispatch(dispatch);
     final resolved = _isDispatchResolved(dispatch);
     final statusText = dispatch == null
         ? 'NO INCIDENT'
@@ -938,7 +946,10 @@ class _DispatchPageState extends State<DispatchPage> {
     final alarmType = dispatch == null ? 'Awaiting trigger' : dispatch.type;
     final zone = _zoneLabelForDispatch(dispatch, intel);
     final site = dispatch == null
-        ? _placeholderText(_displaySiteLabel(widget.siteId), fallback: 'No site selected')
+        ? _placeholderText(
+            _displaySiteLabel(widget.siteId),
+            fallback: 'No site selected',
+          )
         : _displaySiteLabel(dispatch.site);
     final replayAction = dispatch == null || dispatch.isSeededPlaceholder
         ? null
@@ -975,7 +986,9 @@ class _DispatchPageState extends State<DispatchPage> {
                   Text(
                     incidentId,
                     style: GoogleFonts.inter(
-                      color: OnyxColorTokens.textPrimary.withValues(alpha: 0.88),
+                      color: OnyxColorTokens.textPrimary.withValues(
+                        alpha: 0.88,
+                      ),
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
@@ -986,10 +999,14 @@ class _DispatchPageState extends State<DispatchPage> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: dispatch == null ? 0.06 : 0.12),
+                      color: statusColor.withValues(
+                        alpha: dispatch == null ? 0.06 : 0.12,
+                      ),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: statusColor.withValues(alpha: dispatch == null ? 0.12 : 0.25),
+                        color: statusColor.withValues(
+                          alpha: dispatch == null ? 0.12 : 0.25,
+                        ),
                       ),
                     ),
                     child: Text(
@@ -1029,7 +1046,9 @@ class _DispatchPageState extends State<DispatchPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                triggerTime == null ? '--:--' : _clockLabel(triggerTime.toLocal()),
+                triggerTime == null
+                    ? '--:--'
+                    : _clockLabel(triggerTime.toLocal()),
                 style: GoogleFonts.inter(
                   color: OnyxColorTokens.textMuted,
                   fontSize: 22,
@@ -1046,9 +1065,15 @@ class _DispatchPageState extends State<DispatchPage> {
                 children: [
                   _dispatchActionChip(
                     label: 'Replay Incident',
-                    foreground: OnyxColorTokens.accentPurple.withValues(alpha: 0.70),
-                    background: OnyxColorTokens.accentPurple.withValues(alpha: 0.10),
-                    border: OnyxColorTokens.accentPurple.withValues(alpha: 0.25),
+                    foreground: OnyxColorTokens.accentPurple.withValues(
+                      alpha: 0.70,
+                    ),
+                    background: OnyxColorTokens.accentPurple.withValues(
+                      alpha: 0.10,
+                    ),
+                    border: OnyxColorTokens.accentPurple.withValues(
+                      alpha: 0.25,
+                    ),
                     onTap: replayAction,
                   ),
                   _dispatchActionChip(
@@ -1081,7 +1106,11 @@ class _DispatchPageState extends State<DispatchPage> {
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [Expanded(child: left), const SizedBox(width: 10), right],
+            children: [
+              Expanded(child: left),
+              const SizedBox(width: 10),
+              right,
+            ],
           );
         },
       ),
@@ -1098,6 +1127,24 @@ class _DispatchPageState extends State<DispatchPage> {
         letterSpacing: 1.3,
       ),
     );
+  }
+
+  String _dispatchFlowSourceLabel(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return 'Awaiting Queue approval for the next verified incident';
+    }
+    return 'From Queue → ${dispatch.id} · ${dispatch.type}';
+  }
+
+  String _dispatchFlowNextActionLabel(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return 'Next → Hold the response lane in standby';
+    }
+    final resolved = _isDispatchResolved(dispatch);
+    if (resolved) {
+      return 'Resolution → Ledger sealed for ${OnyxSystemFlowService.dispatchReference(dispatch.id)}';
+    }
+    return 'Next → Confirm officer arrival and close ${OnyxSystemFlowService.dispatchReference(dispatch.id)}';
   }
 
   Widget _incidentTimelineCard(_DispatchItem? dispatch) {
@@ -1158,7 +1205,8 @@ class _DispatchPageState extends State<DispatchPage> {
     }
 
     final active = _isDispatchActive(dispatch);
-    final groupedEntries = <_DispatchTimelinePhase, List<_DispatchTimelineEntryData>>{};
+    final groupedEntries =
+        <_DispatchTimelinePhase, List<_DispatchTimelineEntryData>>{};
     for (final phase in _DispatchTimelinePhase.values) {
       groupedEntries[phase] = <_DispatchTimelineEntryData>[];
     }
@@ -1196,7 +1244,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     child: Text(
                       _phaseLabel(phase),
                       style: GoogleFonts.inter(
-                        color: OnyxColorTokens.textDisabled.withValues(alpha: 0.60),
+                        color: OnyxColorTokens.textDisabled.withValues(
+                          alpha: 0.60,
+                        ),
                         fontSize: 8,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
@@ -1207,11 +1257,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     Builder(
                       builder: (context) {
                         final currentIndex = entryIndex++;
-                        final isLatest = active && currentIndex == entries.length - 1;
-                        return _timelineEntryTile(
-                          entry,
-                          pulse: isLatest,
-                        );
+                        final isLatest =
+                            active && currentIndex == entries.length - 1;
+                        return _timelineEntryTile(entry, pulse: isLatest);
                       },
                     ),
                   ],
@@ -1280,12 +1328,15 @@ class _DispatchPageState extends State<DispatchPage> {
                     height: 1.3,
                   ),
                 ),
-                if (entry.subtext != null && entry.subtext!.trim().isNotEmpty) ...[
+                if (entry.subtext != null &&
+                    entry.subtext!.trim().isNotEmpty) ...[
                   const SizedBox(height: 1),
                   Text(
                     entry.subtext!,
                     style: GoogleFonts.inter(
-                      color: OnyxColorTokens.textDisabled.withValues(alpha: 0.28),
+                      color: OnyxColorTokens.textDisabled.withValues(
+                        alpha: 0.28,
+                      ),
                       fontSize: 9,
                       fontWeight: FontWeight.w600,
                       height: 1.3,
@@ -1294,7 +1345,10 @@ class _DispatchPageState extends State<DispatchPage> {
                 ],
                 const SizedBox(height: 3),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeStyle.$1,
                     borderRadius: BorderRadius.circular(3),
@@ -1352,7 +1406,11 @@ class _DispatchPageState extends State<DispatchPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          'AI CALL TRANSCRIPT · ${resolved ? 'COMPLETED' : dispatch == null ? 'STANDBY' : 'ACTIVE'}',
+                          'AI CALL TRANSCRIPT · ${resolved
+                              ? 'COMPLETED'
+                              : dispatch == null
+                              ? 'STANDBY'
+                              : 'ACTIVE'}',
                           style: GoogleFonts.inter(
                             color: OnyxColorTokens.accentGreen.withValues(
                               alpha: 0.55,
@@ -1561,7 +1619,9 @@ class _DispatchPageState extends State<DispatchPage> {
         Expanded(
           child: _statBlock(
             label: 'ATTEMPTS',
-            value: dispatch == null ? '--' : '${_callAttemptsForDispatch(dispatch)}',
+            value: dispatch == null
+                ? '--'
+                : '${_callAttemptsForDispatch(dispatch)}',
             valueColor: OnyxColorTokens.textMuted,
           ),
         ),
@@ -1702,10 +1762,15 @@ class _DispatchPageState extends State<DispatchPage> {
   }
 
   Widget _contextGrid(_DispatchItem? dispatch) {
-    final intel = dispatch == null ? null : _matchedIntelligenceForDispatch(dispatch);
+    final intel = dispatch == null
+        ? null
+        : _matchedIntelligenceForDispatch(dispatch);
     final zoneLabel = _zoneLabelForDispatch(dispatch, intel);
     final siteLabel = dispatch == null
-        ? _placeholderText(_displaySiteLabel(widget.siteId), fallback: 'No site selected')
+        ? _placeholderText(
+            _displaySiteLabel(widget.siteId),
+            fallback: 'No site selected',
+          )
         : _displaySiteLabel(dispatch.site);
     final clientLabel = dispatch == null
         ? _placeholderText(widget.clientId, fallback: 'No client linked')
@@ -1748,7 +1813,9 @@ class _DispatchPageState extends State<DispatchPage> {
           child: _contextCell(
             label: 'OFFICER',
             value: officerLabel,
-            sub: dispatch == null ? 'Standby' : _statusStyle(dispatch.status).label,
+            sub: dispatch == null
+                ? 'Standby'
+                : _statusStyle(dispatch.status).label,
           ),
         ),
       ],
@@ -1806,13 +1873,15 @@ class _DispatchPageState extends State<DispatchPage> {
     final facts = <({String label, String value, Color color})>[
       (
         label: 'Officer status',
-        value: dispatch == null ? 'Awaiting assignment' : _statusStyle(dispatch.status).label,
+        value: dispatch == null
+            ? 'Awaiting assignment'
+            : _statusStyle(dispatch.status).label,
         color: dispatch == null
             ? OnyxColorTokens.textMuted
             : (dispatch.status == _DispatchStatus.onSite ||
-                      dispatch.status == _DispatchStatus.cleared)
-                  ? OnyxColorTokens.accentGreen
-                  : OnyxColorTokens.textMuted,
+                  dispatch.status == _DispatchStatus.cleared)
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.textMuted,
       ),
       (
         label: 'Response time',
@@ -1834,7 +1903,9 @@ class _DispatchPageState extends State<DispatchPage> {
       ),
       (
         label: 'Call attempts',
-        value: dispatch == null ? '--' : '${_callAttemptsForDispatch(dispatch)} / 2',
+        value: dispatch == null
+            ? '--'
+            : '${_callAttemptsForDispatch(dispatch)} / 2',
         color: OnyxColorTokens.textMuted,
       ),
       (
@@ -1943,7 +2014,9 @@ class _DispatchPageState extends State<DispatchPage> {
                         child: Text(
                           line,
                           style: GoogleFonts.inter(
-                            color: OnyxColorTokens.accentPurple.withValues(alpha: 0.65),
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.65,
+                            ),
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
                             height: 1.4,
@@ -1962,7 +2035,8 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Widget _dispatchFooterLinks(_DispatchItem? dispatch) {
     final resolved = _isDispatchResolved(dispatch);
-    final replayAction = resolved && dispatch != null && !dispatch.isSeededPlaceholder
+    final replayAction =
+        resolved && dispatch != null && !dispatch.isSeededPlaceholder
         ? () => _viewCamera(dispatch)
         : null;
     final reviewAction = dispatch != null && !dispatch.isSeededPlaceholder
@@ -1998,7 +2072,9 @@ class _DispatchPageState extends State<DispatchPage> {
         _footerLinkButton(
           label: 'Reopen in Decision Queue',
           foreground: OnyxColorTokens.textPrimary.withValues(alpha: 0.22),
-          background: OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.55),
+          background: OnyxColorTokens.backgroundSecondary.withValues(
+            alpha: 0.55,
+          ),
           border: OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.55),
           onTap: reopenAction,
         ),
@@ -2152,8 +2228,14 @@ class _DispatchPageState extends State<DispatchPage> {
         _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.onSite);
     final closed = _incidentClosedForDispatch(dispatch.id);
     final denied = _executionDeniedForDispatch(dispatch.id);
-    final allClear = _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.allClear);
-    final cancelled = _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.cancelled);
+    final allClear = _partnerEventForStatus(
+      dispatch.id,
+      PartnerDispatchStatus.allClear,
+    );
+    final cancelled = _partnerEventForStatus(
+      dispatch.id,
+      PartnerDispatchStatus.cancelled,
+    );
     final outcome = _dispatchOutcomeKindForDispatch(dispatch);
     final officerLabel = _displayOfficerLabel(dispatch.officer);
 
@@ -2205,7 +2287,8 @@ class _DispatchPageState extends State<DispatchPage> {
             badgeType: _DispatchTimelineBadgeType.zara,
             timeLabel: _clockLabel(dispatchTriggered.occurredAt.toLocal()),
             text: 'Real emergency confirmed. Monitoring officer approach.',
-            subtext: 'Zara kept the response lane live while the officer closed the distance.',
+            subtext:
+                'Zara kept the response lane live while the officer closed the distance.',
             major: false,
           ),
         );
@@ -2333,8 +2416,10 @@ class _DispatchPageState extends State<DispatchPage> {
     PartnerDispatchStatus status,
   ) {
     PartnerDispatchStatusDeclared? match;
-    for (final event in widget.events.whereType<PartnerDispatchStatusDeclared>()) {
-      if (event.dispatchId.trim() != dispatchId.trim() || event.status != status) {
+    for (final event
+        in widget.events.whereType<PartnerDispatchStatusDeclared>()) {
+      if (event.dispatchId.trim() != dispatchId.trim() ||
+          event.status != status) {
         continue;
       }
       if (match == null ||
@@ -2347,7 +2432,9 @@ class _DispatchPageState extends State<DispatchPage> {
     return match;
   }
 
-  IntelligenceReceived? _matchedIntelligenceForDispatch(_DispatchItem dispatch) {
+  IntelligenceReceived? _matchedIntelligenceForDispatch(
+    _DispatchItem dispatch,
+  ) {
     final decision = _decisionEventForDispatch(dispatch.id);
     final clientScope = decision?.clientId.trim().isNotEmpty == true
         ? decision!.clientId.trim()
@@ -2389,7 +2476,8 @@ class _DispatchPageState extends State<DispatchPage> {
       final matches = switch (event) {
         DecisionCreated value => value.dispatchId.trim() == dispatchId,
         ResponseArrived value => value.dispatchId.trim() == dispatchId,
-        PartnerDispatchStatusDeclared value => value.dispatchId.trim() == dispatchId,
+        PartnerDispatchStatusDeclared value =>
+          value.dispatchId.trim() == dispatchId,
         ExecutionCompleted value => value.dispatchId.trim() == dispatchId,
         ExecutionDenied value => value.dispatchId.trim() == dispatchId,
         IncidentClosed value => value.dispatchId.trim() == dispatchId,
@@ -2416,7 +2504,9 @@ class _DispatchPageState extends State<DispatchPage> {
     final intel = _matchedIntelligenceForDispatch(dispatch);
     final decision = _decisionEventForDispatch(dispatch.id);
     final scoped = _dispatchScopedEvents(dispatch);
-    return intel?.occurredAt ?? decision?.occurredAt ?? (scoped.isEmpty ? null : scoped.first.occurredAt);
+    return intel?.occurredAt ??
+        decision?.occurredAt ??
+        (scoped.isEmpty ? null : scoped.first.occurredAt);
   }
 
   bool _isDispatchResolved(_DispatchItem? dispatch) {
@@ -2448,7 +2538,9 @@ class _DispatchPageState extends State<DispatchPage> {
     return parts.length >= 2 ? parts.last : parts.first;
   }
 
-  _DispatchOutcomeKind _dispatchOutcomeKindForDispatch(_DispatchItem? dispatch) {
+  _DispatchOutcomeKind _dispatchOutcomeKindForDispatch(
+    _DispatchItem? dispatch,
+  ) {
     if (dispatch == null) {
       return _DispatchOutcomeKind.noResponse;
     }
@@ -2468,8 +2560,10 @@ class _DispatchPageState extends State<DispatchPage> {
       return _DispatchOutcomeKind.falseAlarm;
     }
     if (_responseEventForDispatch(dispatch.id) != null ||
-        _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.onSite) != null ||
-        _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.allClear) != null ||
+        _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.onSite) !=
+            null ||
+        _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.allClear) !=
+            null ||
         _executionCompletedForDispatch(dispatch.id) != null) {
       return _DispatchOutcomeKind.realEmergency;
     }
@@ -2491,11 +2585,15 @@ class _DispatchPageState extends State<DispatchPage> {
   }) {
     return switch (outcome) {
       _DispatchOutcomeKind.realEmergency =>
-        resolved ? 'Client confirmed the threat and the response chain closed cleanly.' : 'Threat confirmed while the response chain is still active.',
+        resolved
+            ? 'Client confirmed the threat and the response chain closed cleanly.'
+            : 'Threat confirmed while the response chain is still active.',
       _DispatchOutcomeKind.falseAlarm =>
         'Client confirmed no dispatch escalation was required.',
       _DispatchOutcomeKind.noResponse =>
-        resolved ? 'No verified client confirmation was recorded before closure.' : 'Client verification is still pending.',
+        resolved
+            ? 'No verified client confirmation was recorded before closure.'
+            : 'Client verification is still pending.',
       _DispatchOutcomeKind.safeWord =>
         'Duress confirmation triggered the protected escalation path.',
     };
@@ -2515,15 +2613,21 @@ class _DispatchPageState extends State<DispatchPage> {
     final decision = _decisionEventForDispatch(dispatch.id);
     final response = _responseEventForDispatch(dispatch.id);
     final closed = _incidentClosedForDispatch(dispatch.id);
-    return response?.occurredAt ?? closed?.occurredAt ?? decision?.occurredAt ?? _triggeredAtForDispatch(dispatch);
+    return response?.occurredAt ??
+        closed?.occurredAt ??
+        decision?.occurredAt ??
+        _triggeredAtForDispatch(dispatch);
   }
 
   Duration _callDurationForDispatch(_DispatchItem? dispatch) {
     if (dispatch == null) {
       return Duration.zero;
     }
-    final start = _decisionEventForDispatch(dispatch.id)?.occurredAt ?? _triggeredAtForDispatch(dispatch);
-    final end = _responseEventForDispatch(dispatch.id)?.occurredAt ??
+    final start =
+        _decisionEventForDispatch(dispatch.id)?.occurredAt ??
+        _triggeredAtForDispatch(dispatch);
+    final end =
+        _responseEventForDispatch(dispatch.id)?.occurredAt ??
         _incidentClosedForDispatch(dispatch.id)?.occurredAt ??
         DateTime.now();
     if (start == null) {
@@ -3115,7 +3219,9 @@ class _DispatchPageState extends State<DispatchPage> {
           child: _alarmActionButton(
             key: const ValueKey('dispatch-action-clear-alarm'),
             label: cleared ? 'Client Comms' : 'Clear Alarm',
-            icon: cleared ? Icons.mark_chat_read_rounded : Icons.verified_rounded,
+            icon: cleared
+                ? Icons.mark_chat_read_rounded
+                : Icons.verified_rounded,
             background: _dispatchPanelTintColor,
             border: _dispatchBorderColor,
             foreground: cleared
@@ -3143,45 +3249,51 @@ class _DispatchPageState extends State<DispatchPage> {
           itemBuilder: (context) => [
             PopupMenuItem(
               value: 'cctv',
-              child: Row(children: [
-                const Icon(Icons.videocam_outlined, size: 16),
-                const SizedBox(width: 10),
-                Text(
-                  'CCTV Review',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+              child: Row(
+                children: [
+                  const Icon(Icons.videocam_outlined, size: 16),
+                  const SizedBox(width: 10),
+                  Text(
+                    'CCTV Review',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
             PopupMenuItem(
               value: 'comms',
-              child: Row(children: [
-                const Icon(Icons.call_outlined, size: 16),
-                const SizedBox(width: 10),
-                Text(
-                  'Client Comms',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+              child: Row(
+                children: [
+                  const Icon(Icons.call_outlined, size: 16),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Client Comms',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
             PopupMenuItem(
               value: 'agent',
-              child: Row(children: [
-                const Icon(Icons.psychology_alt_rounded, size: 16),
-                const SizedBox(width: 10),
-                Text(
-                  'Ask Agent',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+              child: Row(
+                children: [
+                  const Icon(Icons.psychology_alt_rounded, size: 16),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Ask Agent',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ],
           child: Container(
@@ -3538,11 +3650,15 @@ class _DispatchPageState extends State<DispatchPage> {
     final resolved = dispatch.status != _DispatchStatus.pending;
     final title = resolved ? 'COMPLETED' : 'CALLING';
     final attempts = resolved ? '2' : '1';
-    final accent = resolved ? OnyxColorTokens.accentPurple : OnyxColorTokens.accentSky;
+    final accent = resolved
+        ? OnyxColorTokens.accentPurple
+        : OnyxColorTokens.accentSky;
     final background = resolved
         ? OnyxColorTokens.surfaceInset
         : OnyxColorTokens.surfaceInset;
-    final border = resolved ? OnyxColorTokens.surfaceInset : OnyxColorTokens.surfaceInset;
+    final border = resolved
+        ? OnyxColorTokens.surfaceInset
+        : OnyxColorTokens.surfaceInset;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -3607,7 +3723,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     decoration: BoxDecoration(
                       color: OnyxColorTokens.surfaceInset,
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: OnyxColorTokens.accentRed.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: OnyxColorTokens.accentRed.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: Text(
                       'REAL EMERGENCY',
@@ -4126,7 +4244,9 @@ class _DispatchPageState extends State<DispatchPage> {
               decoration: BoxDecoration(
                 color: OnyxColorTokens.accentRed.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(3.15),
-                border: Border.all(color: OnyxColorTokens.accentAmber.withValues(alpha: 0.33)),
+                border: Border.all(
+                  color: OnyxColorTokens.accentAmber.withValues(alpha: 0.33),
+                ),
               ),
               child: Icon(
                 Icons.route_rounded,
@@ -4271,21 +4391,27 @@ class _DispatchPageState extends State<DispatchPage> {
                   _heroChip(
                     label: 'Active',
                     foreground: OnyxColorTokens.accentCyan,
-                    background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentCyan.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                   ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-badge-pending'),
                     label: 'Pending $pendingDispatches',
                     foreground: OnyxColorTokens.accentAmber,
-                    background: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+                    background: OnyxColorTokens.accentAmber.withValues(
+                      alpha: 0.10,
+                    ),
                     border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.pending),
                   ),
                   _heroChip(
                     label: 'Cleared $clearedDispatches',
                     foreground: OnyxColorTokens.accentGreen,
-                    background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentGreen.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                   ),
                 ],
@@ -4312,15 +4438,21 @@ class _DispatchPageState extends State<DispatchPage> {
                       ),
                       label: 'Active dispatches',
                       foreground: OnyxColorTokens.accentCyan,
-                      background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
-                      border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
+                      background: OnyxColorTokens.accentCyan.withValues(
+                        alpha: 0.08,
+                      ),
+                      border: OnyxColorTokens.accentCyan.withValues(
+                        alpha: 0.40,
+                      ),
                       onTap: () => onSetLaneFilter(_DispatchLaneFilter.active),
                     ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-filter-pending'),
                     label: 'Pending dispatches',
                     foreground: OnyxColorTokens.accentAmber,
-                    background: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+                    background: OnyxColorTokens.accentAmber.withValues(
+                      alpha: 0.10,
+                    ),
                     border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.pending),
                   ),
@@ -4328,7 +4460,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     key: const ValueKey('dispatch-workspace-filter-cleared'),
                     label: 'Cleared dispatches',
                     foreground: OnyxColorTokens.accentGreen,
-                    background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentGreen.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.cleared),
                   ),
@@ -4336,7 +4470,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     key: const ValueKey('dispatch-workspace-focus-open-board'),
                     label: 'OPEN DISPATCH BOARD',
                     foreground: OnyxColorTokens.surfaceInset,
-                    background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentSky.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                     onTap: onOpenDispatchBoard,
                   ),
@@ -4344,7 +4480,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     key: const ValueKey('dispatch-workspace-open-system'),
                     label: 'Fleet Watch Rail',
                     foreground: OnyxColorTokens.surfaceInset,
-                    background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentSky.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                     onTap: onOpenSystemStatus,
                   ),
@@ -4435,7 +4573,9 @@ class _DispatchPageState extends State<DispatchPage> {
                   _heroChip(
                     label: 'ETA ${selectedDispatch.eta}',
                     foreground: OnyxColorTokens.accentCyan,
-                    background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentCyan.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                   ),
               ],
@@ -4473,8 +4613,12 @@ class _DispatchPageState extends State<DispatchPage> {
                         key: const ValueKey('dispatch-workspace-filter-active'),
                         label: 'Active dispatches',
                         foreground: OnyxColorTokens.accentCyan,
-                        background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.accentCyan.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentCyan.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: () =>
                             onSetLaneFilter(_DispatchLaneFilter.active),
                       ),
@@ -4484,8 +4628,12 @@ class _DispatchPageState extends State<DispatchPage> {
                         ),
                         label: 'Pending dispatches',
                         foreground: OnyxColorTokens.accentAmber,
-                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
-                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.10,
+                        ),
+                        border: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: () =>
                             onSetLaneFilter(_DispatchLaneFilter.pending),
                       ),
@@ -4495,8 +4643,12 @@ class _DispatchPageState extends State<DispatchPage> {
                         ),
                         label: 'Cleared dispatches',
                         foreground: OnyxColorTokens.accentGreen,
-                        background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.accentGreen.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentGreen.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: () =>
                             onSetLaneFilter(_DispatchLaneFilter.cleared),
                       ),
@@ -4516,17 +4668,27 @@ class _DispatchPageState extends State<DispatchPage> {
                             'dispatch-workspace-focus-open-report',
                           ),
                           label: 'OPEN REPORTS WORKSPACE',
-                          foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.3),
-                          background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
-                          border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+                          foreground: OnyxColorTokens.accentAmber.withValues(
+                            alpha: 0.3,
+                          ),
+                          background: OnyxColorTokens.accentAmber.withValues(
+                            alpha: 0.08,
+                          ),
+                          border: OnyxColorTokens.accentAmber.withValues(
+                            alpha: 0.40,
+                          ),
                           onTap: onOpenReport,
                         ),
                       _workspaceActionChip(
                         key: const ValueKey('dispatch-workspace-open-system'),
                         label: 'Fleet Watch Rail',
                         foreground: OnyxColorTokens.surfaceInset,
-                        background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.accentSky.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentSky.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: onOpenSystemStatus,
                       ),
                     ],
@@ -4572,7 +4734,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     key: const ValueKey('dispatch-workspace-filter-active'),
                     label: 'Active dispatches',
                     foreground: OnyxColorTokens.accentCyan,
-                    background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentCyan.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.active),
                   ),
@@ -4580,7 +4744,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     key: const ValueKey('dispatch-workspace-filter-pending'),
                     label: 'Pending dispatches',
                     foreground: OnyxColorTokens.accentAmber,
-                    background: OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+                    background: OnyxColorTokens.accentAmber.withValues(
+                      alpha: 0.10,
+                    ),
                     border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.pending),
                   ),
@@ -4588,7 +4754,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     key: const ValueKey('dispatch-workspace-filter-cleared'),
                     label: 'Cleared dispatches',
                     foreground: OnyxColorTokens.accentGreen,
-                    background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentGreen.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
                     onTap: () => onSetLaneFilter(_DispatchLaneFilter.cleared),
                   ),
@@ -4606,16 +4774,24 @@ class _DispatchPageState extends State<DispatchPage> {
                         'dispatch-workspace-focus-open-report',
                       ),
                       label: 'OPEN REPORTS WORKSPACE',
-                      foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.3),
-                      background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
-                      border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+                      foreground: OnyxColorTokens.accentAmber.withValues(
+                        alpha: 0.3,
+                      ),
+                      background: OnyxColorTokens.accentAmber.withValues(
+                        alpha: 0.08,
+                      ),
+                      border: OnyxColorTokens.accentAmber.withValues(
+                        alpha: 0.40,
+                      ),
                       onTap: onOpenReport,
                     ),
                   _workspaceActionChip(
                     key: const ValueKey('dispatch-workspace-open-system'),
                     label: 'Fleet Watch Rail',
                     foreground: OnyxColorTokens.surfaceInset,
-                    background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentSky.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                     onTap: onOpenSystemStatus,
                   ),
@@ -4706,7 +4882,7 @@ class _DispatchPageState extends State<DispatchPage> {
       key: key,
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
-        child: Container(
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 1.2),
         decoration: BoxDecoration(
           color: background,
@@ -4734,7 +4910,8 @@ class _DispatchPageState extends State<DispatchPage> {
     final postureColor = activeDispatchCount > 0
         ? OnyxDesignTokens.redCritical
         : OnyxDesignTokens.greenSpec;
-    final rosterSignalBanner = (widget.guardRosterSignalHeadline ?? '').trim().isEmpty
+    final rosterSignalBanner =
+        (widget.guardRosterSignalHeadline ?? '').trim().isEmpty
         ? null
         : _guardRosterSignalBanner(compact: true);
     return Column(
@@ -4757,12 +4934,12 @@ class _DispatchPageState extends State<DispatchPage> {
               decoration: BoxDecoration(
                 color: postureColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(5),
-                border: Border.all(
-                  color: postureColor.withValues(alpha: 0.15),
-                ),
+                border: Border.all(color: postureColor.withValues(alpha: 0.15)),
               ),
               child: Text(
-                activeDispatchCount > 0 ? '$activeDispatchCount live' : 'All clear',
+                activeDispatchCount > 0
+                    ? '$activeDispatchCount live'
+                    : 'All clear',
                 style: GoogleFonts.inter(fontSize: 11, color: postureColor),
               ),
             ),
@@ -4789,7 +4966,8 @@ class _DispatchPageState extends State<DispatchPage> {
     if (headline.isEmpty) {
       return const SizedBox.shrink();
     }
-    final accent = widget.guardRosterSignalAccent ?? OnyxColorTokens.accentAmber;
+    final accent =
+        widget.guardRosterSignalAccent ?? OnyxColorTokens.accentAmber;
     final label = (widget.guardRosterSignalLabel ?? '').trim().isEmpty
         ? 'ROSTER WATCH'
         : widget.guardRosterSignalLabel!.trim();
@@ -4919,8 +5097,7 @@ class _DispatchPageState extends State<DispatchPage> {
       _DispatchFocusState.seeded => OnyxColorTokens.accentAmber,
       _DispatchFocusState.none => OnyxColorTokens.textMuted,
     };
-    final foreground =
-        Color.lerp(_dispatchTitleColor, color, 0.62) ?? color;
+    final foreground = Color.lerp(_dispatchTitleColor, color, 0.62) ?? color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2.2, vertical: 0.95),
       decoration: BoxDecoration(
@@ -5053,15 +5230,15 @@ class _DispatchPageState extends State<DispatchPage> {
             ],
           ),
           const SizedBox(height: 1.75),
-              Text(
-                spec.value,
-                style: GoogleFonts.inter(
-                  color: spec.valueColor,
-                  fontSize: 15.0,
-                  height: 0.94,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+          Text(
+            spec.value,
+            style: GoogleFonts.inter(
+              color: spec.valueColor,
+              fontSize: 15.0,
+              height: 0.94,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -5188,7 +5365,9 @@ class _DispatchPageState extends State<DispatchPage> {
                       icon: const Icon(Icons.menu_book_rounded, size: 14),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: OnyxColorTokens.accentGreen,
-                        side: const BorderSide(color: OnyxColorTokens.accentGreen),
+                        side: const BorderSide(
+                          color: OnyxColorTokens.accentGreen,
+                        ),
                         minimumSize: const Size.fromHeight(18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(6),
@@ -5837,7 +6016,9 @@ class _DispatchPageState extends State<DispatchPage> {
                   _dispatchBoardActionButton(
                     label: 'OPEN EVENTS SCOPE',
                     icon: Icons.center_focus_strong_rounded,
-                    foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                    foreground: OnyxColorTokens.accentAmber.withValues(
+                      alpha: 0.5,
+                    ),
                     onPressed: () => primaryScopeAction.call(
                       linkedScope!.clientId,
                       linkedScope.siteId,
@@ -6049,11 +6230,7 @@ class _DispatchPageState extends State<DispatchPage> {
             spacing: 5,
             runSpacing: 5,
             children: [
-              _dispatchBoardTag(
-                'Site',
-                scope.siteName,
-                _dispatchAccentSky,
-              ),
+              _dispatchBoardTag('Site', scope.siteName, _dispatchAccentSky),
               _dispatchBoardTag(
                 'Status',
                 scope.statusLabel,
@@ -6128,10 +6305,14 @@ class _DispatchPageState extends State<DispatchPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: selected ? OnyxColorTokens.accentCyan.withValues(alpha: 0.08) : _dispatchPanelColor,
+          color: selected
+              ? OnyxColorTokens.accentCyan.withValues(alpha: 0.08)
+              : _dispatchPanelColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? OnyxColorTokens.accentCyan.withValues(alpha: 0.50) : _dispatchBorderColor,
+            color: selected
+                ? OnyxColorTokens.accentCyan.withValues(alpha: 0.50)
+                : _dispatchBorderColor,
           ),
           boxShadow: selected
               ? [
@@ -7388,7 +7569,11 @@ class _DispatchPageState extends State<DispatchPage> {
                     OnyxColorTokens.textMuted,
                   ),
                 if (!scope.hasIncidentContext)
-                  _statusBadge('Context', 'Pending', OnyxColorTokens.accentAmber),
+                  _statusBadge(
+                    'Context',
+                    'Pending',
+                    OnyxColorTokens.accentAmber,
+                  ),
               ],
             ),
           ],
@@ -8673,7 +8858,9 @@ class _DispatchPageState extends State<DispatchPage> {
       _DispatchStatus.pending => _DispatchOperatorOverride(
         status: _DispatchStatus.enRoute,
         officer: resolvedOfficer,
-        eta: dispatch.priority == _DispatchPriority.p1Critical ? '3 min' : '5 min',
+        eta: dispatch.priority == _DispatchPriority.p1Critical
+            ? '3 min'
+            : '5 min',
         distance: dispatch.priority == _DispatchPriority.p1Critical
             ? '1.6 km'
             : '2.9 km',

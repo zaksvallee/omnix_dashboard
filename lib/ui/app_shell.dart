@@ -3,7 +3,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
+import '../application/system_flow_service.dart';
 import '../domain/authority/onyx_route.dart';
+import 'components/onyx_system_flow_widgets.dart';
 
 export '../domain/authority/onyx_route.dart';
 
@@ -104,15 +106,21 @@ Future<void> _showAppShellQuickJumpDialog({
                           fillColor: _appShellAltSurfaceColor,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: _appShellBorderColor),
+                            borderSide: const BorderSide(
+                              color: _appShellBorderColor,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: _appShellBorderColor),
+                            borderSide: const BorderSide(
+                              color: _appShellBorderColor,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: OnyxColorTokens.brand),
+                            borderSide: const BorderSide(
+                              color: OnyxColorTokens.brand,
+                            ),
                           ),
                         ),
                       ),
@@ -345,9 +353,7 @@ class _AppShellState extends State<AppShell> {
                           color: _appShellSurfaceColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
-                            side: const BorderSide(
-                              color: _appShellBorderColor,
-                            ),
+                            side: const BorderSide(color: _appShellBorderColor),
                           ),
                           child: InkWell(
                             onTap: () => Scaffold.of(innerContext).openDrawer(),
@@ -399,6 +405,8 @@ class _AppShellState extends State<AppShell> {
                           activeIncidentCount: widget.activeIncidentCount,
                           aiActionCount: widget.aiActionCount,
                           guardsOnlineCount: widget.guardsOnlineCount,
+                          complianceIssuesCount: widget.complianceIssuesCount,
+                          tacticalSosAlerts: widget.tacticalSosAlerts,
                           operatorLabel: widget.operatorLabel,
                           operatorRoleLabel: widget.operatorRoleLabel,
                           operatorShiftLabel: widget.operatorShiftLabel,
@@ -440,6 +448,8 @@ class _ShellTopBar extends StatelessWidget {
   final int activeIncidentCount;
   final int aiActionCount;
   final int guardsOnlineCount;
+  final int complianceIssuesCount;
+  final int tacticalSosAlerts;
   final String operatorLabel;
   final String operatorRoleLabel;
   final String operatorShiftLabel;
@@ -455,6 +465,8 @@ class _ShellTopBar extends StatelessWidget {
     required this.activeIncidentCount,
     required this.aiActionCount,
     required this.guardsOnlineCount,
+    required this.complianceIssuesCount,
+    required this.tacticalSosAlerts,
     required this.operatorLabel,
     required this.operatorRoleLabel,
     required this.operatorShiftLabel,
@@ -487,6 +499,14 @@ class _ShellTopBar extends StatelessWidget {
               ? 196.0
               : 160.0;
           final totalAlerts = activeIncidentCount + aiActionCount;
+          final systemState = OnyxSystemFlowService.deriveGlobalState(
+            activeIncidentCount: activeIncidentCount,
+            aiActionCount: aiActionCount,
+            guardsOnlineCount: guardsOnlineCount,
+            complianceIssuesCount: complianceIssuesCount,
+            tacticalSosAlerts: tacticalSosAlerts,
+          );
+          final compactSystemState = constraints.maxWidth < 1500;
 
           // Dynamic status chip
           final Color statusFg;
@@ -535,6 +555,24 @@ class _ShellTopBar extends StatelessWidget {
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OnyxGlobalSystemStateChip(
+                    state: systemState,
+                    detail: OnyxSystemFlowService.stateDetail(
+                      systemState,
+                      activeIncidentCount: activeIncidentCount,
+                      aiActionCount: aiActionCount,
+                      guardsOnlineCount: guardsOnlineCount,
+                      complianceIssuesCount: complianceIssuesCount,
+                      tacticalSosAlerts: tacticalSosAlerts,
+                    ),
+                    compact: compactSystemState,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -605,7 +643,9 @@ class _ShellTopBar extends StatelessWidget {
                         minimumSize: const Size(56, 32),
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         foregroundColor: OnyxDesignTokens.redCritical,
-                        side: const BorderSide(color: OnyxDesignTokens.redBorder),
+                        side: const BorderSide(
+                          color: OnyxDesignTokens.redBorder,
+                        ),
                         textStyle: _appShellTextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
@@ -623,7 +663,9 @@ class _ShellTopBar extends StatelessWidget {
                       minimumSize: const Size(66, 32),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       foregroundColor: _appShellAccentSky,
-                      side: const BorderSide(color: OnyxDesignTokens.borderStrong),
+                      side: const BorderSide(
+                        color: OnyxDesignTokens.borderStrong,
+                      ),
                       textStyle: _appShellTextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
@@ -641,7 +683,9 @@ class _ShellTopBar extends StatelessWidget {
                       minimumSize: const Size(56, 32),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       foregroundColor: _appShellAccentSky,
-                      side: const BorderSide(color: OnyxDesignTokens.borderStrong),
+                      side: const BorderSide(
+                        color: OnyxDesignTokens.borderStrong,
+                      ),
                       textStyle: _appShellTextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
@@ -844,7 +888,9 @@ class _Sidebar extends StatelessWidget {
             height: OnyxSpacingTokens.topBarHeight,
             alignment: Alignment.center,
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
+              border: Border(
+                bottom: BorderSide(color: OnyxColorTokens.divider),
+              ),
             ),
             child: Container(
               width: 32,
@@ -853,16 +899,18 @@ class _Sidebar extends StatelessWidget {
                 color: OnyxColorTokens.brand,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.shield_rounded, color: Colors.white, size: 17),
+              child: const Icon(
+                Icons.shield_rounded,
+                color: Colors.white,
+                size: 17,
+              ),
             ),
           ),
           // Nav items
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 6),
-              children: [
-                for (final item in allItems) _iconNavItem(item),
-              ],
+              children: [for (final item in allItems) _iconNavItem(item)],
             ),
           ),
           // Operator avatar
@@ -875,7 +923,9 @@ class _Sidebar extends StatelessWidget {
             ),
             child: PopupMenuButton<String>(
               key: const ValueKey('app-shell-operator-menu'),
-              tooltip: operatorLabel.trim().isEmpty ? 'Operator' : operatorLabel,
+              tooltip: operatorLabel.trim().isEmpty
+                  ? 'Operator'
+                  : operatorLabel,
               position: PopupMenuPosition.over,
               color: _appShellSurfaceColor,
               shape: RoundedRectangleBorder(
@@ -971,7 +1021,10 @@ class _Sidebar extends StatelessWidget {
                   top: 6,
                   right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: item.badgeColor ?? OnyxColorTokens.accentRed,
                       borderRadius: BorderRadius.circular(999),
@@ -1016,7 +1069,9 @@ class _Sidebar extends StatelessWidget {
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
+              border: Border(
+                bottom: BorderSide(color: OnyxColorTokens.divider),
+              ),
             ),
             child: Row(
               children: [
@@ -1125,7 +1180,9 @@ class _Sidebar extends StatelessWidget {
                     Icon(
                       icon,
                       size: 15,
-                      color: isActive ? OnyxColorTokens.brand : _appShellMutedColor,
+                      color: isActive
+                          ? OnyxColorTokens.brand
+                          : _appShellMutedColor,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -1134,9 +1191,13 @@ class _Sidebar extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: _appShellTextStyle(
-                          color: isActive ? _appShellTitleColor : _appShellBodyColor,
+                          color: isActive
+                              ? _appShellTitleColor
+                              : _appShellBodyColor,
                           fontSize: 12,
-                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                          fontWeight: isActive
+                              ? FontWeight.w600
+                              : FontWeight.w500,
                         ),
                       ),
                     ),
@@ -1147,14 +1208,12 @@ class _Sidebar extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: (badgeColor ?? OnyxColorTokens.brand).withValues(
-                            alpha: 0.16,
-                          ),
+                          color: (badgeColor ?? OnyxColorTokens.brand)
+                              .withValues(alpha: 0.16),
                           borderRadius: BorderRadius.circular(7),
                           border: Border.all(
-                            color: (badgeColor ?? OnyxColorTokens.brand).withValues(
-                              alpha: 0.45,
-                            ),
+                            color: (badgeColor ?? OnyxColorTokens.brand)
+                                .withValues(alpha: 0.45),
                           ),
                         ),
                         child: Text(
@@ -1269,7 +1328,9 @@ class _StatusBannerState extends State<_StatusBanner> {
       return const SizedBox.shrink();
     }
     final isRed = widget.activeIncidentCount > 0;
-    final bg = isRed ? OnyxColorTokens.redSurface : OnyxColorTokens.amberSurface;
+    final bg = isRed
+        ? OnyxColorTokens.redSurface
+        : OnyxColorTokens.amberSurface;
     final fg = isRed ? OnyxColorTokens.accentRed : OnyxColorTokens.accentAmber;
     final label = isRed
         ? '⚠  ${widget.activeIncidentCount} ACTIVE ALARM${widget.activeIncidentCount == 1 ? '' : 'S'}'
@@ -1371,12 +1432,7 @@ class _TopBarActionIcon extends StatelessWidget {
         backgroundColor: OnyxDesignTokens.cardSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Icon(icon, size: 16),
-        ],
-      ),
+      child: Stack(clipBehavior: Clip.none, children: [Icon(icon, size: 16)]),
     );
   }
 }
@@ -1609,14 +1665,14 @@ class _MobileAutopilotOverlay extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _appShellTextStyle(
-                color: OnyxDesignTokens.cyanInteractive,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _appShellTextStyle(
+                  color: OnyxDesignTokens.cyanInteractive,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -2042,9 +2098,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
     required int count,
     required bool selected,
   }) {
-    final color = source == 'all'
-        ? _appShellAccentSky
-        : _tickerColor(source);
+    final color = source == 'all' ? _appShellAccentSky : _tickerColor(source);
     return GestureDetector(
       onTap: () {
         if (_sourceFilter == source) return;

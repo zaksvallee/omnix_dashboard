@@ -11,12 +11,14 @@ import '../application/monitoring_watch_action_plan.dart';
 import '../application/monitoring_watch_autonomy_service.dart';
 import '../application/shadow_mo_dossier_contract.dart';
 import '../application/synthetic_promotion_summary_formatter.dart';
+import '../application/system_flow_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/incident_closed.dart';
+import 'components/onyx_system_flow_widgets.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
@@ -2712,11 +2714,20 @@ class _AIQueuePageState extends State<AIQueuePage> {
         : DateTime.now().difference(lastFrameAt).inMinutes;
     final queueCardOpacity = showContextPanel ? 0.88 : 1.0;
     final recommendationLabel = _queueRecommendationLabel(action);
+    final flowSourceLabel = _queueFlowSourceLabel(
+      action,
+      cameraLabel: feedCameraLabel,
+      zoneLabel: feedZoneLabel,
+    );
+    final flowNextActionLabel = _queueFlowNextActionLabel(
+      action,
+      recommendationLabel: recommendationLabel,
+    );
     final zaraRecommendationText = showContextPanel
         ? _zaraVerificationComplete
               ? 'ZARA: Verification complete. No movement detected. Recommendation unchanged: $recommendationLabel'
-              : 'ZARA: Verifying. Reviewing $feedCameraLabel and signal data.'
-        : 'Zara recommends this action';
+              : 'ZARA: Verifying before decision. Reviewing $feedCameraLabel and signal data.'
+        : 'ZARA: $recommendationLabel';
     final decisionActions = Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -2844,6 +2855,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   height: 1.35,
                 ),
               ),
+            ),
+            const SizedBox(height: 8),
+            OnyxFlowIndicator(
+              chainLabel: 'Track → Queue',
+              sourceLabel: flowSourceLabel,
+              nextActionLabel: flowNextActionLabel,
             ),
             const SizedBox(height: 12),
             _activeAutomationMetrics(
@@ -3378,6 +3395,35 @@ class _AIQueuePageState extends State<AIQueuePage> {
       action.description,
       fallback: 'Recommendation remains in review.',
     );
+  }
+
+  String _queueFlowSourceLabel(
+    _AiQueueAction action, {
+    required String cameraLabel,
+    required String zoneLabel,
+  }) {
+    final scope = (action.metadata['scope'] ?? '').trim();
+    if (scope.isNotEmpty) {
+      return 'From Track → $scope';
+    }
+    if (cameraLabel.trim().isNotEmpty) {
+      return 'From Track → $cameraLabel · $zoneLabel';
+    }
+    return 'From Track → ${action.site}';
+  }
+
+  String _queueFlowNextActionLabel(
+    _AiQueueAction action, {
+    required String recommendationLabel,
+  }) {
+    final dispatchReference = OnyxSystemFlowService.dispatchReference(
+      action.incidentId,
+    );
+    final conciseRecommendation = recommendationLabel.trim().replaceAll(
+      '.',
+      '',
+    );
+    return 'Approve → Creating $dispatchReference · $conciseRecommendation';
   }
 
   String _singleSentence(String text, {required String fallback}) {

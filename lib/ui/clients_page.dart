@@ -391,16 +391,36 @@ class _ClientsPageState extends State<ClientsPage> {
         : model.sites;
     if (clients.isEmpty || sites.isEmpty) {
       return OnyxPageScaffold(
-        child: Center(
-          child: Text(
-            'Client Communications needs a scoped client and site before the workspace can open.',
-            style: GoogleFonts.inter(
-              color: _clientsBodyColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final surfaceMaxWidth = commandSurfaceMaxWidth(
+              context,
+              compactDesktopWidth: 1760,
+              viewportWidth: constraints.maxWidth,
+              widescreenFillFactor: 0.96,
+            );
+            return OnyxViewportWorkspaceLayout(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+              maxWidth: surfaceMaxWidth,
+              spacing: 0,
+              lockToViewport: false,
+              header: const SizedBox.shrink(),
+              body: ClientCommsQueueBoard(
+                items: const <ClientCommsQueueItem>[],
+                onToggleDetailedWorkspace: () {},
+                onSend: (_) {},
+                onEdit: (_) {},
+                onReject: (_) {},
+                selectedTone: _selectedPinnedVoice,
+                onToneChanged: (tone) =>
+                    setState(() => _selectedPinnedVoice = tone),
+                messageHistory: const <ClientCommsHistoryEntry>[],
+                onOpenLiveFeeds: widget.onOpenLiveFeedsForIncident == null
+                    ? null
+                    : () => widget.onOpenLiveFeedsForIncident!(null),
+              ),
+            );
+          },
         ),
       );
     }

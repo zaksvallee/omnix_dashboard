@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'components/onyx_system_flow_widgets.dart';
 import 'theme/onyx_design_tokens.dart';
 
 // ── Colour aliases ─────────────────────────────────────────────────────────
@@ -711,10 +712,20 @@ class ClientCommsQueueBoard extends StatelessWidget {
   // ── Empty state ───────────────────────────────────────────────────────────
 
   Widget _idleControlSurface() {
+    final lastIncidentRef = (lastCommunication?.incidentReference ?? '').trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _zaraCommunicationStateCard(),
+        const SizedBox(height: 10),
+        OnyxFlowIndicator(
+          chainLabel: 'Dispatch → Comms → Client',
+          sourceLabel: lastIncidentRef.isEmpty
+              ? 'Last dispatch lane is clear'
+              : 'Last dispatch → $lastIncidentRef',
+          nextActionLabel:
+              'Draft and deliver the next client update when needed',
+        ),
         const SizedBox(height: 10),
         _idleStatusRow(),
         const SizedBox(height: 10),
