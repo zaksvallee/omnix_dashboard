@@ -1127,7 +1127,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
               top: 16,
               bottom: 16,
               child: SizedBox(
-                width: 164,
+                width: 200,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     return Scrollbar(
@@ -1237,7 +1237,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
               ),
             ),
             Positioned(
-              left: 16,
+              left: 224,
               right: 16,
               bottom: 16,
               child: _buildSelectedSiteSpotlight(
@@ -1954,6 +1954,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
           Expanded(
             child: Text(
               baseLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
               style: GoogleFonts.inter(
                 color: active
                     ? OnyxColorTokens.textPrimary
@@ -1964,8 +1967,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             ),
           ),
           if (countLabel != null) ...[
+            const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: tint.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(999),
@@ -1980,18 +1984,26 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
           ],
           SizedBox(
+            width: 36,
             height: 24,
-            child: Switch(
-              value: active,
-              onChanged: (_) => onTap(),
-              activeThumbColor: OnyxColorTokens.textPrimary,
-              activeTrackColor: OnyxColorTokens.accentPurple,
-              inactiveThumbColor: OnyxColorTokens.textMuted,
-              inactiveTrackColor: OnyxColorTokens.backgroundPrimary,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Transform.scale(
+                scale: 0.75,
+                child: Switch(
+                  value: active,
+                  onChanged: (_) => onTap(),
+                  activeThumbColor: OnyxColorTokens.textPrimary,
+                  activeTrackColor: OnyxColorTokens.accentPurple,
+                  inactiveThumbColor: OnyxColorTokens.textMuted,
+                  inactiveTrackColor: OnyxColorTokens.backgroundPrimary,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
             ),
           ),
         ],
