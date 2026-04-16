@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element, unused_field, duplicate_ignore
+
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,6 +33,19 @@ enum _DispatchStatus { pending, enRoute, onSite, cleared }
 enum _DispatchLaneFilter { all, active, pending, cleared }
 
 enum _DispatchFocusState { none, exact, scopeBacked, seeded }
+
+enum _DispatchTimelinePhase { detection, decision, confirmation, resolution }
+
+enum _DispatchTimelineBadgeType {
+  sys,
+  zara,
+  client,
+  dispatch,
+  officer,
+  onyx,
+}
+
+enum _DispatchOutcomeKind { realEmergency, falseAlarm, noResponse, safeWord }
 
 const _dispatchPanelColor = OnyxDesignTokens.cardSurface;
 const _dispatchPanelAltColor = OnyxDesignTokens.backgroundSecondary;
@@ -166,6 +181,24 @@ class _DispatchCommandReceipt {
     required this.headline,
     required this.detail,
     required this.accent,
+  });
+}
+
+class _DispatchTimelineEntryData {
+  final _DispatchTimelinePhase phase;
+  final _DispatchTimelineBadgeType badgeType;
+  final String timeLabel;
+  final String text;
+  final String? subtext;
+  final bool major;
+
+  const _DispatchTimelineEntryData({
+    required this.phase,
+    required this.badgeType,
+    required this.timeLabel,
+    required this.text,
+    this.subtext,
+    this.major = true,
   });
 }
 
@@ -773,312 +806,1892 @@ class _DispatchPageState extends State<DispatchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = allowEmbeddedPanelScroll(context);
     final contentPadding = const EdgeInsets.fromLTRB(2.95, 2.95, 2.95, 3.7);
-    if (_desktopWorkspaceActive != wide) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _desktopWorkspaceActive = wide);
-      });
-    }
-    final activeDispatches = _dispatches
-        .where(
-          (dispatch) =>
-              !dispatch.isSeededPlaceholder &&
-              (dispatch.status == _DispatchStatus.enRoute ||
-                  dispatch.status == _DispatchStatus.onSite),
-        )
-        .length;
-    final pendingDispatches = _dispatches
-        .where(
-          (dispatch) =>
-              !dispatch.isSeededPlaceholder &&
-              dispatch.status == _DispatchStatus.pending,
-        )
-        .length;
-    final activeDispatchCount = activeDispatches + pendingDispatches;
-    final visibleDispatches = _visibleDispatches();
-    final selectedDispatch = visibleDispatches.isEmpty
-        ? null
-        : _selectedDispatch(dispatches: visibleDispatches);
-    final selectedOverviewDispatch = _dispatches.isEmpty
-        ? null
-        : _selectedDispatch(dispatches: _dispatches);
-    final suppressedEntries = _suppressedDispatchReviewEntries();
-    void openSection(GlobalKey key) {
-      final targetContext = key.currentContext;
-      if (targetContext == null) {
-        return;
-      }
-      Scrollable.ensureVisible(
-        targetContext,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    }
-
-    void openWatchActionDrilldown(VideoFleetWatchActionDrilldown drilldown) {
-      if (_activeWatchActionDrilldown == drilldown) {
-        _setActiveWatchActionDrilldown(null);
-        return;
-      }
-      _setActiveWatchActionDrilldown(drilldown);
-      final targetContext =
-          drilldown == VideoFleetWatchActionDrilldown.filtered &&
-              suppressedEntries.isNotEmpty
-          ? _suppressedPanelKey.currentContext
-          : _fleetPanelKey.currentContext;
-      if (targetContext == null) {
-        return;
-      }
-      Scrollable.ensureVisible(
-        targetContext,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    }
-
-    void openLatestWatchActionDetail(VideoFleetScopeHealthView scope) {
-      if (_activeWatchActionDrilldown ==
-              VideoFleetWatchActionDrilldown.filtered &&
-          suppressedEntries.isNotEmpty) {
-        final targetContext = _suppressedPanelKey.currentContext;
-        if (targetContext != null) {
-          Scrollable.ensureVisible(
-            targetContext,
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-          );
-        }
-        return;
-      }
-      final primaryOpenFleetScope = scope.hasIncidentContext
-          ? (widget.onOpenFleetDispatchScope ?? widget.onOpenFleetTacticalScope)
-          : null;
-      if (primaryOpenFleetScope == null) {
-        return;
-      }
-      primaryOpenFleetScope.call(
-        scope.clientId,
-        scope.siteId,
-        scope.latestIncidentReference,
-      );
-    }
-
-    Widget buildWideWorkspace({required bool embedScroll}) {
-      Widget railChild() {
-        if (!embedScroll) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _kpiBand(
-                activeDispatches: activeDispatches,
-                pendingDispatches: pendingDispatches,
-              ),
-              const SizedBox(height: 4),
-              KeyedSubtree(key: _commandActionsKey, child: _commandActions()),
-            ],
-          );
-        }
-        return ListView(
-          primary: false,
-          padding: EdgeInsets.zero,
-          children: [
-            _kpiBand(
-              activeDispatches: activeDispatches,
-              pendingDispatches: pendingDispatches,
-            ),
-            const SizedBox(height: 3.5),
-            KeyedSubtree(key: _commandActionsKey, child: _commandActions()),
-          ],
-        );
-      }
-
-      Widget queueChild() {
-        return KeyedSubtree(
-          key: _dispatchQueueKey,
-          child: _dispatchQueue(
-            selectedDispatchBoardKey: _selectedDispatchBoardKey,
-            embeddedSurface: embedScroll,
-          ),
-        );
-      }
-
-      Widget systemRailChild() {
-        final content = _systemStatusPanel(
-          fleetPanelKey: _fleetPanelKey,
-          suppressedPanelKey: _suppressedPanelKey,
-          onOpenDispatchBoard: () => openSection(_selectedDispatchBoardKey),
-          onOpenCommandActions: () => openSection(_commandActionsKey),
-          onOpenFleetWatch: () => openSection(_fleetPanelKey),
-          onOpenSuppressedReviews: () => openSection(_suppressedPanelKey),
-          summaryOnly: true,
-          suppressedEntries: suppressedEntries,
-          onOpenWatchActionDrilldown: openWatchActionDrilldown,
-          onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
-        );
-        if (!embedScroll) {
-          return content;
-        }
-        return ListView(
-          primary: false,
-          padding: EdgeInsets.zero,
-          children: [content],
-        );
-      }
-
-      final railWidth = embedScroll ? 170.0 : 180.0;
-      final systemRailWidth = embedScroll ? 188.0 : 198.0;
-      final workspaceGap = 0.48;
-
-      final workspaceRow = Row(
-        crossAxisAlignment: embedScroll
-            ? CrossAxisAlignment.stretch
-            : CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: railWidth,
-            child: _dispatchWorkspacePanel(
-              key: const ValueKey('dispatch-workspace-panel-rail'),
-              title: 'Dispatch Controls',
-              subtitle:
-                  'Live counts, board controls, and next moves stay pinned on the left.',
-              shellless: true,
-              child: railChild(),
-              flexibleChild: embedScroll,
-            ),
-          ),
-          SizedBox(width: workspaceGap),
-          Expanded(
-            flex: 10,
-            child: _dispatchWorkspacePanel(
-              key: const ValueKey('dispatch-workspace-panel-board'),
-              title: 'Dispatch Board',
-              subtitle:
-                  'Dispatch-filtered queue and the selected dispatch stay centered.',
-              shellless: true,
-              child: queueChild(),
-              flexibleChild: embedScroll,
-            ),
-          ),
-          SizedBox(width: workspaceGap),
-          SizedBox(
-            width: systemRailWidth,
-            child: _dispatchWorkspacePanel(
-              key: const ValueKey('dispatch-workspace-panel-context'),
-              title: 'Fleet Watch Rail',
-              subtitle:
-                  'Fleet watch health, suppressed reviews, and support status stay visible.',
-              shellless: true,
-              child: systemRailChild(),
-              flexibleChild: embedScroll,
-            ),
-          ),
-        ],
-      );
-
-      return workspaceRow;
-    }
-
-    Widget buildSurfaceBody({required bool embedScroll}) {
-      if (wide) {
-        return buildWideWorkspace(embedScroll: embedScroll);
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _kpiBand(
-            activeDispatches: activeDispatches,
-            pendingDispatches: pendingDispatches,
-          ),
-          const SizedBox(height: 3.0),
-          KeyedSubtree(key: _commandActionsKey, child: _commandActions()),
-          const SizedBox(height: 3.0),
-          _dispatchQueue(selectedDispatchBoardKey: _selectedDispatchBoardKey),
-          const SizedBox(height: 3.0),
-          _systemStatusPanel(
-            fleetPanelKey: _fleetPanelKey,
-            suppressedPanelKey: _suppressedPanelKey,
-            onOpenDispatchBoard: () => openSection(_selectedDispatchBoardKey),
-            onOpenCommandActions: () => openSection(_commandActionsKey),
-            onOpenFleetWatch: () => openSection(_fleetPanelKey),
-            onOpenSuppressedReviews: () => openSection(_suppressedPanelKey),
-            suppressedEntries: suppressedEntries,
-            onOpenWatchActionDrilldown: openWatchActionDrilldown,
-            onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
-          ),
-        ],
-      );
-    }
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final desktopOverview =
-              constraints.maxWidth >= 760 && constraints.maxHeight >= 700;
-          final boundedDesktopSurface =
-              wide &&
-              constraints.hasBoundedHeight &&
-              constraints.maxHeight.isFinite;
-          final workspaceStatusBanner = desktopOverview
-              ? _dispatchWorkspaceStatusBanner(
-                  selectedDispatch: selectedDispatch,
-                  activeDispatches: activeDispatches,
-                  pendingDispatches: pendingDispatches,
-                  onOpenReport:
-                      selectedDispatch == null ||
-                          widget.onOpenReportForDispatch == null ||
-                          selectedDispatch.isSeededPlaceholder
-                      ? null
-                      : () => _openReport(selectedDispatch),
-                  onOpenCommandActions: () => openSection(_commandActionsKey),
-                  onOpenDispatchBoard: () =>
-                      openSection(_selectedDispatchBoardKey),
-                  onOpenSystemStatus: () => openSection(_fleetPanelKey),
-                  onSetLaneFilter: (_DispatchLaneFilter filter) {
-                    _setDispatchLaneFilter(filter);
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!mounted) {
-                        return;
-                      }
-                      openSection(_dispatchQueueKey);
-                    });
-                  },
-                )
-              : null;
-          final desktopDetailedWorkspace = workspaceStatusBanner == null
-              ? buildSurfaceBody(embedScroll: false)
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    workspaceStatusBanner,
-                    const SizedBox(height: 3.0),
-                    buildSurfaceBody(embedScroll: false),
-                  ],
-                );
+          final selectedDispatch = _dispatches.isEmpty
+              ? null
+              : _selectedDispatch(dispatches: _dispatches);
+          final twoColumn = constraints.maxWidth >= 1180;
+          if (_desktopWorkspaceActive != twoColumn) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() => _desktopWorkspaceActive = twoColumn);
+              }
+            });
+          }
           final surfaceMaxWidth = commandSurfaceMaxWidth(
             context,
-            compactDesktopWidth: 1760,
+            compactDesktopWidth: 1580,
             viewportWidth: constraints.maxWidth,
             widescreenFillFactor: 0.985,
           );
           return OnyxViewportWorkspaceLayout(
             padding: contentPadding,
             maxWidth: surfaceMaxWidth,
-            lockToViewport: desktopOverview ? false : boundedDesktopSurface,
-            header: _header(
-              activeDispatchCount: activeDispatchCount,
-              redCount: pendingDispatches,
-              outCount: activeDispatches,
+            spacing: 0,
+            header: const SizedBox.shrink(),
+            body: _dispatchOutcomeSurface(
+              selectedDispatch: selectedDispatch,
+              twoColumn: twoColumn,
             ),
-            body: desktopOverview
-                ? _desktopAlarmOverview(
-                    selectedDispatch: selectedOverviewDispatch,
-                    detailedWorkspace: desktopDetailedWorkspace,
-                  )
-                : buildSurfaceBody(embedScroll: boundedDesktopSurface),
           );
         },
       ),
     );
+  }
+
+  Widget _dispatchOutcomeSurface({
+    required _DispatchItem? selectedDispatch,
+    required bool twoColumn,
+  }) {
+    final leftColumn = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _incidentHeaderCard(selectedDispatch),
+          const SizedBox(height: 10),
+          _dispatchSectionLabel('INCIDENT TIMELINE'),
+          const SizedBox(height: 6),
+          _incidentTimelineCard(selectedDispatch),
+          const SizedBox(height: 10),
+          _dispatchSectionLabel('COMMUNICATION'),
+          const SizedBox(height: 6),
+          _communicationTranscriptBlock(selectedDispatch),
+          const SizedBox(height: 10),
+          _nextStateBlock(selectedDispatch),
+        ],
+      ),
+    );
+    final rightColumn = Container(
+      width: twoColumn ? 290 : double.infinity,
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.surfaceInset,
+        border: Border(
+          left: twoColumn
+              ? const BorderSide(color: OnyxColorTokens.divider)
+              : BorderSide.none,
+          top: twoColumn
+              ? BorderSide.none
+              : const BorderSide(color: OnyxColorTokens.divider),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _outcomeCard(selectedDispatch),
+          const SizedBox(height: 10),
+          _sidebarStatsRow(selectedDispatch),
+          const SizedBox(height: 10),
+          _chainSealBlock(selectedDispatch),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: OnyxColorTokens.divider),
+          const SizedBox(height: 10),
+          _contextGrid(selectedDispatch),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: OnyxColorTokens.divider),
+          const SizedBox(height: 10),
+          _dispatchFactsBlock(selectedDispatch),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: OnyxColorTokens.divider),
+          const SizedBox(height: 10),
+          _zaraFinalIntelligenceBlock(selectedDispatch),
+          const SizedBox(height: 12),
+          _dispatchFooterLinks(selectedDispatch),
+        ],
+      ),
+    );
+
+    if (!twoColumn) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [leftColumn, rightColumn],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [Expanded(child: leftColumn), rightColumn],
+    );
+  }
+
+  Widget _incidentHeaderCard(_DispatchItem? dispatch) {
+    final intel = dispatch == null ? null : _matchedIntelligenceForDispatch(dispatch);
+    final resolved = _isDispatchResolved(dispatch);
+    final statusText = dispatch == null
+        ? 'NO INCIDENT'
+        : resolved
+        ? 'RESOLVED'
+        : 'ACTIVE';
+    final statusColor = dispatch == null
+        ? OnyxColorTokens.textDisabled
+        : resolved
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
+    final incidentId = dispatch?.id.trim().isNotEmpty == true
+        ? dispatch!.id
+        : 'NO ACTIVE INCIDENT';
+    final triggerTime = _triggeredAtForDispatch(dispatch);
+    final alarmType = dispatch == null ? 'Awaiting trigger' : dispatch.type;
+    final zone = _zoneLabelForDispatch(dispatch, intel);
+    final site = dispatch == null
+        ? _placeholderText(_displaySiteLabel(widget.siteId), fallback: 'No site selected')
+        : _displaySiteLabel(dispatch.site);
+    final replayAction = dispatch == null || dispatch.isSeededPlaceholder
+        ? null
+        : () => _viewCamera(dispatch);
+    final reviewAction = dispatch == null || dispatch.isSeededPlaceholder
+        ? null
+        : () => _openReport(dispatch);
+    final reopenAction = dispatch == null || dispatch.isSeededPlaceholder
+        ? null
+        : () {
+            setState(() => _selectedDispatchId = dispatch.id);
+            widget.onSelectedDispatchChanged?.call(dispatch.id);
+          };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = constraints.maxWidth < 720;
+          final left = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    incidentId,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textPrimary.withValues(alpha: 0.88),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: dispatch == null ? 0.06 : 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: dispatch == null ? 0.12 : 0.25),
+                      ),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: GoogleFonts.inter(
+                        color: statusColor,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$alarmType · $zone · $site',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textDisabled,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          );
+          final right = Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'TRIGGERED',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textDisabled,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                triggerTime == null ? '--:--' : _clockLabel(triggerTime.toLocal()),
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textMuted,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                children: [
+                  _dispatchActionChip(
+                    label: 'Replay Incident',
+                    foreground: OnyxColorTokens.accentPurple.withValues(alpha: 0.70),
+                    background: OnyxColorTokens.accentPurple.withValues(alpha: 0.10),
+                    border: OnyxColorTokens.accentPurple.withValues(alpha: 0.25),
+                    onTap: replayAction,
+                  ),
+                  _dispatchActionChip(
+                    label: 'Reopen in Queue',
+                    foreground: OnyxColorTokens.textDisabled,
+                    background: OnyxColorTokens.backgroundPrimary,
+                    border: OnyxColorTokens.divider,
+                    onTap: reopenAction,
+                  ),
+                  _dispatchActionChip(
+                    label: 'Review Full Incident',
+                    foreground: OnyxColorTokens.textDisabled,
+                    background: OnyxColorTokens.backgroundPrimary,
+                    border: OnyxColorTokens.divider,
+                    onTap: reviewAction,
+                  ),
+                ],
+              ),
+            ],
+          );
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                left,
+                const SizedBox(height: 10),
+                Align(alignment: Alignment.centerRight, child: right),
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [Expanded(child: left), const SizedBox(width: 10), right],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _dispatchSectionLabel(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.inter(
+        color: OnyxColorTokens.textDisabled,
+        fontSize: 8,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.3,
+      ),
+    );
+  }
+
+  Widget _incidentTimelineCard(_DispatchItem? dispatch) {
+    final entries = _timelineEntriesForDispatch(dispatch);
+    if (entries.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: OnyxColorTokens.divider),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              margin: const EdgeInsets.only(top: 1),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: OnyxColorTokens.textDisabled.withValues(alpha: 0.08),
+                border: Border.all(
+                  color: OnyxColorTokens.textDisabled.withValues(alpha: 0.18),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Awaiting timeline entries.',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Dispatch truth will assemble here as detection, decision, confirmation, and resolution events arrive.',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textDisabled,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final active = _isDispatchActive(dispatch);
+    final groupedEntries = <_DispatchTimelinePhase, List<_DispatchTimelineEntryData>>{};
+    for (final phase in _DispatchTimelinePhase.values) {
+      groupedEntries[phase] = <_DispatchTimelineEntryData>[];
+    }
+    for (final entry in entries) {
+      groupedEntries[entry.phase]!.add(entry);
+    }
+
+    var entryIndex = 0;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: 18,
+            top: 10,
+            bottom: 10,
+            child: Container(
+              width: 1,
+              color: OnyxColorTokens.divider.withValues(alpha: 0.95),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final phase in _DispatchTimelinePhase.values)
+                if (groupedEntries[phase]!.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 38, bottom: 4),
+                    child: Text(
+                      _phaseLabel(phase),
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textDisabled.withValues(alpha: 0.60),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  for (final entry in groupedEntries[phase]!) ...[
+                    Builder(
+                      builder: (context) {
+                        final currentIndex = entryIndex++;
+                        final isLatest = active && currentIndex == entries.length - 1;
+                        return _timelineEntryTile(
+                          entry,
+                          pulse: isLatest,
+                        );
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _timelineEntryTile(
+    _DispatchTimelineEntryData entry, {
+    required bool pulse,
+  }) {
+    final badgeStyle = _timelineBadgeStyle(entry.badgeType);
+    final dotStyle = _timelineDotStyle(entry.badgeType, major: entry.major);
+    final dot = Container(
+      width: entry.major ? 12 : 8,
+      height: entry.major ? 12 : 8,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: dotStyle.$1,
+        border: Border.all(color: dotStyle.$2),
+      ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: entry.major ? 12 : 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 36,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: pulse ? _DispatchPulse(child: dot) : dot,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.timeLabel,
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textDisabled,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  entry.text,
+                  style: GoogleFonts.inter(
+                    color: entry.major
+                        ? OnyxColorTokens.textPrimary.withValues(alpha: 0.82)
+                        : OnyxColorTokens.textMuted,
+                    fontSize: entry.major ? 11 : 10,
+                    fontWeight: entry.major ? FontWeight.w700 : FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+                if (entry.subtext != null && entry.subtext!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(
+                    entry.subtext!,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textDisabled.withValues(alpha: 0.28),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 3),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: badgeStyle.$1,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    _timelineBadgeLabel(entry.badgeType),
+                    style: GoogleFonts.inter(
+                      color: badgeStyle.$2,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _communicationTranscriptBlock(_DispatchItem? dispatch) {
+    final resolved = _isDispatchResolved(dispatch);
+    final duration = _callDurationForDispatch(dispatch);
+    final transcriptTime = _transcriptTimestampForDispatch(dispatch);
+    final attemptsMade = _callAttemptsForDispatch(dispatch);
+    final totalAttempts = dispatch == null ? 0 : 2;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
+              width: 2,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'AI CALL TRANSCRIPT · ${resolved ? 'COMPLETED' : dispatch == null ? 'STANDBY' : 'ACTIVE'}',
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.accentGreen.withValues(alpha: 0.55),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 4,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      _transcriptMetaText('Attempt $attemptsMade of $totalAttempts'),
+                      _transcriptMetaText(
+                        transcriptTime == null ? '--:-- UTC' : '${_clockLabel(transcriptTime.toUtc())} UTC',
+                      ),
+                      _transcriptMetaText(_durationLabel(duration)),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              RichText(
+                text: TextSpan(
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    height: 1.7,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  children: _transcriptSpansForDispatch(dispatch),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      dispatch == null
+                          ? 'Recording will appear when an incident is active'
+                          : 'Full recording available',
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textDisabled,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: dispatch == null || dispatch.isSeededPlaceholder
+                        ? null
+                        : () => _callClient(dispatch),
+                    child: Text(
+                      'View full transcript →',
+                      style: GoogleFonts.inter(
+                        color: dispatch == null
+                            ? OnyxColorTokens.textDisabled
+                            : OnyxColorTokens.accentPurple.withValues(alpha: 0.55),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _nextStateBlock(_DispatchItem? dispatch) {
+    final nextState = _nextStateCopy(dispatch);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.accentGreen.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(
+          color: OnyxColorTokens.accentGreen.withValues(alpha: 0.20),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'NEXT STATE',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.accentGreen.withValues(alpha: 0.45),
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            nextState.$1,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textPrimary.withValues(alpha: 0.78),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            nextState.$2,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outcomeCard(_DispatchItem? dispatch) {
+    final outcome = _dispatchOutcomeKindForDispatch(dispatch);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: OnyxColorTokens.accentRed.withValues(alpha: 0.22),
+        ),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: OnyxColorTokens.accentRed.withValues(alpha: 0.55),
+              width: 2,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 9),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'CLIENT RESPONSE',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.accentRed.withValues(alpha: 0.55),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _dispatchOutcomeLabel(outcome),
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textPrimary.withValues(alpha: 0.85),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _dispatchOutcomeSubtext(
+                  outcome,
+                  resolved: _isDispatchResolved(dispatch),
+                ),
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textDisabled,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sidebarStatsRow(_DispatchItem? dispatch) {
+    return Row(
+      children: [
+        Expanded(
+          child: _statBlock(
+            label: 'ATTEMPTS',
+            value: dispatch == null ? '--' : '${_callAttemptsForDispatch(dispatch)}',
+            valueColor: OnyxColorTokens.textMuted,
+          ),
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: _statBlock(
+            label: 'RESPONSE TIME',
+            value: _responseTimeLabelForDispatch(dispatch),
+            valueColor: OnyxColorTokens.accentGreen,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statBlock({
+    required String label,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled.withValues(alpha: 0.60),
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: valueColor,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chainSealBlock(_DispatchItem? dispatch) {
+    final count = _ledgerEntryCountForDispatch(dispatch);
+    final resolved = _isDispatchResolved(dispatch);
+    final accent = resolved
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
+    final headline = resolved ? 'CHAIN INTACT' : 'CHAIN LIVE';
+    final subline = resolved
+        ? '$count / $count entries sealed'
+        : '$count entries recorded · seal pending';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 18,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.15),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(3),
+                    topRight: Radius.circular(3),
+                    bottomLeft: Radius.circular(9),
+                    bottomRight: Radius.circular(9),
+                  ),
+                  border: Border.all(color: accent.withValues(alpha: 0.30)),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '✓',
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    headline,
+                    style: GoogleFonts.inter(
+                      color: accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    subline,
+                    style: GoogleFonts.inter(
+                      color: accent.withValues(alpha: 0.45),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            '$count',
+            style: GoogleFonts.inter(
+              color: accent.withValues(alpha: 0.60),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _contextGrid(_DispatchItem? dispatch) {
+    final intel = dispatch == null ? null : _matchedIntelligenceForDispatch(dispatch);
+    final zoneLabel = _zoneLabelForDispatch(dispatch, intel);
+    final siteLabel = dispatch == null
+        ? _placeholderText(_displaySiteLabel(widget.siteId), fallback: 'No site selected')
+        : _displaySiteLabel(dispatch.site);
+    final clientLabel = dispatch == null
+        ? _placeholderText(widget.clientId, fallback: 'No client linked')
+        : _displayClientLabel(dispatch);
+    final officerLabel = dispatch == null
+        ? 'Awaiting assignment'
+        : _displayOfficerLabel(dispatch.officer);
+    return Wrap(
+      spacing: 5,
+      runSpacing: 5,
+      children: [
+        SizedBox(
+          width: 130,
+          child: _contextCell(
+            label: 'SITE',
+            value: siteLabel,
+            sub: dispatch?.id ?? 'No dispatch selected',
+          ),
+        ),
+        SizedBox(
+          width: 130,
+          child: _contextCell(
+            label: 'CLIENT',
+            value: clientLabel,
+            sub: _placeholderText(widget.clientId, fallback: 'Not linked'),
+          ),
+        ),
+        SizedBox(
+          width: 130,
+          child: _contextCell(
+            label: 'ZONE',
+            value: zoneLabel,
+            sub: intel?.cameraId?.trim().isNotEmpty == true
+                ? intel!.cameraId!
+                : 'Camera pending',
+          ),
+        ),
+        SizedBox(
+          width: 130,
+          child: _contextCell(
+            label: 'OFFICER',
+            value: officerLabel,
+            sub: dispatch == null ? 'Standby' : _statusStyle(dispatch.status).label,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _contextCell({
+    required String label,
+    required String value,
+    required String sub,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled.withValues(alpha: 0.50),
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            sub,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dispatchFactsBlock(_DispatchItem? dispatch) {
+    final facts = <({String label, String value, Color color})>[
+      (
+        label: 'Officer status',
+        value: dispatch == null ? 'Awaiting assignment' : _statusStyle(dispatch.status).label,
+        color: dispatch == null
+            ? OnyxColorTokens.textMuted
+            : (dispatch.status == _DispatchStatus.onSite ||
+                      dispatch.status == _DispatchStatus.cleared)
+                  ? OnyxColorTokens.accentGreen
+                  : OnyxColorTokens.textMuted,
+      ),
+      (
+        label: 'Response time',
+        value: _responseTimeLabelForDispatch(dispatch),
+        color: dispatch != null && dispatch.status == _DispatchStatus.cleared
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.textMuted,
+      ),
+      (
+        label: 'AI call status',
+        value: dispatch == null
+            ? 'STANDBY'
+            : _isDispatchResolved(dispatch)
+            ? 'COMPLETED'
+            : 'ACTIVE',
+        color: _isDispatchResolved(dispatch)
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.textMuted,
+      ),
+      (
+        label: 'Call attempts',
+        value: dispatch == null ? '--' : '${_callAttemptsForDispatch(dispatch)} / 2',
+        color: OnyxColorTokens.textMuted,
+      ),
+      (
+        label: 'Ledger entries',
+        value: '${_ledgerEntryCountForDispatch(dispatch)}',
+        color: _isDispatchResolved(dispatch)
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.textMuted,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < facts.length; index++) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.backgroundSecondary,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: OnyxColorTokens.divider),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    facts[index].label,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textDisabled,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Text(
+                  facts[index].value,
+                  style: GoogleFonts.inter(
+                    color: facts[index].color,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (index != facts.length - 1) const SizedBox(height: 5),
+        ],
+      ],
+    );
+  }
+
+  Widget _zaraFinalIntelligenceBlock(_DispatchItem? dispatch) {
+    final lines = _zaraFinalLines(dispatch);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.accentPurple.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ZARA · FINAL INTELLIGENCE',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.45),
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Z',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.accentPurple,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final line in lines)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          line,
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentPurple.withValues(alpha: 0.65),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dispatchFooterLinks(_DispatchItem? dispatch) {
+    final resolved = _isDispatchResolved(dispatch);
+    final replayAction = resolved && dispatch != null && !dispatch.isSeededPlaceholder
+        ? () => _viewCamera(dispatch)
+        : null;
+    final reviewAction = dispatch != null && !dispatch.isSeededPlaceholder
+        ? () => _openReport(dispatch)
+        : null;
+    final reopenAction = dispatch != null && !dispatch.isSeededPlaceholder
+        ? () {
+            setState(() => _selectedDispatchId = dispatch.id);
+            widget.onSelectedDispatchChanged?.call(dispatch.id);
+          }
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (resolved) ...[
+          _footerLinkButton(
+            label: 'Replay Incident',
+            foreground: OnyxColorTokens.accentPurple.withValues(alpha: 0.75),
+            background: OnyxColorTokens.accentPurple.withValues(alpha: 0.12),
+            border: OnyxColorTokens.accentPurple.withValues(alpha: 0.25),
+            onTap: replayAction,
+          ),
+          const SizedBox(height: 5),
+        ],
+        _footerLinkButton(
+          label: 'Review Full Incident',
+          foreground: OnyxColorTokens.textDisabled,
+          background: OnyxColorTokens.backgroundSecondary,
+          border: OnyxColorTokens.divider,
+          onTap: reviewAction,
+        ),
+        const SizedBox(height: 5),
+        _footerLinkButton(
+          label: 'Reopen in Decision Queue',
+          foreground: OnyxColorTokens.textPrimary.withValues(alpha: 0.22),
+          background: OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.55),
+          border: OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.55),
+          onTap: reopenAction,
+        ),
+      ],
+    );
+  }
+
+  Widget _footerLinkButton({
+    required String label,
+    required Color foreground,
+    required Color background,
+    required Color border,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: border),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            color: foreground,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dispatchActionChip({
+    required String label,
+    required Color foreground,
+    required Color background,
+    required Color border,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(3),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(color: border),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: foreground,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _transcriptMetaText(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.inter(
+        color: OnyxColorTokens.textDisabled,
+        fontSize: 8,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  List<TextSpan> _transcriptSpansForDispatch(_DispatchItem? dispatch) {
+    final outcome = _dispatchOutcomeKindForDispatch(dispatch);
+    String aiText;
+    String clientText;
+    if (dispatch == null) {
+      aiText = 'Standing by for the next verified incident.';
+      clientText = 'Awaiting client conversation.';
+    } else {
+      switch (outcome) {
+        case _DispatchOutcomeKind.realEmergency:
+          aiText =
+              'This is ONYX Security calling about an alarm at your property.';
+          clientText =
+              'Yes, this is real. Someone is trying to break in through the north gate.';
+          break;
+        case _DispatchOutcomeKind.falseAlarm:
+          aiText =
+              'This is ONYX Security calling about an alarm at your property.';
+          clientText = 'False alarm. Please stand down the response.';
+          break;
+        case _DispatchOutcomeKind.safeWord:
+          aiText =
+              'This is ONYX Security. Please confirm your safety status now.';
+          clientText = 'Safe word used. Dispatch immediate support.';
+          break;
+        case _DispatchOutcomeKind.noResponse:
+          aiText =
+              'This is ONYX Security calling about an alarm at your property.';
+          clientText = _isDispatchResolved(dispatch)
+              ? 'No verified response was recorded before resolution.'
+              : 'No verified response recorded yet.';
+          break;
+      }
+    }
+    return [
+      TextSpan(
+        text: 'AI (ONYX): ',
+        style: GoogleFonts.inter(
+          color: OnyxColorTokens.textPrimary.withValues(alpha: 0.78),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          fontStyle: FontStyle.normal,
+        ),
+      ),
+      TextSpan(text: aiText),
+      const TextSpan(text: ' '),
+      TextSpan(
+        text: 'Client: ',
+        style: GoogleFonts.inter(
+          color: OnyxColorTokens.textPrimary.withValues(alpha: 0.78),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          fontStyle: FontStyle.normal,
+        ),
+      ),
+      TextSpan(text: clientText),
+    ];
+  }
+
+  List<_DispatchTimelineEntryData> _timelineEntriesForDispatch(
+    _DispatchItem? dispatch,
+  ) {
+    if (dispatch == null) {
+      return const <_DispatchTimelineEntryData>[];
+    }
+    final entries = <_DispatchTimelineEntryData>[];
+    final intel = _matchedIntelligenceForDispatch(dispatch);
+    final decision = _decisionEventForDispatch(dispatch.id);
+    final dispatchTriggered =
+        _executionCompletedForDispatch(dispatch.id) ??
+        _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.accepted);
+    final response =
+        _responseEventForDispatch(dispatch.id) ??
+        _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.onSite);
+    final closed = _incidentClosedForDispatch(dispatch.id);
+    final denied = _executionDeniedForDispatch(dispatch.id);
+    final allClear = _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.allClear);
+    final cancelled = _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.cancelled);
+    final outcome = _dispatchOutcomeKindForDispatch(dispatch);
+    final officerLabel = _displayOfficerLabel(dispatch.officer);
+
+    if (intel != null) {
+      entries.add(
+        _DispatchTimelineEntryData(
+          phase: _DispatchTimelinePhase.detection,
+          badgeType: _DispatchTimelineBadgeType.sys,
+          timeLabel: _clockLabel(intel.occurredAt.toLocal()),
+          text: intel.headline.trim().isNotEmpty
+              ? intel.headline.trim()
+              : 'Alarm triggered — detection received',
+          subtext: intel.summary.trim().isNotEmpty
+              ? intel.summary.trim()
+              : '${_zoneLabelForDispatch(dispatch, intel)} · ${_displaySiteLabel(dispatch.site)}',
+        ),
+      );
+    }
+
+    if (decision != null) {
+      entries.add(
+        _DispatchTimelineEntryData(
+          phase: _DispatchTimelinePhase.decision,
+          badgeType: _DispatchTimelineBadgeType.zara,
+          timeLabel: _clockLabel(decision.occurredAt.toLocal()),
+          text: 'Signal verified. Client call initiated.',
+          subtext: intel?.summary.trim().isNotEmpty == true
+              ? intel!.summary.trim()
+              : 'Zara elevated the signal for operator review and live confirmation.',
+        ),
+      );
+    }
+
+    if (dispatchTriggered != null) {
+      entries.add(
+        _DispatchTimelineEntryData(
+          phase: _DispatchTimelinePhase.confirmation,
+          badgeType: _DispatchTimelineBadgeType.dispatch,
+          timeLabel: _clockLabel(dispatchTriggered.occurredAt.toLocal()),
+          text: 'Dispatch triggered — $officerLabel en route',
+          subtext: '${dispatch.type} · ${_displaySiteLabel(dispatch.site)}',
+        ),
+      );
+      if (outcome == _DispatchOutcomeKind.realEmergency ||
+          outcome == _DispatchOutcomeKind.safeWord) {
+        entries.add(
+          _DispatchTimelineEntryData(
+            phase: _DispatchTimelinePhase.confirmation,
+            badgeType: _DispatchTimelineBadgeType.zara,
+            timeLabel: _clockLabel(dispatchTriggered.occurredAt.toLocal()),
+            text: 'Real emergency confirmed. Monitoring officer approach.',
+            subtext: 'Zara kept the response lane live while the officer closed the distance.',
+            major: false,
+          ),
+        );
+      }
+    }
+
+    if (response != null) {
+      final arrivalTime = response.occurredAt;
+      entries.add(
+        _DispatchTimelineEntryData(
+          phase: _DispatchTimelinePhase.resolution,
+          badgeType: _DispatchTimelineBadgeType.officer,
+          timeLabel: _clockLabel(arrivalTime.toLocal()),
+          text: 'Officer arrived — situation stabilised',
+          subtext: 'On-site confirmation recorded for $officerLabel.',
+        ),
+      );
+    }
+
+    final closingEvent = closed ?? denied ?? allClear ?? cancelled;
+    if (closingEvent != null) {
+      final resolutionText = switch (outcome) {
+        _DispatchOutcomeKind.realEmergency => 'resolved',
+        _DispatchOutcomeKind.falseAlarm => 'false alarm',
+        _DispatchOutcomeKind.noResponse => 'closed without client confirmation',
+        _DispatchOutcomeKind.safeWord => 'safe word handled',
+      };
+      final count = _ledgerEntryCountForDispatch(dispatch);
+      entries.add(
+        _DispatchTimelineEntryData(
+          phase: _DispatchTimelinePhase.resolution,
+          badgeType: _DispatchTimelineBadgeType.onyx,
+          timeLabel: _clockLabel(closingEvent.occurredAt.toLocal()),
+          text: 'Incident closed — $resolutionText',
+          subtext: 'Ledger sealed · $count / $count entries · Chain intact',
+        ),
+      );
+    }
+
+    return entries;
+  }
+
+  DecisionCreated? _decisionEventForDispatch(String dispatchId) {
+    DecisionCreated? match;
+    for (final event in widget.events.whereType<DecisionCreated>()) {
+      if (event.dispatchId.trim() != dispatchId.trim()) {
+        continue;
+      }
+      if (match == null ||
+          event.occurredAt.isBefore(match.occurredAt) ||
+          (event.occurredAt.isAtSameMomentAs(match.occurredAt) &&
+              event.sequence < match.sequence)) {
+        match = event;
+      }
+    }
+    return match;
+  }
+
+  ResponseArrived? _responseEventForDispatch(String dispatchId) {
+    ResponseArrived? match;
+    for (final event in widget.events.whereType<ResponseArrived>()) {
+      if (event.dispatchId.trim() != dispatchId.trim()) {
+        continue;
+      }
+      if (match == null ||
+          event.occurredAt.isBefore(match.occurredAt) ||
+          (event.occurredAt.isAtSameMomentAs(match.occurredAt) &&
+              event.sequence < match.sequence)) {
+        match = event;
+      }
+    }
+    return match;
+  }
+
+  ExecutionCompleted? _executionCompletedForDispatch(String dispatchId) {
+    ExecutionCompleted? match;
+    for (final event in widget.events.whereType<ExecutionCompleted>()) {
+      if (event.dispatchId.trim() != dispatchId.trim() || !event.success) {
+        continue;
+      }
+      if (match == null ||
+          event.occurredAt.isBefore(match.occurredAt) ||
+          (event.occurredAt.isAtSameMomentAs(match.occurredAt) &&
+              event.sequence < match.sequence)) {
+        match = event;
+      }
+    }
+    return match;
+  }
+
+  ExecutionDenied? _executionDeniedForDispatch(String dispatchId) {
+    ExecutionDenied? match;
+    for (final event in widget.events.whereType<ExecutionDenied>()) {
+      if (event.dispatchId.trim() != dispatchId.trim()) {
+        continue;
+      }
+      if (match == null ||
+          event.occurredAt.isBefore(match.occurredAt) ||
+          (event.occurredAt.isAtSameMomentAs(match.occurredAt) &&
+              event.sequence < match.sequence)) {
+        match = event;
+      }
+    }
+    return match;
+  }
+
+  IncidentClosed? _incidentClosedForDispatch(String dispatchId) {
+    IncidentClosed? match;
+    for (final event in widget.events.whereType<IncidentClosed>()) {
+      if (event.dispatchId.trim() != dispatchId.trim()) {
+        continue;
+      }
+      if (match == null ||
+          event.occurredAt.isBefore(match.occurredAt) ||
+          (event.occurredAt.isAtSameMomentAs(match.occurredAt) &&
+              event.sequence < match.sequence)) {
+        match = event;
+      }
+    }
+    return match;
+  }
+
+  PartnerDispatchStatusDeclared? _partnerEventForStatus(
+    String dispatchId,
+    PartnerDispatchStatus status,
+  ) {
+    PartnerDispatchStatusDeclared? match;
+    for (final event in widget.events.whereType<PartnerDispatchStatusDeclared>()) {
+      if (event.dispatchId.trim() != dispatchId.trim() || event.status != status) {
+        continue;
+      }
+      if (match == null ||
+          event.occurredAt.isBefore(match.occurredAt) ||
+          (event.occurredAt.isAtSameMomentAs(match.occurredAt) &&
+              event.sequence < match.sequence)) {
+        match = event;
+      }
+    }
+    return match;
+  }
+
+  IntelligenceReceived? _matchedIntelligenceForDispatch(_DispatchItem dispatch) {
+    final decision = _decisionEventForDispatch(dispatch.id);
+    final clientScope = decision?.clientId.trim().isNotEmpty == true
+        ? decision!.clientId.trim()
+        : widget.clientId.trim();
+    final siteScope = decision?.siteId.trim().isNotEmpty == true
+        ? decision!.siteId.trim()
+        : dispatch.site.trim();
+    IntelligenceReceived? match;
+    Duration? gap;
+    for (final event in widget.events.whereType<IntelligenceReceived>()) {
+      if (clientScope.isNotEmpty && event.clientId.trim() != clientScope) {
+        continue;
+      }
+      if (siteScope.isNotEmpty && event.siteId.trim() != siteScope) {
+        continue;
+      }
+      if (decision == null) {
+        if (match == null || event.occurredAt.isAfter(match.occurredAt)) {
+          match = event;
+        }
+        continue;
+      }
+      final currentGap = event.occurredAt.difference(decision.occurredAt).abs();
+      if (match == null || gap == null || currentGap < gap) {
+        match = event;
+        gap = currentGap;
+      }
+    }
+    return match;
+  }
+
+  List<DispatchEvent> _dispatchScopedEvents(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return const <DispatchEvent>[];
+    }
+    final dispatchId = dispatch.id.trim();
+    final scoped = <DispatchEvent>[];
+    for (final event in widget.events) {
+      final matches = switch (event) {
+        DecisionCreated value => value.dispatchId.trim() == dispatchId,
+        ResponseArrived value => value.dispatchId.trim() == dispatchId,
+        PartnerDispatchStatusDeclared value => value.dispatchId.trim() == dispatchId,
+        ExecutionCompleted value => value.dispatchId.trim() == dispatchId,
+        ExecutionDenied value => value.dispatchId.trim() == dispatchId,
+        IncidentClosed value => value.dispatchId.trim() == dispatchId,
+        _ => false,
+      };
+      if (matches) {
+        scoped.add(event);
+      }
+    }
+    scoped.sort((a, b) {
+      final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+      if (occurredAtCompare != 0) {
+        return occurredAtCompare;
+      }
+      return a.sequence.compareTo(b.sequence);
+    });
+    return scoped;
+  }
+
+  DateTime? _triggeredAtForDispatch(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return null;
+    }
+    final intel = _matchedIntelligenceForDispatch(dispatch);
+    final decision = _decisionEventForDispatch(dispatch.id);
+    final scoped = _dispatchScopedEvents(dispatch);
+    return intel?.occurredAt ?? decision?.occurredAt ?? (scoped.isEmpty ? null : scoped.first.occurredAt);
+  }
+
+  bool _isDispatchResolved(_DispatchItem? dispatch) {
+    return dispatch != null && dispatch.status == _DispatchStatus.cleared;
+  }
+
+  bool _isDispatchActive(_DispatchItem? dispatch) {
+    return dispatch != null && !_isDispatchResolved(dispatch);
+  }
+
+  String _zoneLabelForDispatch(
+    _DispatchItem? dispatch,
+    IntelligenceReceived? intel,
+  ) {
+    if (intel?.zone?.trim().isNotEmpty == true) {
+      return intel!.zone!.trim();
+    }
+    if (dispatch == null) {
+      return 'Unknown zone';
+    }
+    final parts = _alarmSummary(dispatch)
+        .split('•')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty) {
+      return 'Unknown zone';
+    }
+    return parts.length >= 2 ? parts.last : parts.first;
+  }
+
+  _DispatchOutcomeKind _dispatchOutcomeKindForDispatch(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return _DispatchOutcomeKind.noResponse;
+    }
+    final denial = _executionDeniedForDispatch(dispatch.id);
+    final closed = _incidentClosedForDispatch(dispatch.id);
+    final normalizedReason =
+        '${denial?.reason ?? ''} ${closed?.resolutionType ?? ''}'.toLowerCase();
+    if (normalizedReason.contains('safe word') ||
+        normalizedReason.contains('safeword') ||
+        normalizedReason.contains('duress')) {
+      return _DispatchOutcomeKind.safeWord;
+    }
+    if (normalizedReason.contains('false') ||
+        normalizedReason.contains('cancel') ||
+        normalizedReason.contains('test') ||
+        normalizedReason.contains('accident')) {
+      return _DispatchOutcomeKind.falseAlarm;
+    }
+    if (_responseEventForDispatch(dispatch.id) != null ||
+        _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.onSite) != null ||
+        _partnerEventForStatus(dispatch.id, PartnerDispatchStatus.allClear) != null ||
+        _executionCompletedForDispatch(dispatch.id) != null) {
+      return _DispatchOutcomeKind.realEmergency;
+    }
+    return _DispatchOutcomeKind.noResponse;
+  }
+
+  String _dispatchOutcomeLabel(_DispatchOutcomeKind outcome) {
+    return switch (outcome) {
+      _DispatchOutcomeKind.realEmergency => 'REAL EMERGENCY',
+      _DispatchOutcomeKind.falseAlarm => 'FALSE ALARM',
+      _DispatchOutcomeKind.noResponse => 'NO RESPONSE',
+      _DispatchOutcomeKind.safeWord => 'SAFE WORD USED',
+    };
+  }
+
+  String _dispatchOutcomeSubtext(
+    _DispatchOutcomeKind outcome, {
+    required bool resolved,
+  }) {
+    return switch (outcome) {
+      _DispatchOutcomeKind.realEmergency =>
+        resolved ? 'Client confirmed the threat and the response chain closed cleanly.' : 'Threat confirmed while the response chain is still active.',
+      _DispatchOutcomeKind.falseAlarm =>
+        'Client confirmed no dispatch escalation was required.',
+      _DispatchOutcomeKind.noResponse =>
+        resolved ? 'No verified client confirmation was recorded before closure.' : 'Client verification is still pending.',
+      _DispatchOutcomeKind.safeWord =>
+        'Duress confirmation triggered the protected escalation path.',
+    };
+  }
+
+  int _callAttemptsForDispatch(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return 0;
+    }
+    return _isDispatchResolved(dispatch) ? 2 : 1;
+  }
+
+  DateTime? _transcriptTimestampForDispatch(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return null;
+    }
+    final decision = _decisionEventForDispatch(dispatch.id);
+    final response = _responseEventForDispatch(dispatch.id);
+    final closed = _incidentClosedForDispatch(dispatch.id);
+    return response?.occurredAt ?? closed?.occurredAt ?? decision?.occurredAt ?? _triggeredAtForDispatch(dispatch);
+  }
+
+  Duration _callDurationForDispatch(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return Duration.zero;
+    }
+    final start = _decisionEventForDispatch(dispatch.id)?.occurredAt ?? _triggeredAtForDispatch(dispatch);
+    final end = _responseEventForDispatch(dispatch.id)?.occurredAt ??
+        _incidentClosedForDispatch(dispatch.id)?.occurredAt ??
+        DateTime.now();
+    if (start == null) {
+      return Duration.zero;
+    }
+    final duration = end.difference(start);
+    return duration.isNegative ? Duration.zero : duration;
+  }
+
+  String _durationLabel(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    return '${minutes}m ${seconds}s';
+  }
+
+  int _ledgerEntryCountForDispatch(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return 0;
+    }
+    final scoped = _dispatchScopedEvents(dispatch).length;
+    final intel = _matchedIntelligenceForDispatch(dispatch);
+    return scoped + (intel == null ? 0 : 1);
+  }
+
+  String _responseTimeLabelForDispatch(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return '--';
+    }
+    final decision = _decisionEventForDispatch(dispatch.id);
+    final response = _responseEventForDispatch(dispatch.id);
+    if (decision != null && response != null) {
+      final diff = response.occurredAt.difference(decision.occurredAt);
+      final minutes = diff.inMinutes;
+      final seconds = diff.inSeconds.remainder(60);
+      return '${minutes}m ${seconds}s';
+    }
+    if (dispatch.eta?.trim().isNotEmpty == true) {
+      return dispatch.eta!;
+    }
+    return _averageResponseTimeLabel(widget.events);
+  }
+
+  (String, String) _nextStateCopy(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return (
+        'Hold watch — no further escalation required',
+        'Standing by for the next confirmed incident.',
+      );
+    }
+    return switch (dispatch.status) {
+      _DispatchStatus.pending => (
+        'Escalation required',
+        'No field unit is committed yet. Keep the client line live and escalate if risk rises.',
+      ),
+      _DispatchStatus.enRoute => (
+        'Monitor officer approach',
+        'Dispatch en route. ETA ${dispatch.eta?.trim().isNotEmpty == true ? dispatch.eta : 'pending'}.',
+      ),
+      _DispatchStatus.onSite => (
+        'Hold watch — no further escalation required',
+        'Officer on site. Monitor until all-clear is confirmed.',
+      ),
+      _DispatchStatus.cleared => (
+        'Hold watch — no further escalation required',
+        'Incident is closed. Preserve the record and await the next verified signal.',
+      ),
+    };
+  }
+
+  List<String> _zaraFinalLines(_DispatchItem? dispatch) {
+    if (dispatch == null) {
+      return const [
+        'No active dispatch in focus.',
+        'Chain is standing by.',
+        'Awaiting the next verified incident.',
+      ];
+    }
+    return switch (_dispatchOutcomeKindForDispatch(dispatch)) {
+      _DispatchOutcomeKind.realEmergency => const [
+        'Client confirmed real emergency.',
+        'Dispatch successful.',
+        'No further escalation required.',
+      ],
+      _DispatchOutcomeKind.falseAlarm => const [
+        'Client confirmed false alarm.',
+        'No dispatch required.',
+        'Record sealed.',
+      ],
+      _DispatchOutcomeKind.noResponse => const [
+        'Client did not provide verified confirmation.',
+        'Response chain held its current posture.',
+        'Record remains ready for operator review.',
+      ],
+      _DispatchOutcomeKind.safeWord => const [
+        'Client safe word activated the protected flow.',
+        'Dispatch successful.',
+        'No further escalation required.',
+      ],
+    };
+  }
+
+  String _phaseLabel(_DispatchTimelinePhase phase) {
+    return switch (phase) {
+      _DispatchTimelinePhase.detection => 'DETECTION',
+      _DispatchTimelinePhase.decision => 'DECISION',
+      _DispatchTimelinePhase.confirmation => 'CONFIRMATION',
+      _DispatchTimelinePhase.resolution => 'RESOLUTION',
+    };
+  }
+
+  String _timelineBadgeLabel(_DispatchTimelineBadgeType badgeType) {
+    return switch (badgeType) {
+      _DispatchTimelineBadgeType.sys => 'SYS',
+      _DispatchTimelineBadgeType.zara => 'ZARA',
+      _DispatchTimelineBadgeType.client => 'CLIENT',
+      _DispatchTimelineBadgeType.dispatch => 'DISPATCH',
+      _DispatchTimelineBadgeType.officer => 'OFFICER',
+      _DispatchTimelineBadgeType.onyx => 'ONYX',
+    };
+  }
+
+  (Color, Color) _timelineBadgeStyle(_DispatchTimelineBadgeType badgeType) {
+    return switch (badgeType) {
+      _DispatchTimelineBadgeType.zara => (
+        OnyxColorTokens.accentPurple.withValues(alpha: 0.12),
+        OnyxColorTokens.accentPurple.withValues(alpha: 0.75),
+      ),
+      _DispatchTimelineBadgeType.sys => (
+        OnyxColorTokens.textPrimary.withValues(alpha: 0.05),
+        OnyxColorTokens.textPrimary.withValues(alpha: 0.28),
+      ),
+      _DispatchTimelineBadgeType.client ||
+      _DispatchTimelineBadgeType.officer => (
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.10),
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.70),
+      ),
+      _DispatchTimelineBadgeType.dispatch => (
+        OnyxColorTokens.accentRed.withValues(alpha: 0.12),
+        OnyxColorTokens.accentRed.withValues(alpha: 0.75),
+      ),
+      _DispatchTimelineBadgeType.onyx => (
+        OnyxColorTokens.textPrimary.withValues(alpha: 0.04),
+        OnyxColorTokens.textPrimary.withValues(alpha: 0.22),
+      ),
+    };
+  }
+
+  (Color, Color) _timelineDotStyle(
+    _DispatchTimelineBadgeType badgeType, {
+    required bool major,
+  }) {
+    if (!major) {
+      return (
+        OnyxColorTokens.accentPurple.withValues(alpha: 0.12),
+        OnyxColorTokens.accentPurple.withValues(alpha: 0.35),
+      );
+    }
+    return switch (badgeType) {
+      _DispatchTimelineBadgeType.sys => (
+        OnyxColorTokens.accentRed.withValues(alpha: 0.18),
+        OnyxColorTokens.accentRed.withValues(alpha: 0.60),
+      ),
+      _DispatchTimelineBadgeType.zara => (
+        OnyxColorTokens.accentPurple.withValues(alpha: 0.18),
+        OnyxColorTokens.accentPurple.withValues(alpha: 0.55),
+      ),
+      _DispatchTimelineBadgeType.client => (
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.18),
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.55),
+      ),
+      _DispatchTimelineBadgeType.dispatch => (
+        OnyxColorTokens.accentRed.withValues(alpha: 0.15),
+        OnyxColorTokens.accentRed.withValues(alpha: 0.45),
+      ),
+      _DispatchTimelineBadgeType.officer => (
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.15),
+        OnyxColorTokens.accentGreen.withValues(alpha: 0.45),
+      ),
+      _DispatchTimelineBadgeType.onyx => (
+        OnyxColorTokens.textPrimary.withValues(alpha: 0.06),
+        OnyxColorTokens.textPrimary.withValues(alpha: 0.18),
+      ),
+    };
+  }
+
+  String _placeholderText(String? value, {required String fallback}) {
+    final normalized = value?.trim() ?? '';
+    return normalized.isEmpty ? fallback : normalized;
   }
 
   // ignore: unused_element
@@ -7998,5 +9611,44 @@ class _BreakdownRow extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _DispatchPulse extends StatefulWidget {
+  final Widget child;
+
+  const _DispatchPulse({required this.child});
+
+  @override
+  State<_DispatchPulse> createState() => _DispatchPulseState();
+}
+
+class _DispatchPulseState extends State<_DispatchPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _opacity = Tween<double>(
+      begin: 0.32,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _opacity, child: widget.child);
   }
 }
