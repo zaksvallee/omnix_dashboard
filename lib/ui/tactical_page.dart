@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -27,7 +29,6 @@ import '../domain/guard/guard_position_summary.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
-import 'track_overview_board.dart';
 import 'video_fleet_scope_health_card.dart';
 import 'video_fleet_scope_health_panel.dart';
 import 'video_fleet_scope_health_sections.dart';
@@ -44,6 +45,10 @@ enum _FocusLinkState { none, exact, scopeBacked, seeded }
 enum _TacticalMapFilter { all, responding, incidents }
 
 enum _VerificationQueueTab { anomalies, matches, assets }
+
+enum SignalSentState { unsent, sent }
+
+enum _SignalFeedState { live, stale, noSignal }
 
 const _tacticalSurfaceColor = OnyxDesignTokens.cardSurface;
 const _tacticalAltSurfaceColor = OnyxDesignTokens.backgroundSecondary;
@@ -137,6 +142,34 @@ class _CctvLensTelemetry {
   });
 }
 
+class _TacticalSignalViewData {
+  final String id;
+  final String title;
+  final int confidence;
+  final DateTime occurredAtUtc;
+  final String cameraLabel;
+  final String zoneLabel;
+  final String summary;
+  final String contextLine;
+  final String verdict;
+  final String? snapshotUrl;
+  final _MapMarker? marker;
+
+  const _TacticalSignalViewData({
+    required this.id,
+    required this.title,
+    required this.confidence,
+    required this.occurredAtUtc,
+    required this.cameraLabel,
+    required this.zoneLabel,
+    required this.summary,
+    required this.contextLine,
+    required this.verdict,
+    this.snapshotUrl,
+    this.marker,
+  });
+}
+
 class _SuppressedFleetReviewEntry {
   final VideoFleetScopeHealthView scope;
   final MonitoringSceneReviewRecord review;
@@ -180,12 +213,10 @@ class TacticalEvidenceReturnReceipt {
 class _TacticalDetailedWorkspaceHost extends StatefulWidget {
   final Widget Function(
     BuildContext context,
+    _TacticalDetailedWorkspaceHostState host,
     bool showDetailedWorkspace,
     ValueChanged<bool> setDetailedWorkspace,
-    void Function(
-      String incidentReference,
-      ValueChanged<String>? onConsume,
-    )
+    void Function(String incidentReference, ValueChanged<String>? onConsume)
     consumeAgentReturnIncidentReferenceOnce,
     void Function(
       TacticalEvidenceReturnReceipt receipt,
@@ -210,9 +241,25 @@ class _TacticalDetailedWorkspaceHostState
   final GlobalKey _fleetPanelKey = GlobalKey();
   final GlobalKey _suppressedPanelKey = GlobalKey();
   final MapController _mapController = MapController();
+  final ScrollController _signalScrollController = ScrollController();
+  final Map<String, GlobalKey> _signalCardKeys = <String, GlobalKey>{};
   bool _showDetailedWorkspace = false;
+  String? _expandedSignalId;
+  bool _mapExpanded = false;
+  final Map<String, SignalSentState> _signalSentStates =
+      <String, SignalSentState>{};
+  final Set<String> _dismissedSignalIds = <String>{};
   String? _lastConsumedAgentReturnIncidentReference;
   String? _lastConsumedEvidenceReturnAuditId;
+
+  ScrollController get signalScrollController => _signalScrollController;
+  String? get expandedSignalId => _expandedSignalId;
+  bool get mapExpanded => _mapExpanded;
+  Map<String, SignalSentState> get signalSentStates => _signalSentStates;
+  Set<String> get dismissedSignalIds => _dismissedSignalIds;
+
+  GlobalKey signalCardKeyFor(String signalId) =>
+      _signalCardKeys.putIfAbsent(signalId, GlobalKey.new);
 
   void _setDetailedWorkspace(bool value) {
     if (_showDetailedWorkspace == value) {
@@ -258,10 +305,59 @@ class _TacticalDetailedWorkspaceHostState
     });
   }
 
+  void setExpandedSignalId(String? value) {
+    if (_expandedSignalId == value) {
+      return;
+    }
+    setState(() {
+      _expandedSignalId = value;
+    });
+  }
+
+  void setMapExpanded(bool value) {
+    if (_mapExpanded == value) {
+      return;
+    }
+    setState(() {
+      _mapExpanded = value;
+    });
+  }
+
+  void setSignalSentState(String signalId, SignalSentState state) {
+    if (_signalSentStates[signalId] == state) {
+      return;
+    }
+    setState(() {
+      _signalSentStates[signalId] = state;
+      if (_expandedSignalId == signalId) {
+        _expandedSignalId = null;
+      }
+    });
+  }
+
+  void dismissSignal(String signalId) {
+    if (_dismissedSignalIds.contains(signalId)) {
+      return;
+    }
+    setState(() {
+      _dismissedSignalIds.add(signalId);
+      if (_expandedSignalId == signalId) {
+        _expandedSignalId = null;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _signalScrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return widget.builder(
       context,
+      this,
       _showDetailedWorkspace,
       _setDetailedWorkspace,
       _consumeAgentReturnIncidentReferenceOnce,
@@ -447,733 +543,171 @@ class TacticalPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _TacticalDetailedWorkspaceHost(
-      builder: (
-        context,
-        showDetailedWorkspace,
-        setDetailedWorkspace,
-        consumeAgentReturnIncidentReferenceOnce,
-        consumeEvidenceReturnReceiptOnce,
-        fleetPanelKey,
-        suppressedPanelKey,
-        mapController,
-      ) {
-        final normalizedAgentReturnReference =
-            (agentReturnIncidentReference ?? '').trim();
-        var commandReceipt = _initialCommandReceipt(
-          normalizedAgentReturnReference,
-          evidenceReturnReceipt,
-        );
-        VideoFleetWatchActionDrilldown? activeWatchActionDrilldown =
-            initialWatchActionDrilldown;
-        var mapZoom = 1.0;
-        var mapFilter = _TacticalMapFilter.all;
-        String? selectedMarkerId = focusIncidentReference.trim().isEmpty
-            ? null
-            : focusIncidentReference.trim();
-        var verificationQueueTab = _VerificationQueueTab.anomalies;
-        final now = DateTime.now();
-        return StatefulBuilder(
-          builder: (context, setState) {
-            if (normalizedAgentReturnReference.isNotEmpty) {
-              consumeAgentReturnIncidentReferenceOnce(
-                normalizedAgentReturnReference,
-                onConsumeAgentReturnIncidentReference,
-              );
-            }
-            final evidenceReceipt = evidenceReturnReceipt;
-            if (evidenceReceipt != null) {
-              consumeEvidenceReturnReceiptOnce(
-                evidenceReceipt,
-                onConsumeEvidenceReturnReceipt,
-              );
-            }
-            var wide = false;
-            final contentPadding = const EdgeInsets.fromLTRB(16, 16, 16, 16);
-            void showTacticalFeedback(
-              String message, {
-              String label = 'VERIFICATION RAIL',
-              String? detail,
-              Color accent = _tacticalAccentSky,
-            }) {
-              if (wide) {
-                setState(() {
-                  commandReceipt = _TacticalCommandReceipt(
-                    label: label,
-                    headline: message,
-                    detail:
-                        detail ??
-                        'The latest tactical workflow update stays pinned in the verification rail while the active map board remains in focus.',
-                    accent: accent,
-                  );
-                });
-                return;
-              }
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(message)));
-            }
-
-            final isCombatWindow = now.hour >= 22 || now.hour < 6;
-            final normMode = isCombatWindow ? 'night' : 'day';
-            final focusReference = focusIncidentReference.trim();
-            final scopeClientId = (initialScopeClientId ?? '').trim();
-            final scopeSiteId = (initialScopeSiteId ?? '').trim();
-            final hasScopeFocus = scopeClientId.isNotEmpty;
-            final visibleFleetScopeHealth = hasScopeFocus
-                ? fleetScopeHealth
-                      .where((scope) {
-                        if (scope.clientId.trim() != scopeClientId) {
-                          return false;
-                        }
-                        if (scopeSiteId.isEmpty) {
-                          return true;
-                        }
-                        return scope.siteId.trim() == scopeSiteId;
-                      })
-                      .toList(growable: false)
-                : fleetScopeHealth;
-            final focusState = _resolveFocusLinkState(
-              focusReference: focusReference,
-              visibleFleetScopeHealth: visibleFleetScopeHealth,
-              events: events,
-            );
-            final markers = _resolvedMarkers(
-              focusReference: focusReference,
-              focusState: focusState,
-              scopeClientId: scopeClientId,
-              scopeSiteId: scopeSiteId,
-            );
-            final mapBounds = _mapBoundsForScope(
-              markers: markers,
-              scopeClientId: scopeClientId,
-              scopeSiteId: scopeSiteId,
-            );
-            final visibleMarkers = _filteredMarkers(markers, mapFilter);
-            if (selectedMarkerId == null ||
-                !visibleMarkers.any(
-                  (marker) => marker.id == selectedMarkerId,
-                )) {
-              selectedMarkerId = _preferredMarker(
-                visibleMarkers,
-                focusReference: focusReference,
-              )?.id;
-            }
-            final activeMarker = _activeMarkerFor(
-              markers: visibleMarkers,
-              selectedMarkerId: selectedMarkerId,
-              focusReference: focusReference,
-            );
-            final geofenceAlerts = _geofences
-                .where(
-                  (fence) =>
-                      fence.status == _FenceStatus.breach ||
-                      (fence.status == _FenceStatus.stationary &&
-                          (fence.stationaryTime ?? 0) > 120),
-                )
-                .length;
-            final sosAlerts = markers
-                .where(
-                  (marker) =>
-                      marker.status == _MarkerStatus.sos &&
-                      marker.type == _MarkerType.guard,
-                )
-                .length;
-            final connectingToLiveData = !supabaseReady &&
-                guardPositions.isEmpty &&
-                siteMarkers.isEmpty;
-            final lensTelemetry = _buildCctvLensTelemetry();
-            final suppressedEntries = _suppressedFleetReviewEntries(
-              visibleFleetScopeHealth,
-            );
-            final headerDispatchAction = _headerDispatchAction(
-              visibleFleetScopeHealth: visibleFleetScopeHealth,
-              focusReference: focusReference,
-              scopeClientId: scopeClientId,
-              scopeSiteId: scopeSiteId,
-            );
-            final headerAgentAction = _headerAgentAction(
-              visibleFleetScopeHealth: visibleFleetScopeHealth,
-              focusReference: focusReference,
-            );
-            final showSuppressedPrimary =
-                activeWatchActionDrilldown ==
-                    VideoFleetWatchActionDrilldown.filtered &&
-                suppressedEntries.isNotEmpty;
-            void setActiveWatchActionDrilldown(
-              VideoFleetWatchActionDrilldown? value,
-            ) {
-              if (activeWatchActionDrilldown == value) {
-                return;
-              }
-              setState(() {
-                activeWatchActionDrilldown = value;
-              });
-              onWatchActionDrilldownChanged?.call(value);
-            }
-
-            void openWatchActionDrilldown(
-              VideoFleetWatchActionDrilldown drilldown,
-            ) {
-              if (activeWatchActionDrilldown == drilldown) {
-                setActiveWatchActionDrilldown(null);
-                return;
-              }
-              setActiveWatchActionDrilldown(drilldown);
-              final targetContext =
-                  drilldown == VideoFleetWatchActionDrilldown.filtered &&
-                      suppressedEntries.isNotEmpty
-                  ? suppressedPanelKey.currentContext
-                  : fleetPanelKey.currentContext;
-              if (targetContext == null) {
-                return;
-              }
-              Scrollable.ensureVisible(
-                targetContext,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-              );
-            }
-
-            void openLatestWatchActionDetail(VideoFleetScopeHealthView scope) {
-              if (activeWatchActionDrilldown ==
-                      VideoFleetWatchActionDrilldown.filtered &&
-                  suppressedEntries.isNotEmpty) {
-                final targetContext = suppressedPanelKey.currentContext;
-                if (targetContext != null) {
-                  Scrollable.ensureVisible(
-                    targetContext,
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
+      builder:
+          (
+            context,
+            host,
+            unusedShowDetailedWorkspace,
+            unusedSetDetailedWorkspace,
+            consumeAgentReturnIncidentReferenceOnce,
+            consumeEvidenceReturnReceiptOnce,
+            unusedFleetPanelKey,
+            unusedSuppressedPanelKey,
+            mapController,
+          ) {
+            final normalizedAgentReturnReference =
+                (agentReturnIncidentReference ?? '').trim();
+            var mapZoom = 1.0;
+            var mapFilter = _TacticalMapFilter.all;
+            String? selectedMarkerId = focusIncidentReference.trim().isEmpty
+                ? null
+                : focusIncidentReference.trim();
+            var verificationQueueTab = _VerificationQueueTab.anomalies;
+            final now = DateTime.now();
+            return StatefulBuilder(
+              builder: (context, setState) {
+                if (normalizedAgentReturnReference.isNotEmpty) {
+                  consumeAgentReturnIncidentReferenceOnce(
+                    normalizedAgentReturnReference,
+                    onConsumeAgentReturnIncidentReference,
                   );
                 }
-                return;
-              }
-              final primaryOpenFleetScope = scope.hasIncidentContext
-                  ? (onOpenFleetTacticalScope ?? onOpenFleetDispatchScope)
-                  : null;
-              if (primaryOpenFleetScope == null) {
-                return;
-              }
-              primaryOpenFleetScope.call(
-                scope.clientId,
-                scope.siteId,
-                scope.latestIncidentReference,
-              );
-            }
-
-            void focusFilteredSuppressedReviews() {
-              if (activeWatchActionDrilldown !=
-                  VideoFleetWatchActionDrilldown.filtered) {
-                setActiveWatchActionDrilldown(
-                  VideoFleetWatchActionDrilldown.filtered,
-                );
-              }
-              final targetContext = suppressedPanelKey.currentContext;
-              if (targetContext == null) {
-                return;
-              }
-              Scrollable.ensureVisible(
-                targetContext,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-              );
-            }
-
-            Widget buildWideWorkspace({required bool embedScroll}) {
-              final workspaceBanner = _tacticalWorkspaceStatusBanner(
-                activeMarker: activeMarker,
-                activeFilter: mapFilter,
-                focusReference: focusReference,
-                focusState: focusState,
-                verificationQueueTab: verificationQueueTab,
-                headerDispatchAction: headerDispatchAction,
-                headerAgentAction: headerAgentAction,
-                onCycleFilter: () {
-                  setState(() {
-                    mapFilter = switch (mapFilter) {
-                      _TacticalMapFilter.all => _TacticalMapFilter.responding,
-                      _TacticalMapFilter.responding =>
-                        _TacticalMapFilter.incidents,
-                      _TacticalMapFilter.incidents => _TacticalMapFilter.all,
-                    };
-                  });
-                },
-                onCenterActive: () {
-                  final targetMarker = _preferredMarker(
-                    visibleMarkers,
-                    focusReference: focusReference,
+                final evidenceReceipt = evidenceReturnReceipt;
+                if (evidenceReceipt != null) {
+                  consumeEvidenceReturnReceiptOnce(
+                    evidenceReceipt,
+                    onConsumeEvidenceReturnReceipt,
                   );
-                  if (targetMarker == null) {
-                    return;
-                  }
-                  setState(() {
-                    selectedMarkerId = targetMarker.id;
-                  });
-                },
-                onSetQueueTab: (_VerificationQueueTab value) {
-                  setState(() {
-                    verificationQueueTab = value;
-                  });
-                },
-                onOpenFleetStatus: visibleFleetScopeHealth.isEmpty
-                    ? null
-                    : () {
-                        final targetContext = fleetPanelKey.currentContext;
-                        if (targetContext == null) {
-                          return;
-                        }
-                        Scrollable.ensureVisible(
-                          targetContext,
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                        );
-                      },
-                summaryOnly: true,
-                shellless: true,
-              );
-
-              Widget railChild() {
-                final content = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _heroHeader(
-                      dispatchAction: headerDispatchAction,
-                      agentAction: headerAgentAction,
-                      visibleFleetScopeHealth: visibleFleetScopeHealth,
-                      workspaceBanner: workspaceBanner,
-                    ),
-                    const SizedBox(height: 5),
-                    if (sosAlerts > 0) ...[
-                      _tacticalAlertBanner(
-                        key: const ValueKey('tactical-sos-banner'),
-                        icon: Icons.warning_amber_rounded,
-                        accent: OnyxColorTokens.accentRed,
-                        label: 'ACTIVE SOS TRIGGER',
-                        message:
-                            '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
-                        actionLabel: 'OPEN DISPATCHES',
-                        onPressed: headerDispatchAction,
-                      ),
-                      const SizedBox(height: 5),
-                    ] else if (geofenceAlerts > 0) ...[
-                      _tacticalAlertBanner(
-                        key: const ValueKey('tactical-geofence-banner'),
-                        icon: Icons.report_gmailerrorred_rounded,
-                        accent: OnyxColorTokens.accentAmber,
-                        label: 'GEOFENCE BREACH DETECTED',
-                        message:
-                            '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
-                        actionLabel: 'INVESTIGATE',
-                        onPressed: headerDispatchAction,
-                      ),
-                      const SizedBox(height: 5),
-                    ],
-                    _topBar(
-                      geofenceAlerts: geofenceAlerts,
-                      sosAlerts: sosAlerts,
-                      mode: isCombatWindow ? 'Combat Window' : 'Day Window',
-                      focusReference: focusReference,
-                      focusState: focusState,
-                      scopeClientId: scopeClientId,
-                      scopeSiteId: scopeSiteId,
-                      cctvReadiness: cctvOpsReadiness,
-                      cctvCapabilitySummary: cctvCapabilitySummary,
-                      cctvRecentSignalSummary: cctvRecentSignalSummary,
-                      compactDetails: true,
-                    ),
-                    if (hasScopeFocus) ...[
-                      const SizedBox(height: 5),
-                      _scopeFocusBanner(
-                        clientId: scopeClientId,
-                        siteId: scopeSiteId,
-                        hasFleetScope: visibleFleetScopeHealth.isNotEmpty,
-                      ),
-                    ],
-                  ],
-                );
-                if (!embedScroll) {
-                  return content;
                 }
-                return SingleChildScrollView(primary: false, child: content);
-              }
+                var wide = false;
+                final contentPadding = const EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  16,
+                );
+                void showTacticalFeedback(
+                  String message, {
+                  String label = 'VERIFICATION RAIL',
+                  String? detail,
+                  Color accent = _tacticalAccentSky,
+                }) {
+                  final feedbackText = detail == null || detail.trim().isEmpty
+                      ? '$label · $message'
+                      : '$label · $message\n$detail';
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: accent.withValues(alpha: 0.18),
+                      content: Text(feedbackText),
+                    ),
+                  );
+                }
 
-              Widget mapBoardChild() {
-                final content = _mapPanel(
-                  buildContext: context,
-                  markers: visibleMarkers,
-                  mapBounds: mapBounds,
-                  activeMarker: activeMarker,
-                  zoom: mapZoom,
-                  mapController: mapController,
-                  activeFilter: mapFilter,
-                  activeQueueTab: verificationQueueTab,
-                  onSelectMarker: (markerId) {
-                    setState(() {
-                      selectedMarkerId = markerId;
-                    });
-                  },
-                  onZoomIn: () {
-                    final nextZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
-                    setState(() {
-                      mapZoom = nextZoom;
-                    });
-                    mapController.move(
-                      activeMarker?.point ?? _mapBoundsCenter(mapBounds),
-                      _mapZoomLevelForBounds(
-                        mapBounds: mapBounds,
-                        zoomScale: nextZoom,
-                      ),
-                    );
-                  },
-                  onZoomOut: () {
-                    final nextZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
-                    setState(() {
-                      mapZoom = nextZoom;
-                    });
-                    mapController.move(
-                      activeMarker?.point ?? _mapBoundsCenter(mapBounds),
-                      _mapZoomLevelForBounds(
-                        mapBounds: mapBounds,
-                        zoomScale: nextZoom,
-                      ),
-                    );
-                  },
-                  onCenterActive: () {
-                    final targetMarker = _preferredMarker(
-                      visibleMarkers,
-                      focusReference: focusReference,
-                    );
-                    if (targetMarker == null) {
-                      return;
-                    }
-                    setState(() {
-                      selectedMarkerId = targetMarker.id;
-                    });
-                  },
-                  onCycleFilter: () {
-                    setState(() {
-                      mapFilter = switch (mapFilter) {
-                        _TacticalMapFilter.all => _TacticalMapFilter.responding,
-                        _TacticalMapFilter.responding =>
-                          _TacticalMapFilter.incidents,
-                        _TacticalMapFilter.incidents => _TacticalMapFilter.all,
-                      };
-                    });
-                  },
-                  onSetQueueTab: (value) {
-                    setState(() {
-                      verificationQueueTab = value;
-                    });
-                  },
-                  onOpenDispatches: headerDispatchAction,
+                final focusReference = focusIncidentReference.trim();
+                final scopeClientId = (initialScopeClientId ?? '').trim();
+                final scopeSiteId = (initialScopeSiteId ?? '').trim();
+                final hasScopeFocus = scopeClientId.isNotEmpty;
+                final visibleFleetScopeHealth = hasScopeFocus
+                    ? fleetScopeHealth
+                          .where((scope) {
+                            if (scope.clientId.trim() != scopeClientId) {
+                              return false;
+                            }
+                            if (scopeSiteId.isEmpty) {
+                              return true;
+                            }
+                            return scope.siteId.trim() == scopeSiteId;
+                          })
+                          .toList(growable: false)
+                    : fleetScopeHealth;
+                final focusState = _resolveFocusLinkState(
+                  focusReference: focusReference,
+                  visibleFleetScopeHealth: visibleFleetScopeHealth,
+                  events: events,
+                );
+                final markers = _resolvedMarkers(
                   focusReference: focusReference,
                   focusState: focusState,
-                  geofenceAlerts: geofenceAlerts,
-                  sosAlerts: sosAlerts,
-                  connectingToLiveData: connectingToLiveData,
+                  scopeClientId: scopeClientId,
+                  scopeSiteId: scopeSiteId,
                 );
-                if (!embedScroll) {
-                  return content;
+                final mapBounds = _mapBoundsForScope(
+                  markers: markers,
+                  scopeClientId: scopeClientId,
+                  scopeSiteId: scopeSiteId,
+                );
+                final visibleMarkers = _filteredMarkers(markers, mapFilter);
+                if (selectedMarkerId == null ||
+                    !visibleMarkers.any(
+                      (marker) => marker.id == selectedMarkerId,
+                    )) {
+                  selectedMarkerId = _preferredMarker(
+                    visibleMarkers,
+                    focusReference: focusReference,
+                  )?.id;
                 }
-                return SingleChildScrollView(primary: false, child: content);
-              }
-
-              Widget contextRailChild() {
-                final content = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _tacticalWorkspaceCommandReceipt(commandReceipt),
-                    const SizedBox(height: 8),
-                    _verificationPanel(
-                      normMode: normMode,
-                      timestamp: _clockLabel(now),
-                      telemetry: lensTelemetry,
-                      activeMarker: activeMarker,
-                      activeFilter: mapFilter,
-                      activeQueueTab: verificationQueueTab,
-                      onCenterActive: () {
-                        final targetMarker = _preferredMarker(
-                          visibleMarkers,
-                          focusReference: focusReference,
-                        );
-                        if (targetMarker == null) {
-                          return;
-                        }
-                        setState(() {
-                          selectedMarkerId = targetMarker.id;
-                        });
-                      },
-                      onQueueTabChanged: (value) {
-                        setState(() {
-                          verificationQueueTab = value;
-                        });
-                      },
-                      onShowFeedback: showTacticalFeedback,
-                      onOpenDispatches: headerDispatchAction,
-                    ),
-                    if (showSuppressedPrimary &&
-                        suppressedEntries.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      KeyedSubtree(
-                        key: suppressedPanelKey,
-                        child: _suppressedReviewPanel(
-                          entries: suppressedEntries,
-                          onShowFeedback: showTacticalFeedback,
-                          onFocusFilteredReviews:
-                              focusFilteredSuppressedReviews,
-                          onOpenLatestWatchActionDetail:
-                              openLatestWatchActionDetail,
-                        ),
-                      ),
-                    ],
-                    if (visibleFleetScopeHealth.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      KeyedSubtree(
-                        key: fleetPanelKey,
-                        child: _fleetScopePanel(
-                          context: context,
-                          fleetScopeHealth: visibleFleetScopeHealth,
-                          activeWatchActionDrilldown:
-                              activeWatchActionDrilldown,
-                          onShowFeedback: showTacticalFeedback,
-                          onOpenWatchActionDrilldown: openWatchActionDrilldown,
-                          onOpenLatestWatchActionDetail:
-                              openLatestWatchActionDetail,
-                          onClearWatchActionDrilldown: () {
-                            setActiveWatchActionDrilldown(null);
-                          },
-                        ),
-                      ),
-                    ],
-                    if (!showSuppressedPrimary &&
-                        suppressedEntries.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      KeyedSubtree(
-                        key: suppressedPanelKey,
-                        child: _suppressedReviewPanel(
-                          entries: suppressedEntries,
-                          onShowFeedback: showTacticalFeedback,
-                          onFocusFilteredReviews:
-                              focusFilteredSuppressedReviews,
-                          onOpenLatestWatchActionDetail:
-                              openLatestWatchActionDetail,
-                        ),
-                      ),
-                    ],
-                  ],
+                final activeMarker = _activeMarkerFor(
+                  markers: visibleMarkers,
+                  selectedMarkerId: selectedMarkerId,
+                  focusReference: focusReference,
                 );
-                if (!embedScroll) {
-                  return content;
-                }
-                return SingleChildScrollView(primary: false, child: content);
-              }
-
-              final workspaceRow = Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: _tacticalWorkspacePanel(
-                      key: const ValueKey('tactical-workspace-panel-rail'),
-                      title: 'Tactical Rail',
-                      subtitle:
-                          'Scope posture, alerts, and monitoring context stay pinned on the left.',
-                      shellless: true,
-                      child: railChild(),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    flex: 10,
-                    child: _tacticalWorkspacePanel(
-                      key: const ValueKey('tactical-workspace-panel-map'),
-                      title: 'Map Board',
-                      subtitle:
-                          'Live tracks, geofences, and filter-driven tactical routing stay centered.',
-                      shellless: true,
-                      child: mapBoardChild(),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    flex: 2,
-                    child: _tacticalWorkspacePanel(
-                      key: const ValueKey('tactical-workspace-panel-context'),
-                      title: 'Verification Rail',
-                      subtitle:
-                          'Lens review, fleet health, and suppressed decisions stay visible.',
-                      shellless: true,
-                      child: contextRailChild(),
-                    ),
-                  ),
-                ],
-              );
-
-              if (embedScroll) {
-                return Expanded(child: workspaceRow);
-              }
-              return workspaceRow;
-            }
-
-            Widget buildSurfaceBody({
-              required bool embedScroll,
-              required bool showDesktopOverview,
-            }) {
-              if (showDesktopOverview && !showDetailedWorkspace) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: TrackOverviewBoard(
-                        onOpenDetailedWorkspace: () {
-                          setDetailedWorkspace(true);
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _trackWorkspaceToggle(
-                      showDetailedWorkspace: showDetailedWorkspace,
-                      canCollapse: showDesktopOverview,
-                      onPressed: () {
-                        setDetailedWorkspace(
-                          !(showDetailedWorkspace && showDesktopOverview),
-                        );
-                      },
-                    ),
-                  ],
+                final geofenceAlerts = _geofences
+                    .where(
+                      (fence) =>
+                          fence.status == _FenceStatus.breach ||
+                          (fence.status == _FenceStatus.stationary &&
+                              (fence.stationaryTime ?? 0) > 120),
+                    )
+                    .length;
+                final sosAlerts = markers
+                    .where(
+                      (marker) =>
+                          marker.status == _MarkerStatus.sos &&
+                          marker.type == _MarkerType.guard,
+                    )
+                    .length;
+                final connectingToLiveData =
+                    !supabaseReady &&
+                    guardPositions.isEmpty &&
+                    siteMarkers.isEmpty;
+                final lensTelemetry = _buildCctvLensTelemetry();
+                final headerDispatchAction = _headerDispatchAction(
+                  visibleFleetScopeHealth: visibleFleetScopeHealth,
+                  focusReference: focusReference,
+                  scopeClientId: scopeClientId,
+                  scopeSiteId: scopeSiteId,
                 );
-              }
-              if (wide) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    buildWideWorkspace(embedScroll: embedScroll),
-                    if (showDesktopOverview) ...[
-                      const SizedBox(height: 8),
-                      _trackWorkspaceToggle(
-                        showDetailedWorkspace: showDetailedWorkspace,
-                        canCollapse: showDesktopOverview,
-                        onPressed: () {
-                          setDetailedWorkspace(
-                            !(showDetailedWorkspace && showDesktopOverview),
-                          );
-                        },
-                      ),
-                    ],
-                  ],
+                final signals = _resolvedTacticalSignals(
+                  now: now,
+                  markers: visibleMarkers,
+                  visibleFleetScopeHealth: visibleFleetScopeHealth,
+                  scopeSiteId: scopeSiteId,
                 );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _heroHeader(
-                    dispatchAction: headerDispatchAction,
-                    agentAction: headerAgentAction,
-                    visibleFleetScopeHealth: visibleFleetScopeHealth,
-                  ),
-                  const SizedBox(height: 6),
-                  if (sosAlerts > 0) ...[
-                    _tacticalAlertBanner(
-                      key: const ValueKey('tactical-sos-banner'),
-                      icon: Icons.warning_amber_rounded,
-                      accent: OnyxColorTokens.accentRed,
-                      label: 'ACTIVE SOS TRIGGER',
-                      message:
-                          '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
-                      actionLabel: 'OPEN DISPATCHES',
-                      onPressed: headerDispatchAction,
-                    ),
-                    const SizedBox(height: 6),
-                  ] else if (geofenceAlerts > 0) ...[
-                    _tacticalAlertBanner(
-                      key: const ValueKey('tactical-geofence-banner'),
-                      icon: Icons.report_gmailerrorred_rounded,
-                      accent: OnyxColorTokens.accentAmber,
-                      label: 'GEOFENCE BREACH DETECTED',
-                      message:
-                          '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
-                      actionLabel: 'INVESTIGATE',
-                      onPressed: headerDispatchAction,
-                    ),
-                    const SizedBox(height: 6),
-                  ],
-                  _topBar(
+
+                Widget buildWideWorkspace({required bool embedScroll}) {
+                  return _buildDetectionSurface(
+                    context: context,
+                    host: host,
+                    embedScroll: embedScroll,
+                    now: now,
+                    signals: signals,
                     geofenceAlerts: geofenceAlerts,
                     sosAlerts: sosAlerts,
-                    mode: isCombatWindow ? 'Combat Window' : 'Day Window',
                     focusReference: focusReference,
                     focusState: focusState,
                     scopeClientId: scopeClientId,
                     scopeSiteId: scopeSiteId,
                     cctvReadiness: cctvOpsReadiness,
-                    cctvCapabilitySummary: cctvCapabilitySummary,
-                    cctvRecentSignalSummary: cctvRecentSignalSummary,
-                  ),
-                  if (hasScopeFocus) ...[
-                    const SizedBox(height: 6),
-                    _scopeFocusBanner(
-                      clientId: scopeClientId,
-                      siteId: scopeSiteId,
-                      hasFleetScope: visibleFleetScopeHealth.isNotEmpty,
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                  _tacticalWorkspaceCommandReceipt(commandReceipt),
-                  if (showSuppressedPrimary) ...[
-                    const SizedBox(height: 6),
-                    KeyedSubtree(
-                      key: suppressedPanelKey,
-                      child: _suppressedReviewPanel(
-                        entries: suppressedEntries,
-                        onShowFeedback: showTacticalFeedback,
-                        onFocusFilteredReviews: focusFilteredSuppressedReviews,
-                        onOpenLatestWatchActionDetail:
-                            openLatestWatchActionDetail,
-                      ),
-                    ),
-                  ],
-                  if (visibleFleetScopeHealth.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    KeyedSubtree(
-                      key: fleetPanelKey,
-                      child: _fleetScopePanel(
-                        context: context,
-                        fleetScopeHealth: visibleFleetScopeHealth,
-                        activeWatchActionDrilldown: activeWatchActionDrilldown,
-                        onOpenWatchActionDrilldown: openWatchActionDrilldown,
-                        onOpenLatestWatchActionDetail:
-                            openLatestWatchActionDetail,
-                        onClearWatchActionDrilldown: () {
-                          setActiveWatchActionDrilldown(null);
-                        },
-                        onShowFeedback: showTacticalFeedback,
-                      ),
-                    ),
-                  ],
-                  if (!showSuppressedPrimary &&
-                      suppressedEntries.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    KeyedSubtree(
-                      key: suppressedPanelKey,
-                      child: _suppressedReviewPanel(
-                        entries: suppressedEntries,
-                        onShowFeedback: showTacticalFeedback,
-                        onFocusFilteredReviews: focusFilteredSuppressedReviews,
-                        onOpenLatestWatchActionDetail:
-                            openLatestWatchActionDetail,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                  _mapPanel(
-                    buildContext: context,
-                    markers: visibleMarkers,
+                    lensTelemetry: lensTelemetry,
+                    visibleFleetScopeHealth: visibleFleetScopeHealth,
+                    visibleMarkers: visibleMarkers,
                     mapBounds: mapBounds,
                     activeMarker: activeMarker,
-                    zoom: mapZoom,
+                    mapZoom: mapZoom,
                     mapController: mapController,
-                    activeFilter: mapFilter,
-                    activeQueueTab: verificationQueueTab,
+                    mapFilter: mapFilter,
+                    verificationQueueTab: verificationQueueTab,
+                    connectingToLiveData: connectingToLiveData,
                     onSelectMarker: (markerId) {
                       setState(() {
                         selectedMarkerId = markerId;
@@ -1235,93 +769,1909 @@ class TacticalPage extends StatelessWidget {
                       });
                     },
                     onOpenDispatches: headerDispatchAction,
-                    focusReference: focusReference,
-                    focusState: focusState,
-                    geofenceAlerts: geofenceAlerts,
-                    sosAlerts: sosAlerts,
-                    connectingToLiveData: connectingToLiveData,
-                  ),
-                  const SizedBox(height: 8),
-                  _verificationPanel(
-                    normMode: normMode,
-                    timestamp: _clockLabel(now),
-                    telemetry: lensTelemetry,
-                    activeMarker: activeMarker,
-                    activeFilter: mapFilter,
-                    activeQueueTab: verificationQueueTab,
-                    onCenterActive: () {
-                      final targetMarker = _preferredMarker(
-                        visibleMarkers,
-                        focusReference: focusReference,
-                      );
-                      if (targetMarker == null) {
-                        return;
-                      }
-                      setState(() {
-                        selectedMarkerId = targetMarker.id;
-                      });
-                    },
-                    onQueueTabChanged: (value) {
-                      setState(() {
-                        verificationQueueTab = value;
-                      });
-                    },
                     onShowFeedback: showTacticalFeedback,
-                    onOpenDispatches: headerDispatchAction,
-                  ),
-                ],
-              );
-            }
+                  );
+                }
 
-            return OnyxPageScaffold(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final compactTacticalLane =
-                      constraints.maxWidth < _tacticalDesktopOverviewMinWidth ||
-                      math.min(constraints.maxWidth, constraints.maxHeight) <
-                          700;
-                  wide =
-                      !compactTacticalLane &&
-                      constraints.maxWidth >=
-                          _tacticalDetailedWorkspaceMinWidth &&
-                      constraints.maxHeight >=
-                          _tacticalDetailedWorkspaceMinHeight;
-                  final boundedDesktopSurface =
-                      wide &&
-                      constraints.hasBoundedHeight &&
-                      constraints.maxHeight.isFinite;
-                  final ultrawideSurface = isUltrawideLayout(
-                    context,
-                    viewportWidth: constraints.maxWidth,
-                  );
-                  final widescreenSurface = isWidescreenLayout(
-                    context,
-                    viewportWidth: constraints.maxWidth,
-                  );
-                  final showDesktopOverview =
-                      !compactTacticalLane && constraints.maxHeight >= 540;
-                  final surfaceMaxWidth = ultrawideSurface
-                      ? constraints.maxWidth
-                      : widescreenSurface
-                      ? constraints.maxWidth * 0.94
-                      : 1500.0;
-                  return OnyxViewportWorkspaceLayout(
-                    padding: contentPadding,
-                    maxWidth: surfaceMaxWidth,
-                    lockToViewport: boundedDesktopSurface,
-                    spacing: 6,
-                    header: const SizedBox.shrink(),
-                    body: buildSurfaceBody(
-                      embedScroll: boundedDesktopSurface,
-                      showDesktopOverview: showDesktopOverview,
-                    ),
-                  );
-                },
-              ),
+                return OnyxPageScaffold(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compactTacticalLane =
+                          constraints.maxWidth <
+                              _tacticalDesktopOverviewMinWidth ||
+                          math.min(
+                                constraints.maxWidth,
+                                constraints.maxHeight,
+                              ) <
+                              700;
+                      wide =
+                          !compactTacticalLane &&
+                          constraints.maxWidth >=
+                              _tacticalDetailedWorkspaceMinWidth &&
+                          constraints.maxHeight >=
+                              _tacticalDetailedWorkspaceMinHeight;
+                      final boundedDesktopSurface =
+                          wide &&
+                          constraints.hasBoundedHeight &&
+                          constraints.maxHeight.isFinite;
+                      final ultrawideSurface = isUltrawideLayout(
+                        context,
+                        viewportWidth: constraints.maxWidth,
+                      );
+                      final widescreenSurface = isWidescreenLayout(
+                        context,
+                        viewportWidth: constraints.maxWidth,
+                      );
+                      final surfaceMaxWidth = ultrawideSurface
+                          ? constraints.maxWidth
+                          : widescreenSurface
+                          ? constraints.maxWidth * 0.94
+                          : 1500.0;
+                      return OnyxViewportWorkspaceLayout(
+                        padding: contentPadding,
+                        maxWidth: surfaceMaxWidth,
+                        lockToViewport: boundedDesktopSurface,
+                        spacing: 6,
+                        header: const SizedBox.shrink(),
+                        body: buildWideWorkspace(
+                          embedScroll: boundedDesktopSurface,
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
             );
           },
+    );
+  }
+
+  List<_TacticalSignalViewData> _resolvedTacticalSignals({
+    required DateTime now,
+    required List<_MapMarker> markers,
+    required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
+    required String scopeSiteId,
+  }) {
+    final intelligenceEvents =
+        events
+            .whereType<IntelligenceReceived>()
+            .where(
+              (event) =>
+                  event.sourceType == 'hardware' || event.sourceType == 'dvr',
+            )
+            .toList(growable: false)
+          ..sort((a, b) {
+            final riskCompare = b.riskScore.compareTo(a.riskScore);
+            if (riskCompare != 0) {
+              return riskCompare;
+            }
+            return b.occurredAt.compareTo(a.occurredAt);
+          });
+    final sortedAnomalies = [..._anomalies]
+      ..sort((a, b) => b.confidence.compareTo(a.confidence));
+    final fallbackSiteLabel = _resolvedTrackSiteLabel(
+      visibleFleetScopeHealth: visibleFleetScopeHealth,
+      scopeSiteId: scopeSiteId,
+    );
+    return sortedAnomalies
+        .asMap()
+        .entries
+        .map((entry) {
+          final index = entry.key;
+          final anomaly = entry.value;
+          final intelligence = index < intelligenceEvents.length
+              ? intelligenceEvents[index]
+              : null;
+          final review = intelligence == null
+              ? null
+              : sceneReviewByIntelligenceId[intelligence.intelligenceId];
+          final marker = markers.isEmpty
+              ? null
+              : markers[index % markers.length];
+          final occurredAtUtc =
+              intelligence?.occurredAt.toUtc() ??
+              now.toUtc().subtract(Duration(minutes: 6 + (index * 4)));
+          final cameraLabel = (intelligence?.cameraId ?? '').trim().isNotEmpty
+              ? intelligence!.cameraId!.trim()
+              : (visibleFleetScopeHealth.isNotEmpty &&
+                    (visibleFleetScopeHealth.first.latestCameraLabel ?? '')
+                        .trim()
+                        .isNotEmpty)
+              ? visibleFleetScopeHealth.first.latestCameraLabel!.trim()
+              : 'CAM-${index + 1}';
+          final zoneLabel = (intelligence?.zone ?? '').trim().isNotEmpty
+              ? intelligence!.zone!.trim()
+              : fallbackSiteLabel;
+          final title = (intelligence?.headline ?? '').trim().isNotEmpty
+              ? intelligence!.headline.trim()
+              : anomaly.description;
+          final summary = (review?.summary ?? intelligence?.summary ?? '')
+              .trim();
+          final contextLine = (review?.decisionSummary ?? '').trim().isNotEmpty
+              ? review!.decisionSummary.trim()
+              : (intelligence?.objectLabel ?? '').trim().isNotEmpty
+              ? '${intelligence!.objectLabel!.trim()} correlation in $zoneLabel.'
+              : 'Cross-checking live feed against recent baseline drift.';
+          final verdict = (review?.decisionSummary ?? '').trim().isNotEmpty
+              ? review!.decisionSummary.trim()
+              : summary.isNotEmpty
+              ? summary
+              : 'Zara is holding this signal in detection until verification confirms intent.';
+          return _TacticalSignalViewData(
+            id: anomaly.id,
+            title: title,
+            confidence: anomaly.confidence,
+            occurredAtUtc: occurredAtUtc,
+            cameraLabel: cameraLabel,
+            zoneLabel: zoneLabel,
+            summary: summary.isEmpty ? anomaly.description : summary,
+            contextLine: contextLine,
+            verdict: verdict,
+            snapshotUrl: (intelligence?.snapshotUrl ?? '').trim().isEmpty
+                ? null
+                : intelligence!.snapshotUrl!.trim(),
+            marker: marker,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  String _resolvedTrackSiteLabel({
+    required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
+    required String scopeSiteId,
+  }) {
+    if (visibleFleetScopeHealth.isNotEmpty &&
+        visibleFleetScopeHealth.first.siteName.trim().isNotEmpty) {
+      return visibleFleetScopeHealth.first.siteName.trim();
+    }
+    for (final site in siteMarkers) {
+      if (scopeSiteId.isNotEmpty && site.id.trim() != scopeSiteId) {
+        continue;
+      }
+      if (site.name.trim().isNotEmpty) {
+        return site.name.trim();
+      }
+    }
+    return scopeSiteId.isEmpty ? 'Network Scope' : scopeSiteId;
+  }
+
+  _SignalFeedState _signalFeedStateFor(
+    _TacticalSignalViewData signal,
+    DateTime now,
+  ) {
+    if ((signal.snapshotUrl ?? '').trim().isEmpty) {
+      return _SignalFeedState.noSignal;
+    }
+    final age = now.toUtc().difference(signal.occurredAtUtc);
+    if (age.inMinutes >= 12) {
+      return _SignalFeedState.stale;
+    }
+    return _SignalFeedState.live;
+  }
+
+  String _formatSignalTime(DateTime timestampUtc) {
+    final hh = timestampUtc.hour.toString().padLeft(2, '0');
+    final mm = timestampUtc.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  String _formatElapsedCompact(Duration duration) {
+    if (duration.inHours >= 1) {
+      return '${duration.inHours}h ${duration.inMinutes.remainder(60)}m';
+    }
+    return '${duration.inMinutes}m';
+  }
+
+  Color _signalAccentForConfidence(int confidence) {
+    if (confidence > 85) {
+      return OnyxColorTokens.accentRed;
+    }
+    if (confidence >= 70) {
+      return OnyxColorTokens.accentAmber;
+    }
+    return OnyxColorTokens.textDisabled.withValues(alpha: 0.40);
+  }
+
+  Widget _buildDetectionSurface({
+    required BuildContext context,
+    required _TacticalDetailedWorkspaceHostState host,
+    required bool embedScroll,
+    required DateTime now,
+    required List<_TacticalSignalViewData> signals,
+    required int geofenceAlerts,
+    required int sosAlerts,
+    required String focusReference,
+    required _FocusLinkState focusState,
+    required String scopeClientId,
+    required String scopeSiteId,
+    required String cctvReadiness,
+    required _CctvLensTelemetry lensTelemetry,
+    required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
+    required List<_MapMarker> visibleMarkers,
+    required LatLngBounds mapBounds,
+    required _MapMarker? activeMarker,
+    required double mapZoom,
+    required MapController mapController,
+    required _TacticalMapFilter mapFilter,
+    required _VerificationQueueTab verificationQueueTab,
+    required bool connectingToLiveData,
+    required ValueChanged<String> onSelectMarker,
+    required VoidCallback onZoomIn,
+    required VoidCallback onZoomOut,
+    required VoidCallback onCenterActive,
+    required VoidCallback onCycleFilter,
+    required ValueChanged<_VerificationQueueTab> onSetQueueTab,
+    required VoidCallback? onOpenDispatches,
+    required void Function(
+      String message, {
+      String label,
+      String? detail,
+      Color accent,
+    })
+    onShowFeedback,
+  }) {
+    final visibleSignals = signals
+        .where((signal) => !host.dismissedSignalIds.contains(signal.id))
+        .toList(growable: false);
+    final topSignal = visibleSignals.isEmpty ? null : visibleSignals.first;
+    final reviewCount = visibleSignals
+        .where(
+          (signal) => host.signalSentStates[signal.id] != SignalSentState.sent,
+        )
+        .length;
+    final actionableCount = visibleSignals
+        .where((signal) => signal.confidence >= 85)
+        .length;
+    final siteLabel = _resolvedTrackSiteLabel(
+      visibleFleetScopeHealth: visibleFleetScopeHealth,
+      scopeSiteId: scopeSiteId,
+    );
+    final respondersCount = visibleMarkers
+        .where(
+          (marker) =>
+              marker.type == _MarkerType.vehicle ||
+              marker.status == _MarkerStatus.responding ||
+              marker.status == _MarkerStatus.sos,
+        )
+        .length;
+
+    void scrollToSignal(_TacticalSignalViewData signal) {
+      host.setExpandedSignalId(signal.id);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) {
+          return;
+        }
+        final targetContext = host.signalCardKeyFor(signal.id).currentContext;
+        if (targetContext != null) {
+          Scrollable.ensureVisible(
+            targetContext,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            alignment: 0.05,
+          );
+          return;
+        }
+        host.signalScrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
         );
-      },
+      });
+    }
+
+    void toggleSignalReview(_TacticalSignalViewData signal) {
+      final nextValue = host.expandedSignalId == signal.id ? null : signal.id;
+      host.setExpandedSignalId(nextValue);
+      if (nextValue == signal.id) {
+        scrollToSignal(signal);
+      }
+    }
+
+    void sendSignalToQueue(_TacticalSignalViewData signal) {
+      host.setSignalSentState(signal.id, SignalSentState.sent);
+      onOpenDispatches?.call();
+      onShowFeedback(
+        '${signal.title} sent to Queue.',
+        label: 'QUEUE HANDOFF',
+        detail:
+            'Track escalated the detection into the dispatch lane without changing the underlying incident workflow.',
+        accent: OnyxColorTokens.accentAmber,
+      );
+    }
+
+    void dismissSignal(_TacticalSignalViewData signal) {
+      host.dismissSignal(signal.id);
+      onShowFeedback(
+        '${signal.title} marked as non-threat.',
+        label: 'SIGNAL DISMISSED',
+        detail:
+            'The signal was cleared locally in Track and will not be pushed forward from this surface.',
+        accent: OnyxColorTokens.textMuted,
+      );
+    }
+
+    void openMap() {
+      host.setMapExpanded(true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) {
+          return;
+        }
+        host.signalScrollController.animateTo(
+          host.signalScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    }
+
+    final surfaceBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (sosAlerts > 0) ...[
+          _tacticalAlertBanner(
+            key: const ValueKey('tactical-sos-banner'),
+            icon: Icons.warning_amber_rounded,
+            accent: OnyxColorTokens.accentRed,
+            label: 'ACTIVE SOS TRIGGER',
+            message:
+                '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
+            actionLabel: 'OPEN DISPATCHES',
+            onPressed: onOpenDispatches,
+          ),
+          const SizedBox(height: 14),
+        ],
+        _buildDetectionSummaryBlock(
+          topSignal: topSignal,
+          siteLabel: siteLabel,
+          totalSignals: visibleSignals.length,
+          reviewCount: reviewCount,
+          geofenceAlerts: geofenceAlerts,
+          onReviewTopSignal: topSignal == null
+              ? null
+              : () => scrollToSignal(topSignal),
+        ),
+        _buildSignalsHeaderRow(
+          totalSignals: visibleSignals.length,
+          actionableCount: actionableCount,
+          onViewOnMap: openMap,
+        ),
+        if (visibleSignals.isEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.backgroundSecondary,
+              borderRadius: BorderRadius.circular(7),
+              border: Border.all(color: OnyxColorTokens.divider),
+            ),
+            child: Text(
+              'No active signals detected. Track is nominal and standing by for the next detection window.',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textDisabled,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                for (final entry in visibleSignals.asMap().entries) ...[
+                  _buildSignalCard(
+                    host: host,
+                    now: now,
+                    signal: entry.value,
+                    isPriority: entry.key == 0,
+                    onReview: () => toggleSignalReview(entry.value),
+                    onSendToQueue: () => sendSignalToQueue(entry.value),
+                    onDismiss: () => dismissSignal(entry.value),
+                  ),
+                  if (entry.key != visibleSignals.length - 1)
+                    const SizedBox(height: 5),
+                ],
+              ],
+            ),
+          ),
+        _buildTacticalMapBar(
+          host: host,
+          respondersCount: respondersCount,
+          geofenceAlerts: geofenceAlerts,
+          cctvReadiness: cctvReadiness,
+          visibleMarkers: visibleMarkers,
+          mapBounds: mapBounds,
+          activeMarker: activeMarker,
+          mapZoom: mapZoom,
+          mapController: mapController,
+          mapFilter: mapFilter,
+          verificationQueueTab: verificationQueueTab,
+          focusReference: focusReference,
+          focusState: focusState,
+          connectingToLiveData: connectingToLiveData,
+          onSelectMarker: onSelectMarker,
+          onZoomIn: onZoomIn,
+          onZoomOut: onZoomOut,
+          onCenterActive: onCenterActive,
+          onCycleFilter: onCycleFilter,
+          onSetQueueTab: onSetQueueTab,
+          onOpenDispatches: onOpenDispatches,
+        ),
+      ],
+    );
+
+    return SingleChildScrollView(
+      controller: host.signalScrollController,
+      primary: !embedScroll,
+      child: surfaceBody,
+    );
+  }
+
+  Widget _buildDetectionSummaryBlock({
+    required _TacticalSignalViewData? topSignal,
+    required String siteLabel,
+    required int totalSignals,
+    required int reviewCount,
+    required int geofenceAlerts,
+    required VoidCallback? onReviewTopSignal,
+  }) {
+    final summaryTime = topSignal == null
+        ? '--:--'
+        : _formatSignalTime(topSignal.occurredAtUtc);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: 0.22),
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 860;
+          final leftColumn = Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.35,
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    'Z',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.accentPurple,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ZARA · DETECTION SUMMARY',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.60,
+                          ),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      _summaryLine(
+                        color: OnyxColorTokens.accentRed,
+                        text:
+                            '$totalSignals anomalies detected across active zones.',
+                      ),
+                      const SizedBox(height: 4),
+                      _summaryLine(
+                        color: OnyxColorTokens.accentAmber,
+                        text:
+                            '${math.max(reviewCount, geofenceAlerts)} require verification before escalation.',
+                      ),
+                      const SizedBox(height: 4),
+                      _summaryLine(
+                        color: OnyxColorTokens.accentPurple,
+                        text: topSignal == null
+                            ? 'No likely actionable signal is active right now.'
+                            : '1 likely actionable — ${topSignal.title} at $summaryTime.',
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(
+                            '→',
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.accentPurple,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              topSignal == null
+                                  ? 'Detection lanes are nominal.'
+                                  : 'Review ${topSignal.title} first.',
+                              style: GoogleFonts.inter(
+                                color: OnyxColorTokens.accentPurple.withValues(
+                                  alpha: 0.80,
+                                ),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+          final rightColumn = Column(
+            crossAxisAlignment: compact
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentGreen.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Text(
+                  'NOMINAL · $siteLabel',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.accentGreen.withValues(alpha: 0.70),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: onReviewTopSignal,
+                style: FilledButton.styleFrom(
+                  backgroundColor: OnyxColorTokens.accentPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+                child: Text(
+                  'Review Top Signal',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [leftColumn]),
+                const SizedBox(height: 12),
+                rightColumn,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [leftColumn, const SizedBox(width: 16), rightColumn],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _summaryLine({required Color color, required String text}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(top: 4),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSignalsHeaderRow({
+    required int totalSignals,
+    required int actionableCount,
+    required VoidCallback onViewOnMap,
+  }) {
+    Widget buildChip(
+      String label, {
+      required Color color,
+      required Color border,
+      Color? background,
+      VoidCallback? onTap,
+    }) {
+      final child = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+        decoration: BoxDecoration(
+          color: background ?? OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: border),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: color,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+      if (onTap == null) {
+        return child;
+      }
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: child,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Text(
+              'ACTIVE SIGNALS',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textDisabled,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.3,
+              ),
+            ),
+          ),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              buildChip(
+                'All · $totalSignals',
+                color: OnyxColorTokens.textSecondary,
+                border: OnyxColorTokens.divider,
+              ),
+              buildChip(
+                'Actionable · $actionableCount',
+                color: OnyxColorTokens.textSecondary,
+                border: OnyxColorTokens.divider,
+              ),
+              buildChip(
+                'View on Map',
+                color: OnyxColorTokens.accentSky.withValues(alpha: 0.55),
+                border: OnyxColorTokens.accentSky.withValues(alpha: 0.18),
+                onTap: onViewOnMap,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSignalCard({
+    required _TacticalDetailedWorkspaceHostState host,
+    required DateTime now,
+    required _TacticalSignalViewData signal,
+    required bool isPriority,
+    required VoidCallback onReview,
+    required VoidCallback onSendToQueue,
+    required VoidCallback onDismiss,
+  }) {
+    final sentState = host.signalSentStates[signal.id] == SignalSentState.sent;
+    final expanded = host.expandedSignalId == signal.id && !sentState;
+    final signalAccent = _signalAccentForConfidence(signal.confidence);
+    final feedState = _signalFeedStateFor(signal, now);
+    final elapsed = now.toUtc().difference(signal.occurredAtUtc);
+    final borderColor = sentState
+        ? OnyxColorTokens.accentGreen.withValues(alpha: 0.20)
+        : isPriority
+        ? signal.confidence > 85
+              ? OnyxColorTokens.accentRed.withValues(alpha: 0.35)
+              : OnyxColorTokens.accentAmber.withValues(alpha: 0.30)
+        : OnyxColorTokens.divider;
+    final contentOpacity = sentState
+        ? 0.60
+        : isPriority
+        ? 1.0
+        : 0.80;
+
+    Widget confidenceBadge() {
+      final (foreground, background, border) = signal.confidence > 85
+          ? (
+              OnyxColorTokens.accentRed,
+              OnyxColorTokens.accentRed.withValues(alpha: 0.12),
+              OnyxColorTokens.accentRed.withValues(alpha: 0.25),
+            )
+          : signal.confidence >= 70
+          ? (
+              OnyxColorTokens.accentAmber,
+              OnyxColorTokens.accentAmber.withValues(alpha: 0.10),
+              OnyxColorTokens.accentAmber.withValues(alpha: 0.20),
+            )
+          : (
+              OnyxColorTokens.textMuted,
+              OnyxColorTokens.backgroundPrimary,
+              OnyxColorTokens.divider,
+            );
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: border),
+        ),
+        child: Text(
+          '${signal.confidence}% CONF',
+          style: GoogleFonts.inter(
+            color: foreground,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
+    Widget reviewButton() {
+      final reviewing = expanded;
+      return InkWell(
+        onTap: onReview,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.accentPurple.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Text(
+            reviewing ? 'Reviewing ↑' : 'Review',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.80),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget sendButton() {
+      return InkWell(
+        onTap: onSendToQueue,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.accentAmber.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Send to Queue',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.accentAmber,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '→ Creates incident',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.accentAmber.withValues(alpha: 0.45),
+                  fontSize: 7,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Opacity(
+      opacity: contentOpacity,
+      child: Container(
+        key: host.signalCardKeyFor(signal.id),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 860;
+                final infoSection = Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        signal.title,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textPrimary.withValues(
+                            alpha: isPriority ? 0.88 : 0.55,
+                          ),
+                          fontSize: isPriority ? 12 : 11,
+                          fontWeight: isPriority
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          confidenceBadge(),
+                          Text(
+                            _formatSignalTime(signal.occurredAtUtc),
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.textDisabled,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            signal.zoneLabel,
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.textDisabled,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+                final actionSection = sentState
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.accentGreen.withValues(
+                            alpha: 0.08,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: OnyxColorTokens.accentGreen.withValues(
+                              alpha: 0.20,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          '✓ Sent to Queue',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentGreen,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          reviewButton(),
+                          sendButton(),
+                          InkWell(
+                            onTap: onReview,
+                            borderRadius: BorderRadius.circular(4),
+                            child: Container(
+                              width: 20,
+                              height: 20,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: OnyxColorTokens.backgroundPrimary,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: OnyxColorTokens.divider,
+                                ),
+                              ),
+                              child: Text(
+                                expanded ? '↑' : '↓',
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.textDisabled,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                if (compact) {
+                  return Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: signalAccent,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            infoSection,
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        actionSection,
+                      ],
+                    ),
+                  );
+                }
+                return Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 3,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: signalAccent,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      infoSection,
+                      const SizedBox(width: 12),
+                      actionSection,
+                    ],
+                  ),
+                );
+              },
+            ),
+            if (sentState)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: OnyxColorTokens.accentGreen.withValues(alpha: 0.04),
+                  border: Border(
+                    top: BorderSide(
+                      color: OnyxColorTokens.accentGreen.withValues(
+                        alpha: 0.08,
+                      ),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.15,
+                        ),
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.22,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        'Z',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.accentPurple,
+                          fontSize: 6,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Incident created. Awaiting decision in Queue.',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.50,
+                          ),
+                          fontSize: 8,
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeInOut,
+                width: double.infinity,
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeInOut,
+                  child: expanded
+                      ? _buildSignalInlineContext(
+                          now: now,
+                          signal: signal,
+                          feedState: feedState,
+                          elapsed: elapsed,
+                          onCollapse: onReview,
+                          onDismiss: onDismiss,
+                          onSendToQueue: onSendToQueue,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignalInlineContext({
+    required DateTime now,
+    required _TacticalSignalViewData signal,
+    required _SignalFeedState feedState,
+    required Duration elapsed,
+    required VoidCallback onCollapse,
+    required VoidCallback onDismiss,
+    required VoidCallback onSendToQueue,
+  }) {
+    final feedLabelColor = switch (feedState) {
+      _SignalFeedState.live => OnyxColorTokens.accentGreen,
+      _SignalFeedState.stale => OnyxColorTokens.accentAmber,
+      _SignalFeedState.noSignal => OnyxColorTokens.accentRed,
+    };
+    final liveLabel = switch (feedState) {
+      _SignalFeedState.live =>
+        'LIVE · ${signal.cameraLabel} · ${signal.zoneLabel}',
+      _SignalFeedState.stale =>
+        'FEED STALE — Last frame ${_formatSignalTime(signal.occurredAtUtc)} · ${signal.cameraLabel} · ${signal.zoneLabel}',
+      _SignalFeedState.noSignal => 'NO SIGNAL',
+    };
+    final cameraStatus = feedState == _SignalFeedState.noSignal
+        ? 'STALE'
+        : 'READY';
+    final cameraStatusColor = feedState == _SignalFeedState.live
+        ? OnyxColorTokens.accentGreen
+        : feedState == _SignalFeedState.stale
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentRed;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        border: Border(
+          top: BorderSide(
+            color: OnyxColorTokens.accentPurple.withValues(alpha: 0.10),
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Row(
+              children: [
+                Text(
+                  'Context · Zara verifying',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.35),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: onCollapse,
+                  child: Text(
+                    'Collapse ↑',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textDisabled,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 780;
+                final feedBlock = Expanded(
+                  flex: compact ? 0 : 55,
+                  child: Container(
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: OnyxColorTokens.surfaceInset,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: (signal.snapshotUrl ?? '').trim().isEmpty
+                                ? Container(
+                                    color: OnyxColorTokens.backgroundPrimary,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'No camera snapshot available',
+                                      style: GoogleFonts.inter(
+                                        color: OnyxColorTokens.textDisabled,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  )
+                                : Image.network(
+                                    signal.snapshotUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) => Container(
+                                          color:
+                                              OnyxColorTokens.backgroundPrimary,
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            'Snapshot unavailable',
+                                            style: GoogleFonts.inter(
+                                              color:
+                                                  OnyxColorTokens.textDisabled,
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                  ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: OnyxColorTokens.backgroundPrimary
+                                    .withValues(alpha: 0.85),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: OnyxColorTokens.accentAmber
+                                        .withValues(alpha: 0.15),
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  _PulseDot(
+                                    color: feedLabelColor,
+                                    size: 5,
+                                    animated:
+                                        feedState != _SignalFeedState.live,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      liveLabel,
+                                      style: GoogleFonts.inter(
+                                        color: feedLabelColor,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: OnyxColorTokens.backgroundPrimary
+                                    .withValues(alpha: 0.88),
+                                border: Border(
+                                  top: BorderSide(
+                                    color: OnyxColorTokens.accentPurple
+                                        .withValues(alpha: 0.15),
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 11,
+                                    height: 11,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: OnyxColorTokens.accentPurple
+                                          .withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(3),
+                                      border: Border.all(
+                                        color: OnyxColorTokens.accentPurple
+                                            .withValues(alpha: 0.22),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Z',
+                                      style: GoogleFonts.inter(
+                                        color: OnyxColorTokens.accentPurple,
+                                        fontSize: 6,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          signal.summary,
+                                          style: GoogleFonts.inter(
+                                            color: OnyxColorTokens.accentPurple
+                                                .withValues(alpha: 0.75),
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          signal.contextLine,
+                                          style: GoogleFonts.inter(
+                                            color: OnyxColorTokens.accentPurple
+                                                .withValues(alpha: 0.45),
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+                final contextBlock = Expanded(
+                  flex: compact ? 0 : 45,
+                  child: Column(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.backgroundSecondary,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: OnyxColorTokens.textPrimary.withValues(
+                                  alpha: 0.03,
+                                ),
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(5),
+                                ),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: OnyxColorTokens.divider,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'NORM',
+                                    style: GoogleFonts.inter(
+                                      color: OnyxColorTokens.textDisabled
+                                          .withValues(alpha: 0.22),
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    'LIVE · ${_formatSignalTime(signal.occurredAtUtc)}',
+                                    style: GoogleFonts.inter(
+                                      color: OnyxColorTokens.textDisabled
+                                          .withValues(alpha: 0.22),
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              height: 38,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      color: OnyxColorTokens.surfaceInset,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        'Baseline',
+                                        style: GoogleFonts.inter(
+                                          color: OnyxColorTokens.textDisabled
+                                              .withValues(alpha: 0.12),
+                                          fontSize: 7,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 1,
+                                    color: OnyxColorTokens.divider,
+                                  ),
+                                  Expanded(
+                                    child: Container(
+                                      color: OnyxColorTokens.surfaceInset,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        signal.zoneLabel,
+                                        style: GoogleFonts.inter(
+                                          color: OnyxColorTokens.textDisabled
+                                              .withValues(alpha: 0.12),
+                                          fontSize: 7,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      _signalFactRow(
+                        'Signal',
+                        '${signal.confidence}%',
+                        _signalAccentForConfidence(signal.confidence),
+                      ),
+                      const SizedBox(height: 5),
+                      _signalFactRow('Camera', cameraStatus, cameraStatusColor),
+                      const SizedBox(height: 5),
+                      _signalFactRow(
+                        'Last motion',
+                        _formatElapsedCompact(elapsed),
+                        OnyxColorTokens.accentAmber,
+                      ),
+                    ],
+                  ),
+                );
+                if (compact) {
+                  return Column(
+                    children: [
+                      Row(children: [feedBlock]),
+                      const SizedBox(height: 10),
+                      Row(children: [contextBlock]),
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    feedBlock,
+                    const SizedBox(width: 10),
+                    contextBlock,
+                  ],
+                );
+              },
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.07),
+              border: Border(
+                top: BorderSide(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.10),
+                ),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.22,
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    'Z',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.accentPurple,
+                      fontSize: 7,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    signal.verdict,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textSecondary.withValues(
+                        alpha: 0.55,
+                      ),
+                      fontSize: 9,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.accentAmber.withValues(alpha: 0.03),
+              border: Border(
+                top: BorderSide(
+                  color: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: onDismiss,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      decoration: BoxDecoration(
+                        color: OnyxColorTokens.backgroundPrimary,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: OnyxColorTokens.divider),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Mark as Non-Threat',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textMuted,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  flex: 14,
+                  child: InkWell(
+                    onTap: onSendToQueue,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      decoration: BoxDecoration(
+                        color: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: OnyxColorTokens.accentAmber.withValues(
+                            alpha: 0.35,
+                          ),
+                          width: 1.5,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        children: [
+                          Text(
+                            'Send to Queue',
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.accentAmber,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Ledger entry will be created',
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.accentAmber.withValues(
+                                alpha: 0.45,
+                              ),
+                              fontSize: 8,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _signalFactRow(String label, String value, Color valueColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Row(
+        children: [
+          Text(
+            '$label:',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: valueColor,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTacticalMapBar({
+    required _TacticalDetailedWorkspaceHostState host,
+    required int respondersCount,
+    required int geofenceAlerts,
+    required String cctvReadiness,
+    required List<_MapMarker> visibleMarkers,
+    required LatLngBounds mapBounds,
+    required _MapMarker? activeMarker,
+    required double mapZoom,
+    required MapController mapController,
+    required _TacticalMapFilter mapFilter,
+    required _VerificationQueueTab verificationQueueTab,
+    required String focusReference,
+    required _FocusLinkState focusState,
+    required bool connectingToLiveData,
+    required ValueChanged<String> onSelectMarker,
+    required VoidCallback onZoomIn,
+    required VoidCallback onZoomOut,
+    required VoidCallback onCenterActive,
+    required VoidCallback onCycleFilter,
+    required ValueChanged<_VerificationQueueTab> onSetQueueTab,
+    required VoidCallback? onOpenDispatches,
+  }) {
+    final toggleMapLabel = host.mapExpanded ? 'Close Map' : 'Open Map';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.backgroundSecondary,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: OnyxColorTokens.divider),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 880;
+                final left = Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 16,
+                      height: 16,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: OnyxColorTokens.accentSky.withValues(
+                          alpha: 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(
+                          color: OnyxColorTokens.accentSky.withValues(
+                            alpha: 0.20,
+                          ),
+                        ),
+                      ),
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.accentSky.withValues(
+                            alpha: 0.50,
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tactical Map',
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.textMuted,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Guard positions · Geofence zones · Incident markers',
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.textDisabled,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+                final right = Wrap(
+                  spacing: 5,
+                  runSpacing: 5,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _mapStatusChip(
+                      '$respondersCount Responders',
+                      border: OnyxColorTokens.divider,
+                      color: OnyxColorTokens.textDisabled,
+                    ),
+                    _mapStatusChip(
+                      '$geofenceAlerts Geofence anomalies',
+                      border: geofenceAlerts > 0
+                          ? OnyxColorTokens.accentAmber.withValues(alpha: 0.20)
+                          : OnyxColorTokens.divider,
+                      color: geofenceAlerts > 0
+                          ? OnyxColorTokens.accentAmber.withValues(alpha: 0.55)
+                          : OnyxColorTokens.textDisabled,
+                    ),
+                    _mapStatusChip(
+                      cctvReadiness == 'ACTIVE'
+                          ? 'DVR Active'
+                          : 'DVR $cctvReadiness',
+                      border: OnyxColorTokens.divider,
+                      color: OnyxColorTokens.textDisabled,
+                    ),
+                    InkWell(
+                      onTap: () => host.setMapExpanded(!host.mapExpanded),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.accentSky.withValues(
+                            alpha: 0.10,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: OnyxColorTokens.accentSky.withValues(
+                              alpha: 0.18,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          toggleMapLabel,
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentSky.withValues(
+                              alpha: 0.60,
+                            ),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [left, const SizedBox(height: 10), right],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: left),
+                    const SizedBox(width: 12),
+                    right,
+                  ],
+                );
+              },
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOut,
+            child: host.mapExpanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: _mapPanel(
+                      buildContext: host.context,
+                      markers: visibleMarkers,
+                      mapBounds: mapBounds,
+                      activeMarker: activeMarker,
+                      zoom: mapZoom,
+                      mapController: mapController,
+                      activeFilter: mapFilter,
+                      activeQueueTab: verificationQueueTab,
+                      onSelectMarker: onSelectMarker,
+                      onZoomIn: onZoomIn,
+                      onZoomOut: onZoomOut,
+                      onCenterActive: onCenterActive,
+                      onCycleFilter: onCycleFilter,
+                      onSetQueueTab: onSetQueueTab,
+                      onOpenDispatches: onOpenDispatches,
+                      focusReference: focusReference,
+                      focusState: focusState,
+                      geofenceAlerts: geofenceAlerts,
+                      sosAlerts: visibleMarkers
+                          .where((marker) => marker.status == _MarkerStatus.sos)
+                          .length,
+                      connectingToLiveData: connectingToLiveData,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapStatusChip(
+    String label, {
+    required Color border,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
@@ -1491,14 +2841,19 @@ class TacticalPage extends StatelessWidget {
                 height: 28,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [OnyxColorTokens.accentPurple, OnyxColorTokens.accentPurple],
+                    colors: [
+                      OnyxColorTokens.accentPurple,
+                      OnyxColorTokens.accentPurple,
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: OnyxColorTokens.accentPurple.withValues(alpha: 0.20),
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.20,
+                      ),
                       blurRadius: 16,
                       spreadRadius: 1,
                     ),
@@ -1542,8 +2897,12 @@ class TacticalPage extends StatelessWidget {
                           label:
                               '${visibleFleetScopeHealth.length} Fleet Scope${visibleFleetScopeHealth.length == 1 ? '' : 's'}',
                           foreground: OnyxColorTokens.accentSky,
-                          background: OnyxColorTokens.accentSky.withValues(alpha: 0.10),
-                          border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
+                          background: OnyxColorTokens.accentSky.withValues(
+                            alpha: 0.10,
+                          ),
+                          border: OnyxColorTokens.accentSky.withValues(
+                            alpha: 0.40,
+                          ),
                         ),
                         _heroChip(
                           label: '$limitedCount Limited Watch',
@@ -1551,11 +2910,19 @@ class TacticalPage extends StatelessWidget {
                               ? OnyxColorTokens.accentAmber
                               : OnyxColorTokens.textMuted,
                           background: limitedCount > 0
-                              ? OnyxColorTokens.accentAmber.withValues(alpha: 0.10)
-                              : OnyxColorTokens.textMuted.withValues(alpha: 0.10),
+                              ? OnyxColorTokens.accentAmber.withValues(
+                                  alpha: 0.10,
+                                )
+                              : OnyxColorTokens.textMuted.withValues(
+                                  alpha: 0.10,
+                                ),
                           border: limitedCount > 0
-                              ? OnyxColorTokens.accentAmber.withValues(alpha: 0.40)
-                              : OnyxColorTokens.textMuted.withValues(alpha: 0.40),
+                              ? OnyxColorTokens.accentAmber.withValues(
+                                  alpha: 0.40,
+                                )
+                              : OnyxColorTokens.textMuted.withValues(
+                                  alpha: 0.40,
+                                ),
                         ),
                         _heroChip(
                           label: '$unavailableCount Unavailable',
@@ -1563,11 +2930,19 @@ class TacticalPage extends StatelessWidget {
                               ? OnyxColorTokens.accentRed
                               : OnyxColorTokens.textMuted,
                           background: unavailableCount > 0
-                              ? OnyxColorTokens.accentRed.withValues(alpha: 0.10)
-                              : OnyxColorTokens.textMuted.withValues(alpha: 0.10),
+                              ? OnyxColorTokens.accentRed.withValues(
+                                  alpha: 0.10,
+                                )
+                              : OnyxColorTokens.textMuted.withValues(
+                                  alpha: 0.10,
+                                ),
                           border: unavailableCount > 0
-                              ? OnyxColorTokens.accentRed.withValues(alpha: 0.40)
-                              : OnyxColorTokens.textMuted.withValues(alpha: 0.40),
+                              ? OnyxColorTokens.accentRed.withValues(
+                                  alpha: 0.40,
+                                )
+                              : OnyxColorTokens.textMuted.withValues(
+                                  alpha: 0.40,
+                                ),
                         ),
                       ],
                     ),
@@ -1583,7 +2958,10 @@ class TacticalPage extends StatelessWidget {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [OnyxColorTokens.surfaceInset, OnyxColorTokens.surfaceInset],
+              colors: [
+                OnyxColorTokens.surfaceInset,
+                OnyxColorTokens.surfaceInset,
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1591,7 +2969,9 @@ class TacticalPage extends StatelessWidget {
             border: Border.all(color: _tacticalBorderColor),
             boxShadow: [
               BoxShadow(
-                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07),
+                color: OnyxColorTokens.backgroundPrimary.withValues(
+                  alpha: 0.07,
+                ),
                 blurRadius: 18,
                 offset: Offset(0, 8),
               ),
@@ -1763,7 +3143,9 @@ class TacticalPage extends StatelessWidget {
               decoration: BoxDecoration(
                 color: OnyxColorTokens.accentPurple.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40)),
+                border: Border.all(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
+                ),
               ),
               child: const Icon(
                 Icons.explore_rounded,
@@ -1838,7 +3220,9 @@ class TacticalPage extends StatelessWidget {
                   key: const ValueKey('tactical-workspace-open-dispatches'),
                   label: 'Dispatches',
                   foreground: OnyxColorTokens.accentPurple,
-                  background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                  background: OnyxColorTokens.accentPurple.withValues(
+                    alpha: 0.08,
+                  ),
                   border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                   onTap: headerDispatchAction,
                 ),
@@ -1847,7 +3231,9 @@ class TacticalPage extends StatelessWidget {
                   key: const ValueKey('tactical-workspace-open-agent'),
                   label: 'Ask Agent',
                   foreground: OnyxColorTokens.accentPurple,
-                  background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                  background: OnyxColorTokens.accentPurple.withValues(
+                    alpha: 0.08,
+                  ),
                   border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                   onTap: headerAgentAction,
                 ),
@@ -1947,7 +3333,9 @@ class TacticalPage extends StatelessWidget {
             border: Border.all(color: _tacticalBorderColor),
             boxShadow: [
               BoxShadow(
-                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.07),
+                color: OnyxColorTokens.backgroundPrimary.withValues(
+                  alpha: 0.07,
+                ),
                 blurRadius: 16,
                 offset: Offset(0, 8),
               ),
@@ -2001,10 +3389,7 @@ class TacticalPage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
         decoration: BoxDecoration(
-          color: Color.alphaBlend(
-            OnyxDesignTokens.glassSurface,
-            background,
-          ),
+          color: Color.alphaBlend(OnyxDesignTokens.glassSurface, background),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: border.withValues(alpha: 0.44)),
         ),
@@ -2397,7 +3782,9 @@ class TacticalPage extends StatelessWidget {
             border: Border.all(color: focusAccent.withValues(alpha: 0.42)),
             boxShadow: [
               BoxShadow(
-                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.06),
+                color: OnyxColorTokens.backgroundPrimary.withValues(
+                  alpha: 0.06,
+                ),
                 blurRadius: 24,
                 offset: Offset(0, 10),
               ),
@@ -2549,7 +3936,9 @@ class TacticalPage extends StatelessWidget {
                     key: const ValueKey('tactical-fleet-focus-open-detail'),
                     label: 'Latest detail',
                     foreground: OnyxColorTokens.accentCyan,
-                    background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
+                    background: OnyxColorTokens.accentCyan.withValues(
+                      alpha: 0.08,
+                    ),
                     border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
                     onTap: openLeadDetail,
                   ),
@@ -2558,7 +3947,9 @@ class TacticalPage extends StatelessWidget {
                       key: const ValueKey('tactical-fleet-focus-open-tactical'),
                       label: 'OPEN TACTICAL TRACK',
                       foreground: OnyxColorTokens.accentSky,
-                      background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.accentSky.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                       onTap: openLeadTactical,
                     ),
@@ -2566,9 +3957,15 @@ class TacticalPage extends StatelessWidget {
                     _tacticalWorkspaceActionChip(
                       key: const ValueKey('tactical-fleet-focus-open-dispatch'),
                       label: 'OPEN DISPATCH BOARD',
-                      foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
-                      background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
-                      border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+                      foreground: OnyxColorTokens.accentAmber.withValues(
+                        alpha: 0.5,
+                      ),
+                      background: OnyxColorTokens.accentAmber.withValues(
+                        alpha: 0.08,
+                      ),
+                      border: OnyxColorTokens.accentAmber.withValues(
+                        alpha: 0.40,
+                      ),
                       onTap: openLeadDispatch,
                     ),
                   if (canRecoverLead)
@@ -2576,7 +3973,9 @@ class TacticalPage extends StatelessWidget {
                       key: const ValueKey('tactical-fleet-focus-resync'),
                       label: 'Resync coverage',
                       foreground: OnyxColorTokens.accentRed,
-                      background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.accentRed.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                       onTap: recoverLeadScope,
                     ),
@@ -2585,7 +3984,9 @@ class TacticalPage extends StatelessWidget {
                       key: const ValueKey('tactical-fleet-focus-clear'),
                       label: 'Clear focus',
                       foreground: OnyxColorTokens.textMuted,
-                      background: OnyxColorTokens.textMuted.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.textMuted.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.textMuted.withValues(alpha: 0.40),
                       onTap: clearFleetFocus,
                     ),
@@ -2861,8 +4262,12 @@ class TacticalPage extends StatelessWidget {
                         key: const ValueKey('tactical-fleet-summary-clear'),
                         label: 'All scopes',
                         foreground: OnyxColorTokens.textMuted,
-                        background: OnyxColorTokens.textMuted.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.textMuted.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.textMuted.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.textMuted.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: onClearFocus,
                       ),
                   ],
@@ -3177,7 +4582,9 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Filtered lane',
                       foreground: OnyxColorTokens.textMuted,
-                      background: OnyxColorTokens.textMuted.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.textMuted.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.textMuted.withValues(alpha: 0.40),
                       onTap: focusFilteredLane,
                     ),
@@ -3187,8 +4594,12 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Latest detail',
                       foreground: OnyxColorTokens.accentCyan,
-                      background: OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
-                      border: OnyxColorTokens.accentCyan.withValues(alpha: 0.40),
+                      background: OnyxColorTokens.accentCyan.withValues(
+                        alpha: 0.08,
+                      ),
+                      border: OnyxColorTokens.accentCyan.withValues(
+                        alpha: 0.40,
+                      ),
                       onTap: () => openSuppressedDetail(focusEntry),
                     ),
                     if (hasTacticalLane)
@@ -3198,8 +4609,12 @@ class TacticalPage extends StatelessWidget {
                         ),
                         label: 'OPEN TACTICAL TRACK',
                         foreground: OnyxColorTokens.accentSky,
-                        background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.accentSky.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentSky.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: () => openSuppressedTactical(focusEntry),
                       ),
                     if (hasDispatchLane)
@@ -3208,9 +4623,15 @@ class TacticalPage extends StatelessWidget {
                           'tactical-suppressed-focus-open-dispatch',
                         ),
                         label: 'OPEN DISPATCH BOARD',
-                        foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
-                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+                        foreground: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.5,
+                        ),
+                        background: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: () => openSuppressedDispatch(focusEntry),
                       ),
                     _tacticalWorkspaceActionChip(
@@ -3377,8 +4798,12 @@ class TacticalPage extends StatelessWidget {
                     'tactical-suppressed-dispatch-${scope.siteId}',
                   ),
                   label: 'Dispatch',
-                  foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
-                  background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
+                  foreground: OnyxColorTokens.accentAmber.withValues(
+                    alpha: 0.5,
+                  ),
+                  background: OnyxColorTokens.accentAmber.withValues(
+                    alpha: 0.08,
+                  ),
                   border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
                   onTap: onOpenDispatch,
                 ),
@@ -3652,7 +5077,11 @@ class TacticalPage extends StatelessWidget {
                     OnyxColorTokens.textMuted,
                   ),
                 if (!scope.hasIncidentContext)
-                  _topChip('Context', 'Pending', OnyxColorTokens.accentAmber.withValues(alpha: 0.5)),
+                  _topChip(
+                    'Context',
+                    'Pending',
+                    OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+                  ),
               ],
             ),
           ],
@@ -3710,7 +5139,11 @@ class TacticalPage extends StatelessWidget {
       actionsGroupKey: ValueKey('tactical-fleet-scope-actions-${scope.siteId}'),
       primaryChips: [
         if ((scope.operatorOutcomeLabel ?? '').trim().isNotEmpty)
-          _topChip('Cue', scope.operatorOutcomeLabel!, OnyxColorTokens.accentCyan),
+          _topChip(
+            'Cue',
+            scope.operatorOutcomeLabel!,
+            OnyxColorTokens.accentCyan,
+          ),
         if ((scope.operatorOutcomeLabel ?? '').trim().isEmpty &&
             (scope.lastRecoveryLabel ?? '').trim().isNotEmpty)
           _topChip(
@@ -3725,7 +5158,11 @@ class TacticalPage extends StatelessWidget {
             OnyxColorTokens.accentRed,
           ),
         if (!scope.hasIncidentContext)
-          _topChip('Context', 'Pending', OnyxColorTokens.accentAmber.withValues(alpha: 0.5)),
+          _topChip(
+            'Context',
+            'Pending',
+            OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+          ),
         if (scope.identityPolicyChipValue != null)
           _topChip(
             'Identity',
@@ -3749,11 +5186,19 @@ class TacticalPage extends StatelessWidget {
           scope.freshnessLabel,
           _fleetFreshnessColor(scope),
         ),
-        _topChip('Events 6h', '${scope.recentEvents}', OnyxColorTokens.textMuted),
+        _topChip(
+          'Events 6h',
+          '${scope.recentEvents}',
+          OnyxColorTokens.textMuted,
+        ),
       ],
       secondaryChips: [
         if (scope.watchWindowLabel != null)
-          _topChip('Window', scope.watchWindowLabel!, OnyxColorTokens.accentGreen),
+          _topChip(
+            'Window',
+            scope.watchWindowLabel!,
+            OnyxColorTokens.accentGreen,
+          ),
         if (scope.watchWindowStateLabel != null)
           _topChip('Phase', scope.watchWindowStateLabel!, phaseColor),
         if (scope.latestRiskScore != null)
@@ -3763,7 +5208,11 @@ class TacticalPage extends StatelessWidget {
             _fleetRiskColor(scope.latestRiskScore!),
           ),
         if (scope.latestCameraLabel != null)
-          _topChip('Camera', scope.latestCameraLabel!, OnyxColorTokens.textMuted),
+          _topChip(
+            'Camera',
+            scope.latestCameraLabel!,
+            OnyxColorTokens.textMuted,
+          ),
       ],
       actionChildren: [
         _fleetActionButton(
@@ -4389,7 +5838,9 @@ class TacticalPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: OnyxColorTokens.textMuted.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: OnyxColorTokens.textMuted.withValues(alpha: 0.27)),
+        border: Border.all(
+          color: OnyxColorTokens.textMuted.withValues(alpha: 0.27),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4545,7 +5996,9 @@ class TacticalPage extends StatelessWidget {
                         ),
                         MarkerLayer(
                           markers: markers
-                              .where((marker) => marker.type == _MarkerType.site)
+                              .where(
+                                (marker) => marker.type == _MarkerType.site,
+                              )
                               .map(
                                 (marker) => _markerOverlay(
                                   marker: marker,
@@ -4633,10 +6086,14 @@ class TacticalPage extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: OnyxColorTokens.accentRed.withValues(alpha: 0.20),
+                          color: OnyxColorTokens.accentRed.withValues(
+                            alpha: 0.20,
+                          ),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: OnyxColorTokens.accentRed.withValues(alpha: 0.60),
+                            color: OnyxColorTokens.accentRed.withValues(
+                              alpha: 0.60,
+                            ),
                           ),
                         ),
                         child: Text(
@@ -4653,7 +6110,9 @@ class TacticalPage extends StatelessWidget {
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.80),
+                          color: OnyxColorTokens.backgroundPrimary.withValues(
+                            alpha: 0.80,
+                          ),
                         ),
                         child: Center(
                           child: Container(
@@ -4702,11 +6161,11 @@ class TacticalPage extends StatelessWidget {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: OnyxColorTokens.textPrimary.withValues(alpha: 0.96),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: _tacticalStrongBorderColor,
+                          color: OnyxColorTokens.textPrimary.withValues(
+                            alpha: 0.96,
                           ),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _tacticalStrongBorderColor),
                         ),
                         child: Text(
                           'No markers match the ${_mapFilterLabel(activeFilter).toLowerCase()} filter.',
@@ -5093,7 +6552,9 @@ class TacticalPage extends StatelessWidget {
                   key: const ValueKey('tactical-map-focus-open-dispatches'),
                   label: 'OPEN DISPATCH BOARD',
                   foreground: OnyxColorTokens.accentPurple,
-                  background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                  background: OnyxColorTokens.accentPurple.withValues(
+                    alpha: 0.08,
+                  ),
                   border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
                   onTap: onOpenDispatches,
                 ),
@@ -5301,9 +6762,13 @@ class TacticalPage extends StatelessWidget {
 
   Color _focusStateTextColor(_FocusLinkState state) {
     return switch (state) {
-      _FocusLinkState.exact => OnyxColorTokens.accentGreen.withValues(alpha: 0.3),
+      _FocusLinkState.exact => OnyxColorTokens.accentGreen.withValues(
+        alpha: 0.3,
+      ),
       _FocusLinkState.scopeBacked => OnyxColorTokens.surfaceInset,
-      _FocusLinkState.seeded => OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
+      _FocusLinkState.seeded => OnyxColorTokens.accentAmber.withValues(
+        alpha: 0.5,
+      ),
       _FocusLinkState.none => OnyxColorTokens.textMuted,
     };
   }
@@ -5349,16 +6814,18 @@ class TacticalPage extends StatelessWidget {
     required String scopeClientId,
     required String scopeSiteId,
   }) {
-    final scoped = siteMarkers.where((site) {
-      final siteClientId = site.clientId.trim();
-      if (scopeClientId.isNotEmpty && siteClientId != scopeClientId) {
-        return false;
-      }
-      if (scopeSiteId.isNotEmpty && site.id.trim() != scopeSiteId) {
-        return false;
-      }
-      return true;
-    }).toList(growable: false);
+    final scoped = siteMarkers
+        .where((site) {
+          final siteClientId = site.clientId.trim();
+          if (scopeClientId.isNotEmpty && siteClientId != scopeClientId) {
+            return false;
+          }
+          if (scopeSiteId.isNotEmpty && site.id.trim() != scopeSiteId) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
     return scoped
         .map(
           (site) => _MapMarker(
@@ -5428,24 +6895,28 @@ class TacticalPage extends StatelessWidget {
     }
     final orderedEvents = latestByReference.values.toList(growable: false)
       ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-    return orderedEvents.asMap().entries.map((entry) {
-      final event = entry.value;
-      final scope = _scopeForEvent(event)!;
-      final sitePoint =
-          sitePointByScope[_siteScopeKey(scope.clientId, scope.siteId)] ??
-          _johannesburgCenter;
-      final offsetPoint = _offsetIncidentPoint(sitePoint, entry.key);
-      return _MapMarker(
-        id: _eventIncidentReference(event),
-        type: _MarkerType.incident,
-        point: offsetPoint,
-        label: _eventIncidentReference(event),
-        status: event is IncidentClosed
-            ? _MarkerStatus.staticMarker
-            : _MarkerStatus.sos,
-        priority: _eventIncidentPriority(event),
-      );
-    }).toList(growable: false);
+    return orderedEvents
+        .asMap()
+        .entries
+        .map((entry) {
+          final event = entry.value;
+          final scope = _scopeForEvent(event)!;
+          final sitePoint =
+              sitePointByScope[_siteScopeKey(scope.clientId, scope.siteId)] ??
+              _johannesburgCenter;
+          final offsetPoint = _offsetIncidentPoint(sitePoint, entry.key);
+          return _MapMarker(
+            id: _eventIncidentReference(event),
+            type: _MarkerType.incident,
+            point: offsetPoint,
+            label: _eventIncidentReference(event),
+            status: event is IncidentClosed
+                ? _MarkerStatus.staticMarker
+                : _MarkerStatus.sos,
+            priority: _eventIncidentPriority(event),
+          );
+        })
+        .toList(growable: false);
   }
 
   String _siteScopeKey(String clientId, String siteId) =>
@@ -5504,9 +6975,10 @@ class TacticalPage extends StatelessWidget {
         value.dispatchId,
         fallback: value.eventId,
       ),
-      IntelligenceReceived value => value.intelligenceId.trim().isEmpty
-          ? value.eventId
-          : value.intelligenceId.trim(),
+      IntelligenceReceived value =>
+        value.intelligenceId.trim().isEmpty
+            ? value.eventId
+            : value.intelligenceId.trim(),
       _ => event.eventId,
     };
   }
@@ -5550,7 +7022,9 @@ class TacticalPage extends StatelessWidget {
   }
 
   LatLng _seededFocusPoint(List<_MapMarker> baseMarkers) {
-    final incident = baseMarkers.where((marker) => marker.type == _MarkerType.incident);
+    final incident = baseMarkers.where(
+      (marker) => marker.type == _MarkerType.incident,
+    );
     if (incident.isNotEmpty) {
       return incident.first.point;
     }
@@ -5569,15 +7043,18 @@ class TacticalPage extends StatelessWidget {
     required String scopeClientId,
     required String scopeSiteId,
   }) {
-    final scopedSites = siteMarkers.where((site) {
-      if (scopeClientId.isNotEmpty && site.clientId.trim() != scopeClientId) {
-        return false;
-      }
-      if (scopeSiteId.isNotEmpty && site.id.trim() != scopeSiteId) {
-        return false;
-      }
-      return true;
-    }).toList(growable: false);
+    final scopedSites = siteMarkers
+        .where((site) {
+          if (scopeClientId.isNotEmpty &&
+              site.clientId.trim() != scopeClientId) {
+            return false;
+          }
+          if (scopeSiteId.isNotEmpty && site.id.trim() != scopeSiteId) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
     final points = <LatLng>[
       ...scopedSites.map((site) => LatLng(site.lat, site.lng)),
       ...markers.map((marker) => marker.point),
@@ -5585,8 +7062,14 @@ class TacticalPage extends StatelessWidget {
     ];
     if (points.isEmpty) {
       return LatLngBounds(
-        LatLng(_johannesburgCenter.latitude - 0.01, _johannesburgCenter.longitude - 0.01),
-        LatLng(_johannesburgCenter.latitude + 0.01, _johannesburgCenter.longitude + 0.01),
+        LatLng(
+          _johannesburgCenter.latitude - 0.01,
+          _johannesburgCenter.longitude - 0.01,
+        ),
+        LatLng(
+          _johannesburgCenter.latitude + 0.01,
+          _johannesburgCenter.longitude + 0.01,
+        ),
       );
     }
     var minLat = points.first.latitude;
@@ -5605,7 +7088,6 @@ class TacticalPage extends StatelessWidget {
       LatLng(maxLat + padding, maxLng + padding),
     );
   }
-
 
   Widget _verificationPanel({
     required String normMode,
@@ -5988,9 +7470,15 @@ class TacticalPage extends StatelessWidget {
                           'tactical-verification-focus-center-track',
                         ),
                         label: 'Center track',
-                        foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
-                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+                        foreground: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.5,
+                        ),
+                        background: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: centerTrackWithFeedback,
                       ),
                     _tacticalWorkspaceActionChip(
@@ -5999,7 +7487,9 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Anomalies',
                       foreground: OnyxColorTokens.accentRed,
-                      background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.accentRed.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                       onTap: () => openQueueWithFeedback(
                         _VerificationQueueTab.anomalies,
@@ -6011,7 +7501,9 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Matches',
                       foreground: OnyxColorTokens.accentSky,
-                      background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.accentSky.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.matches),
@@ -6022,8 +7514,12 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Assets',
                       foreground: OnyxColorTokens.accentGreen,
-                      background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
-                      border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
+                      background: OnyxColorTokens.accentGreen.withValues(
+                        alpha: 0.08,
+                      ),
+                      border: OnyxColorTokens.accentGreen.withValues(
+                        alpha: 0.40,
+                      ),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.assets),
                     ),
@@ -6034,8 +7530,12 @@ class TacticalPage extends StatelessWidget {
                         ),
                         label: 'OPEN DISPATCH BOARD',
                         foreground: OnyxColorTokens.accentPurple,
-                        background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: openDispatchesWithFeedback,
                       ),
                   ],
@@ -6203,7 +7703,9 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Review anomalies',
                       foreground: OnyxColorTokens.accentRed,
-                      background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.accentRed.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                       onTap: () => openQueueWithFeedback(
                         _VerificationQueueTab.anomalies,
@@ -6215,7 +7717,9 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Review matches',
                       foreground: OnyxColorTokens.accentSky,
-                      background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.accentSky.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.matches),
@@ -6226,8 +7730,12 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Review assets',
                       foreground: OnyxColorTokens.accentGreen,
-                      background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
-                      border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
+                      background: OnyxColorTokens.accentGreen.withValues(
+                        alpha: 0.08,
+                      ),
+                      border: OnyxColorTokens.accentGreen.withValues(
+                        alpha: 0.40,
+                      ),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.assets),
                     ),
@@ -6237,9 +7745,15 @@ class TacticalPage extends StatelessWidget {
                           'tactical-lens-comparison-center-track',
                         ),
                         label: 'Center track',
-                        foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
-                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+                        foreground: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.5,
+                        ),
+                        background: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: centerTrackWithFeedback,
                       ),
                     if (onOpenDispatches != null)
@@ -6249,8 +7763,12 @@ class TacticalPage extends StatelessWidget {
                         ),
                         label: 'OPEN DISPATCH BOARD',
                         foreground: OnyxColorTokens.accentPurple,
-                        background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: openDispatchesWithFeedback,
                       ),
                   ],
@@ -6510,9 +8028,15 @@ class TacticalPage extends StatelessWidget {
                           'tactical-verification-queue-center-track',
                         ),
                         label: 'Center track',
-                        foreground: OnyxColorTokens.accentAmber.withValues(alpha: 0.5),
-                        background: OnyxColorTokens.accentAmber.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentAmber.withValues(alpha: 0.40),
+                        foreground: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.5,
+                        ),
+                        background: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentAmber.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: centerTrackWithFeedback,
                       ),
                     _tacticalWorkspaceActionChip(
@@ -6521,7 +8045,9 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Anomalies',
                       foreground: OnyxColorTokens.accentRed,
-                      background: OnyxColorTokens.accentRed.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.accentRed.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.accentRed.withValues(alpha: 0.40),
                       onTap: () => openQueueWithFeedback(
                         _VerificationQueueTab.anomalies,
@@ -6533,7 +8059,9 @@ class TacticalPage extends StatelessWidget {
                       ),
                       label: 'Matches',
                       foreground: OnyxColorTokens.accentSky,
-                      background: OnyxColorTokens.accentSky.withValues(alpha: 0.08),
+                      background: OnyxColorTokens.accentSky.withValues(
+                        alpha: 0.08,
+                      ),
                       border: OnyxColorTokens.accentSky.withValues(alpha: 0.40),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.matches),
@@ -6542,8 +8070,12 @@ class TacticalPage extends StatelessWidget {
                       key: const ValueKey('tactical-verification-queue-assets'),
                       label: 'Assets',
                       foreground: OnyxColorTokens.accentGreen,
-                      background: OnyxColorTokens.accentGreen.withValues(alpha: 0.08),
-                      border: OnyxColorTokens.accentGreen.withValues(alpha: 0.40),
+                      background: OnyxColorTokens.accentGreen.withValues(
+                        alpha: 0.08,
+                      ),
+                      border: OnyxColorTokens.accentGreen.withValues(
+                        alpha: 0.40,
+                      ),
                       onTap: () =>
                           openQueueWithFeedback(_VerificationQueueTab.assets),
                     ),
@@ -6554,8 +8086,12 @@ class TacticalPage extends StatelessWidget {
                         ),
                         label: 'OPEN DISPATCH BOARD',
                         foreground: OnyxColorTokens.accentPurple,
-                        background: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
-                        border: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
+                        background: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.08,
+                        ),
+                        border: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.40,
+                        ),
                         onTap: openDispatchesWithFeedback,
                       ),
                   ],
@@ -6836,18 +8372,20 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
-  Marker _fenceOverlay({
-    required _SafetyGeofence fence,
-  }) {
+  Marker _fenceOverlay({required _SafetyGeofence fence}) {
     final color = switch (fence.status) {
       _FenceStatus.safe => OnyxColorTokens.accentCyan.withValues(alpha: 0.50),
       _FenceStatus.breach => OnyxColorTokens.accentRed.withValues(alpha: 0.80),
-      _FenceStatus.stationary => OnyxColorTokens.accentAmber.withValues(alpha: 0.80),
+      _FenceStatus.stationary => OnyxColorTokens.accentAmber.withValues(
+        alpha: 0.80,
+      ),
     };
     final fill = switch (fence.status) {
       _FenceStatus.safe => OnyxColorTokens.accentCyan.withValues(alpha: 0.08),
       _FenceStatus.breach => OnyxColorTokens.accentRed.withValues(alpha: 0.13),
-      _FenceStatus.stationary => OnyxColorTokens.accentAmber.withValues(alpha: 0.13),
+      _FenceStatus.stationary => OnyxColorTokens.accentAmber.withValues(
+        alpha: 0.13,
+      ),
     };
     return Marker(
       point: fence.point,
@@ -6888,9 +8426,14 @@ class TacticalPage extends StatelessWidget {
       height: 132,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.13)),
+        border: Border.all(
+          color: OnyxColorTokens.textPrimary.withValues(alpha: 0.13),
+        ),
         gradient: const LinearGradient(
-          colors: [OnyxColorTokens.backgroundPrimary, OnyxColorTokens.backgroundPrimary],
+          colors: [
+            OnyxColorTokens.backgroundPrimary,
+            OnyxColorTokens.backgroundPrimary,
+          ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -6910,13 +8453,17 @@ class TacticalPage extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.80),
+                    color: OnyxColorTokens.backgroundPrimary.withValues(
+                      alpha: 0.80,
+                    ),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     label,
                     style: GoogleFonts.inter(
-                      color: OnyxColorTokens.textPrimary.withValues(alpha: 0.80),
+                      color: OnyxColorTokens.textPrimary.withValues(
+                        alpha: 0.80,
+                      ),
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
                     ),
@@ -6934,7 +8481,9 @@ class TacticalPage extends StatelessWidget {
                       color: OnyxColorTokens.accentRed.withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                        color: OnyxColorTokens.accentRed.withValues(alpha: 0.80),
+                        color: OnyxColorTokens.accentRed.withValues(
+                          alpha: 0.80,
+                        ),
                         width: 1.2,
                       ),
                     ),
@@ -6966,7 +8515,9 @@ class TacticalPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: OnyxColorTokens.accentRed.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: OnyxColorTokens.accentRed.withValues(alpha: 0.33)),
+        border: Border.all(
+          color: OnyxColorTokens.accentRed.withValues(alpha: 0.33),
+        ),
       ),
       child: Row(
         children: [
@@ -7334,7 +8885,9 @@ class TacticalPage extends StatelessWidget {
                 foregroundColor: OnyxColorTokens.accentRed,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: OnyxColorTokens.accentRed.withValues(alpha: 0.6)),
+                  side: BorderSide(
+                    color: OnyxColorTokens.accentRed.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               child: Text(
@@ -7420,10 +8973,14 @@ class _MapControlChip extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? OnyxColorTokens.accentCyan.withValues(alpha: 0.10) : _tacticalAltSurfaceColor,
+          color: active
+              ? OnyxColorTokens.accentCyan.withValues(alpha: 0.10)
+              : _tacticalAltSurfaceColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: active ? OnyxColorTokens.accentCyan.withValues(alpha: 0.53) : _tacticalBorderColor,
+            color: active
+                ? OnyxColorTokens.accentCyan.withValues(alpha: 0.53)
+                : _tacticalBorderColor,
           ),
         ),
         child: Text(
@@ -7436,5 +8993,76 @@ class _MapControlChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _PulseDot extends StatefulWidget {
+  final Color color;
+  final double size;
+  final bool animated;
+
+  const _PulseDot({
+    required this.color,
+    required this.size,
+    this.animated = true,
+  });
+
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+  late final Animation<double> _opacity = Tween<double>(
+    begin: 1,
+    end: 0.3,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animated) {
+      _controller.repeat(reverse: true);
+    } else {
+      _controller.value = 1;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _PulseDot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animated == widget.animated) {
+      return;
+    }
+    if (widget.animated) {
+      _controller.repeat(reverse: true);
+    } else {
+      _controller
+        ..stop()
+        ..value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dot = Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+    );
+    if (!widget.animated) {
+      return dot;
+    }
+    return FadeTransition(opacity: _opacity, child: dot);
   }
 }
