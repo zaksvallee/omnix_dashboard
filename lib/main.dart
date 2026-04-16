@@ -213,6 +213,7 @@ import 'ui/onyx_route_registry.dart';
 import 'ui/onyx_route_registry_sections.dart';
 import 'ui/risk_intelligence_page.dart';
 import 'ui/sites_page.dart';
+import 'ui/zara_ambient_page.dart';
 import 'ui/sovereign_ledger_page.dart';
 import 'ui/tactical_page.dart';
 import 'ui/theme/onyx_design_tokens.dart';
@@ -1994,6 +1995,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool? _telegramAiApprovalRequiredOverride;
   Map<String, String> _telegramAiClientProfileOverrideByScope = const {};
   bool _liveOperationsQueueHintSeen = false;
+  bool _zaraAmbientActive = true;
   OnyxAgentCameraBridgeHealthSnapshot? _onyxAgentCameraBridgeHealthSnapshot;
   Map<String, List<TelegramAiLearnedReplyExample>>
   _telegramAiApprovedRewriteExamplesByScope = const {};

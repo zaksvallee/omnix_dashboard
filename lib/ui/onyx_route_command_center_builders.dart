@@ -65,6 +65,45 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
     List<DispatchEvent> events,
     String previousTomorrowUrgencySummary,
   ) {
+    if (_zaraAmbientActive) {
+      final operatorName =
+          _signedInAccount?.displayName ?? service.operator.operatorId;
+      final siteLabel = _selectedSite
+          .replaceAll('-', ' ')
+          .replaceAll('_', ' ')
+          .split(RegExp(r'\s+'))
+          .where((s) => s.isNotEmpty)
+          .map((s) => s[0].toUpperCase() + s.substring(1).toLowerCase())
+          .join(' ');
+      return ZaraAmbientPage(
+        events: events,
+        operatorLabel: operatorName,
+        siteLabel: siteLabel,
+        onOpenCommandCenter: () {
+          _applyRouteBuilderState(() {
+            _zaraAmbientActive = false;
+          });
+        },
+        onOpenDispatches: () {
+          _cancelDemoAutopilot();
+          _applyRouteBuilderState(() {
+            _route = OnyxRoute.dispatches;
+          });
+        },
+        onOpenAlarms: () {
+          _cancelDemoAutopilot();
+          _applyRouteBuilderState(() {
+            _route = OnyxRoute.alarms;
+          });
+        },
+        onOpenCctv: () {
+          _cancelDemoAutopilot();
+          _applyRouteBuilderState(() {
+            _route = OnyxRoute.aiQueue;
+          });
+        },
+      );
+    }
     final routeClientId = _operationsRouteClientId.trim();
     final routeSiteId = _operationsRouteSiteId.trim();
     final operationsClientId = routeClientId.isNotEmpty
