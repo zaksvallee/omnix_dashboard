@@ -29,6 +29,8 @@ enum _AiQueueLaneFilter { live, queued, drafts, shadow }
 
 enum _AiQueueWorkspaceView { runbook, policy, context }
 
+enum _AiQueueContextFeedState { live, stale, noSignal }
+
 class _AiQueueAction {
   final String id;
   final String incidentId;
@@ -226,6 +228,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
   String? _selectedFocusId;
   _AiQueueCommandReceipt _commandReceipt = _defaultCommandReceipt;
   bool _showDetailedWorkspace = false;
+  bool _zaraVerificationComplete = false;
+  Timer? _zaraVerificationTimer;
   final Set<String> _dismissedCctvAlertIds = <String>{};
   final Set<String> _dispatchedCctvAlertIds = <String>{};
   String? _selectedCctvAlertId;
@@ -290,6 +294,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _zaraVerificationTimer?.cancel();
     super.dispose();
   }
 
@@ -1102,11 +1107,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       alignment: Alignment.centerRight,
       child: OutlinedButton.icon(
         key: const ValueKey('ai-queue-toggle-detailed-workspace'),
-        onPressed: () {
-          setState(() {
-            _showDetailedWorkspace = true;
-          });
-        },
+        onPressed: _openDetailedWorkspace,
         icon: const Icon(Icons.open_in_new_rounded, size: 14),
         label: const Text('Open detailed workspace'),
         style: OutlinedButton.styleFrom(
@@ -1397,11 +1398,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             icon: Icons.visibility_off_rounded,
             label: 'Hide Detailed Workspace',
             accent: OnyxColorTokens.accentSky,
-            onPressed: () {
-              setState(() {
-                _showDetailedWorkspace = false;
-              });
-            },
+            onPressed: _closeDetailedWorkspace,
           ),
         _heroActionButton(
           key: const ValueKey('ai-queue-view-events-button'),
@@ -2252,6 +2249,43 @@ class _AIQueuePageState extends State<AIQueuePage> {
   }
 
   Widget _focusCard(_AiQueueFocusItem item, {required bool isSelected}) {
+    final leadingIndicator = item.shadowSite != null
+        ? Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(top: 2.5),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.accentSky.withValues(alpha: 0.55),
+              shape: BoxShape.circle,
+            ),
+          )
+        : item.action?.incidentPriority == _AiIncidentPriority.p1Critical
+        ? Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(top: 3),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.accentRed,
+              borderRadius: BorderRadius.circular(1.5),
+            ),
+            transform: Matrix4.rotationZ(0.7853981633974483),
+          )
+        : Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(top: 3),
+            decoration: BoxDecoration(
+              color: isSelected && item.lane == _AiQueueLaneFilter.live
+                  ? OnyxColorTokens.accentPurple
+                  : Colors.transparent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected && item.lane == _AiQueueLaneFilter.live
+                    ? OnyxColorTokens.accentPurple
+                    : OnyxColorTokens.textDisabled,
+              ),
+            ),
+          );
     return InkWell(
       key: ValueKey('ai-queue-focus-card-${item.id}'),
       onTap: () => _focusItem(item),
@@ -2265,15 +2299,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.only(top: 2.5),
-                  decoration: BoxDecoration(
-                    color: item.accent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+                leadingIndicator,
                 const SizedBox(width: 5),
                 Expanded(
                   child: Column(
@@ -2379,16 +2405,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required bool compact,
     required bool useExpandedBody,
   }) {
+    final showInlineContext =
+        _workspaceView == _AiQueueWorkspaceView.context &&
+        selectedFocus?.action != null &&
+        selectedFocus!.action!.status == _AiActionStatus.pending;
     final panel = switch (_workspaceView) {
-      _AiQueueWorkspaceView.runbook => _runbookPanel(
-        selectedFocus,
-        compact: compact,
-        totalQueueCount: _actions.length,
-        queuedCount: _displayQueuedActions.length,
-        draftCount: _nextShiftDrafts.length,
-        shadowCount: moShadowSites.length,
-        useExpandedBody: useExpandedBody,
-      ),
       _AiQueueWorkspaceView.policy => _policyPanel(
         selectedFocus,
         queuedActions: queuedActions,
@@ -2398,7 +2419,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         shadowCount: moShadowSites.length,
         useExpandedBody: useExpandedBody,
       ),
-      _AiQueueWorkspaceView.context => _contextPanel(
+      _AiQueueWorkspaceView.context when !showInlineContext => _contextPanel(
         selectedFocus,
         activeAction: activeAction,
         queuedActions: queuedActions,
@@ -2406,10 +2427,37 @@ class _AIQueuePageState extends State<AIQueuePage> {
         moShadowSites: moShadowSites,
         useExpandedBody: useExpandedBody,
       ),
+      _ => _runbookPanel(
+        selectedFocus,
+        compact: compact,
+        totalQueueCount: _actions.length,
+        queuedCount: _displayQueuedActions.length,
+        draftCount: _nextShiftDrafts.length,
+        shadowCount: moShadowSites.length,
+        useExpandedBody: useExpandedBody,
+        showContextPanel: showInlineContext,
+      ),
     };
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(2.5),
-      decoration: onyxWorkspaceSurfaceDecoration(),
+      decoration: BoxDecoration(
+        color: showInlineContext
+            ? OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.98)
+            : OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border(
+          top: const BorderSide(color: OnyxColorTokens.borderSubtle),
+          right: const BorderSide(color: OnyxColorTokens.borderSubtle),
+          bottom: const BorderSide(color: OnyxColorTokens.borderSubtle),
+          left: BorderSide(
+            color: showInlineContext
+                ? OnyxColorTokens.accentPurple.withValues(alpha: 0.15)
+                : Colors.transparent,
+            width: showInlineContext ? 3 : 0,
+          ),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2603,6 +2651,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required int draftCount,
     required int shadowCount,
     required bool useExpandedBody,
+    required bool showContextPanel,
   }) {
     Widget child;
     if (selectedFocus == null) {
@@ -2621,6 +2670,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         child = _queuedAutomationWorkspaceCard(
           action,
           isDraft: _isNextShiftDraft(action),
+          showContextPanel: showContextPanel,
         );
       }
     } else {
@@ -2643,6 +2693,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   Widget _queuedAutomationWorkspaceCard(
     _AiQueueAction action, {
     required bool isDraft,
+    required bool showContextPanel,
   }) {
     final promotionPressureSummary = _promotionPressureSummary(action.metadata);
     final promotionExecutionSummary = _promotionExecutionSummary(
@@ -2651,181 +2702,763 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final eventIds = _eventIdsForAction(action);
     final canOpenEvents =
         widget.onOpenEventsForScope != null && eventIds.isNotEmpty;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: _panelDecoration(border: OnyxColorTokens.surfaceElevated),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isDraft ? Icons.upcoming_rounded : Icons.schedule_rounded,
-                  color: OnyxColorTokens.accentCyan,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isDraft ? 'NEXT-SHIFT DRAFT' : 'QUEUED ACTION',
-                      style: GoogleFonts.inter(
-                        color: OnyxColorTokens.surfaceInset,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isDraft
-                          ? 'Draft carry-forward is staged for the next operator window.'
-                          : 'Awaiting promotion into the active autonomy slot.',
-                      style: GoogleFonts.inter(
-                        color: OnyxColorTokens.textMuted,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              _actionTypePill(action.actionType),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _activeAutomationMetrics(
-            incidentId: action.incidentId,
-            site: action.site,
-            officer: action.metadata['officer'] ?? 'Queue hold',
-            eta:
-                action.metadata['eta'] ??
-                _formatTime(action.timeUntilExecutionSeconds),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: OnyxColorTokens.surfaceElevated),
+    final linkedAlert = _contextAlertForAction(action);
+    final feedState = _contextFeedStateForAction(action, linkedAlert);
+    final feedAccent = _contextFeedAccent(feedState);
+    final feedCameraLabel = _contextFeedCameraLabel(action, linkedAlert);
+    final feedZoneLabel = _contextFeedZoneLabel(action, linkedAlert);
+    final lastFrameAt = _contextFeedLastFrameAt(action, linkedAlert);
+    final staleMinutes = lastFrameAt == null
+        ? null
+        : DateTime.now().difference(lastFrameAt).inMinutes;
+    final queueCardOpacity = showContextPanel ? 0.88 : 1.0;
+    final recommendationLabel = _queueRecommendationLabel(action);
+    final zaraRecommendationText = showContextPanel
+        ? _zaraVerificationComplete
+              ? 'ZARA: Verification complete. No movement detected. Recommendation unchanged: $recommendationLabel'
+              : 'ZARA: Verifying. Reviewing $feedCameraLabel and signal data.'
+        : 'Zara recommends this action';
+    final decisionActions = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _actionButton(
+          label: 'CANCEL ACTION',
+          icon: Icons.cancel_rounded,
+          background: OnyxColorTokens.accentRed,
+          onPressed: () => _cancelAction(action.id),
+        ),
+        FilledButton.icon(
+          key: const ValueKey('ai-queue-workspace-promote-action'),
+          onPressed: () => _promoteAction(action.id),
+          icon: const Icon(Icons.bolt_rounded, size: 18),
+          style: FilledButton.styleFrom(
+            backgroundColor: OnyxColorTokens.accentSky,
+            foregroundColor: OnyxColorTokens.surfaceInset,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
             ),
-            child: Column(
+            textStyle: GoogleFonts.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          label: const Text('PROMOTE NOW'),
+        ),
+        _actionButton(
+          label: 'APPROVE NOW',
+          icon: Icons.check_circle_rounded,
+          background: OnyxColorTokens.accentGreen,
+          onPressed: () => _approveAction(action.id),
+        ),
+        if (canOpenEvents)
+          OutlinedButton.icon(
+            key: const ValueKey('ai-queue-workspace-open-event-scope'),
+            onPressed: () => _openEventsForAction(action),
+            icon: const Icon(Icons.alt_route_rounded, size: 18),
+            label: const Text('OPEN EVENT SCOPE'),
+          ),
+      ],
+    );
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 220),
+      opacity: queueCardOpacity,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: _panelDecoration(border: OnyxColorTokens.surfaceElevated),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'PROPOSED ACTION',
-                  style: GoogleFonts.inter(
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.accentCyan.withValues(alpha: 0.20),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isDraft ? Icons.upcoming_rounded : Icons.schedule_rounded,
                     color: OnyxColorTokens.accentCyan,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  action.description,
-                  style: GoogleFonts.inter(
-                    color: OnyxColorTokens.surfaceInset,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 10,
-                  children: [
-                    _detailCell(
-                      'Queue status',
-                      isDraft ? 'Drafted' : 'Pending',
-                    ),
-                    if ((action.metadata['scope'] ?? '').trim().isNotEmpty)
-                      _detailCell(
-                        'Scope mode',
-                        action.metadata['scope']!.trim(),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isDraft ? 'NEXT-SHIFT DRAFT' : 'QUEUED ACTION',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.surfaceInset,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                        ),
                       ),
-                    if (promotionPressureSummary.isNotEmpty)
-                      _detailCell('Pressure cue', promotionPressureSummary),
-                    if (promotionExecutionSummary.isNotEmpty)
-                      _detailCell('Execution cue', promotionExecutionSummary),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        isDraft
+                            ? 'Draft carry-forward is staged for the next operator window.'
+                            : 'Awaiting promotion into the active autonomy slot.',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textMuted,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 10),
+                _actionTypePill(action.actionType),
               ],
             ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.accentPurple.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.14),
+                ),
+              ),
+              child: Text(
+                zaraRecommendationText,
+                style: GoogleFonts.inter(
+                  color: showContextPanel
+                      ? OnyxColorTokens.accentPurple.withValues(alpha: 0.82)
+                      : OnyxColorTokens.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  fontStyle: showContextPanel
+                      ? FontStyle.normal
+                      : FontStyle.italic,
+                  height: 1.35,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _activeAutomationMetrics(
+              incidentId: action.incidentId,
+              site: action.site,
+              officer: action.metadata['officer'] ?? 'Queue hold',
+              eta:
+                  action.metadata['eta'] ??
+                  _formatTime(action.timeUntilExecutionSeconds),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.backgroundPrimary.withValues(
+                  alpha: 0.10,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: OnyxColorTokens.surfaceElevated),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'PROPOSED ACTION',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.accentCyan,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    action.description,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.surfaceInset,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 10,
+                    children: [
+                      _detailCell(
+                        'Queue status',
+                        isDraft ? 'Drafted' : 'Pending',
+                      ),
+                      if ((action.metadata['scope'] ?? '').trim().isNotEmpty)
+                        _detailCell(
+                          'Scope mode',
+                          action.metadata['scope']!.trim(),
+                        ),
+                      if (promotionPressureSummary.isNotEmpty)
+                        _detailCell('Pressure cue', promotionPressureSummary),
+                      if (promotionExecutionSummary.isNotEmpty)
+                        _detailCell('Execution cue', promotionExecutionSummary),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (!showContextPanel) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _queueIncidentModeButton(
+                      key: const ValueKey('ai-queue-check-camera'),
+                      label: 'Check Camera',
+                      accent: OnyxColorTokens.accentPurple,
+                      onTap: () =>
+                          _setWorkspaceView(_AiQueueWorkspaceView.context),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _queueIncidentModeButton(
+                      key: const ValueKey('ai-queue-open-full-investigation'),
+                      label: 'Open Full Investigation',
+                      accent: OnyxColorTokens.accentAmber,
+                      onTap: _openDetailedWorkspace,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+            ClipRect(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                height: showContextPanel ? 280 : 0,
+                child: showContextPanel
+                    ? Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.backgroundPrimary.withValues(
+                            alpha: 0.98,
+                          ),
+                          border: Border(
+                            top: BorderSide(
+                              color: OnyxColorTokens.accentPurple.withValues(
+                                alpha: 0.12,
+                              ),
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              child: Text(
+                                'Context · Zara verifying',
+                                style: GoogleFonts.inter(
+                                  color: OnyxColorTokens.textDisabled,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              height: 140,
+                              decoration: BoxDecoration(
+                                color: OnyxColorTokens.backgroundSecondary,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: feedAccent.withValues(alpha: 0.16),
+                                ),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            feedAccent.withValues(alpha: 0.10),
+                                            OnyxColorTokens.backgroundPrimary,
+                                          ],
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              feedState ==
+                                                      _AiQueueContextFeedState
+                                                          .noSignal
+                                                  ? Icons
+                                                        .portable_wifi_off_rounded
+                                                  : Icons.videocam_rounded,
+                                              color: feedAccent.withValues(
+                                                alpha: 0.78,
+                                              ),
+                                              size: 24,
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              feedCameraLabel,
+                                              style: GoogleFonts.inter(
+                                                color: OnyxColorTokens
+                                                    .textSecondary,
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            Text(
+                                              feedZoneLabel,
+                                              style: GoogleFonts.inter(
+                                                color:
+                                                    OnyxColorTokens.textMuted,
+                                                fontSize: 8.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 6,
+                                      ),
+                                      color: OnyxColorTokens.backgroundPrimary
+                                          .withValues(alpha: 0.60),
+                                      child: Row(
+                                        children: [
+                                          if (feedState ==
+                                              _AiQueueContextFeedState.stale)
+                                            _BlinkingStatusDot(
+                                              color:
+                                                  OnyxColorTokens.accentAmber,
+                                            )
+                                          else
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration: BoxDecoration(
+                                                color: feedAccent,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              _contextFeedStatusLabel(
+                                                state: feedState,
+                                                cameraLabel: feedCameraLabel,
+                                                zoneLabel: feedZoneLabel,
+                                                staleMinutes: staleMinutes,
+                                              ),
+                                              style: GoogleFonts.inter(
+                                                color: feedAccent,
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: 6,
+                                    right: 6,
+                                    bottom: 6,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: OnyxColorTokens.backgroundPrimary
+                                            .withValues(alpha: 0.80),
+                                        borderRadius: const BorderRadius.only(
+                                          bottomLeft: Radius.circular(5),
+                                          bottomRight: Radius.circular(5),
+                                        ),
+                                        border: Border(
+                                          top: BorderSide(
+                                            color: OnyxColorTokens.accentPurple
+                                                .withValues(alpha: 0.20),
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            width: 10,
+                                            height: 10,
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                              color: OnyxColorTokens
+                                                  .accentPurple
+                                                  .withValues(alpha: 0.14),
+                                              borderRadius:
+                                                  BorderRadius.circular(3),
+                                              border: Border.all(
+                                                color: OnyxColorTokens
+                                                    .accentPurple
+                                                    .withValues(alpha: 0.22),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'Z',
+                                              style: GoogleFonts.inter(
+                                                color: OnyxColorTokens
+                                                    .accentPurple
+                                                    .withValues(alpha: 0.84),
+                                                fontSize: 6.5,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              'ZARA: ${_contextFeedOverlayText(action, feedState, staleMinutes: staleMinutes)}',
+                                              style: GoogleFonts.inter(
+                                                color: OnyxColorTokens
+                                                    .accentPurple
+                                                    .withValues(alpha: 0.70),
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w600,
+                                                fontStyle: FontStyle.italic,
+                                                height: 1.3,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 8,
+                              children: [
+                                _detailCell('Camera', feedCameraLabel),
+                                _detailCell('Zone', feedZoneLabel),
+                                _detailCell(
+                                  'Signal',
+                                  (action.metadata['posture'] ?? 'Correlating')
+                                      .trim(),
+                                ),
+                              ],
+                            ),
+                            const Spacer(),
+                            Row(
+                              children: [
+                                _queueContextFooterAction(
+                                  key: const ValueKey(
+                                    'ai-queue-collapse-context',
+                                  ),
+                                  label: 'Collapse Context',
+                                  accent: OnyxColorTokens.accentPurple,
+                                  onTap: () => _setWorkspaceView(
+                                    _AiQueueWorkspaceView.runbook,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                _queueContextFooterAction(
+                                  key: const ValueKey(
+                                    'ai-queue-open-full-investigation-context',
+                                  ),
+                                  label: 'Open Full Investigation →',
+                                  accent: OnyxColorTokens.accentAmber,
+                                  onTap: _openDetailedWorkspace,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeInOut,
+              width: double.infinity,
+              margin: EdgeInsets.only(top: showContextPanel ? 10 : 0),
+              padding: EdgeInsets.fromLTRB(
+                showContextPanel ? 10 : 0,
+                showContextPanel ? 10 : 0,
+                showContextPanel ? 10 : 0,
+                0,
+              ),
+              decoration: BoxDecoration(
+                color: showContextPanel
+                    ? OnyxColorTokens.accentAmber.withValues(alpha: 0.04)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showContextPanel)
+                    Container(
+                      width: double.infinity,
+                      height: 1,
+                      color: OnyxColorTokens.accentAmber.withValues(
+                        alpha: 0.15,
+                      ),
+                    ),
+                  SizedBox(height: showContextPanel ? 10 : 0),
+                  Text(
+                    'Promote this action to active execution, approve it immediately, or remove it from the queue.',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  decisionActions,
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  _CctvBoardAlert? _contextAlertForAction(_AiQueueAction action) {
+    return _seedCctvAlerts().cast<_CctvBoardAlert?>().firstWhere(
+      (alert) => alert != null && alert.id == action.id,
+      orElse: () => null,
+    );
+  }
+
+  _AiQueueContextFeedState _contextFeedStateForAction(
+    _AiQueueAction action,
+    _CctvBoardAlert? alert,
+  ) {
+    final camera = (action.metadata['camera'] ?? '').trim();
+    final normalizedType = action.actionType.trim().toUpperCase();
+    if (alert == null && camera.isEmpty) {
+      return _AiQueueContextFeedState.noSignal;
+    }
+    if (normalizedType.contains(widget.videoOpsLabel.toUpperCase()) ||
+        normalizedType.contains('VISION') ||
+        camera.isNotEmpty) {
+      return _AiQueueContextFeedState.live;
+    }
+    if (action.incidentPriority == _AiIncidentPriority.p1Critical) {
+      return _AiQueueContextFeedState.stale;
+    }
+    return _AiQueueContextFeedState.noSignal;
+  }
+
+  Color _contextFeedAccent(_AiQueueContextFeedState state) {
+    return switch (state) {
+      _AiQueueContextFeedState.live => OnyxColorTokens.accentGreen,
+      _AiQueueContextFeedState.stale => OnyxColorTokens.accentAmber,
+      _AiQueueContextFeedState.noSignal => OnyxColorTokens.accentRed,
+    };
+  }
+
+  DateTime? _contextFeedLastFrameAt(
+    _AiQueueAction action,
+    _CctvBoardAlert? alert,
+  ) {
+    if (alert == null) {
+      return null;
+    }
+    final elapsedMinutes = switch (action.incidentPriority) {
+      _AiIncidentPriority.p1Critical => 18,
+      _AiIncidentPriority.p2High => 9,
+      _AiIncidentPriority.p3Medium => 6,
+    };
+    return DateTime.now().subtract(Duration(minutes: elapsedMinutes));
+  }
+
+  String _contextFeedCameraLabel(
+    _AiQueueAction action,
+    _CctvBoardAlert? alert,
+  ) {
+    final camera = (action.metadata['camera'] ?? '').trim();
+    if (alert != null && alert.feedId.trim().isNotEmpty) {
+      return alert.feedId.trim();
+    }
+    if (camera.isNotEmpty) {
+      return camera;
+    }
+    return 'CAM-UNASSIGNED';
+  }
+
+  String _contextFeedZoneLabel(_AiQueueAction action, _CctvBoardAlert? alert) {
+    final alertCameraLabel = alert?.cameraLabel.trim() ?? '';
+    if (alertCameraLabel.contains(' - ')) {
+      return alertCameraLabel.split(' - ').skip(1).join(' - ').trim();
+    }
+    final posture = (action.metadata['posture'] ?? '').trim();
+    if (posture.isNotEmpty) {
+      return posture;
+    }
+    return action.site;
+  }
+
+  String _contextFeedStatusLabel({
+    required _AiQueueContextFeedState state,
+    required String cameraLabel,
+    required String zoneLabel,
+    required int? staleMinutes,
+  }) {
+    return switch (state) {
+      _AiQueueContextFeedState.live => '● LIVE · $cameraLabel · $zoneLabel',
+      _AiQueueContextFeedState.stale =>
+        '● FEED STALE — Last frame ${staleMinutes ?? 0}m ago',
+      _AiQueueContextFeedState.noSignal => '● NO SIGNAL',
+    };
+  }
+
+  String _contextFeedOverlayText(
+    _AiQueueAction action,
+    _AiQueueContextFeedState state, {
+    required int? staleMinutes,
+  }) {
+    return switch (state) {
+      _AiQueueContextFeedState.live => _singleSentence(
+        action.description,
+        fallback: 'Live visual context is now in review.',
+      ),
+      _AiQueueContextFeedState.stale =>
+        'No movement detected — ${staleMinutes ?? 0}m since the last usable frame.',
+      _AiQueueContextFeedState.noSignal =>
+        'Camera unavailable — continue with signal verification before escalation.',
+    };
+  }
+
+  String _queueRecommendationLabel(_AiQueueAction action) {
+    final normalizedType = action.actionType.trim().toUpperCase();
+    if (normalizedType.contains('VOIP') || normalizedType.contains('CALL')) {
+      return 'Call before dispatch.';
+    }
+    if (normalizedType.contains('DISPATCH')) {
+      return 'Dispatch now.';
+    }
+    if (normalizedType.contains('VISION') ||
+        normalizedType.contains(widget.videoOpsLabel.toUpperCase())) {
+      return 'Check camera evidence before dispatch.';
+    }
+    return _singleSentence(
+      action.description,
+      fallback: 'Recommendation remains in review.',
+    );
+  }
+
+  String _singleSentence(String text, {required String fallback}) {
+    final normalized = text.trim();
+    if (normalized.isEmpty) {
+      return fallback;
+    }
+    final periodIndex = normalized.indexOf('.');
+    final sentence = periodIndex >= 0
+        ? normalized.substring(0, periodIndex + 1)
+        : normalized;
+    return sentence.length > 96 ? '${sentence.substring(0, 95)}…' : sentence;
+  }
+
+  Widget _queueIncidentModeButton({
+    required Key key,
+    required String label,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.surfaceElevated,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: accent.withValues(alpha: 0.25)),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            color: accent == OnyxColorTokens.accentAmber
+                ? OnyxColorTokens.accentAmber.withValues(alpha: 0.70)
+                : OnyxColorTokens.textSecondary,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Promote this action to active execution, approve it immediately, or remove it from the queue.',
+        ),
+      ),
+    );
+  }
+
+  Widget _queueContextFooterAction({
+    required Key key,
+    required String label,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        key: key,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(5),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.surfaceElevated,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: accent.withValues(alpha: 0.22)),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
             style: GoogleFonts.inter(
-              color: OnyxColorTokens.textMuted,
-              fontSize: 11,
+              color: accent.withValues(alpha: 0.78),
+              fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _actionButton(
-                label: 'CANCEL ACTION',
-                icon: Icons.cancel_rounded,
-                background: OnyxColorTokens.accentRed,
-                onPressed: () => _cancelAction(action.id),
-              ),
-              FilledButton.icon(
-                key: const ValueKey('ai-queue-workspace-promote-action'),
-                onPressed: () => _promoteAction(action.id),
-                icon: const Icon(Icons.bolt_rounded, size: 18),
-                style: FilledButton.styleFrom(
-                  backgroundColor: OnyxColorTokens.accentSky,
-                  foregroundColor: OnyxColorTokens.surfaceInset,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  textStyle: GoogleFonts.inter(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                label: const Text('PROMOTE NOW'),
-              ),
-              _actionButton(
-                label: 'APPROVE NOW',
-                icon: Icons.check_circle_rounded,
-                background: OnyxColorTokens.accentGreen,
-                onPressed: () => _approveAction(action.id),
-              ),
-              if (canOpenEvents)
-                OutlinedButton.icon(
-                  key: const ValueKey('ai-queue-workspace-open-event-scope'),
-                  onPressed: () => _openEventsForAction(action),
-                  icon: const Icon(Icons.alt_route_rounded, size: 18),
-                  label: const Text('OPEN EVENT SCOPE'),
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -5367,6 +6000,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       _selectedFocusId = actionId;
       _ensureSingleExecuting();
     });
+    _syncZaraVerificationLoop();
     if (promotedAction == null) {
       return;
     }
@@ -5384,10 +6018,52 @@ class _AIQueuePageState extends State<AIQueuePage> {
       _laneFilter = _AiQueueLaneFilter.live;
       _workspaceView = view;
     });
+    _syncZaraVerificationLoop();
   }
 
   void _setWorkspaceView(_AiQueueWorkspaceView view) {
     setState(() => _workspaceView = view);
+    _syncZaraVerificationLoop(
+      forceRestart: view == _AiQueueWorkspaceView.context,
+    );
+  }
+
+  void _openDetailedWorkspace() {
+    setState(() {
+      _showDetailedWorkspace = true;
+    });
+    _syncZaraVerificationLoop();
+  }
+
+  void _closeDetailedWorkspace() {
+    setState(() {
+      _showDetailedWorkspace = false;
+    });
+    _syncZaraVerificationLoop();
+  }
+
+  void _syncZaraVerificationLoop({bool forceRestart = false}) {
+    final shouldVerify = _workspaceView == _AiQueueWorkspaceView.context;
+    if (!shouldVerify) {
+      _zaraVerificationTimer?.cancel();
+      _zaraVerificationTimer = null;
+      _zaraVerificationComplete = false;
+      return;
+    }
+    if (!forceRestart && _zaraVerificationTimer != null) {
+      return;
+    }
+    _zaraVerificationTimer?.cancel();
+    _zaraVerificationTimer = null;
+    _zaraVerificationComplete = false;
+    _zaraVerificationTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _zaraVerificationComplete = true;
+      });
+    });
   }
 
   void _focusItem(_AiQueueFocusItem item) {
@@ -5880,6 +6556,52 @@ class _AIQueuePageState extends State<AIQueuePage> {
       executed: executed24h,
       overridden: overridden24h,
       approvalRate: approvalRate,
+    );
+  }
+}
+
+class _BlinkingStatusDot extends StatefulWidget {
+  final Color color;
+
+  const _BlinkingStatusDot({required this.color});
+
+  @override
+  State<_BlinkingStatusDot> createState() => _BlinkingStatusDotState();
+}
+
+class _BlinkingStatusDotState extends State<_BlinkingStatusDot> {
+  Timer? _timer;
+  bool _dimmed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 800), (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _dimmed = !_dimmed;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 800),
+      opacity: _dimmed ? 0.3 : 1.0,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+      ),
     );
   }
 }
