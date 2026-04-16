@@ -888,6 +888,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   ScenarioReplayHistorySignal? _replayHistorySignal;
   List<ScenarioReplayHistorySignal> _replayHistorySignalStack =
       const <ScenarioReplayHistorySignal>[];
+  bool _zaraReasoningExpanded = false;
 
   bool get _localBrainConfigured =>
       widget.localBrainService?.isConfigured == true;
@@ -1322,74 +1323,2134 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
 
   @override
   Widget build(BuildContext context) {
+    final thread = _selectedThread;
+    final memory = thread.memory;
+    final snapshot = _contextSnapshot();
+    final recommendedActions = _zaraRecommendedActions(thread);
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final widescreen = constraints.maxWidth >= 1380;
-          final desktop = constraints.maxWidth >= 1100;
-          final inset = constraints.maxWidth >= 1400 ? 20.0 : 14.0;
-          final plannerConflictReport = _plannerConflictReport();
-          final threadRail = _buildThreadRail(
-            compact: !desktop,
-            plannerConflictReport: plannerConflictReport,
-          );
-          final networkRail = _buildNetworkRail(compact: !widescreen);
-          final conversationSurface = _buildConversationSurface();
-
-          if (widescreen) {
-            return Padding(
-              padding: EdgeInsets.all(inset),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          final stacked = constraints.maxWidth < 1240;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Column(
                 children: [
-                  SizedBox(width: 228, child: threadRail),
-                  const SizedBox(width: 16),
-                  Expanded(child: conversationSurface),
-                  const SizedBox(width: 16),
-                  SizedBox(width: 280, child: networkRail),
-                ],
-              ),
-            );
-          }
-
-          if (desktop) {
-            return Padding(
-              padding: EdgeInsets.all(inset),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 248,
-                    child: Column(
-                      children: [
-                        Expanded(child: threadRail),
-                        const SizedBox(height: 14),
-                        SizedBox(height: 308, child: networkRail),
-                      ],
+                  _zaraAgentTopBar(
+                    thread: thread,
+                    memory: memory,
+                    snapshot: snapshot,
+                    recommendedActions: recommendedActions,
+                  ),
+                  Expanded(
+                    child: _zaraAgentBody(
+                      constraints: constraints,
+                      stacked: stacked,
+                      thread: thread,
+                      memory: memory,
+                      snapshot: snapshot,
+                      recommendedActions: recommendedActions,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(child: conversationSurface),
                 ],
               ),
-            );
-          }
-
-          return Padding(
-            padding: EdgeInsets.all(inset),
-            child: Column(
-              children: [
-                SizedBox(height: 196, child: threadRail),
-                const SizedBox(height: 12),
-                Expanded(child: conversationSurface),
-                const SizedBox(height: 12),
-                SizedBox(height: 260, child: networkRail),
-              ],
-            ),
+              Offstage(
+                offstage: true,
+                child: _legacyAgentWorkspaceLayout(constraints),
+              ),
+            ],
           );
         },
       ),
     );
+  }
+
+  Widget _legacyAgentWorkspaceLayout(BoxConstraints constraints) {
+    final widescreen = constraints.maxWidth >= 1380;
+    final desktop = constraints.maxWidth >= 1100;
+    final inset = constraints.maxWidth >= 1400 ? 20.0 : 14.0;
+    final plannerConflictReport = _plannerConflictReport();
+    final threadRail = _buildThreadRail(
+      compact: !desktop,
+      plannerConflictReport: plannerConflictReport,
+    );
+    final networkRail = _buildNetworkRail(compact: !widescreen);
+    final conversationSurface = _buildConversationSurface();
+
+    if (widescreen) {
+      return Padding(
+        padding: EdgeInsets.all(inset),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 228, child: threadRail),
+            const SizedBox(width: 16),
+            Expanded(child: conversationSurface),
+            const SizedBox(width: 16),
+            SizedBox(width: 280, child: networkRail),
+          ],
+        ),
+      );
+    }
+
+    if (desktop) {
+      return Padding(
+        padding: EdgeInsets.all(inset),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 248,
+              child: Column(
+                children: [
+                  Expanded(child: threadRail),
+                  const SizedBox(height: 14),
+                  SizedBox(height: 308, child: networkRail),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: conversationSurface),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.all(inset),
+      child: Column(
+        children: [
+          SizedBox(height: 196, child: threadRail),
+          const SizedBox(height: 12),
+          Expanded(child: conversationSurface),
+          const SizedBox(height: 12),
+          SizedBox(height: 260, child: networkRail),
+        ],
+      ),
+    );
+  }
+
+  Widget _zaraAgentTopBar({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+    required List<_AgentActionCard> recommendedActions,
+  }) {
+    final operatorLabel = widget.operatorId.trim().isEmpty
+        ? 'Controller-1 · Operator'
+        : '${widget.operatorId.trim()} · Operator';
+    final alertAction = _zaraAlertCallback(recommendedActions);
+
+    return Container(
+      height: 44,
+      decoration: const BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 140,
+            child: Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: const BoxDecoration(
+                    color: OnyxColorTokens.accentPurple,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Text(
+                  'ZARA',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.2,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 15,
+                        height: 15,
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.2,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.4,
+                            ),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Z',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentPurple,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        'ZARA:',
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.7,
+                          ),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          _zaraSpeechText(
+                            thread: thread,
+                            memory: memory,
+                            snapshot: snapshot,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.textSecondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 220,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: OnyxColorTokens.accentGreen,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    operatorLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textDisabled,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: alertAction,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OnyxColorTokens.accentPurple,
+                    foregroundColor: OnyxColorTokens.textPrimary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
+                    minimumSize: const Size(0, 24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  child: const Text('ALERT'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _zaraAgentBody({
+    required BoxConstraints constraints,
+    required bool stacked,
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+    required List<_AgentActionCard> recommendedActions,
+  }) {
+    if (stacked) {
+      return Container(
+        color: OnyxColorTokens.backgroundPrimary,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            SizedBox(height: 40, child: _zaraAgentNavRail(compact: true)),
+            Container(height: 1, color: OnyxColorTokens.divider),
+            _zaraAgentLeftRail(
+              thread: thread,
+              memory: memory,
+              snapshot: snapshot,
+              recommendedActions: recommendedActions,
+              scrollable: false,
+            ),
+            Container(height: 1, color: OnyxColorTokens.divider),
+            _zaraAgentCenterZone(
+              thread: thread,
+              memory: memory,
+              snapshot: snapshot,
+              recommendedActions: recommendedActions,
+              scrollable: false,
+            ),
+            Container(height: 1, color: OnyxColorTokens.divider),
+            _zaraAgentRightRail(
+              thread: thread,
+              memory: memory,
+              snapshot: snapshot,
+              recommendedActions: recommendedActions,
+              scrollable: false,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      color: OnyxColorTokens.backgroundPrimary,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(width: 40, child: _zaraAgentNavRail(compact: false)),
+          Container(width: 1, color: OnyxColorTokens.divider),
+          SizedBox(
+            width: 170,
+            child: _zaraAgentLeftRail(
+              thread: thread,
+              memory: memory,
+              snapshot: snapshot,
+              recommendedActions: recommendedActions,
+            ),
+          ),
+          Container(width: 1, color: OnyxColorTokens.divider),
+          Expanded(
+            child: _zaraAgentCenterZone(
+              thread: thread,
+              memory: memory,
+              snapshot: snapshot,
+              recommendedActions: recommendedActions,
+            ),
+          ),
+          Container(width: 1, color: OnyxColorTokens.divider),
+          SizedBox(
+            width: 190,
+            child: _zaraAgentRightRail(
+              thread: thread,
+              memory: memory,
+              snapshot: snapshot,
+              recommendedActions: recommendedActions,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _zaraAgentNavRail({required bool compact}) {
+    final sourceLabel = widget.sourceRouteLabel.trim().toLowerCase();
+    final items =
+        <({IconData icon, String label, bool active, VoidCallback? onTap})>[
+          (
+            icon: Icons.warning_amber_rounded,
+            label: 'Dispatch',
+            active: sourceLabel == 'dispatches' || sourceLabel == 'alarms',
+            onTap:
+                widget.focusIncidentReference.trim().isEmpty &&
+                    widget.onOpenAlarms == null &&
+                    widget.onOpenAlarmsForIncident == null
+                ? null
+                : () {
+                    _openAlarmsRoute();
+                  },
+          ),
+          (
+            icon: Icons.videocam_rounded,
+            label: 'CCTV',
+            active:
+                sourceLabel == 'cctv' ||
+                sourceLabel == 'ai queue' ||
+                sourceLabel == 'aiqueue' ||
+                sourceLabel == 'ai-queue',
+            onTap:
+                widget.onOpenCctv == null &&
+                    widget.onOpenCctvForIncident == null
+                ? null
+                : () {
+                    _openCctvRoute();
+                  },
+          ),
+          (
+            icon: Icons.mark_chat_read_rounded,
+            label: 'Comms',
+            active: sourceLabel == 'clients' || sourceLabel == 'comms',
+            onTap:
+                widget.onOpenComms == null && widget.onOpenCommsForScope == null
+                ? null
+                : () {
+                    _openCommsRoute();
+                  },
+          ),
+          (
+            icon: Icons.route_rounded,
+            label: 'Track',
+            active: sourceLabel == 'track' || sourceLabel == 'tactical',
+            onTap:
+                widget.onOpenTrack == null &&
+                    widget.onOpenTrackForIncident == null
+                ? null
+                : () {
+                    _openTrackRoute();
+                  },
+          ),
+          (
+            icon: Icons.reply_all_rounded,
+            label: 'Board',
+            active: sourceLabel == 'operations',
+            onTap:
+                widget.focusIncidentReference.trim().isEmpty ||
+                    widget.onOpenOperationsForIncident == null
+                ? null
+                : _openOperationsRoute,
+          ),
+        ];
+
+    final buttons = [
+      for (final item in items)
+        _zaraNavButton(
+          icon: item.icon,
+          label: item.label,
+          active: item.active,
+          onTap: item.onTap,
+        ),
+    ];
+
+    return Container(
+      color: OnyxColorTokens.backgroundPrimary,
+      child: compact
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: buttons,
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var index = 0; index < buttons.length; index++) ...[
+                  buttons[index],
+                  if (index != buttons.length - 1) const SizedBox(height: 8),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _zaraNavButton({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required VoidCallback? onTap,
+  }) {
+    final foreground = active
+        ? OnyxColorTokens.accentPurple
+        : onTap == null
+        ? OnyxColorTokens.textDisabled
+        : OnyxColorTokens.textMuted;
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: active
+                ? OnyxColorTokens.accentPurple.withValues(alpha: 0.12)
+                : OnyxColorTokens.backgroundPrimary,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: active
+                  ? OnyxColorTokens.accentPurple.withValues(alpha: 0.22)
+                  : OnyxColorTokens.divider,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 15, color: foreground),
+        ),
+      ),
+    );
+  }
+
+  Widget _zaraAgentLeftRail({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+    required List<_AgentActionCard> recommendedActions,
+    bool scrollable = true,
+  }) {
+    final signalRows = _zaraSignalRows(
+      thread: thread,
+      memory: memory,
+      snapshot: snapshot,
+      recommendedActions: recommendedActions,
+    );
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _zaraRailHeader(label: 'ACTIVE SIGNALS'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+          child: Column(
+            children: [
+              for (var index = 0; index < signalRows.length; index++) ...[
+                _zaraSignalRow(
+                  label: signalRows[index].label,
+                  status: signalRows[index].status,
+                  dotColor: signalRows[index].dotColor,
+                  active: signalRows[index].active,
+                ),
+                if (index != signalRows.length - 1) const SizedBox(height: 3),
+              ],
+            ],
+          ),
+        ),
+        _zaraRailHeader(label: 'ZARA FOCUS', includeDivider: false),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(11, 2, 11, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _zaraFocusItem(
+                label: 'Current task',
+                value: _zaraCurrentTaskLabel(thread: thread, memory: memory),
+              ),
+              _zaraFocusItem(
+                label: 'Cross-referencing',
+                value: _zaraCrossReferenceLabel(
+                  thread: thread,
+                  memory: memory,
+                  snapshot: snapshot,
+                ),
+              ),
+              _zaraFocusItem(
+                label: 'Next action',
+                value: _zaraNextActionLabel(
+                  memory: memory,
+                  recommendedActions: recommendedActions,
+                ),
+                valueColor: OnyxColorTokens.accentPurple.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return Container(
+      color: OnyxColorTokens.surfaceInset,
+      child: scrollable ? SingleChildScrollView(child: content) : content,
+    );
+  }
+
+  Widget _zaraSignalRow({
+    required String label,
+    required String status,
+    required Color dotColor,
+    required bool active,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: active
+              ? OnyxColorTokens.accentPurple.withValues(alpha: 0.2)
+              : OnyxColorTokens.borderSubtle,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textMuted,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            status,
+            style: GoogleFonts.inter(
+              color: active
+                  ? OnyxColorTokens.accentPurple.withValues(alpha: 0.6)
+                  : OnyxColorTokens.textDisabled,
+              fontSize: 8,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _zaraFocusItem({
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: valueColor ?? OnyxColorTokens.textMuted,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _zaraAgentCenterZone({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+    required List<_AgentActionCard> recommendedActions,
+    bool scrollable = true,
+  }) {
+    final usedActionIds = <String>{};
+    final callAction = _zaraSelectAction(recommendedActions, (action) {
+      return action.kind == _AgentActionKind.openComms ||
+          action.kind == _AgentActionKind.draftClientReply ||
+          action.personaId == 'client';
+    });
+    if (callAction != null) {
+      usedActionIds.add(callAction.id);
+    }
+    final dispatchAction = _zaraSelectAction(recommendedActions, (action) {
+      return action.kind == _AgentActionKind.executeRecommendation ||
+          action.kind == _AgentActionKind.openAlarms ||
+          action.kind == _AgentActionKind.openTrack ||
+          action.kind == _AgentActionKind.openCctv ||
+          action.personaId == 'dispatch' ||
+          action.personaId == 'camera' ||
+          action.personaId == 'intel';
+    }, excludedIds: usedActionIds);
+    if (dispatchAction != null) {
+      usedActionIds.add(dispatchAction.id);
+    }
+    final escalateAction = _zaraSelectAction(recommendedActions, (action) {
+      return action.requiresApproval ||
+          action.kind == _AgentActionKind.approveCameraChange ||
+          action.personaId == 'escalation' ||
+          action.personaId == 'proactive' ||
+          action.personaId == 'report';
+    }, excludedIds: usedActionIds);
+
+    final actionButtons = <({int flex, Widget child})>[
+      if (callAction != null)
+        (
+          flex: 4,
+          child: _zaraActionButton(
+            title: 'CALL',
+            accent: OnyxColorTokens.accentGreen,
+            backgroundAlpha: 0.10,
+            borderAlpha: 0.30,
+            onTap: () => unawaited(_handleAction(callAction)),
+          ),
+        ),
+      if (dispatchAction != null)
+        (
+          flex: 5,
+          child: _zaraActionButton(
+            title: 'DISPATCH',
+            subtitle: 'Send response unit',
+            accent: OnyxColorTokens.accentRed,
+            backgroundAlpha: 0.08,
+            borderAlpha: 0.40,
+            borderWidth: 1.5,
+            onTap: () => unawaited(_handleAction(dispatchAction)),
+          ),
+        ),
+      if (escalateAction != null)
+        (
+          flex: 4,
+          child: _zaraActionButton(
+            title: 'ESCALATE',
+            accent: OnyxColorTokens.accentAmber.withValues(alpha: 0.8),
+            backgroundAlpha: 0.07,
+            borderAlpha: 0.22,
+            onTap: () => unawaited(_handleAction(escalateAction)),
+          ),
+        ),
+    ];
+
+    final content = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            _zaraNeuralHub(stateColor: _zaraHubStateColor(snapshot: snapshot)),
+            const SizedBox(height: 10),
+            Text(
+              'ZARA',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 4,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 3),
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      color: OnyxColorTokens.accentPurple,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _zaraStateLabel(
+                      thread: thread,
+                      memory: memory,
+                      snapshot: snapshot,
+                    ),
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.8,
+                      ),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: 1,
+              height: 16,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    OnyxColorTokens.accentPurple.withValues(alpha: 0.30),
+                    OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _zaraIntelligenceCard(
+              thread: thread,
+              memory: memory,
+              snapshot: snapshot,
+            ),
+            if (actionButtons.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'ZARA RECOMMENDS',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.35,
+                            ),
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (
+                          var index = 0;
+                          index < actionButtons.length;
+                          index++
+                        ) ...[
+                          Expanded(
+                            flex: actionButtons[index].flex,
+                            child: actionButtons[index].child,
+                          ),
+                          if (index != actionButtons.length - 1)
+                            const SizedBox(width: 6),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: OnyxColorTokens.surfaceElevated,
+                  borderRadius: BorderRadius.circular(7),
+                  border: Border.all(
+                    color: OnyxColorTokens.accentPurple.withValues(alpha: 0.20),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.35,
+                        ),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _composerController,
+                        enabled: !_reasoningInFlight,
+                        minLines: 1,
+                        maxLines: 3,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textPrimary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        decoration: InputDecoration.collapsed(
+                          hintText: 'Ask Zara…',
+                          hintStyle: GoogleFonts.inter(
+                            color: OnyxColorTokens.textDisabled,
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        onSubmitted: (_) => _submitPrompt(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: _reasoningInFlight ? null : _submitPrompt,
+                      borderRadius: BorderRadius.circular(5),
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.15,
+                          ),
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.30,
+                            ),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '↑',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.accentPurple,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+        ),
+      ),
+    );
+
+    return Container(
+      color: OnyxColorTokens.backgroundPrimary,
+      child: scrollable
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: content,
+            )
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: content,
+            ),
+    );
+  }
+
+  Widget _zaraNeuralHub({required Color stateColor}) {
+    return SizedBox(
+      width: 240,
+      height: 240,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          _zaraOrbitalRing(240, 0.04),
+          _zaraOrbitalRing(205, 0.07),
+          _zaraOrbitalRing(172, 0.12),
+          _zaraOrbitalRing(140, 0.22),
+          Container(
+            width: 220,
+            height: 220,
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.backgroundPrimary,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: OnyxColorTokens.accentPurple.withValues(alpha: 0.45),
+                width: 2,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                          OnyxColorTokens.accentPurple.withValues(alpha: 0),
+                        ],
+                        stops: const [0.15, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.18,
+                          ),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.38,
+                            ),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 100,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.10,
+                          ),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(50),
+                          ),
+                          border: Border.all(
+                            color: OnyxColorTokens.accentPurple.withValues(
+                              alpha: 0.22,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: OnyxColorTokens.backgroundPrimary,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.25,
+                        ),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: stateColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _zaraOrbitalRing(double size, double alpha) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: OnyxColorTokens.accentPurple.withValues(alpha: alpha),
+        ),
+      ),
+    );
+  }
+
+  Widget _zaraIntelligenceCard({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    final reasoningText = _zaraReasoningText(
+      thread: thread,
+      memory: memory,
+      snapshot: snapshot,
+    );
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.surfaceElevated,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _zaraSituationTitle(thread: thread, memory: memory),
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _zaraAssessmentText(
+                  thread: thread,
+                  memory: memory,
+                  snapshot: snapshot,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textSecondary.withValues(alpha: 0.42),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 9),
+              Row(
+                children: [
+                  Expanded(
+                    child: _zaraMetricBlock(
+                      label: 'RECOMMENDATION',
+                      value: _zaraRecommendationMetric(
+                        memory: memory,
+                        thread: thread,
+                      ),
+                      valueColor: OnyxColorTokens.textPrimary.withValues(
+                        alpha: 0.75,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _zaraMetricBlock(
+                      label: 'CONFIDENCE',
+                      value: _zaraConfidenceMetric(memory),
+                      valueColor: OnyxColorTokens.accentAmber,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _zaraMetricBlock(
+                      label: 'ELAPSED',
+                      value: _zaraElapsedMetric(
+                        thread: thread,
+                        memory: memory,
+                        snapshot: snapshot,
+                      ),
+                      valueColor: OnyxColorTokens.accentAmber,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 9),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _zaraReasoningExpanded = !_zaraReasoningExpanded;
+                  });
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 13,
+                      height: 13,
+                      decoration: BoxDecoration(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.10,
+                        ),
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(
+                          color: OnyxColorTokens.accentPurple.withValues(
+                            alpha: 0.18,
+                          ),
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        _zaraReasoningExpanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 10,
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.50,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'View reasoning',
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.45,
+                        ),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_zaraReasoningExpanded &&
+                  reasoningText.trim().isNotEmpty) ...[
+                const SizedBox(height: 9),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.backgroundPrimary,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: OnyxColorTokens.borderSubtle),
+                  ),
+                  child: Text(
+                    reasoningText,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textSecondary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              width: 80,
+              height: 1,
+              color: OnyxColorTokens.accentPurple.withValues(alpha: 0.40),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _zaraMetricBlock({
+    required String label,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: valueColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _zaraActionButton({
+    required String title,
+    String? subtitle,
+    required Color accent,
+    required double backgroundAlpha,
+    required double borderAlpha,
+    double borderWidth = 1,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: backgroundAlpha),
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(
+            color: accent.withValues(alpha: borderAlpha),
+            width: borderWidth,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: accent,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: accent.withValues(alpha: 0.40),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _zaraAgentRightRail({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+    required List<_AgentActionCard> recommendedActions,
+    bool scrollable = true,
+  }) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _zaraRailHeader(label: 'ZARA RECOMMENDS'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+          child: recommendedActions.isEmpty
+              ? Text(
+                  'No active approvals queued. Zara is monitoring the current thread.',
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textDisabled.withValues(alpha: 0.28),
+                    fontSize: 8,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                )
+              : Column(
+                  children: [
+                    for (
+                      var index = 0;
+                      index < recommendedActions.take(3).length;
+                      index++
+                    ) ...[
+                      _zaraRecommendationCard(
+                        action: recommendedActions[index],
+                      ),
+                      if (index != recommendedActions.take(3).length - 1)
+                        const SizedBox(height: 4),
+                    ],
+                  ],
+                ),
+        ),
+        _zaraRailHeader(label: 'GUARDRAILS'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+          child: Column(
+            children: [
+              _zaraGuardrailLineItem('Local tools stay inside the app first'),
+              const SizedBox(height: 8),
+              _zaraGuardrailLineItem('Device changes are approval-gated'),
+              const SizedBox(height: 8),
+              _zaraGuardrailLineItem('Cloud escalation redacts secrets'),
+              const SizedBox(height: 8),
+              _zaraGuardrailLineItem('Client replies scoped before sending'),
+            ],
+          ),
+        ),
+        _zaraRailHeader(label: 'LOCAL TOOLS', includeDivider: false),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 12),
+          child: Column(
+            children: [
+              _zaraToolRow('Camera Probe', _cameraProbeAvailable),
+              const SizedBox(height: 3),
+              _zaraToolRow('Client Draft', _clientDraftAvailable),
+              const SizedBox(height: 3),
+              _zaraToolRow('Camera Bridge', widget.cameraBridgeStatus.isLive),
+              const SizedBox(height: 3),
+              _zaraToolRow('Client Comms', _commsDraftHandoffAvailable),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return Container(
+      color: OnyxColorTokens.surfaceInset,
+      child: scrollable ? SingleChildScrollView(child: content) : content,
+    );
+  }
+
+  Widget _zaraRecommendationCard({required _AgentActionCard action}) {
+    final accent = _zaraRecommendationAccent(action);
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(9, 8, 9, 8),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.backgroundSecondary,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: OnyxColorTokens.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _zaraRecommendationAgentLabel(action),
+                style: GoogleFonts.inter(
+                  color: accent.withValues(alpha: 0.60),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                action.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _zaraCompactText(action.detail, maxLength: 110),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textDisabled.withValues(alpha: 0.28),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w500,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: InkWell(
+                  onTap: () => unawaited(_handleAction(action)),
+                  borderRadius: BorderRadius.circular(3),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: OnyxColorTokens.accentPurple.withValues(
+                        alpha: 0.10,
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.22,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      'Approve',
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.accentPurple.withValues(
+                          alpha: 0.75,
+                        ),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          child: Container(
+            width: 2,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.50),
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(5),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _zaraToolRow(String label, bool live) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textMuted,
+                fontSize: 8,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
+            live ? 'LIVE' : 'OFFLINE',
+            style: GoogleFonts.inter(
+              color: live
+                  ? OnyxColorTokens.accentGreen
+                  : OnyxColorTokens.textDisabled,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _zaraGuardrailLineItem(String label) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 4,
+          height: 4,
+          margin: const EdgeInsets.only(top: 3),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.backgroundPrimary,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: OnyxColorTokens.accentGreen.withValues(alpha: 0.30),
+            ),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textDisabled.withValues(alpha: 0.22),
+              fontSize: 8,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _zaraRailHeader({required String label, bool includeDivider = true}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+      decoration: BoxDecoration(
+        border: includeDivider
+            ? const Border(bottom: BorderSide(color: OnyxColorTokens.divider))
+            : null,
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: OnyxColorTokens.textDisabled,
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.3,
+        ),
+      ),
+    );
+  }
+
+  List<({String label, String status, Color dotColor, bool active})>
+  _zaraSignalRows({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+    required List<_AgentActionCard> recommendedActions,
+  }) {
+    final activeSourceId = _zaraCurrentSourceId(
+      thread: thread,
+      memory: memory,
+      snapshot: snapshot,
+    );
+    final reportActive = _zaraHasRecommendationFor(
+      recommendedActions,
+      'report',
+    );
+    final clientActive = _zaraHasRecommendationFor(
+      recommendedActions,
+      'client',
+    );
+
+    return [
+      (
+        label: 'War Room',
+        status: activeSourceId == 'war-room'
+            ? 'FOCUS'
+            : snapshot.activeDispatchCount > 0
+            ? 'ACTIVE'
+            : 'IDLE',
+        dotColor: activeSourceId == 'war-room'
+            ? OnyxColorTokens.accentPurple
+            : snapshot.activeDispatchCount > 0
+            ? OnyxColorTokens.accentAmber
+            : OnyxColorTokens.textDisabled,
+        active: activeSourceId == 'war-room',
+      ),
+      (
+        label: 'CCTV Review',
+        status: activeSourceId == 'cctv-review'
+            ? 'FOCUS'
+            : widget.cameraBridgeStatus.isLive
+            ? 'ACTIVE'
+            : 'IDLE',
+        dotColor: activeSourceId == 'cctv-review'
+            ? OnyxColorTokens.accentPurple
+            : widget.cameraBridgeStatus.isLive
+            ? OnyxColorTokens.accentGreen
+            : OnyxColorTokens.textDisabled,
+        active: activeSourceId == 'cctv-review',
+      ),
+      (
+        label: 'Client Comms',
+        status: activeSourceId == 'client-comms'
+            ? 'FOCUS'
+            : clientActive || _commsDraftHandoffAvailable
+            ? 'ACTIVE'
+            : 'IDLE',
+        dotColor: activeSourceId == 'client-comms'
+            ? OnyxColorTokens.accentPurple
+            : clientActive || _commsDraftHandoffAvailable
+            ? OnyxColorTokens.accentPurple.withValues(alpha: 0.70)
+            : OnyxColorTokens.textDisabled,
+        active: activeSourceId == 'client-comms',
+      ),
+      (
+        label: 'Signal Picture',
+        status: activeSourceId == 'signal-picture'
+            ? 'FOCUS'
+            : snapshot.hasVisualSignal ||
+                  snapshot.latestIntelligenceHeadline.trim().isNotEmpty
+            ? 'ACTIVE'
+            : 'IDLE',
+        dotColor: activeSourceId == 'signal-picture'
+            ? OnyxColorTokens.accentPurple
+            : snapshot.hasVisualSignal ||
+                  snapshot.latestIntelligenceHeadline.trim().isNotEmpty
+            ? OnyxColorTokens.accentSky
+            : OnyxColorTokens.textDisabled,
+        active: activeSourceId == 'signal-picture',
+      ),
+      (
+        label: 'Report Agent',
+        status: activeSourceId == 'report-agent'
+            ? 'FOCUS'
+            : reportActive
+            ? 'ACTIVE'
+            : 'IDLE',
+        dotColor: activeSourceId == 'report-agent'
+            ? OnyxColorTokens.accentPurple
+            : reportActive
+            ? OnyxColorTokens.accentSky
+            : OnyxColorTokens.textDisabled,
+        active: activeSourceId == 'report-agent',
+      ),
+    ];
+  }
+
+  String _zaraCurrentSourceId({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    final target = memory.lastRecommendedTarget ?? memory.lastOpenedTarget;
+    if (target != null) {
+      return switch (target) {
+        OnyxToolTarget.dispatchBoard => 'war-room',
+        OnyxToolTarget.cctvReview => 'cctv-review',
+        OnyxToolTarget.clientComms => 'client-comms',
+        OnyxToolTarget.tacticalTrack => 'signal-picture',
+        OnyxToolTarget.reportsWorkspace => 'report-agent',
+      };
+    }
+    final latestMessage = _zaraLatestNonUserMessage(thread);
+    return switch (latestMessage?.personaId) {
+      'camera' => 'cctv-review',
+      'client' => 'client-comms',
+      'intel' => 'signal-picture',
+      'report' => 'report-agent',
+      _ when snapshot.hasVisualSignal => 'signal-picture',
+      _ => 'war-room',
+    };
+  }
+
+  _AgentMessage? _zaraLatestNonUserMessage(_AgentThread thread) {
+    for (final message in thread.messages.reversed) {
+      if (message.kind != _AgentMessageKind.user) {
+        return message;
+      }
+    }
+    return thread.messages.isEmpty ? null : thread.messages.last;
+  }
+
+  List<_AgentActionCard> _zaraRecommendedActions(_AgentThread thread) {
+    final actions = <_AgentActionCard>[];
+    final seen = <String>{};
+    for (final message in thread.messages.reversed) {
+      for (final action in message.actions) {
+        final key =
+            '${action.kind.name}:${action.label}:${action.personaId}:${action.payload}';
+        if (seen.add(key)) {
+          actions.add(action);
+        }
+        if (actions.length >= 4) {
+          return actions;
+        }
+      }
+    }
+    return actions;
+  }
+
+  _AgentActionCard? _zaraSelectAction(
+    List<_AgentActionCard> actions,
+    bool Function(_AgentActionCard action) matcher, {
+    Set<String> excludedIds = const <String>{},
+  }) {
+    for (final action in actions) {
+      if (excludedIds.contains(action.id)) {
+        continue;
+      }
+      if (matcher(action)) {
+        return action;
+      }
+    }
+    return null;
+  }
+
+  bool _zaraHasRecommendationFor(
+    List<_AgentActionCard> actions,
+    String personaId,
+  ) {
+    return actions.any((action) => action.personaId == personaId);
+  }
+
+  String _zaraSpeechText({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    if (memory.lastAdvisory.trim().isNotEmpty) {
+      return _zaraCompactText(memory.lastAdvisory);
+    }
+    if (memory.lastRecommendationSummary.trim().isNotEmpty) {
+      return _zaraCompactText(memory.lastRecommendationSummary);
+    }
+    if (snapshot.latestIntelligenceHeadline.trim().isNotEmpty) {
+      return _zaraCompactText(snapshot.latestIntelligenceHeadline);
+    }
+    final latestMessage = _zaraLatestNonUserMessage(thread);
+    if (latestMessage != null) {
+      final candidate = latestMessage.headline.trim().isNotEmpty
+          ? latestMessage.headline
+          : latestMessage.body;
+      if (candidate.trim().isNotEmpty) {
+        return _zaraCompactText(candidate);
+      }
+    }
+    return _zaraCompactText(_brainStatusSummaryText());
+  }
+
+  String _zaraStateLabel({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    if (snapshot.hasHumanSafetySignal || snapshot.hasGuardWelfareRisk) {
+      return 'CRITICAL';
+    }
+    if (_reasoningInFlight) {
+      return 'CORRELATING';
+    }
+    if (memory.pendingConfirmations.isNotEmpty) {
+      return 'AWAITING APPROVAL';
+    }
+    if (memory.lastRecommendedTarget != null) {
+      return 'REVIEWING · ${_deskLabelForTarget(memory.lastRecommendedTarget!).toUpperCase()}';
+    }
+    if (memory.nextFollowUpLabel.trim().isNotEmpty) {
+      return 'LISTENING';
+    }
+    final latestMessage = _zaraLatestNonUserMessage(thread);
+    if (latestMessage?.personaId == 'intel') {
+      return 'CORRELATING';
+    }
+    return snapshot.hasAnyOperationalSignal ? 'MONITORING' : 'LISTENING';
+  }
+
+  Color _zaraHubStateColor({required OnyxAgentContextSnapshot snapshot}) {
+    if (snapshot.hasHumanSafetySignal || snapshot.hasGuardWelfareRisk) {
+      return OnyxColorTokens.accentRed;
+    }
+    if (_reasoningInFlight) {
+      return OnyxColorTokens.accentAmber;
+    }
+    return OnyxColorTokens.accentGreen;
+  }
+
+  String _zaraCurrentTaskLabel({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+  }) {
+    if (memory.lastRecommendationSummary.trim().isNotEmpty) {
+      return _zaraCompactText(memory.lastRecommendationSummary, maxLength: 72);
+    }
+    final latestMessage = _zaraLatestNonUserMessage(thread);
+    if (latestMessage != null && latestMessage.headline.trim().isNotEmpty) {
+      return _zaraCompactText(latestMessage.headline, maxLength: 72);
+    }
+    return _zaraCompactText(thread.title, maxLength: 72);
+  }
+
+  String _zaraCrossReferenceLabel({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    final anchorTime = _zaraAnchorTime(
+      thread: thread,
+      memory: memory,
+      snapshot: snapshot,
+    );
+    final source = snapshot.latestIntelligenceSourceType.trim().isNotEmpty
+        ? snapshot.latestIntelligenceSourceType.trim()
+        : memory.lastOpenedTarget == OnyxToolTarget.cctvReview
+        ? 'CCTV Review'
+        : 'Signal mesh';
+    final location = snapshot.prioritySiteLabel.trim().isNotEmpty
+        ? snapshot.prioritySiteLabel.trim()
+        : snapshot.scopeLabel;
+    final timeLabel = anchorTime == null
+        ? 'waiting'
+        : _hhmm(anchorTime.toLocal());
+    return _zaraCompactText('$source · $location · $timeLabel', maxLength: 76);
+  }
+
+  String _zaraNextActionLabel({
+    required _AgentThreadMemory memory,
+    required List<_AgentActionCard> recommendedActions,
+  }) {
+    if (memory.pendingConfirmations.isNotEmpty) {
+      return 'Awaiting approval';
+    }
+    if (memory.nextFollowUpLabel.trim().isNotEmpty) {
+      return _zaraCompactText(memory.nextFollowUpLabel, maxLength: 72);
+    }
+    if (recommendedActions.isNotEmpty) {
+      return _zaraCompactText(recommendedActions.first.label, maxLength: 72);
+    }
+    return 'Monitoring current scope';
+  }
+
+  String _zaraSituationTitle({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+  }) {
+    final latestMessage = _zaraLatestNonUserMessage(thread);
+    if (latestMessage != null && latestMessage.headline.trim().isNotEmpty) {
+      return _zaraCompactText(latestMessage.headline, maxLength: 64);
+    }
+    if (memory.lastRecommendationSummary.trim().isNotEmpty) {
+      return _zaraCompactText(memory.lastRecommendationSummary, maxLength: 64);
+    }
+    return _zaraCompactText(thread.title, maxLength: 64);
+  }
+
+  String _zaraAssessmentText({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    if (memory.lastAdvisory.trim().isNotEmpty) {
+      return _zaraCompactText(memory.lastAdvisory, maxLength: 150);
+    }
+    final latestMessage = _zaraLatestNonUserMessage(thread);
+    if (latestMessage != null && latestMessage.body.trim().isNotEmpty) {
+      return _zaraCompactText(latestMessage.body, maxLength: 150);
+    }
+    return _zaraCompactText(snapshot.toReasoningSummary(), maxLength: 150);
+  }
+
+  String _zaraRecommendationMetric({
+    required _AgentThreadMemory memory,
+    required _AgentThread thread,
+  }) {
+    if (memory.lastRecommendedTarget != null) {
+      return _deskLabelForTarget(memory.lastRecommendedTarget!);
+    }
+    final latestMessage = _zaraLatestNonUserMessage(thread);
+    if (latestMessage != null && latestMessage.headline.trim().isNotEmpty) {
+      return _zaraCompactText(latestMessage.headline, maxLength: 18);
+    }
+    return 'Standby';
+  }
+
+  String _zaraConfidenceMetric(_AgentThreadMemory memory) {
+    final value = memory.lastConfidence;
+    if (value == null) {
+      return '--';
+    }
+    final percentage = (value.clamp(0.0, 1.0) * 100).round();
+    return '$percentage%';
+  }
+
+  DateTime? _zaraAnchorTime({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    return snapshot.latestEventAt ??
+        snapshot.latestDispatchCreatedAt ??
+        memory.updatedAt ??
+        _zaraLatestNonUserMessage(thread)?.createdAt;
+  }
+
+  String _zaraElapsedMetric({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    final anchor = _zaraAnchorTime(
+      thread: thread,
+      memory: memory,
+      snapshot: snapshot,
+    );
+    if (anchor == null) {
+      return '--';
+    }
+    final diff = DateTime.now().difference(anchor);
+    if (diff.inHours > 0) {
+      return '${diff.inHours}h ${diff.inMinutes.remainder(60)}m';
+    }
+    final minutes = diff.inMinutes.toString().padLeft(2, '0');
+    final seconds = diff.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  String _zaraReasoningText({
+    required _AgentThread thread,
+    required _AgentThreadMemory memory,
+    required OnyxAgentContextSnapshot snapshot,
+  }) {
+    final summary = _threadMemoryReasoningSummary(memory).trim();
+    if (summary.isNotEmpty) {
+      return summary;
+    }
+    final latestMessage = _zaraLatestNonUserMessage(thread);
+    if (latestMessage != null) {
+      final parts = [
+        latestMessage.headline.trim(),
+        latestMessage.body.trim(),
+      ].where((part) => part.isNotEmpty).join(' ');
+      if (parts.trim().isNotEmpty) {
+        return parts.replaceAll(RegExp(r'\s+'), ' ').trim();
+      }
+    }
+    return snapshot.toReasoningSummary();
+  }
+
+  String _zaraCompactText(String text, {int maxLength = 120}) {
+    final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.isEmpty || normalized.length <= maxLength) {
+      return normalized;
+    }
+    return '${normalized.substring(0, maxLength - 1).trimRight()}…';
+  }
+
+  Color _zaraRecommendationAccent(_AgentActionCard action) {
+    if (action.personaId == 'camera' ||
+        action.kind == _AgentActionKind.openCctv) {
+      return OnyxColorTokens.accentGreen;
+    }
+    if (action.personaId == 'client' ||
+        action.kind == _AgentActionKind.openComms ||
+        action.kind == _AgentActionKind.draftClientReply) {
+      return OnyxColorTokens.accentPurple;
+    }
+    if (action.personaId == 'dispatch' ||
+        action.kind == _AgentActionKind.executeRecommendation ||
+        action.kind == _AgentActionKind.openAlarms ||
+        action.kind == _AgentActionKind.openTrack) {
+      return OnyxColorTokens.accentAmber;
+    }
+    if (action.requiresApproval) {
+      return OnyxColorTokens.accentRed;
+    }
+    return OnyxColorTokens.accentSky;
+  }
+
+  String _zaraRecommendationAgentLabel(_AgentActionCard action) {
+    if (action.personaId == 'camera' ||
+        action.kind == _AgentActionKind.openCctv) {
+      return 'CCTV REVIEW';
+    }
+    if (action.personaId == 'client' ||
+        action.kind == _AgentActionKind.openComms ||
+        action.kind == _AgentActionKind.draftClientReply) {
+      return 'CLIENT COMMS';
+    }
+    if (action.personaId == 'dispatch' ||
+        action.kind == _AgentActionKind.executeRecommendation ||
+        action.kind == _AgentActionKind.openAlarms ||
+        action.kind == _AgentActionKind.openTrack) {
+      return 'WAR ROOM';
+    }
+    if (action.personaId == 'report') {
+      return 'REPORT AGENT';
+    }
+    if (action.personaId == 'intel') {
+      return 'SIGNAL PICTURE';
+    }
+    return 'ZARA';
+  }
+
+  VoidCallback? _zaraAlertCallback(List<_AgentActionCard> recommendedActions) {
+    final dispatchAction = _zaraSelectAction(recommendedActions, (action) {
+      return action.kind == _AgentActionKind.executeRecommendation ||
+          action.kind == _AgentActionKind.openAlarms ||
+          action.kind == _AgentActionKind.openTrack ||
+          action.personaId == 'dispatch' ||
+          action.personaId == 'camera' ||
+          action.personaId == 'intel';
+    });
+    if (dispatchAction != null) {
+      return () => unawaited(_handleAction(dispatchAction));
+    }
+    if (widget.focusIncidentReference.trim().isNotEmpty &&
+        (widget.onOpenAlarmsForIncident != null ||
+            widget.onOpenAlarms != null)) {
+      return () {
+        _openAlarmsRoute();
+      };
+    }
+    if (widget.focusIncidentReference.trim().isNotEmpty &&
+        widget.onOpenOperationsForIncident != null) {
+      return _openOperationsRoute;
+    }
+    if (widget.onOpenTrackForIncident != null || widget.onOpenTrack != null) {
+      return () {
+        _openTrackRoute();
+      };
+    }
+    return null;
   }
 
   Widget _buildConversationSurface() {
@@ -1592,10 +3653,16 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   icon: const Icon(Icons.add_comment_rounded, size: 14),
                   label: Text(
                     compact ? 'New' : 'New Chat',
-                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     minimumSize: const Size(0, 28),
                   ),
                 ),
@@ -1645,7 +3712,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: selected
-                              ? OnyxColorTokens.accentCyan.withValues(alpha: 0.4)
+                              ? OnyxColorTokens.accentCyan.withValues(
+                                  alpha: 0.4,
+                                )
                               : OnyxColorTokens.divider,
                         ),
                       ),
