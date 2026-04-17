@@ -4,8 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
 
-const Color _orgOwnerColor = Color(0xFFFFB830);
-
 class OrgPerson {
   final String name;
   final String role;
@@ -85,50 +83,24 @@ class _OrganizationPageState extends State<OrganizationPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: OnyxColorTokens.backgroundPrimary,
-      appBar: AppBar(
-        backgroundColor: OnyxColorTokens.backgroundSecondary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.close_rounded,
-            color: OnyxColorTokens.textSecondary,
-          ),
-          onPressed: () => Navigator.of(context).maybePop(),
-          tooltip: 'Close',
-        ),
-        shape: const Border(
-          bottom: BorderSide(color: OnyxColorTokens.divider),
-        ),
-        title: Text(
-          'Organization',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: OnyxColorTokens.textPrimary,
-          ),
-        ),
-      ),
-      body: OnyxPageScaffold(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _pageHeader(),
-                  const SizedBox(height: 20),
-                  _tabBar(),
-                  const SizedBox(height: 16),
-                  _summaryStatsRow(),
-                  const SizedBox(height: 20),
-                  if (_tab == 0) _hierarchyTreeView() else _byDivisionView(),
-                ],
-              ),
+    return OnyxPageScaffold(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _pageHeader(context),
+                const SizedBox(height: 20),
+                _tabBar(),
+                const SizedBox(height: 16),
+                _summaryStatsRow(),
+                const SizedBox(height: 20),
+                if (_tab == 0) _hierarchyTreeView() else _byDivisionView(),
+              ],
             ),
           ),
         ),
@@ -138,8 +110,9 @@ class _OrganizationPageState extends State<OrganizationPage> {
 
   // ── Page header ───────────────────────────────────────────────────────────
 
-  Widget _pageHeader() {
+  Widget _pageHeader(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           width: 48,
@@ -156,28 +129,38 @@ class _OrganizationPageState extends State<OrganizationPage> {
           ),
         ),
         const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Organization',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: OnyxColorTokens.textPrimary,
-                letterSpacing: -0.3,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Organization',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: OnyxColorTokens.textPrimary,
+                  letterSpacing: -0.3,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Command structure and reporting hierarchy',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: OnyxColorTokens.textSecondary,
+              const SizedBox(height: 2),
+              Text(
+                'Command structure and reporting hierarchy',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: OnyxColorTokens.textSecondary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.close_rounded,
+            color: OnyxColorTokens.textSecondary,
+          ),
+          onPressed: () => Navigator.of(context).maybePop(),
+          tooltip: 'Close',
         ),
       ],
     );
@@ -239,7 +222,7 @@ class _OrganizationPageState extends State<OrganizationPage> {
             Icons.workspace_premium_rounded,
             '1',
             'Owner',
-            _orgOwnerColor,
+            OnyxColorTokens.accentAmber,
           ),
           _orgStatCard(
             Icons.adjust_rounded,
@@ -767,7 +750,7 @@ OrgPerson _seedOrgTree() {
     name: 'The Captain',
     role: 'Owner / CEO',
     division: 'Executive',
-    divisionColor: _orgOwnerColor,
+    divisionColor: OnyxColorTokens.accentAmber,
     email: 'captain@onyx.ops',
     phone: '+27 82 555 0100',
     reports: <OrgPerson>[opsManager],
