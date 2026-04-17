@@ -914,7 +914,7 @@ class _AlarmsPageState extends State<AlarmsPage> {
                 const SizedBox(width: 8),
                 Text(
                   alarm.shortId,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.robotoMono(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: _alarmTitle,
