@@ -5,10 +5,7 @@ extension _OnyxRouteEvidenceBuilders on _OnyxAppState {
     List<String> eventIds, [
     String? selectedEventId,
   ]) {
-    _openEventsForScopedEventIds(
-      eventIds,
-      selectedEventId: selectedEventId,
-    );
+    _openEventsForScopedEventIds(eventIds, selectedEventId: selectedEventId);
   }
 
   Widget _buildLedgerRoute(List<DispatchEvent> events) {
@@ -43,7 +40,9 @@ extension _OnyxRouteEvidenceBuilders on _OnyxAppState {
     }
     return SovereignLedgerPage(
       clientId: scopedClientId,
-      initialScopeClientId: ledgerRouteClientId.isEmpty ? null : ledgerRouteClientId,
+      initialScopeClientId: ledgerRouteClientId.isEmpty
+          ? null
+          : ledgerRouteClientId,
       initialScopeSiteId: ledgerRouteSiteId.isEmpty ? null : ledgerRouteSiteId,
       events: events,
       sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
@@ -76,20 +75,27 @@ extension _OnyxRouteEvidenceBuilders on _OnyxAppState {
       selectedClient: reportsScopeClientId.isNotEmpty
           ? reportsScopeClientId
           : _selectedClient,
-      selectedSite:
-          reportsScopeSiteId.isNotEmpty ? reportsScopeSiteId : _selectedSite,
+      selectedSite: reportsScopeSiteId.isNotEmpty
+          ? reportsScopeSiteId
+          : _selectedSite,
       sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
       reportShellState: _reportShellState,
       morningSovereignReportHistory: _morningSovereignReportHistory,
-      initialPartnerScopeClientId:
-          reportsScopeClientId.isEmpty ? null : reportsScopeClientId,
-      initialPartnerScopeSiteId:
-          reportsScopeSiteId.isEmpty ? null : reportsScopeSiteId,
-      initialPartnerScopePartnerLabel:
-          reportsScopePartnerLabel.isEmpty ? null : reportsScopePartnerLabel,
+      initialPartnerScopeClientId: reportsScopeClientId.isEmpty
+          ? null
+          : reportsScopeClientId,
+      initialPartnerScopeSiteId: reportsScopeSiteId.isEmpty
+          ? null
+          : reportsScopeSiteId,
+      initialPartnerScopePartnerLabel: reportsScopePartnerLabel.isEmpty
+          ? null
+          : reportsScopePartnerLabel,
       onOpenGovernanceForScope: _openGovernanceForScope,
       onOpenGovernanceForPartnerScope: _openGovernanceForPartnerScope,
       onOpenEventsForScope: _openEventsForEvidenceScope,
+      onOpenDispatchesForScope: _openDispatchesForScope,
+      onOpenGuards: () =>
+          _openCommandCenterRoute(OnyxRoute.guards, cancelDemoAutopilot: true),
       evidenceReturnReceipt: _pendingReportsEvidenceReturnReceipt,
       onConsumeEvidenceReturnReceipt:
           _consumePendingReportsEvidenceReturnReceipt,

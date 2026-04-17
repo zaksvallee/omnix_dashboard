@@ -25,6 +25,7 @@ import '../application/onyx_agent_camera_bridge_health_service.dart';
 import '../application/onyx_agent_camera_bridge_server_contract.dart';
 import '../application/ops_integration_profile.dart';
 import '../application/site_identity_registry_repository.dart';
+import '../application/system_health_monitor.dart';
 import '../domain/crm/site.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/listener_alarm_advisory_recorded.dart';
@@ -115,6 +116,78 @@ class _OpsPollHealthEntry {
     required this.value,
     required this.focus,
     required this.accent,
+  });
+}
+
+enum _AdminAuthorityHealthLevel { green, amber, red }
+
+class _AdminAuthorityStatusRow {
+  final String label;
+  final String value;
+  final String detail;
+  final _AdminAuthorityHealthLevel level;
+
+  const _AdminAuthorityStatusRow({
+    required this.label,
+    required this.value,
+    required this.detail,
+    required this.level,
+  });
+}
+
+class _AdminAuthoritySnapshot {
+  final SystemHealthSnapshot healthSnapshot;
+  final _AdminAuthorityHealthLevel level;
+  final String controlStateLabel;
+  final String globalHealthLabel;
+  final List<_AdminAuthorityStatusRow> statusRows;
+  final List<String> zaraAssessments;
+  final List<String> detectedIssues;
+  final String recommendation;
+  final String lastAuditLabel;
+  final String nextAuditLabel;
+  final int entityTotal;
+  final int activeIncidentCount;
+  final int queueItemCount;
+  final int readyGuardCount;
+  final int watchScopeCount;
+  final int degradedWatchCount;
+  final int dailyEventCount;
+  final int communicationCount;
+  final int verifiedEventCount;
+  final double? averageResponseMinutes;
+  final int? averageDetectionConfidence;
+  final String leadClientId;
+  final String leadSiteId;
+  final String leadIncidentReference;
+  final String leadSiteLabel;
+
+  const _AdminAuthoritySnapshot({
+    required this.healthSnapshot,
+    required this.level,
+    required this.controlStateLabel,
+    required this.globalHealthLabel,
+    required this.statusRows,
+    required this.zaraAssessments,
+    required this.detectedIssues,
+    required this.recommendation,
+    required this.lastAuditLabel,
+    required this.nextAuditLabel,
+    required this.entityTotal,
+    required this.activeIncidentCount,
+    required this.queueItemCount,
+    required this.readyGuardCount,
+    required this.watchScopeCount,
+    required this.degradedWatchCount,
+    required this.dailyEventCount,
+    required this.communicationCount,
+    required this.verifiedEventCount,
+    required this.averageResponseMinutes,
+    required this.averageDetectionConfidence,
+    required this.leadClientId,
+    required this.leadSiteId,
+    required this.leadIncidentReference,
+    required this.leadSiteLabel,
   });
 }
 
@@ -1347,6 +1420,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
   final GlobalKey _systemOpsPollCommandKey = GlobalKey();
   final GlobalKey _systemInfoCardKey = GlobalKey();
   final GlobalKey _systemCameraBridgePanelKey = GlobalKey();
+  final GlobalKey _systemAuthorityOverviewKey = GlobalKey();
+  final GlobalKey _systemTraceabilityPanelKey = GlobalKey();
+  final GlobalKey _systemOperationalImpactPanelKey = GlobalKey();
   final GlobalKey _clientCommsAuditPanelScrollKey = GlobalKey();
   final GlobalKey _partnerScorecardSummaryCardKey = GlobalKey();
   final GlobalKey _globalReadinessSummaryCardKey = GlobalKey();
@@ -1824,13 +1900,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
   }
 
   Widget _adminHeroHeader({Widget? workspaceBanner}) {
+    final authority = _buildAdminAuthoritySnapshot();
     final bridgeTone = _telegramBridgeTone();
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 980;
-        final directoryCount = _guards.length + _sites.length + _clients.length;
-        final aiDraftCount = widget.telegramAiPendingDrafts.length;
-        final watchScopeCount = widget.fleetScopeHealth.length;
+        final accent = _authorityAccent(authority.level);
         final actionButtons = Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -1890,7 +1965,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ZARA · SYSTEM HEALTH',
+                'ZARA · SYSTEM CONTROL AUTHORITY',
                 style: GoogleFonts.inter(
                   color: OnyxColorTokens.accentPurple.withValues(alpha: 0.7),
                   fontSize: 9,
@@ -1900,7 +1975,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
               const SizedBox(height: 5),
               Text(
-                'Admin & Reports Control',
+                'Enterprise Control Authority',
                 style: GoogleFonts.inter(
                   color: OnyxColorTokens.textPrimary,
                   fontSize: compact ? 20 : 24,
@@ -1910,7 +1985,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
               const SizedBox(height: 5),
               Text(
-                'ZARA: Runtime posture is ${widget.supabaseReady ? 'stable' : 'degraded'}. Directory, communications, and watch controls remain pinned for operator review.',
+                'ZARA: Runtime posture is ${authority.controlStateLabel.toLowerCase()}. ONYX is correlating directory, communications, watch, bridge, and traceability signals as one controlled system.',
                 style: GoogleFonts.inter(
                   color: OnyxColorTokens.textSecondary,
                   fontSize: 11,
@@ -1924,24 +1999,27 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 runSpacing: 8,
                 children: [
                   _adminHeaderMetricCard(
-                    label: 'Directory',
-                    value: '$directoryCount live entities',
-                    accent: OnyxColorTokens.accentGreen,
+                    label: 'Control State',
+                    value: authority.controlStateLabel,
+                    accent: accent,
                   ),
                   _adminHeaderMetricCard(
                     label: 'AI Comms',
-                    value: aiDraftCount == 0
+                    value: authority.queueItemCount == 0
                         ? 'Draft queue clear'
-                        : '$aiDraftCount drafts waiting',
-                    accent: aiDraftCount > 0
+                        : '${authority.queueItemCount} items waiting',
+                    accent: authority.queueItemCount > 0
                         ? OnyxColorTokens.accentAmber
-                        : OnyxColorTokens.accentPurple,
+                        : OnyxColorTokens.accentGreen,
                   ),
                   _adminHeaderMetricCard(
                     label: 'Watch',
-                    value: '$watchScopeCount active scopes',
-                    accent: watchScopeCount > 0
-                        ? OnyxColorTokens.accentPurple
+                    value:
+                        '${authority.watchScopeCount} active scope${authority.watchScopeCount == 1 ? '' : 's'}',
+                    accent: authority.degradedWatchCount > 0
+                        ? OnyxColorTokens.accentAmber
+                        : authority.watchScopeCount > 0
+                        ? OnyxColorTokens.accentGreen
                         : OnyxColorTokens.textMuted,
                   ),
                   _adminHeaderChip(
@@ -1951,19 +2029,23 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     border: bridgeTone.$4,
                   ),
                   _adminHeaderChip(
-                    label: widget.supabaseReady ? 'Sync Ready' : 'Sync Offline',
-                    foreground: widget.supabaseReady
+                    label: authority.detectedIssues.isEmpty
+                        ? 'No Critical Faults'
+                        : '${authority.detectedIssues.length} Attention Items',
+                    foreground: authority.detectedIssues.isEmpty
                         ? OnyxColorTokens.accentGreen
                         : OnyxColorTokens.accentAmber,
-                    background: widget.supabaseReady
+                    background: authority.detectedIssues.isEmpty
                         ? OnyxColorTokens.greenSurface
                         : OnyxColorTokens.amberSurface,
-                    border: widget.supabaseReady
+                    border: authority.detectedIssues.isEmpty
                         ? OnyxColorTokens.greenBorder
                         : OnyxColorTokens.amberBorder,
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _adminAuthorityHeroSnapshot(authority, compact: compact),
             ],
           ),
         );
@@ -2134,6 +2216,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
     required int entityTotal,
     bool shellless = false,
   }) {
+    final authority = _buildAdminAuthoritySnapshot();
+    final accent = _authorityAccent(authority.level);
     final bridgeTone = _telegramBridgeTone();
     final aiDraftCount = widget.telegramAiPendingDrafts.length;
     final auditCount = widget.clientCommsAuditViews.length;
@@ -2143,12 +2227,21 @@ class _AdministrationPageState extends State<AdministrationPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'SYSTEM HEALTH',
+          'CONTROL STATE',
           style: GoogleFonts.inter(
-            color: OnyxColorTokens.textMuted,
+            color: accent,
             fontSize: 8.5,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
             letterSpacing: 1.15,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'SYSTEM ${authority.globalHealthLabel} • ${authority.controlStateLabel}',
+          style: GoogleFonts.inter(
+            color: OnyxColorTokens.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 8),
@@ -2157,47 +2250,60 @@ class _AdministrationPageState extends State<AdministrationPage> {
           runSpacing: 8,
           children: [
             _adminHeaderMetricCard(
-              label: 'Focus',
-              value: _adminWorkspaceTitle(),
-              accent: OnyxColorTokens.accentPurple,
-            ),
-            _adminHeaderMetricCard(
               label: 'Directory',
-              value: '$entityTotal entities',
+              value: '$entityTotal entities tracked',
               accent: OnyxColorTokens.accentGreen,
             ),
             _adminHeaderMetricCard(
               label: 'AI Drafts',
-              value: aiDraftCount == 0 ? 'Clear' : '$aiDraftCount pending',
+              value: aiDraftCount == 0
+                  ? 'Queue clear'
+                  : '$aiDraftCount pending',
               accent: aiDraftCount > 0
                   ? OnyxColorTokens.accentAmber
                   : OnyxColorTokens.accentGreen,
             ),
             _adminHeaderMetricCard(
-              label: 'Audits',
-              value: '$auditCount client reviews',
-              accent: auditCount > 0
-                  ? OnyxColorTokens.accentPurple
-                  : OnyxColorTokens.textMuted,
-            ),
-            _adminHeaderMetricCard(
-              label: 'Intakes',
-              value: '$intakeCount staged',
-              accent: intakeCount > 0
-                  ? OnyxColorTokens.accentAmber
-                  : OnyxColorTokens.textMuted,
-            ),
-            _adminHeaderMetricCard(
               label: 'Watch',
-              value: '$watchScopeCount scope${watchScopeCount == 1 ? '' : 's'}',
-              accent: watchScopeCount > 0
-                  ? OnyxColorTokens.accentPurple
+              value: watchScopeCount == 0
+                  ? 'Watch standby'
+                  : '$watchScopeCount active scope${watchScopeCount == 1 ? '' : 's'}',
+              accent: authority.degradedWatchCount > 0
+                  ? OnyxColorTokens.accentAmber
+                  : watchScopeCount > 0
+                  ? OnyxColorTokens.accentGreen
                   : OnyxColorTokens.textMuted,
             ),
             _adminHeaderMetricCard(
               label: 'Bridge',
-              value: bridgeTone.$1,
+              value: bridgeTone.$1.replaceFirst('Bridge Status: ', ''),
               accent: bridgeTone.$2,
+            ),
+            _adminHeaderMetricCard(
+              label: 'Authority',
+              value: authority.detectedIssues.isEmpty
+                  ? 'No critical faults'
+                  : '${authority.detectedIssues.length} attention items',
+              accent: authority.detectedIssues.isEmpty
+                  ? OnyxColorTokens.accentGreen
+                  : OnyxColorTokens.accentAmber,
+            ),
+            if (auditCount > 0 || intakeCount > 0)
+              _adminHeaderMetricCard(
+                label: 'Control Feed',
+                value: auditCount > 0
+                    ? '$auditCount client reviews'
+                    : '$intakeCount staged intakes',
+                accent: auditCount > 0
+                    ? OnyxColorTokens.accentPurple
+                    : OnyxColorTokens.accentAmber,
+              ),
+            _adminHeaderMetricCard(
+              label: 'Focus',
+              value: _adminWorkspaceTitle(),
+              accent: intakeCount > 0
+                  ? OnyxColorTokens.accentAmber
+                  : OnyxColorTokens.accentPurple,
             ),
           ],
         ),
@@ -2223,6 +2329,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   }
 
   Widget _adminOpsRail() {
+    final authority = _buildAdminAuthoritySnapshot();
     final bridgeTone = _telegramBridgeTone();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2239,7 +2346,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'FOCUS',
+                'FOCUS AREAS',
                 style: GoogleFonts.inter(
                   color: OnyxColorTokens.textMuted,
                   fontSize: 10,
@@ -2262,7 +2369,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 runSpacing: 4,
                 children: [
                   _adminWorkspaceChip(
-                    _directoryLoadedFromSupabase ? 'Supabase' : 'Local',
+                    authority.controlStateLabel,
+                    accent: _authorityAccent(authority.level),
+                  ),
+                  _adminWorkspaceChip(
+                    _directoryLoadedFromSupabase
+                        ? 'Directory Synced'
+                        : 'Directory Local',
                     accent: _directoryLoadedFromSupabase
                         ? OnyxColorTokens.accentSky
                         : OnyxColorTokens.textMuted,
@@ -2275,7 +2388,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Actions',
+          'COMMAND AREAS',
           style: GoogleFonts.inter(
             color: _adminDialogMutedColor,
             fontSize: 9,
@@ -2288,7 +2401,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           key: const ValueKey('admin-workspace-open-entity'),
           label: 'Directory Board',
           detail:
-              'Return to ${_adminEntityTabTitle(_lastEntityTab)} for roster command work and directory review.',
+              'Data management, onboarding control, and entity synchronization.',
           selected: _activeTab != AdministrationPageTab.system,
           onTap: () => _setActiveTab(_lastEntityTab),
         ),
@@ -2297,7 +2410,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           key: const ValueKey('admin-workspace-open-ai-comms'),
           label: 'AI Queue',
           detail:
-              'Open Telegram learning, draft review, and comms audit queue controls.',
+              'Intelligence processing queue for drafts, approvals, and comms oversight.',
           selected:
               _activeTab == AdministrationPageTab.system &&
               _activeSystemSection == _AdminSystemSection.aiCommunications,
@@ -2309,7 +2422,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           key: const ValueKey('admin-workspace-open-system-controls'),
           label: 'Control Board',
           detail:
-              'Review runtime posture, ops integrations, and operator controls.',
+              'System runtime operations, authority commands, and traceability proof.',
           selected:
               _activeTab == AdministrationPageTab.system &&
               _activeSystemSection == _AdminSystemSection.systemControls,
@@ -2321,7 +2434,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           key: const ValueKey('admin-workspace-open-watch-identity'),
           label: 'Watch Identity',
           detail:
-              'Jump into watch recovery, scene suppression, and identity policy controls.',
+              'DVR fleet, watch recovery, and monitoring identity policy setup.',
           selected:
               _activeTab == AdministrationPageTab.system &&
               _activeSystemSection == _AdminSystemSection.watchIdentity,
@@ -4250,6 +4363,421 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return 'Updated $hh:$mm';
   }
 
+  _AdminAuthoritySnapshot _buildAdminAuthoritySnapshot() {
+    final postureSnapshot = _globalPostureService.buildSnapshot(
+      events: widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    final partnerRows = _partnerTrendRowsGlobal();
+    final bridgeStaging =
+        (widget.onyxAgentCameraBridgeStagingLabel ?? '').trim().isNotEmpty ||
+        (widget.onyxAgentCameraBridgeStagingDetail ?? '').trim().isNotEmpty;
+    final entityTotal = _guards.length + _sites.length + _clients.length;
+    final readyGuardCount = _guards
+        .where((guard) => guard.status == _AdminStatus.active)
+        .length;
+    final degradedWatchCount = widget.fleetScopeHealth
+        .where(
+          (scope) =>
+              scope.isStale ||
+              scope.watchLabel.trim().toUpperCase() == 'LIMITED',
+        )
+        .length;
+    final issueChannelCount = widget.clientCommsAuditViews
+        .where(
+          (audit) =>
+              audit.telegramHealthLabel.trim().toLowerCase() == 'blocked' ||
+              audit.pushSyncStatusLabel.trim().toLowerCase() == 'failed',
+        )
+        .length;
+    final partnerCriticalCount = partnerRows
+        .where((row) => row.currentScoreLabel == 'CRITICAL')
+        .length;
+    final incidentScopes = widget.fleetScopeHealth
+        .where((scope) => scope.hasIncidentContext)
+        .toList(growable: false);
+    final incidentReferences = incidentScopes
+        .map((scope) => (scope.latestIncidentReference ?? '').trim())
+        .where((reference) => reference.isNotEmpty)
+        .toSet();
+    final leadScope = incidentScopes.isNotEmpty
+        ? incidentScopes.first
+        : (widget.fleetScopeHealth.isNotEmpty
+              ? widget.fleetScopeHealth.first
+              : null);
+    final activeIncidentCount = incidentReferences.isNotEmpty
+        ? incidentReferences.length
+        : math.max(
+            postureSnapshot.criticalSiteCount,
+            postureSnapshot.elevatedSiteCount > 0 ? 1 : 0,
+          );
+    final queueItemCount =
+        widget.telegramAiPendingDrafts.length +
+        widget.clientCommsAuditViews.fold<int>(
+          0,
+          (count, audit) => count + audit.pendingApprovalCount,
+        );
+    final communicationCount = widget.clientCommsAuditViews.fold<int>(
+      0,
+      (count, audit) =>
+          count +
+          audit.recentDeliveryHistoryLines.length +
+          (audit.latestLaneReplyBody.trim().isNotEmpty ? 1 : 0) +
+          ((audit.latestSmsFallbackStatus ?? '').trim().isNotEmpty ? 1 : 0),
+    );
+    final responseSamples = partnerRows
+        .map((row) => row.averageAcceptedDelayMinutes)
+        .where((minutes) => minutes > 0)
+        .toList(growable: false);
+    final averageResponseMinutes = responseSamples.isEmpty
+        ? null
+        : responseSamples.reduce((sum, item) => sum + item) /
+              responseSamples.length;
+    final detectionSamples = widget.fleetScopeHealth
+        .map((scope) => scope.latestRiskScore)
+        .whereType<int>()
+        .where((score) => score > 0)
+        .toList(growable: false);
+    final averageDetectionConfidence = detectionSamples.isEmpty
+        ? null
+        : (detectionSamples.reduce((sum, item) => sum + item) /
+                  detectionSamples.length)
+              .round();
+    final auditMoments = <DateTime>[
+      ...widget.events.map((event) => event.occurredAt.toUtc()),
+      if (widget.telegramBridgeHealthUpdatedAtUtc != null)
+        widget.telegramBridgeHealthUpdatedAtUtc!.toUtc(),
+      ...widget.clientCommsAuditViews.expand(
+        (audit) => [
+          if (audit.latestLaneReplyAtUtc != null)
+            audit.latestLaneReplyAtUtc!.toUtc(),
+          if (audit.latestClientAskAtUtc != null)
+            audit.latestClientAskAtUtc!.toUtc(),
+          if (audit.latestSmsFallbackAtUtc != null)
+            audit.latestSmsFallbackAtUtc!.toUtc(),
+          if (audit.latestVoipStageAtUtc != null)
+            audit.latestVoipStageAtUtc!.toUtc(),
+        ],
+      ),
+    ];
+    final healthSnapshot = const SystemHealthMonitor().buildSnapshot(
+      directorySynced: widget.supabaseReady,
+      bridgeHealthLabel: widget.telegramBridgeHealthLabel,
+      bridgeFallbackActive: widget.telegramBridgeFallbackActive,
+      bridgeStaging: bridgeStaging,
+      entityTotal: entityTotal,
+      clientCount: _clients.length,
+      siteCount: _sites.length,
+      employeeCount: _guards.length,
+      readyGuardCount: readyGuardCount,
+      watchScopeCount: widget.fleetScopeHealth.length,
+      degradedWatchCount: degradedWatchCount,
+      issueChannelCount: issueChannelCount,
+      queueItemCount: queueItemCount,
+      activeIncidentCount: activeIncidentCount,
+      criticalSiteCount:
+          postureSnapshot.criticalSiteCount + partnerCriticalCount,
+      elevatedSiteCount: postureSnapshot.elevatedSiteCount,
+      dailyEventCount: widget.events.length,
+      communicationCount: communicationCount,
+      verifiedEventCount: widget.events.length,
+      averageResponseMinutes: averageResponseMinutes,
+      averageDetectionConfidence: averageDetectionConfidence,
+      auditMomentsUtc: auditMoments,
+    );
+    final level = switch (healthSnapshot.level) {
+      SystemHealthLevel.green => _AdminAuthorityHealthLevel.green,
+      SystemHealthLevel.amber => _AdminAuthorityHealthLevel.amber,
+      SystemHealthLevel.red => _AdminAuthorityHealthLevel.red,
+    };
+    final statusRows = healthSnapshot.statusRows
+        .map(
+          (row) => _AdminAuthorityStatusRow(
+            label: row.label,
+            value: row.value,
+            detail: row.detail,
+            level: switch (row.level) {
+              SystemHealthLevel.green => _AdminAuthorityHealthLevel.green,
+              SystemHealthLevel.amber => _AdminAuthorityHealthLevel.amber,
+              SystemHealthLevel.red => _AdminAuthorityHealthLevel.red,
+            },
+          ),
+        )
+        .toList(growable: false);
+    final detectedIssues = healthSnapshot.issues
+        .map((issue) => issue.detail)
+        .toList(growable: false);
+    final lastAuditLabel = healthSnapshot.lastAuditAtUtc == null
+        ? 'No system audit recorded yet.'
+        : '${_formatAuthorityUtcTime(healthSnapshot.lastAuditAtUtc!)} UTC';
+    final nextAuditLabel =
+        '${_formatAuthorityUtcTime(healthSnapshot.nextAuditAtUtc)} UTC';
+
+    return _AdminAuthoritySnapshot(
+      healthSnapshot: healthSnapshot,
+      level: level,
+      controlStateLabel: healthSnapshot.controlStateLabel,
+      globalHealthLabel: healthSnapshot.globalHealthLabel,
+      statusRows: statusRows,
+      zaraAssessments: healthSnapshot.zaraAssessments,
+      detectedIssues: detectedIssues,
+      recommendation: healthSnapshot.recommendation,
+      lastAuditLabel: lastAuditLabel,
+      nextAuditLabel: nextAuditLabel,
+      entityTotal: healthSnapshot.metrics.entityTotal,
+      activeIncidentCount: healthSnapshot.metrics.activeIncidentCount,
+      queueItemCount: healthSnapshot.metrics.queueItemCount,
+      readyGuardCount: healthSnapshot.metrics.readyGuardCount,
+      watchScopeCount: healthSnapshot.metrics.watchScopeCount,
+      degradedWatchCount: healthSnapshot.metrics.degradedWatchCount,
+      dailyEventCount: healthSnapshot.metrics.dailyEventCount,
+      communicationCount: healthSnapshot.metrics.communicationCount,
+      verifiedEventCount: healthSnapshot.metrics.verifiedEventCount,
+      averageResponseMinutes: healthSnapshot.metrics.averageResponseMinutes,
+      averageDetectionConfidence:
+          healthSnapshot.metrics.averageDetectionConfidence,
+      leadClientId: leadScope?.clientId ?? '',
+      leadSiteId: leadScope?.siteId ?? '',
+      leadIncidentReference: (leadScope?.latestIncidentReference ?? '').trim(),
+      leadSiteLabel: leadScope?.siteName ?? 'Primary scope',
+    );
+  }
+
+  Color _authorityAccent(_AdminAuthorityHealthLevel level) {
+    return switch (level) {
+      _AdminAuthorityHealthLevel.green => OnyxColorTokens.accentGreen,
+      _AdminAuthorityHealthLevel.amber => OnyxColorTokens.accentAmber,
+      _AdminAuthorityHealthLevel.red => OnyxColorTokens.accentRed,
+    };
+  }
+
+  Color _authoritySurface(_AdminAuthorityHealthLevel level) {
+    return _authorityAccent(level).withValues(alpha: 0.09);
+  }
+
+  Color _authorityBorder(_AdminAuthorityHealthLevel level) {
+    return _authorityAccent(level).withValues(alpha: 0.24);
+  }
+
+  String _formatAuthorityUtcTime(DateTime utcTime) {
+    final normalized = utcTime.toUtc();
+    final hh = normalized.hour.toString().padLeft(2, '0');
+    final mm = normalized.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  String _monthLabel(int month) {
+    return const <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ][month.clamp(1, 12) - 1];
+  }
+
+  double _communicationsReliabilityPercent() {
+    if (widget.clientCommsAuditViews.isEmpty) {
+      return 100;
+    }
+    final healthyScopes = widget.clientCommsAuditViews.where((audit) {
+      final telegramHealthy = switch (audit.telegramHealthLabel
+          .trim()
+          .toLowerCase()) {
+        'ok' || 'configured' => true,
+        _ => false,
+      };
+      final pushHealthy =
+          audit.pushSyncStatusLabel.trim().toLowerCase() != 'failed';
+      return telegramHealthy && pushHealthy;
+    }).length;
+    return (healthyScopes / widget.clientCommsAuditViews.length) * 100;
+  }
+
+  Widget _adminAuthoritySectionLabel(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.inter(
+        color: OnyxColorTokens.textMuted,
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.1,
+      ),
+    );
+  }
+
+  Widget _adminAuthorityHealthDot(
+    _AdminAuthorityHealthLevel level, {
+    double size = 8,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: _authorityAccent(level),
+        borderRadius: BorderRadius.circular(999),
+      ),
+    );
+  }
+
+  Widget _adminAuthorityPill({required String label, required Color accent}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: _adminAccentTextColor(accent, strength: 0.56),
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _adminAuthorityStatusPill(_AdminAuthorityStatusRow row) {
+    final accent = _authorityAccent(row.level);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _adminAuthorityHealthDot(row.level, size: 6),
+          const SizedBox(width: 6),
+          Text(
+            row.label,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 9.2,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adminAuthorityHeroSnapshot(
+    _AdminAuthoritySnapshot snapshot, {
+    required bool compact,
+  }) {
+    final accent = _authorityAccent(snapshot.level);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CONTROL STATE',
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      snapshot.controlStateLabel,
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textPrimary,
+                        fontSize: compact ? 15 : 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Global health: ${snapshot.globalHealthLabel} • ${snapshot.recommendation}',
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textSecondary,
+                        fontSize: 10.4,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: _authoritySurface(snapshot.level),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _authorityBorder(snapshot.level)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'SYSTEM HEALTH',
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.9,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      snapshot.globalHealthLabel,
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: snapshot.statusRows
+                .map(_adminAuthorityStatusPill)
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _toolbar() {
     final label = switch (_activeTab) {
       AdministrationPageTab.guards => 'Employee',
@@ -4872,19 +5400,1215 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
+  Widget _adminAuthorityOverviewPanel() {
+    final authority = _buildAdminAuthoritySnapshot();
+    final accent = _authorityAccent(authority.level);
+    return KeyedSubtree(
+      key: _systemAuthorityOverviewKey,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accent.withValues(alpha: 0.2)),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 1020;
+            final controlPanel = Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _authoritySurface(authority.level),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _authorityBorder(authority.level)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _adminAuthoritySectionLabel('CONTROL STATE'),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _adminAuthorityHealthDot(authority.level, size: 11),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              authority.controlStateLabel,
+                              style: GoogleFonts.inter(
+                                color: OnyxColorTokens.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Global Health: ${authority.globalHealthLabel} (${authority.level.name.toUpperCase()})',
+                              style: GoogleFonts.inter(
+                                color: accent,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...authority.statusRows.map((row) {
+                    final rowAccent = _authorityAccent(row.level);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: rowAccent.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: rowAccent.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _adminAuthorityHealthDot(row.level, size: 7),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    row.label,
+                                    style: GoogleFonts.inter(
+                                      color: rowAccent,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    row.value.toUpperCase(),
+                                    style: GoogleFonts.inter(
+                                      color: OnyxColorTokens.textPrimary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    row.detail,
+                                    style: GoogleFonts.inter(
+                                      color: OnyxColorTokens.textSecondary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            );
+            final zaraPanel = Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _adminAuthoritySectionLabel('ZARA SYSTEM INTELLIGENCE'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Runtime posture is ${authority.level == _AdminAuthorityHealthLevel.green
+                        ? 'stable'
+                        : authority.level == _AdminAuthorityHealthLevel.amber
+                        ? 'under watch'
+                        : 'critical'}. All control-plane signals are correlated below.',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ...authority.zaraAssessments.map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 7),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.only(top: 5),
+                            decoration: BoxDecoration(
+                              color: OnyxColorTokens.accentPurple,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              line,
+                              style: GoogleFonts.inter(
+                                color: OnyxColorTokens.textSecondary,
+                                fontSize: 10.6,
+                                fontWeight: FontWeight.w600,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'DETECTED ISSUES',
+                    style: GoogleFonts.inter(
+                      color: authority.detectedIssues.isEmpty
+                          ? OnyxColorTokens.accentGreen
+                          : OnyxColorTokens.accentAmber,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    authority.detectedIssues.isEmpty
+                        ? 'NONE'
+                        : authority.detectedIssues.join(' • '),
+                    style: GoogleFonts.inter(
+                      color: authority.detectedIssues.isEmpty
+                          ? OnyxColorTokens.accentGreen
+                          : OnyxColorTokens.textSecondary,
+                      fontSize: 10.4,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'RECOMMENDATION',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.accentPurple,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    authority.recommendation,
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textPrimary,
+                      fontSize: 10.8,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Last system audit: ${authority.lastAuditLabel} | Next scheduled: ${authority.nextAuditLabel}',
+                    style: GoogleFonts.robotoMono(
+                      color: OnyxColorTokens.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+            return compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      controlPanel,
+                      const SizedBox(height: 10),
+                      zaraPanel,
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: controlPanel),
+                      const SizedBox(width: 10),
+                      Expanded(child: zaraPanel),
+                    ],
+                  );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _adminRelationshipMapPanel() {
+    final authority = _buildAdminAuthoritySnapshot();
+    final relationships = const SystemHealthMonitor().buildInterdependencies(
+      snapshot: authority.healthSnapshot,
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: _panelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _subTitle('System Interdependencies'),
+          const SizedBox(height: 8),
+          Text(
+            'Authority-level dependency view across the modules that keep ONYX operational and trustworthy.',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 1120;
+              final cards = relationships
+                  .map(
+                    (relationship) => _adminRelationshipCard(
+                      title: relationship.title,
+                      level: switch (relationship.level) {
+                        SystemHealthLevel.green =>
+                          _AdminAuthorityHealthLevel.green,
+                        SystemHealthLevel.amber =>
+                          _AdminAuthorityHealthLevel.amber,
+                        SystemHealthLevel.red => _AdminAuthorityHealthLevel.red,
+                      },
+                      lines: relationship.lines,
+                    ),
+                  )
+                  .toList(growable: false);
+              return compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < cards.length; i++) ...[
+                          cards[i],
+                          if (i < cards.length - 1) const SizedBox(height: 8),
+                        ],
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < cards.length; i++) ...[
+                          Expanded(child: cards[i]),
+                          if (i < cards.length - 1) const SizedBox(width: 8),
+                        ],
+                      ],
+                    );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adminRelationshipCard({
+    required String title,
+    required _AdminAuthorityHealthLevel level,
+    required List<String> lines,
+  }) {
+    final accent = _authorityAccent(level);
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...lines.map(
+            (line) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _adminAuthorityHealthDot(level, size: 6),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      line,
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adminAuthorityActionCenter() {
+    final authority = _buildAdminAuthoritySnapshot();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: _panelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _subTitle('System Command Center'),
+          const SizedBox(height: 8),
+          Text(
+            'Authority-level actions for validating, repairing, and exporting the ONYX control plane.',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _adminAuthorityCommandButton(
+                label: 'Validate System Integrity',
+                icon: Icons.verified_rounded,
+                accent: OnyxColorTokens.accentPurple,
+                onPressed: () {
+                  unawaited(_runAdminAuthorityValidateIntegrity(authority));
+                },
+              ),
+              _adminAuthorityCommandButton(
+                label: 'Run Comprehensive Health Check',
+                icon: Icons.monitor_heart_rounded,
+                accent: OnyxColorTokens.accentSky,
+                onPressed: () {
+                  unawaited(_runAdminAuthorityHealthCheck(authority));
+                },
+              ),
+              _adminAuthorityCommandButton(
+                label: 'Re-sync Directory Services',
+                icon: Icons.sync_rounded,
+                accent: OnyxColorTokens.accentSky,
+                onPressed: _directoryLoading
+                    ? null
+                    : () {
+                        unawaited(_runAdminAuthorityDirectoryResync());
+                      },
+              ),
+              _adminAuthorityCommandButton(
+                label: 'Rebuild Communications Chain',
+                icon: Icons.forum_rounded,
+                accent: OnyxColorTokens.accentPurple,
+                onPressed: _runAdminAuthorityOpenCommsControl,
+              ),
+              _adminAuthorityCommandButton(
+                label: 'Resolve Bridge Configuration',
+                icon: Icons.videocam_rounded,
+                accent: OnyxColorTokens.accentAmber,
+                onPressed: _runAdminAuthorityOpenBridgeControl,
+              ),
+              _adminAuthorityCommandButton(
+                label: 'Generate System Audit Report',
+                icon: Icons.fact_check_rounded,
+                accent: OnyxColorTokens.accentGreen,
+                onPressed: () => _runAdminAuthorityGenerateAudit(authority),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adminAuthorityCommandButton({
+    required String label,
+    required IconData icon,
+    required Color accent,
+    required VoidCallback? onPressed,
+  }) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      style: FilledButton.styleFrom(
+        backgroundColor: accent.withValues(alpha: 0.12),
+        foregroundColor: onPressed == null
+            ? OnyxColorTokens.textMuted
+            : _adminAccentTextColor(accent, strength: 0.62),
+        disabledBackgroundColor: OnyxColorTokens.surfaceInset,
+        disabledForegroundColor: OnyxColorTokens.textDisabled,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(9),
+          side: BorderSide(color: accent.withValues(alpha: 0.24)),
+        ),
+      ),
+      label: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 10.2, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+
+  Widget _adminFaultHierarchyPanel() {
+    final authority = _buildAdminAuthoritySnapshot();
+    final hardwareLevel = authority.watchScopeCount == 0
+        ? _AdminAuthorityHealthLevel.amber
+        : authority.degradedWatchCount > 0
+        ? _AdminAuthorityHealthLevel.amber
+        : _AdminAuthorityHealthLevel.green;
+    final softwareLevel = !widget.supabaseReady
+        ? _AdminAuthorityHealthLevel.amber
+        : widget.telegramBridgeHealthLabel.trim().toLowerCase() == 'blocked'
+        ? _AdminAuthorityHealthLevel.red
+        : _AdminAuthorityHealthLevel.green;
+    final commsLevel = _communicationsReliabilityPercent() >= 99
+        ? _AdminAuthorityHealthLevel.green
+        : _communicationsReliabilityPercent() >= 95
+        ? _AdminAuthorityHealthLevel.amber
+        : _AdminAuthorityHealthLevel.red;
+    final integrationLevel = authority.level;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: _panelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _subTitle('Fault Detection Hierarchy'),
+          const SizedBox(height: 8),
+          Text(
+            'Severity ladder for the control plane with module-level fault visibility.',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _adminAuthorityPill(
+                label: 'GREEN • Fully operational',
+                accent: OnyxColorTokens.accentGreen,
+              ),
+              _adminAuthorityPill(
+                label: 'AMBER • Degraded but functional',
+                accent: OnyxColorTokens.accentAmber,
+              ),
+              _adminAuthorityPill(
+                label: 'RED • Critical failure',
+                accent: OnyxColorTokens.accentRed,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...[
+            (
+              'Hardware Layer',
+              'DVR fleet, coverage, and network-linked monitoring posture',
+              hardwareLevel,
+            ),
+            (
+              'Software Layer',
+              'Bridge status, directory sync, and control runtime health',
+              softwareLevel,
+            ),
+            (
+              'Communication Layer',
+              'Telegram, push delivery, and VoIP reliability',
+              commsLevel,
+            ),
+            (
+              'Integration Layer',
+              'Cross-system data flow, orchestration, and queue continuity',
+              integrationLevel,
+            ),
+          ].map((row) {
+            final accent = _authorityAccent(row.$3);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: accent.withValues(alpha: 0.18)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _adminAuthorityHealthDot(row.$3, size: 7),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            row.$1,
+                            style: GoogleFonts.inter(
+                              color: accent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            row.$2,
+                            style: GoogleFonts.inter(
+                              color: OnyxColorTokens.textSecondary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          Text(
+            authority.detectedIssues.isEmpty
+                ? 'Current status: All systems green. Bridge staging is a planned operational state.'
+                : 'Current status: ${authority.detectedIssues.join(' ')}',
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textMuted,
+              fontSize: 10.2,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adminOperationalImpactPanel() {
+    final authority = _buildAdminAuthoritySnapshot();
+    final dispatchAction = _openDispatchesAction(
+      clientId: authority.leadClientId,
+      siteId: authority.leadSiteId,
+      incidentReference: authority.leadIncidentReference,
+    );
+    final ledgerAction =
+        authority.leadIncidentReference.isNotEmpty &&
+            widget.onOpenLedgerForIncident != null
+        ? () => widget.onOpenLedgerForIncident!(authority.leadIncidentReference)
+        : null;
+    return KeyedSubtree(
+      key: _systemOperationalImpactPanelKey,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: _panelDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _subTitle('Operational Impact Dashboard'),
+            const SizedBox(height: 8),
+            Text(
+              'Live view into how control authority affects incidents, queues, guards, and the audit chain.',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 1080;
+                final incidentCell = _adminOperationalImpactCell(
+                  label: 'Active Incidents',
+                  value: '${authority.activeIncidentCount}',
+                  detail: authority.activeIncidentCount == 0
+                      ? 'No active response chain.'
+                      : 'Response flow is live in Dispatch.',
+                  accent: authority.activeIncidentCount > 0
+                      ? OnyxColorTokens.accentPurple
+                      : OnyxColorTokens.accentGreen,
+                  actionLabel: 'View in Dispatches',
+                  onTap: dispatchAction,
+                );
+                final queueCell = _adminOperationalImpactCell(
+                  label: 'Queue Items',
+                  value: '${authority.queueItemCount}',
+                  detail: authority.queueItemCount == 0
+                      ? 'Decision queue is clear.'
+                      : 'Operator review is still required.',
+                  accent: authority.queueItemCount > 0
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
+                  actionLabel: 'View in AI Queue',
+                  onTap: widget.onOpenAiQueue,
+                );
+                final guardCell = _adminOperationalImpactCell(
+                  label: 'Guard Status',
+                  value: '${authority.readyGuardCount} ready',
+                  detail:
+                      'Personnel availability remains visible in Directory.',
+                  accent: OnyxColorTokens.accentGreen,
+                  actionLabel: 'View in Guards',
+                  onTap: () => _setActiveTab(AdministrationPageTab.guards),
+                );
+                final eventCell = _adminOperationalImpactCell(
+                  label: 'Daily Events',
+                  value: '${authority.dailyEventCount}',
+                  detail: 'Operational evidence recorded today.',
+                  accent: OnyxColorTokens.accentSky,
+                  actionLabel: 'View in Ledger',
+                  onTap: ledgerAction,
+                );
+                return compact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          incidentCell,
+                          const SizedBox(height: 8),
+                          queueCell,
+                          const SizedBox(height: 8),
+                          guardCell,
+                          const SizedBox(height: 8),
+                          eventCell,
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: incidentCell),
+                          const SizedBox(width: 8),
+                          Expanded(child: queueCell),
+                          const SizedBox(width: 8),
+                          Expanded(child: guardCell),
+                          const SizedBox(width: 8),
+                          Expanded(child: eventCell),
+                        ],
+                      );
+              },
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _adminAuthorityPill(
+                  label: authority.averageResponseMinutes == null
+                      ? 'Response time • standing by'
+                      : 'Response time • ${authority.averageResponseMinutes!.toStringAsFixed(1)} min avg',
+                  accent: OnyxColorTokens.accentGreen,
+                ),
+                _adminAuthorityPill(
+                  label:
+                      'Communication reliability • ${_communicationsReliabilityPercent().toStringAsFixed(1)}%',
+                  accent: _communicationsReliabilityPercent() >= 99
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentAmber,
+                ),
+                _adminAuthorityPill(
+                  label: authority.averageDetectionConfidence == null
+                      ? 'Detection confidence • standing by'
+                      : 'Detection confidence • ${authority.averageDetectionConfidence}%',
+                  accent: OnyxColorTokens.accentPurple,
+                ),
+                _adminAuthorityPill(
+                  label:
+                      'Chain integrity • ${authority.verifiedEventCount}/${authority.dailyEventCount} verified',
+                  accent: OnyxColorTokens.accentGreen,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _adminOperationalImpactCell({
+    required String label,
+    required String value,
+    required String detail,
+    required Color accent,
+    required String actionLabel,
+    required VoidCallback? onTap,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: accent.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textMuted,
+              fontSize: 8.6,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: OnyxColorTokens.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: onTap,
+            style: TextButton.styleFrom(
+              foregroundColor: onTap == null
+                  ? OnyxColorTokens.textDisabled
+                  : accent,
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              actionLabel,
+              style: GoogleFonts.inter(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adminTraceabilityPanel() {
+    final authority = _buildAdminAuthoritySnapshot();
+    final now = DateTime.now();
+    final dateLabel =
+        '${now.day.toString().padLeft(2, '0')} ${_monthLabel(now.month)} ${now.year}';
+    return KeyedSubtree(
+      key: _systemTraceabilityPanelKey,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.accentGreen.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: OnyxColorTokens.accentGreen.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _subTitle('System Traceability Overview'),
+            const SizedBox(height: 8),
+            Text(
+              "Today's Operations: $dateLabel",
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...[
+              ('Incidents Processed', '${authority.activeIncidentCount}'),
+              (
+                'Events Verified',
+                '${authority.verifiedEventCount}/${authority.dailyEventCount}',
+              ),
+              ('Chain Breaks', '0'),
+              ('Communications Sent', '${authority.communicationCount}'),
+              (
+                'DVR Sessions',
+                '${authority.watchScopeCount} active scope${authority.watchScopeCount == 1 ? '' : 's'}',
+              ),
+              (
+                'System Uptime',
+                authority.level == _AdminAuthorityHealthLevel.red
+                    ? 'Degraded'
+                    : 'Stable',
+              ),
+            ].map(
+              (row) => Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        row.$1,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textSecondary,
+                          fontSize: 10.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      row.$2,
+                      style: GoogleFonts.inter(
+                        color: OnyxColorTokens.textPrimary,
+                        fontSize: 10.4,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'INTEGRITY VERIFICATION',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.accentGreen,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...[
+              'EventStore: all visible events sealed and timestamped.',
+              'Communication log: audit trail preserved for active scopes.',
+              'Watch records: continuous monitoring snapshots remain available.',
+              'Directory sync: entity registry remains current for runtime use.',
+            ].map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _adminAuthorityHealthDot(
+                      _AdminAuthorityHealthLevel.green,
+                      size: 6,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        line,
+                        style: GoogleFonts.inter(
+                          color: OnyxColorTokens.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _adminAuthorityCommandButton(
+                  label: 'Export System Integrity Report',
+                  icon: Icons.assessment_rounded,
+                  accent: OnyxColorTokens.accentGreen,
+                  onPressed: _openAdminExportFlow,
+                ),
+                _adminAuthorityCommandButton(
+                  label: 'View Complete Event Chain',
+                  icon: Icons.account_tree_rounded,
+                  accent: OnyxColorTokens.accentPurple,
+                  onPressed:
+                      authority.leadIncidentReference.isNotEmpty &&
+                          widget.onOpenLedgerForIncident != null
+                      ? () => widget.onOpenLedgerForIncident!(
+                          authority.leadIncidentReference,
+                        )
+                      : null,
+                ),
+                _adminAuthorityCommandButton(
+                  label: 'Generate Performance Dashboard',
+                  icon: Icons.query_stats_rounded,
+                  accent: OnyxColorTokens.accentSky,
+                  onPressed: () {
+                    final action = _openGovernanceAction(
+                      clientId: authority.leadClientId,
+                      siteId: authority.leadSiteId,
+                    );
+                    action?.call();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _runAdminAuthorityDirectoryResync() async {
+    if (!widget.supabaseReady) {
+      _handleAdminFeedback(
+        feedbackContext: context,
+        message: 'Directory sync is not available right now.',
+        sourceLabel: 'DIRECTORY SERVICES',
+        detail:
+            'Supabase-backed directory sync is offline, so ONYX is holding the current local directory snapshot.',
+        accent: OnyxColorTokens.accentAmber,
+      );
+      return;
+    }
+    await _loadDirectoryFromSupabase();
+    if (!mounted) {
+      return;
+    }
+    _handleAdminFeedback(
+      feedbackContext: context,
+      message: 'Directory services re-synced.',
+      sourceLabel: 'DIRECTORY SERVICES',
+      detail:
+          'Client, site, and employee records were refreshed from the live directory service.',
+      accent: OnyxColorTokens.accentGreen,
+    );
+  }
+
+  void _runAdminAuthorityOpenCommsControl() {
+    _focusAdminSystemSection(_AdminSystemSection.aiCommunications);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final targetContext = _clientCommsAuditPanelScrollKey.currentContext;
+      if (targetContext != null) {
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: 0.08,
+        );
+      }
+      _handleAdminFeedback(
+        feedbackContext: context,
+        message: 'Communications chain foregrounded.',
+        sourceLabel: 'AI COMMUNICATIONS',
+        detail:
+            'Draft queue, client comms audit, and tone controls are now pinned for authority review.',
+        accent: OnyxColorTokens.accentPurple,
+      );
+    });
+  }
+
+  void _runAdminAuthorityOpenBridgeControl() {
+    _focusAdminSystemSection(_AdminSystemSection.systemControls);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _focusSystemControlAnchor(
+        targetKey: _systemCameraBridgePanelKey,
+        message: 'Focused bridge configuration controls.',
+        detail:
+            'Camera bridge validation and staging controls are now pinned for remediation.',
+        sourceLabel: 'BRIDGE CONTROL',
+        accent: OnyxColorTokens.accentAmber,
+      );
+    });
+  }
+
+  void _runAdminAuthorityOpenTraceability() {
+    _focusAdminSystemSection(_AdminSystemSection.systemControls);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _focusSystemControlAnchor(
+        targetKey: _systemTraceabilityPanelKey,
+        message: 'Focused system traceability overview.',
+        detail:
+            'Event verification, communications history, and chain integrity remain pinned for audit review.',
+        sourceLabel: 'TRACEABILITY',
+        accent: OnyxColorTokens.accentGreen,
+      );
+    });
+  }
+
+  Future<void> _runAdminAuthorityValidateIntegrity(
+    _AdminAuthoritySnapshot authority,
+  ) async {
+    final integrityReport = await const SystemHealthMonitor()
+        .generateIntegrityReport(snapshot: authority.healthSnapshot);
+    _runAdminAuthorityOpenTraceability();
+    if (widget.onRunOpsIntegrationPoll != null) {
+      await _runOpsIntegrationPollFromCommand();
+    }
+    if (!mounted) {
+      return;
+    }
+    _handleAdminFeedback(
+      feedbackContext: context,
+      message:
+          'Integrity validation complete: ${integrityReport.headline.toLowerCase()}.',
+      sourceLabel: 'SYSTEM INTEGRITY',
+      detail: [
+        integrityReport.verificationLines.first,
+        if (integrityReport.issues.isNotEmpty)
+          integrityReport.issues.first.detail,
+        integrityReport.recommendation,
+      ].join(' • '),
+      accent: _authorityAccent(authority.level),
+    );
+  }
+
+  Future<void> _runAdminAuthorityHealthCheck(
+    _AdminAuthoritySnapshot authority,
+  ) async {
+    final integrityReport = await const SystemHealthMonitor()
+        .generateIntegrityReport(snapshot: authority.healthSnapshot);
+    if (widget.onRunOpsIntegrationPoll != null) {
+      await _runOpsIntegrationPollFromCommand();
+    } else {
+      _runAdminAuthorityOpenTraceability();
+    }
+    if (!mounted) {
+      return;
+    }
+    final leadRelationship = integrityReport.relationships.isEmpty
+        ? null
+        : integrityReport.relationships.first;
+    _handleAdminFeedback(
+      feedbackContext: context,
+      message:
+          'Comprehensive health check complete: ${authority.globalHealthLabel}.',
+      sourceLabel: 'HEALTH CHECK',
+      detail: [
+        if (leadRelationship != null)
+          '${leadRelationship.title}: ${leadRelationship.lines.last}',
+        integrityReport.summary,
+      ].join(' • '),
+      accent: _authorityAccent(authority.level),
+    );
+  }
+
+  void _runAdminAuthorityGenerateAudit(_AdminAuthoritySnapshot authority) {
+    final integrityReport = const SystemHealthMonitor().buildIntegrityReport(
+      snapshot: authority.healthSnapshot,
+    );
+    final action = _openReportsAction(
+      clientId: authority.leadClientId,
+      siteId: authority.leadSiteId,
+    );
+    if (action != null) {
+      action();
+      _handleAdminFeedback(
+        feedbackContext: context,
+        message: 'Opened system audit report surface.',
+        sourceLabel: 'REPORTS WORKSPACE',
+        detail: [
+          'Proof-of-operations reporting is now focused for delivery and integrity review.',
+          integrityReport.verificationLines.first,
+          'Recommendation: ${integrityReport.recommendation}',
+        ].join(' • '),
+        accent: OnyxColorTokens.accentGreen,
+      );
+      return;
+    }
+    _openAdminExportFlow();
+    _handleAdminFeedback(
+      feedbackContext: context,
+      message: 'Opened system export controls.',
+      sourceLabel: 'SYSTEM AUDIT',
+      detail: [
+        'Export controls remain available for integrity reporting even when a scoped report route is not in focus.',
+        integrityReport.verificationLines.first,
+      ].join(' • '),
+      accent: OnyxColorTokens.accentGreen,
+    );
+  }
+
   Widget _systemControlsView() {
+    final authority = _buildAdminAuthoritySnapshot();
     final syncMessage = (_directorySyncMessage ?? '').trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _systemCategoryFrame(
-          title: 'System Health',
+          title: 'SYSTEM CONTROL AUTHORITY',
           subtitle: '',
-          icon: Icons.settings_rounded,
-          accent: OnyxColorTokens.accentAmber,
+          icon: Icons.admin_panel_settings_rounded,
+          accent: OnyxColorTokens.accentPurple,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _adminAuthorityOverviewPanel(),
+              const SizedBox(height: 14),
+              _adminRelationshipMapPanel(),
+              const SizedBox(height: 14),
+              _adminAuthorityActionCenter(),
+              const SizedBox(height: 14),
+              _adminFaultHierarchyPanel(),
+              const SizedBox(height: 14),
+              _adminOperationalImpactPanel(),
+              const SizedBox(height: 14),
+              _adminTraceabilityPanel(),
+              const SizedBox(height: 14),
               if (syncMessage.isNotEmpty) ...[
                 Text(
                   syncMessage,
@@ -4896,6 +6620,26 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
                 const SizedBox(height: 14),
               ],
+              Text(
+                'ZARA SYSTEM INTELLIGENCE',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.accentPurple.withValues(alpha: 0.7),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.9,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                authority.recommendation,
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 14),
               if (!widget.approvedTelegramOnboardingFollowUpDismissed &&
                   _latestApprovedTelegramOnboardingPrefill != null) ...[
                 _telegramOnboardingFollowUpPanel(),
@@ -22148,7 +23892,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return BoxDecoration(
       color: _adminDialogAltColor,
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: _adminDialogBorderColor),
+      border: Border.all(color: OnyxColorTokens.borderSubtle),
     );
   }
 
@@ -22159,7 +23903,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: 22,
           height: 3,
           decoration: BoxDecoration(
-            color: OnyxColorTokens.accentBlue,
+            color: OnyxColorTokens.accentPurple,
             borderRadius: BorderRadius.circular(999),
           ),
         ),
