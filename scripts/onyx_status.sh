@@ -10,6 +10,7 @@ PROXY_PID_FILE="${ONYX_TELEGRAM_PROXY_PID_FILE:-tmp/onyx_telegram_proxy.pid}"
 WORKER_PID_FILE="${ONYX_CAMERA_WORKER_PID_FILE:-tmp/onyx_camera_worker.pid}"
 YOLO_PID_FILE="${ONYX_YOLO_SERVER_PID_FILE:-tmp/onyx_yolo_server.pid}"
 RTSP_FRAME_PID_FILE="${ONYX_RTSP_FRAME_SERVER_PID_FILE:-tmp/onyx_rtsp_frame_server.pid}"
+DVR_PROXY_PID_FILE="${ONYX_DVR_PROXY_PID_FILE:-tmp/onyx_dvr_proxy.pid}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -90,12 +91,14 @@ yolo_host="$(json_value "ONYX_MONITORING_YOLO_HOST" | tr -d '\r')"
 yolo_port="$(json_value "ONYX_MONITORING_YOLO_PORT" | tr -d '\r')"
 rtsp_frame_host="$(json_value "ONYX_RTSP_FRAME_SERVER_HOST" | tr -d '\r')"
 rtsp_frame_port="$(json_value "ONYX_RTSP_FRAME_SERVER_PORT" | tr -d '\r')"
+dvr_proxy_port="$(json_value "ONYX_DVR_PROXY_PORT" | tr -d '\r')"
 proxy_host="${proxy_host:-127.0.0.1}"
 proxy_port="${proxy_port:-11637}"
 yolo_host="${yolo_host:-127.0.0.1}"
 yolo_port="${yolo_port:-11636}"
 rtsp_frame_host="${rtsp_frame_host:-127.0.0.1}"
 rtsp_frame_port="${rtsp_frame_port:-11638}"
+dvr_proxy_port="${dvr_proxy_port:-11635}"
 telegram_token="$(json_value "ONYX_TELEGRAM_BOT_TOKEN" | tr -d '\r')"
 
 echo "ONYX stack status"
@@ -121,6 +124,10 @@ else
   echo "YOLO detector: DISABLED"
   echo "RTSP frame server: DISABLED"
 fi
+render_process_status \
+  "DVR proxy" \
+  "$DVR_PROXY_PID_FILE" \
+  "scripts/onyx_dvr_cors_proxy\\.py" || true
 if render_process_status \
   "Camera worker" \
   "$WORKER_PID_FILE" \
@@ -186,6 +193,14 @@ try:
 except Exception as exc:
     print(f"RTSP frame health: error ({exc})")
 PY
+fi
+
+if lsof -nP -iTCP:"$dvr_proxy_port" -sTCP:LISTEN >/tmp/onyx_dvr_proxy_lsof_status 2>/dev/null; then
+  echo "DVR proxy listen:"
+  sed 's/^/  /' /tmp/onyx_dvr_proxy_lsof_status
+  rm -f /tmp/onyx_dvr_proxy_lsof_status
+else
+  echo "DVR proxy listen: not detected on 127.0.0.1:${dvr_proxy_port}"
 fi
 
 if [[ -n "$telegram_token" ]]; then

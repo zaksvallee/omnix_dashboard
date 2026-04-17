@@ -134,6 +134,7 @@ fi
 
 ./scripts/ensure_yolo_server.sh --config "$CONFIG_FILE"
 ./scripts/ensure_rtsp_frame_server.sh --config "$CONFIG_FILE"
+./scripts/ensure_dvr_proxy.sh --config "$CONFIG_FILE"
 ./scripts/ensure_camera_worker.sh --config "$CONFIG_FILE" --watchdog
 
 if [[ "$DEVICE" == "chrome" ]] && pgrep -f "flutter.*run.*chrome" >/dev/null 2>&1; then
