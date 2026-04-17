@@ -124,10 +124,28 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
     final initialScopeSiteId = routeSiteId.isEmpty ? null : routeSiteId;
     return CommandCenterPage(
       events: events,
-      theatreOrchestrator: ZaraTheatreOrchestrator(
-        intentParser: ZaraIntentParser(),
-        actionExecutor: ZaraActionExecutor(),
+      createTheatreActionExecutor: () => ZaraActionExecutor(
+        dispatchServiceProvider: () => service,
+        eventStoreProvider: () => store,
+        telegramBridgeServiceProvider: () => _telegramBridge,
+        messagingBridgeRepositoryProvider: () => widget.supabaseReady
+            ? SupabaseClientMessagingBridgeRepository(Supabase.instance.client)
+            : null,
       ),
+      createTheatreCloudBoostService: _buildOnyxAgentCloudBoostService,
+      theatreEventStream: store.watchAllEvents(),
+      theatreSupabaseClient: widget.supabaseReady
+          ? Supabase.instance.client
+          : null,
+      theatreOllamaModel: _OnyxAppState._onyxAgentLocalModelEnv.trim().isEmpty
+          ? 'mistral:7b-instruct-q5_K_M'
+          : _OnyxAppState._onyxAgentLocalModelEnv.trim(),
+      theatreOllamaEndpoint: Uri.tryParse(
+        _OnyxAppState._onyxAgentLocalEndpointEnv.trim(),
+      ),
+      theatreControllerUserIdProvider: () => widget.supabaseReady
+          ? (Supabase.instance.client.auth.currentUser?.id ?? '')
+          : '',
       morningSovereignReportHistory: _morningSovereignReportHistory,
       historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
       historicalShadowMoLabels: _recentShadowMoLabels(),

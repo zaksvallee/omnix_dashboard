@@ -36,15 +36,41 @@ class ZaraActionExecutor {
   final EventStore? eventStore;
   final TelegramBridgeService? telegramBridgeService;
   final SupabaseClientMessagingBridgeRepository? messagingBridgeRepository;
+  final DispatchApplicationService? Function()? dispatchServiceProvider;
+  final EventStore? Function()? eventStoreProvider;
+  final TelegramBridgeService? Function()? telegramBridgeServiceProvider;
+  final SupabaseClientMessagingBridgeRepository? Function()?
+  messagingBridgeRepositoryProvider;
   final DateTime Function() clock;
 
-  const ZaraActionExecutor({
+  ZaraActionExecutor({
     this.dispatchService,
     this.eventStore,
     this.telegramBridgeService,
     this.messagingBridgeRepository,
+    this.dispatchServiceProvider,
+    this.eventStoreProvider,
+    this.telegramBridgeServiceProvider,
+    this.messagingBridgeRepositoryProvider,
     this.clock = DateTime.now,
   });
+
+  DispatchApplicationService? get _dispatchService {
+    return dispatchServiceProvider?.call() ?? dispatchService;
+  }
+
+  EventStore? get _eventStore {
+    return eventStoreProvider?.call() ?? eventStore;
+  }
+
+  TelegramBridgeService? get _telegramBridgeService {
+    return telegramBridgeServiceProvider?.call() ?? telegramBridgeService;
+  }
+
+  SupabaseClientMessagingBridgeRepository? get _messagingBridgeRepository {
+    return messagingBridgeRepositoryProvider?.call() ??
+        messagingBridgeRepository;
+  }
 
   Future<ZaraActionResult> execute({
     required ZaraScenario scenario,
@@ -54,14 +80,19 @@ class ZaraActionExecutor {
     switch (action.kind) {
       case ZaraActionKind.checkFootage:
       case ZaraActionKind.checkWeather:
-      case ZaraActionKind.continueMonitoring:
         return ZaraActionResult(
           actionId: action.id,
           outcome: ZaraActionExecutionOutcome.autoExecuted,
           success: true,
-          sideEffectsSummary: action.resolutionSummary.isEmpty
-              ? action.label
-              : action.resolutionSummary,
+          sideEffectsSummary: _autoResolutionSummary(action),
+          resultData: action.payload.toJson(),
+        );
+      case ZaraActionKind.continueMonitoring:
+        return ZaraActionResult(
+          actionId: action.id,
+          outcome: ZaraActionExecutionOutcome.approved,
+          success: true,
+          sideEffectsSummary: _continueMonitoringSummary(action),
           resultData: action.payload.toJson(),
         );
       case ZaraActionKind.draftClientMessage:
@@ -100,7 +131,9 @@ class ZaraActionExecutor {
         sideEffectsSummary: 'Invalid client message payload.',
       );
     }
-    if (messagingBridgeRepository == null || telegramBridgeService == null) {
+    final repository = _messagingBridgeRepository;
+    final telegram = _telegramBridgeService;
+    if (repository == null || telegram == null) {
       return ZaraActionResult(
         actionId: action.id,
         outcome: ZaraActionExecutionOutcome.failed,
@@ -109,7 +142,7 @@ class ZaraActionExecutor {
             'Client message could not be sent because the messaging bridge is unavailable.',
       );
     }
-    final targets = await messagingBridgeRepository!.readActiveTelegramTargets(
+    final targets = await repository.readActiveTelegramTargets(
       clientId: payload.clientId,
       siteId: payload.siteId,
     );
@@ -125,7 +158,7 @@ class ZaraActionExecutor {
     final text = draftOverride.trim().isNotEmpty
         ? draftOverride.trim()
         : payload.draftText.trim();
-    final result = await telegramBridgeService!.sendMessages(
+    final result = await telegram.sendMessages(
       messages: [
         for (final target in targets)
           TelegramBridgeMessage(
@@ -160,7 +193,8 @@ class ZaraActionExecutor {
 
   Future<ZaraActionResult> _dispatchReaction(ZaraAction action) async {
     final payload = action.payload;
-    if (payload is! ZaraDispatchPayload || dispatchService == null) {
+    final dispatch = _dispatchService;
+    if (payload is! ZaraDispatchPayload || dispatch == null) {
       return ZaraActionResult(
         actionId: action.id,
         outcome: ZaraActionExecutionOutcome.failed,
@@ -169,7 +203,7 @@ class ZaraActionExecutor {
             'Reaction dispatch could not run because the dispatch service is unavailable.',
       );
     }
-    await dispatchService!.execute(
+    await dispatch.execute(
       clientId: payload.clientId,
       regionId: payload.regionId,
       siteId: payload.siteId,
@@ -186,7 +220,8 @@ class ZaraActionExecutor {
 
   Future<ZaraActionResult> _standDownDispatch(ZaraAction action) async {
     final payload = action.payload;
-    if (payload is! ZaraDispatchPayload || eventStore == null) {
+    final store = _eventStore;
+    if (payload is! ZaraDispatchPayload || store == null) {
       return ZaraActionResult(
         actionId: action.id,
         outcome: ZaraActionExecutionOutcome.failed,
@@ -195,7 +230,7 @@ class ZaraActionExecutor {
             'Dispatch stand-down could not run because the event store is unavailable.',
       );
     }
-    eventStore!.append(
+    store.append(
       IncidentClosed(
         eventId:
             'zara-stand-down-${payload.dispatchId}-${clock().toUtc().microsecondsSinceEpoch}',
@@ -216,5 +251,51 @@ class ZaraActionExecutor {
       sideEffectsSummary: 'Dispatch ${payload.dispatchId} stood down.',
       resultData: payload.toJson(),
     );
+  }
+
+  String _autoResolutionSummary(ZaraAction action) {
+    final payload = action.payload;
+    final detail = payload is ZaraMonitoringPayload
+        ? payload.detail.trim()
+        : '';
+    return switch (action.kind) {
+      ZaraActionKind.checkFootage => _footageSummary(detail),
+      ZaraActionKind.checkWeather => _weatherSummary(detail),
+      _ => action.label,
+    };
+  }
+
+  String _continueMonitoringSummary(ZaraAction action) {
+    final payload = action.payload;
+    if (payload is ZaraMonitoringPayload && payload.detail.trim().isNotEmpty) {
+      return 'Monitoring remains active. ${payload.detail.trim()}';
+    }
+    return 'Monitoring remains active and Zara will keep watch on the site.';
+  }
+
+  String _footageSummary(String detail) {
+    final normalized = detail.toLowerCase();
+    if (normalized.contains('no threat') ||
+        normalized.contains('no movement') ||
+        normalized.contains('clear')) {
+      return 'Checked footage — no threat detected on property.';
+    }
+    if (normalized.contains('unknown') || normalized.contains('unavailable')) {
+      return 'Checked footage — visual confirmation is limited, so Zara is keeping the alarm warm.';
+    }
+    return 'Checked footage — no obvious hostile activity is visible.';
+  }
+
+  String _weatherSummary(String detail) {
+    final normalized = detail.toLowerCase();
+    if (normalized.contains('wind')) {
+      return 'Checked weather — high wind could be contributing to the trigger.';
+    }
+    if (normalized.contains('storm') ||
+        normalized.contains('rain') ||
+        normalized.contains('weather')) {
+      return 'Checked weather — current conditions could explain the alarm trigger.';
+    }
+    return 'Checked weather — no clear environmental trigger is standing out.';
   }
 }

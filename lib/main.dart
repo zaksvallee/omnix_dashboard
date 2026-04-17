@@ -126,8 +126,6 @@ import 'application/site_activity_intelligence_service.dart';
 import 'application/site_activity_telegram_formatter.dart';
 import 'application/sms_delivery_service.dart';
 import 'application/zara_theatre/zara_action_executor.dart';
-import 'application/zara_theatre/zara_intent_parser.dart';
-import 'application/zara_theatre/zara_theatre_orchestrator.dart';
 import 'application/telegram_admin_command_formatter.dart';
 import 'application/telegram_ai_assistant_service.dart';
 import 'application/telegram_ai_starter_examples.dart';

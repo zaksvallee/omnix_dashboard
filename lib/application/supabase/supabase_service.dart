@@ -41,7 +41,11 @@ class SupabaseService {
       'proposed_at': scenario.createdAt.toUtc().toIso8601String(),
       'outcome': outcome.name,
       'executed_at': DateTime.now().toUtc().toIso8601String(),
-      'payload_jsonb': action.payload.toJson(),
+      'payload_jsonb': <String, Object?>{
+        ...action.payload.toJson(),
+        if (action.pendingDraftEdits.trim().isNotEmpty)
+          'draft_override': action.pendingDraftEdits.trim(),
+      },
       'result_jsonb': resultJson,
       if (orgId.trim().isNotEmpty) 'org_id': orgId.trim(),
     });
