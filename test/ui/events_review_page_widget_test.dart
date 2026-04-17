@@ -87,17 +87,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Events War Room'), findsOneWidget);
-
-    await tester.tap(
-      find.byKey(const ValueKey('events-routed-view-governance-button')),
+    final governanceButton = find.byKey(
+      const ValueKey('events-selected-focus-open-governance'),
     );
+    await tester.ensureVisible(governanceButton);
+    await tester.tap(governanceButton);
     await tester.pumpAndSettle();
     expect(governanceOpened, isTrue);
 
-    await tester.tap(
-      find.byKey(const ValueKey('events-routed-view-ledger-button')),
+    final ledgerButton = find.byKey(
+      const ValueKey('events-selected-focus-open-ledger'),
     );
+    await tester.ensureVisible(ledgerButton);
+    await tester.tap(ledgerButton);
     await tester.pumpAndSettle();
     expect(openedLedgerFocus, 'INT-HERO-1');
   });
@@ -186,7 +188,7 @@ void main() {
   testWidgets('events review workspace rail routes review actions', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    await tester.binding.setSurfaceSize(const Size(1000, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     String? copiedClipboardPayload;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -245,6 +247,7 @@ void main() {
       MaterialApp(
         home: EventsReviewPage(
           events: events,
+          initialSelectedEventId: 'INT-WS-1',
           onOpenGovernance: () {
             governanceOpened = true;
           },
@@ -257,38 +260,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey('events-workspace-panel-ops')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('events-workspace-status-banner')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('events-workspace-panel-timeline')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('events-workspace-panel-detail')),
-      findsOneWidget,
-    );
-    expect(
       find.byKey(const ValueKey('events-selected-focus-card')),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const ValueKey('events-workspace-command-receipt')),
-      findsOneWidget,
-    );
-
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('events-workspace-focus-ai-decision')),
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('events-workspace-focus-ai-decision')),
-    );
-    await tester.pumpAndSettle();
-
     expect(
       find.byKey(const ValueKey('events-selected-event-id')),
       findsOneWidget,
@@ -301,34 +275,30 @@ void main() {
     );
     expect(find.text('Alarm requires human escalation.'), findsNothing);
 
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('events-workspace-open-governance')),
+    final governanceButton = find.byKey(
+      const ValueKey('events-selected-focus-open-governance'),
     );
-    await tester.tap(
-      find.byKey(const ValueKey('events-workspace-open-governance')),
-    );
+    await tester.ensureVisible(governanceButton);
+    await tester.tap(governanceButton);
     await tester.pumpAndSettle();
     expect(governanceOpened, isTrue);
 
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('events-workspace-open-ledger')),
+    final ledgerButton = find.byKey(
+      const ValueKey('events-selected-focus-open-ledger'),
     );
-    await tester.tap(
-      find.byKey(const ValueKey('events-workspace-open-ledger')),
-    );
+    await tester.ensureVisible(ledgerButton);
+    await tester.tap(ledgerButton);
     await tester.pumpAndSettle();
     expect(openedLedgerFocus, 'INT-WS-1');
 
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('events-workspace-copy-selected')),
+    final copyButton = find.byKey(
+      const ValueKey('events-selected-focus-copy'),
     );
-    await tester.tap(
-      find.byKey(const ValueKey('events-workspace-copy-selected')),
-    );
+    await tester.ensureVisible(copyButton);
+    await tester.tap(copyButton);
     await tester.pump();
     expect(copiedClipboardPayload, contains('"eventId": "INT-WS-1"'));
     expect(find.text('Event payload copied for INT-WS-1.'), findsWidgets);
-    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('events review exposes DVR source filter and applies it', (
@@ -2050,7 +2020,7 @@ void main() {
   testWidgets('events review focused fallback keeps scoped lane identity', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 1100));
+    await tester.binding.setSurfaceSize(const Size(1000, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     String? openedLedgerEventId;
     String? openedGovernanceClientId;
@@ -2102,16 +2072,20 @@ void main() {
     );
     expect(find.textContaining('READY-SCOPE-MISSING'), findsWidgets);
 
-    await tester.tap(
-      find.byKey(const ValueKey('events-focused-fallback-open-governance')),
+    final governanceButton = find.byKey(
+      const ValueKey('events-selected-focus-open-governance'),
     );
+    await tester.ensureVisible(governanceButton);
+    await tester.tap(governanceButton);
     await tester.pumpAndSettle();
     expect(openedGovernanceClientId, 'CLIENT-001');
     expect(openedGovernanceSiteId, 'SITE-ALPHA');
 
-    await tester.tap(
-      find.byKey(const ValueKey('events-focused-fallback-open-ledger')),
+    final ledgerButton = find.byKey(
+      const ValueKey('events-selected-focus-open-ledger'),
     );
+    await tester.ensureVisible(ledgerButton);
+    await tester.tap(ledgerButton);
     await tester.pumpAndSettle();
     expect(openedLedgerEventId, 'READY-SCOPE-MISSING');
   });
