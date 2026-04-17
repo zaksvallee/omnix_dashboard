@@ -529,7 +529,7 @@ void main() {
           morningSovereignReport: report,
           initialScopeClientId: 'CLIENT-1',
           initialScopeSiteId: 'SITE-42',
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -834,7 +834,7 @@ void main() {
             ),
             initialScopeClientId: 'CLIENT-1',
             initialScopeSiteId: 'SITE-42',
-            onOpenEventsForScope: (eventIds, selectedEventId) {
+            onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
               openedEventIds = eventIds;
               openedSelectedEventId = selectedEventId;
             },
@@ -944,7 +944,7 @@ void main() {
           ],
           initialScopeClientId: 'CLIENT-VALLEE',
           initialScopeSiteId: 'SITE-VALLEE',
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -1093,7 +1093,7 @@ void main() {
           ],
           initialScopeClientId: 'CLIENT-VALLEE',
           initialScopeSiteId: 'SITE-VALLEE',
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -1349,7 +1349,7 @@ void main() {
           },
           morningSovereignReport: currentReport,
           morningSovereignReportHistory: [priorReport],
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -3555,7 +3555,7 @@ void main() {
           morningSovereignReport: report,
           initialScopeClientId: 'CLIENT-1',
           initialScopeSiteId: 'SITE-1',
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -3713,7 +3713,7 @@ void main() {
             morningSovereignReport: report,
             initialScopeClientId: 'CLIENT-1',
             initialScopeSiteId: 'SITE-42',
-            onOpenEventsForScope: (eventIds, selectedEventId) {
+            onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
               openedEventIds = eventIds;
               openedSelectedEventId = selectedEventId;
             },

@@ -56,7 +56,7 @@ void main() {
           onOpenGovernanceForScope: (clientId, siteId) {
             openedGovernanceScope = {'clientId': clientId, 'siteId': siteId};
           },
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventsScope = {
               'eventIds': eventIds,
               'selectedEventId': selectedEventId,
@@ -637,7 +637,7 @@ void main() {
               'partnerLabel': partnerLabel,
             };
           },
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventsScope = <String, Object?>{
               'eventIds': eventIds,
               'selectedEventId': selectedEventId,
@@ -1124,7 +1124,7 @@ void main() {
                 'partnerLabel': partnerLabel,
               };
             },
-            onOpenEventsForScope: (eventIds, selectedEventId) {
+            onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
               openedEventsScope = {
                 'eventIds': eventIds,
                 'selectedEventId': selectedEventId,
@@ -1361,7 +1361,7 @@ void main() {
                 'partnerLabel': partnerLabel,
               };
             },
-            onOpenEventsForScope: (eventIds, selectedEventId) {
+            onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
               openedEventsScope = {
                 'eventIds': eventIds,
                 'selectedEventId': selectedEventId,
@@ -2667,7 +2667,7 @@ void main() {
           selectedClient: 'CLIENT-001',
           selectedSite: 'SITE-SANDTON',
           morningSovereignReportHistory: [priorReport, currentReport],
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventsScope = <String, Object?>{
               'eventIds': eventIds,
               'selectedEventId': selectedEventId,
@@ -3110,7 +3110,7 @@ void main() {
             openedGovernanceClientId = clientId;
             openedGovernanceSiteId = siteId;
           },
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventsScope = <String, Object?>{
               'eventIds': eventIds,
               'selectedEventId': selectedEventId,

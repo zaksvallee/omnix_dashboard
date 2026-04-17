@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/dispatch_snapshot_file_service.dart';
+import 'events_route_source.dart';
 import '../application/email_bridge_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
@@ -821,8 +822,7 @@ class GovernancePage extends StatefulWidget {
   final void Function(String clientId, String siteId)? onOpenReportsForScope;
   final void Function(String clientId, String siteId, String partnerLabel)?
   onOpenReportsForPartnerScope;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
   final void Function(String clientId, String? siteId)? onOpenLedgerForScope;
   final GovernanceSceneActionFocus? initialSceneActionFocus;
   final ValueChanged<GovernanceSceneActionFocus?>? onSceneActionFocusChanged;
@@ -1874,7 +1874,7 @@ class _GovernancePageState extends State<GovernancePage> {
     if (eventIds.isEmpty) {
       return;
     }
-    callback(eventIds, eventIds.first);
+    callback(eventIds, eventIds.first, originLabel: eventIds.first);
     _setCommandReceipt(
       headline: 'Events scope opened',
       detail:
@@ -10943,6 +10943,20 @@ class _GovernancePageState extends State<GovernancePage> {
                                                   widget.onOpenEventsForScope!(
                                                     site.moShadowEventIds,
                                                     site.moShadowSelectedEventId,
+                                                    originLabel:
+                                                        (site.moShadowSelectedEventId ??
+                                                                    '')
+                                                                .trim()
+                                                                .isNotEmpty
+                                                            ? site.moShadowSelectedEventId!
+                                                                  .trim()
+                                                            : (site
+                                                                      .moShadowEventIds
+                                                                      .isNotEmpty
+                                                                  ? site
+                                                                        .moShadowEventIds
+                                                                        .first
+                                                                  : ''),
                                                   );
                                                 },
                                                 child: const Text(

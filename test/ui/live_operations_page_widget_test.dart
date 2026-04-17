@@ -3370,7 +3370,7 @@ void main() {
                 reviewedAtUtc: now.subtract(const Duration(minutes: 1)),
               ),
             },
-            onOpenEventsForScope: (eventIds, selectedEventId) {
+            onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
               openedEventIds = eventIds;
               openedSelectedEventId = selectedEventId;
             },
@@ -3801,7 +3801,7 @@ void main() {
             ),
           ],
           videoOpsLabel: 'DVR',
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },

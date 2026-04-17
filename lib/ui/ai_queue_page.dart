@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/monitoring_global_posture_service.dart';
+import 'events_route_source.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/monitoring_watch_autonomy_service.dart';
@@ -183,8 +184,7 @@ class AIQueuePage extends StatefulWidget {
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final ValueChanged<String>? onOpenAlarmsForIncident;
   final ValueChanged<String>? onOpenAgentForIncident;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
 
   const AIQueuePage({
     super.key,
@@ -538,7 +538,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     if (eventIds.isEmpty) {
       return;
     }
-    callback(eventIds, eventIds.first);
+    callback(eventIds, eventIds.first, originLabel: eventIds.first);
   }
 
   _AiQueueAction? _actionForAlert(_CctvBoardAlert alert) {
@@ -3629,6 +3629,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   onPressed: () => widget.onOpenEventsForScope!(
                     eventIds,
                     site.moShadowSelectedEventId,
+                    originLabel:
+                        (site.moShadowSelectedEventId ?? '').trim().isNotEmpty
+                        ? site.moShadowSelectedEventId!.trim()
+                        : (eventIds.isNotEmpty ? eventIds.first : ''),
                   ),
                   icon: const Icon(Icons.alt_route_rounded, size: 18),
                   label: const Text('OPEN EVIDENCE'),
@@ -5511,6 +5515,20 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                         widget.onOpenEventsForScope!(
                                           site.moShadowEventIds,
                                           site.moShadowSelectedEventId,
+                                          originLabel:
+                                              (site.moShadowSelectedEventId ??
+                                                          '')
+                                                      .trim()
+                                                      .isNotEmpty
+                                                  ? site.moShadowSelectedEventId!
+                                                        .trim()
+                                                  : (site
+                                                            .moShadowEventIds
+                                                            .isNotEmpty
+                                                        ? site
+                                                              .moShadowEventIds
+                                                              .first
+                                                        : ''),
                                         );
                                       },
                                       child: const Text('OPEN EVIDENCE'),
@@ -6183,7 +6201,15 @@ class _AIQueuePageState extends State<AIQueuePage> {
         shadowSite.moShadowEventIds.isEmpty) {
       return;
     }
-    callback(shadowSite.moShadowEventIds, shadowSite.moShadowSelectedEventId);
+    callback(
+      shadowSite.moShadowEventIds,
+      shadowSite.moShadowSelectedEventId,
+      originLabel: (shadowSite.moShadowSelectedEventId ?? '').trim().isNotEmpty
+          ? shadowSite.moShadowSelectedEventId!.trim()
+          : (shadowSite.moShadowEventIds.isNotEmpty
+                ? shadowSite.moShadowEventIds.first
+                : ''),
+    );
   }
 
   void _ensureSingleExecuting() {

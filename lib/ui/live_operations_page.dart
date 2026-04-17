@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/browser_link_service.dart';
+import 'events_route_source.dart';
 import '../application/client_camera_health_fact_packet_service.dart';
 import '../application/client_delivery_message_formatter.dart';
 import '../application/hazard_response_directive_service.dart';
@@ -1175,8 +1176,7 @@ class LiveOperationsPage extends StatefulWidget {
   final Future<String> Function(int updateId, {String? approvedText})?
   onApproveClientReplyDraft;
   final Future<String> Function(int updateId)? onRejectClientReplyDraft;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
   final VoidCallback? onOpenAlarms;
   final void Function(String incidentReference)? onOpenAlarmsForIncident;
   final void Function(String incidentReference)? onOpenAgentForIncident;
@@ -16575,6 +16575,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                       widget.onOpenEventsForScope!(
                                         sitePosture.moShadowEventIds,
                                         sitePosture.moShadowSelectedEventId,
+                                        originLabel:
+                                            (sitePosture
+                                                            .moShadowSelectedEventId ??
+                                                        '')
+                                                    .trim()
+                                                    .isNotEmpty
+                                                ? sitePosture
+                                                      .moShadowSelectedEventId!
+                                                      .trim()
+                                                : (sitePosture
+                                                          .moShadowEventIds
+                                                          .isNotEmpty
+                                                      ? sitePosture
+                                                            .moShadowEventIds
+                                                            .first
+                                                      : ''),
                                       );
                                     },
                                     style: OutlinedButton.styleFrom(
@@ -16683,6 +16699,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   widget.onOpenEventsForScope!(
                     snapshot.eventIds,
                     snapshot.selectedEventId,
+                    originLabel: (snapshot.selectedEventId ?? '').trim().isEmpty
+                        ? (snapshot.eventIds.isNotEmpty
+                              ? snapshot.eventIds.first
+                              : '')
+                        : snapshot.selectedEventId!.trim(),
                   );
                   _showLiveOpsFeedback(
                     'Events scope warmed for activity truth.',

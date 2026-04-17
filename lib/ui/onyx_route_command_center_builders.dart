@@ -27,11 +27,15 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
     List<String> eventIds,
     String? selectedEventId, {
     String scopeMode = '',
+    String originLabel = '',
+    ZaraEventsRouteSource routeSource = ZaraEventsRouteSource.unknown,
   }) {
     _openEventsForScopedEventIds(
       eventIds,
       selectedEventId: selectedEventId,
       scopeMode: scopeMode,
+      routeSource: routeSource,
+      originLabel: originLabel,
     );
   }
 
@@ -205,7 +209,13 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
       queueStateHintSeen: _liveOperationsQueueHintSeen,
       onQueueStateHintSeen: () => _setLiveOperationsQueueHintSeen(true),
       onQueueStateHintReset: () => _setLiveOperationsQueueHintSeen(false),
-      onOpenEventsForScope: _openCommandCenterEventsForScope,
+      onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) =>
+          _openCommandCenterEventsForScope(
+            eventIds,
+            selectedEventId,
+            routeSource: ZaraEventsRouteSource.liveOps,
+            originLabel: originLabel,
+          ),
       guardRosterSignalLabel: _guardRosterSignalLabel,
       guardRosterSignalHeadline: _guardRosterSignalHeadline,
       guardRosterSignalDetail: _guardRosterSignalDetail,
@@ -340,11 +350,13 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
       sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
       onOpenAlarmsForIncident: _openDispatchesFromAdminIncident,
       onOpenAgentForIncident: _openAgentFromAiQueueIncident,
-      onOpenEventsForScope: (eventIds, selectedEventId) =>
+      onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) =>
           _openCommandCenterEventsForScope(
             eventIds,
             selectedEventId,
             scopeMode: 'shadow',
+            routeSource: ZaraEventsRouteSource.aiQueue,
+            originLabel: originLabel,
           ),
     );
   }

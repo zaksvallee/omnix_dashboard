@@ -1033,7 +1033,7 @@ void main() {
       MaterialApp(
         home: DashboardPage(
           eventStore: store,
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },

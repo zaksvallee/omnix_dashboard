@@ -50,7 +50,7 @@ void main() {
         home: SovereignLedgerPage(
           clientId: 'CLIENT-001',
           events: events,
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -123,7 +123,7 @@ void main() {
         home: SovereignLedgerPage(
           clientId: 'CLIENT-001',
           events: events,
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -1229,7 +1229,7 @@ void main() {
           onReturnToWarRoom: () {
             returnedToRiskIntel = true;
           },
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },

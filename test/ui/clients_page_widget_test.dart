@@ -111,7 +111,7 @@ void main() {
             openedRoomClientId = clientId;
             openedRoomSiteId = siteId;
           },
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -228,7 +228,7 @@ void main() {
               openedRoomClientId = clientId;
               openedRoomSiteId = siteId;
             },
-            onOpenEventsForScope: (eventIds, selectedEventId) {
+            onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
               openedEventIds = eventIds;
               openedSelectedEventId = selectedEventId;
             },
@@ -748,7 +748,7 @@ void main() {
               guardId: 'GUARD-1',
             ),
           ],
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -879,7 +879,7 @@ void main() {
               canonicalHash: 'hash-1',
             ),
           ],
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },

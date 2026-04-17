@@ -40,11 +40,13 @@ extension _OnyxRouteGovernanceBuilders on _OnyxAppState {
       onOpenReportsForReceiptEvent: _openReportsForReceiptEvent,
       onOpenVehicleExceptionVisit: _openEventsForVehicleVisit,
       onOpenReportsForScope: _openReportsForScope,
-      onOpenEventsForScope: (eventIds, selectedEventId) {
+      onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
         _openEventsForScopedEventIds(
           eventIds,
           selectedEventId: selectedEventId,
           scopeMode: 'shadow',
+          routeSource: ZaraEventsRouteSource.governance,
+          originLabel: originLabel,
         );
       },
       onOpenLedgerForScope: _openLedgerForScope,

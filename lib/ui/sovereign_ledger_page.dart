@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/evidence_certificate_export_service.dart';
+import 'events_route_source.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -89,8 +90,7 @@ class SovereignLedgerPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final String initialFocusReference;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
   final SovereignLedgerPinnedAuditEntry? pinnedAuditEntry;
   final VoidCallback? onReturnToWarRoom;
   final ValueChanged<DispatchAuditOpenRequest>? onOpenDispatchForIncident;
@@ -1533,6 +1533,12 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                       : () => widget.onOpenEventsForScope!(
                           riskIntelAuditEventIds,
                           riskIntelSelectedEventId,
+                          originLabel:
+                              (riskIntelSelectedEventId ?? '').trim().isEmpty
+                              ? (riskIntelAuditEventIds.isNotEmpty
+                                    ? riskIntelAuditEventIds.first
+                                    : '')
+                              : riskIntelSelectedEventId!,
                         ),
                   style: _primaryButtonStyle(
                     backgroundColor: OnyxColorTokens.surfaceInset,
@@ -2798,6 +2804,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     widget.onOpenEventsForScope!(
       entry.linkedEventIds,
       entry.linkedEventIds.first,
+      originLabel: entry.recordCode,
     );
     _showActionMessage(
       'Linked events opened (${entry.recordCode}).',

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/events/decision_created.dart';
+import 'events_route_source.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
@@ -123,8 +124,7 @@ class ClientsPage extends StatefulWidget {
   final Future<void> Function()? onRetryPushSync;
   final void Function(String room, String clientId, String siteId)?
   onOpenClientRoomForScope;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
   final ValueChanged<String>? onOpenAgentForIncident;
   final ValueChanged<String?>? onOpenLiveFeedsForIncident;
   final ClientsAgentDraftHandoff? stagedAgentDraftHandoff;

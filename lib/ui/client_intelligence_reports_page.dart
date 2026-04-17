@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../application/admin/admin_directory_service.dart';
+import 'events_route_source.dart';
 import '../application/export_coordinator.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_scene_review_store.dart';
@@ -79,8 +80,7 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
   final void Function(String clientId, String siteId)? onOpenGovernanceForScope;
   final void Function(String clientId, String siteId, String partnerLabel)?
   onOpenGovernanceForPartnerScope;
-  final void Function(List<String> eventIds, String selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
   final void Function(String clientId, String siteId)? onOpenDispatchesForScope;
   final VoidCallback? onOpenGuards;
   final ReportsEvidenceReturnReceipt? evidenceReturnReceipt;
@@ -1844,7 +1844,11 @@ class _ClientIntelligenceReportsPageState
       );
       return;
     }
-    callback(eventIds, eventIds.first);
+    callback(
+      eventIds,
+      eventIds.first,
+      originLabel: row.event.eventId.trim(),
+    );
   }
 
   void _runChainIntegrityCheck(_ReceiptRow row, List<_ReceiptRow> orderedRows) {
@@ -8248,7 +8252,11 @@ class _ClientIntelligenceReportsPageState
     if (widget.onOpenEventsForScope == null || selectedEventId.isEmpty) {
       return;
     }
-    widget.onOpenEventsForScope!(scopedEventIds, selectedEventId);
+    widget.onOpenEventsForScope!(
+      scopedEventIds,
+      selectedEventId,
+      originLabel: chain.dispatchId.trim(),
+    );
     _showReceiptActionFeedback(
       'Opening Events Review for ${chain.dispatchId} • ${chain.partnerLabel}.',
     );
@@ -8740,7 +8748,11 @@ class _ClientIntelligenceReportsPageState
     if (widget.onOpenEventsForScope == null || eventId.isEmpty) {
       return;
     }
-    widget.onOpenEventsForScope!(<String>[eventId], eventId);
+    widget.onOpenEventsForScope!(
+      <String>[eventId],
+      eventId,
+      originLabel: eventId,
+    );
     _showReceiptActionFeedback(
       'Opening Events Review for ${row.event.eventId}.',
     );
@@ -11088,7 +11100,12 @@ class _ClientIntelligenceReportsPageState
     if (widget.onOpenEventsForScope == null || eventIds.isEmpty) {
       return;
     }
-    widget.onOpenEventsForScope!(eventIds, eventIds.last);
+    widget.onOpenEventsForScope!(
+      eventIds,
+      eventIds.last,
+      originLabel:
+          '${point.row.partnerLabel.trim()} • ${point.reportDate.trim()}',
+    );
     _showReceiptActionFeedback(
       'Opening Events Review for ${point.reportDate} • ${point.row.partnerLabel}.',
     );
@@ -11266,7 +11283,11 @@ class _ClientIntelligenceReportsPageState
     if (widget.onOpenEventsForScope == null || point.eventIds.isEmpty) {
       return;
     }
-    widget.onOpenEventsForScope!(point.eventIds, point.eventIds.last);
+    widget.onOpenEventsForScope!(
+      point.eventIds,
+      point.eventIds.last,
+      originLabel: '${point.reportDate.trim()} activity',
+    );
     _showReceiptActionFeedback(
       'Opening Events Review for ${point.reportDate} site activity.',
     );

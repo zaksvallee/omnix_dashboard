@@ -1,11 +1,30 @@
 part of '../main.dart';
 
 extension _OnyxRouteEvidenceBuilders on _OnyxAppState {
-  void _openEventsForEvidenceScope(
-    List<String> eventIds, [
-    String? selectedEventId,
-  ]) {
-    _openEventsForScopedEventIds(eventIds, selectedEventId: selectedEventId);
+  void _openEventsForLedgerScope(
+    List<String> eventIds,
+    String? selectedEventId, {
+    String originLabel = '',
+  }) {
+    _openEventsForScopedEventIds(
+      eventIds,
+      selectedEventId: selectedEventId,
+      routeSource: ZaraEventsRouteSource.ledger,
+      originLabel: originLabel,
+    );
+  }
+
+  void _openEventsForReportsScope(
+    List<String> eventIds,
+    String? selectedEventId, {
+    String originLabel = '',
+  }) {
+    _openEventsForScopedEventIds(
+      eventIds,
+      selectedEventId: selectedEventId,
+      routeSource: ZaraEventsRouteSource.reports,
+      originLabel: originLabel,
+    );
   }
 
   Widget _buildLedgerRoute(List<DispatchEvent> events) {
@@ -47,7 +66,7 @@ extension _OnyxRouteEvidenceBuilders on _OnyxAppState {
       events: events,
       sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
       initialFocusReference: focusReference,
-      onOpenEventsForScope: _openEventsForEvidenceScope,
+      onOpenEventsForScope: _openEventsForLedgerScope,
       pinnedAuditEntry: visiblePinnedAuditEntry,
       onReturnToWarRoom: visiblePinnedAuditEntry == null
           ? null
@@ -92,7 +111,7 @@ extension _OnyxRouteEvidenceBuilders on _OnyxAppState {
           : reportsScopePartnerLabel,
       onOpenGovernanceForScope: _openGovernanceForScope,
       onOpenGovernanceForPartnerScope: _openGovernanceForPartnerScope,
-      onOpenEventsForScope: _openEventsForEvidenceScope,
+      onOpenEventsForScope: _openEventsForReportsScope,
       onOpenDispatchesForScope: _openDispatchesForScope,
       onOpenGuards: () =>
           _openCommandCenterRoute(OnyxRoute.guards, cancelDemoAutopilot: true),

@@ -98,10 +98,11 @@ extension _OnyxRouteSystemBuilders on _OnyxAppState {
       onOpenOperationsForScope: _openOperationsForScope,
       onOpenTacticalForIncident: _openTacticalFromAdminIncident,
       onOpenEventsForIncident: _openEventsFromAdminIncident,
-      onOpenEventsForScope: (eventIds, selectedEventId) {
+      onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
         _openEventsForScopedEventIds(
           eventIds,
           selectedEventId: selectedEventId,
+          originLabel: originLabel,
         );
       },
       onOpenLedgerForIncident: _openLedgerFromAdminIncident,

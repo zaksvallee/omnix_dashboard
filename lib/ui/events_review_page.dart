@@ -32,6 +32,7 @@ import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import '../application/monitoring_scene_review_store.dart';
+import 'events_route_source.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
@@ -49,6 +50,9 @@ class EventsReviewPage extends StatefulWidget {
   final VoidCallback? onOpenGovernance;
   final void Function(String clientId, String siteId)? onOpenGovernanceForScope;
   final ValueChanged<String>? onOpenLedger;
+  final ZaraEventsRouteSource initialRouteSource;
+  final String initialOriginLabel;
+  final VoidCallback? onReturnToOrigin;
 
   const EventsReviewPage({
     super.key,
@@ -64,6 +68,9 @@ class EventsReviewPage extends StatefulWidget {
     this.onOpenGovernance,
     this.onOpenGovernanceForScope,
     this.onOpenLedger,
+    this.initialRouteSource = ZaraEventsRouteSource.navRail,
+    this.initialOriginLabel = '',
+    this.onReturnToOrigin,
   });
 
   @override
@@ -418,9 +425,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
     final visibleEvents = prioritizedEvents.length;
     final totalEvents = timeline.length;
-    final latestSequence = timeline.isEmpty
-        ? 'N/A'
-        : '#${timeline.first.sequence}';
     final visitScopedEvents = _visitScopedEvents(timeline);
 
     Widget buildSurfaceBody({
@@ -1766,16 +1770,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             ),
           ),
         _reviewCommandWorkspace(
-          identityPolicyOptions: identityPolicyOptions,
           prioritizedEvents: prioritizedEvents,
           selected: selected,
           visitScopedEvents: visitScopedEvents,
-          visibleEvents: visibleEvents,
-          totalEvents: totalEvents,
-          latestSequence: latestSequence,
-          openGovernanceAction: openGovernanceAction,
-          scopedEventCount: scopedEventIds.length,
-          mergeWorkspaceBannerIntoHero: mergeWorkspaceBannerIntoHero,
         ),
       ];
 
@@ -1831,36 +1828,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               : widescreenSurface
               ? viewport.maxWidth * 0.94
               : 1540.0;
-          final mergeWorkspaceBannerIntoHero =
-              boundedDesktopSurface && viewport.maxWidth >= 1240;
-
           return OnyxViewportWorkspaceLayout(
             padding: contentPadding,
             maxWidth: surfaceMaxWidth,
             lockToViewport: boundedDesktopSurface,
             spacing: 6,
-            header: _heroHeader(
+            header: _scopeRail(
+              selected: selected,
               visibleEvents: visibleEvents,
               totalEvents: totalEvents,
-              latestSequence: latestSequence,
-              selected: selected,
-              openGovernanceAction: openGovernanceAction,
-              workspaceBanner: mergeWorkspaceBannerIntoHero
-                  ? _reviewWorkspaceStatusBanner(
-                      selected: selected,
-                      visibleEvents: visibleEvents,
-                      totalEvents: totalEvents,
-                      latestSequence: latestSequence,
-                      scopedEventCount: scopedEventIds.length,
-                      governanceReady: openGovernanceAction != null,
-                      onResetFilters: _resetFilters,
-                      shellless: true,
-                    )
-                  : null,
+              scopedEventCount: scopedEventIds.length,
+              identityPolicyOptions: identityPolicyOptions,
+              onReset: _resetFilters,
             ),
             body: buildSurfaceBody(
               embedScroll: boundedDesktopSurface,
-              mergeWorkspaceBannerIntoHero: mergeWorkspaceBannerIntoHero,
+              mergeWorkspaceBannerIntoHero: false,
             ),
           );
         },
@@ -1869,16 +1852,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   Widget _reviewCommandWorkspace({
-    required List<String> identityPolicyOptions,
     required List<DispatchEvent> prioritizedEvents,
     required DispatchEvent? selected,
     required List<DispatchEvent> visitScopedEvents,
-    required int visibleEvents,
-    required int totalEvents,
-    required String latestSequence,
-    required VoidCallback? openGovernanceAction,
-    required int scopedEventCount,
-    required bool mergeWorkspaceBannerIntoHero,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1891,8 +1867,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         if (!desktopWorkspace) {
           return Column(
             children: [
-              _filterStrip(identityPolicyOptions),
-              const SizedBox(height: 6),
               _timelinePane(events: prioritizedEvents, bounded: false),
               const SizedBox(height: 6),
               _detailPane(
@@ -1912,15 +1886,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           shellless: true,
           expandChild: true,
           child: SingleChildScrollView(
-            child: _reviewOpsRail(
-              identityPolicyOptions: identityPolicyOptions,
-              selected: selected,
-              visibleEvents: visibleEvents,
-              totalEvents: totalEvents,
-              latestSequence: latestSequence,
-              scopedEventCount: scopedEventCount,
-              onResetFilters: _resetFilters,
-            ),
+            child: _reviewOpsRail(selected: selected),
           ),
         );
         final timelineBoard = _reviewWorkspacePanel(
@@ -1949,18 +1915,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!mergeWorkspaceBannerIntoHero) ...[
-              _reviewWorkspaceStatusBanner(
-                selected: selected,
-                visibleEvents: visibleEvents,
-                totalEvents: totalEvents,
-                latestSequence: latestSequence,
-                scopedEventCount: scopedEventCount,
-                governanceReady: openGovernanceAction != null,
-                onResetFilters: _resetFilters,
-              ),
-              const SizedBox(height: 5),
-            ],
             if (boundedHeight)
               Expanded(
                 child: Row(
@@ -2042,55 +1996,320 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
-  Widget _reviewWorkspaceStatusBanner({
+  Widget _scopeRail({
     required DispatchEvent? selected,
     required int visibleEvents,
     required int totalEvents,
-    required String latestSequence,
     required int scopedEventCount,
-    required bool governanceReady,
-    required VoidCallback onResetFilters,
-    bool shellless = false,
+    required List<String> identityPolicyOptions,
+    required VoidCallback onReset,
   }) {
-    final bannerContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 5,
-          runSpacing: 5,
-          children: [
-            _heroChip('Visible', '$visibleEvents of $totalEvents'),
-            _heroChip('Latest', latestSequence),
-            _heroChip('Selected', selected?.eventId ?? 'none'),
-            _heroChip('Type Filter', _activeFilter),
-            if (_activeSourceFilter != _sourceFilterAll)
-              _heroChip('Source', _activeSourceFilter),
-            if (_activeProviderFilter != _providerFilterAll)
-              _heroChip('Provider', _activeProviderFilter),
-            if (_activeIdentityPolicyFilter != _identityPolicyFilterAll)
-              _heroChip('Policy', _activeIdentityPolicyFilter),
-            if (scopedEventCount > 0)
-              _heroChip('Scoped', '$scopedEventCount linked'),
-          ],
+    final items = <Widget>[
+      if (_scopeRailShowsOrigin())
+        _scopeRailOriginButton(),
+      if (scopedEventCount > 0)
+        _scopeRailInfoChip(
+          label: 'Scoped',
+          value: '$scopedEventCount linked',
+          key: const ValueKey('events-scope-rail-scoped-count'),
         ),
-      ],
-    );
-    if (shellless) {
-      return KeyedSubtree(
-        key: const ValueKey('events-workspace-status-banner'),
-        child: bannerContent,
-      );
-    }
+      if (selected != null)
+        _scopeRailEventIdChip(
+          selected.eventId,
+          key: const ValueKey('events-scope-rail-selected-event-id'),
+        ),
+      _scopeRailInfoChip(
+        label: 'Visible',
+        value: '$visibleEvents of $totalEvents',
+        key: const ValueKey('events-scope-rail-visible-count'),
+      ),
+      _scopeRailDropdown<String>(
+        buttonKey: const ValueKey('events-scope-rail-type-filter'),
+        label: 'Type',
+        activeValue: _activeFilter,
+        options: _filterOptions,
+        displayLabel: (value) => value,
+        onSelected: (value) => setState(() => _activeFilter = value),
+      ),
+      _scopeRailDropdown<String>(
+        buttonKey: const ValueKey('events-scope-rail-source-filter'),
+        label: 'Source',
+        activeValue: _activeSourceFilter,
+        options: _sourceFilterOptions(),
+        displayLabel: (value) => value,
+        onSelected: (value) => setState(() {
+          _activeSourceFilter = value;
+          _activeProviderFilter = _providerFilterAll;
+        }),
+      ),
+      if (_providerFilterOptions().length > 1 ||
+          _activeProviderFilter != _providerFilterAll)
+        _scopeRailDropdown<String>(
+          buttonKey: const ValueKey('events-scope-rail-provider-filter'),
+          label: 'Provider',
+          activeValue: _activeProviderFilter,
+          options: _providerFilterOptions(),
+          displayLabel: (value) => value,
+          onSelected: (value) => setState(
+            () =>
+                _activeProviderFilter = _normalizeProviderFilter(value),
+          ),
+        ),
+      if (identityPolicyOptions.length > 1 ||
+          _activeIdentityPolicyFilter != _identityPolicyFilterAll)
+        _scopeRailDropdown<String>(
+          buttonKey: const ValueKey('events-scope-rail-policy-filter'),
+          label: 'Policy',
+          activeValue: _activeIdentityPolicyFilter,
+          options: identityPolicyOptions,
+          displayLabel: (value) => value,
+          onSelected: (value) =>
+              setState(() => _activeIdentityPolicyFilter = value),
+        ),
+      _scopeRailResetButton(onReset),
+    ];
     return Container(
-      key: const ValueKey('events-workspace-status-banner'),
+      key: const ValueKey('events-scope-rail'),
       width: double.infinity,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: OnyxColorTokens.divider),
       ),
-      child: bannerContent,
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: items,
+      ),
+    );
+  }
+
+  bool _scopeRailShowsOrigin() {
+    final source = widget.initialRouteSource;
+    return source != ZaraEventsRouteSource.navRail &&
+        source != ZaraEventsRouteSource.unknown &&
+        widget.onReturnToOrigin != null;
+  }
+
+  String _scopeRailOriginSourceLabel() {
+    return switch (widget.initialRouteSource) {
+      ZaraEventsRouteSource.ledger => 'LEDGER',
+      ZaraEventsRouteSource.aiQueue => 'AI QUEUE',
+      ZaraEventsRouteSource.dispatches => 'DISPATCHES',
+      ZaraEventsRouteSource.reports => 'REPORTS',
+      ZaraEventsRouteSource.governance => 'GOVERNANCE',
+      ZaraEventsRouteSource.liveOps => 'LIVE OPS',
+      ZaraEventsRouteSource.navRail => '',
+      ZaraEventsRouteSource.unknown => '',
+    };
+  }
+
+  Widget _scopeRailOriginButton() {
+    final sourceLabel = _scopeRailOriginSourceLabel();
+    final origin = widget.initialOriginLabel.trim();
+    final detail = origin.isEmpty ? sourceLabel : '$sourceLabel: $origin';
+    return InkWell(
+      key: const ValueKey('events-scope-rail-origin-back'),
+      borderRadius: BorderRadius.circular(999),
+      onTap: widget.onReturnToOrigin,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.surfaceElevated,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: OnyxColorTokens.accentCyan),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.arrow_back_rounded,
+              size: 14,
+              color: OnyxColorTokens.accentCyan,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              detail,
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.accentCyan,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _scopeRailInfoChip({
+    required String label,
+    required String value,
+    Key? key,
+  }) {
+    return Container(
+      key: key,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textPrimary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _scopeRailEventIdChip(String eventId, {Key? key}) {
+    return Container(
+      key: key,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: OnyxColorTokens.borderStrong),
+      ),
+      child: Text(
+        eventId,
+        style: GoogleFonts.robotoMono(
+          color: OnyxColorTokens.textPrimary,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _scopeRailDropdown<T>({
+    required Key buttonKey,
+    required String label,
+    required T activeValue,
+    required List<T> options,
+    required String Function(T value) displayLabel,
+    required ValueChanged<T> onSelected,
+  }) {
+    return PopupMenuButton<T>(
+      key: buttonKey,
+      tooltip: label,
+      initialValue: activeValue,
+      onSelected: onSelected,
+      color: OnyxColorTokens.surfaceElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: OnyxColorTokens.divider),
+      ),
+      itemBuilder: (context) => [
+        for (final option in options)
+          PopupMenuItem<T>(
+            value: option,
+            child: Text(
+              displayLabel(option),
+              style: GoogleFonts.inter(
+                color: option == activeValue
+                    ? OnyxColorTokens.accentCyan
+                    : OnyxColorTokens.textPrimary,
+                fontSize: 11,
+                fontWeight: option == activeValue
+                    ? FontWeight.w800
+                    : FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.surfaceElevated,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: OnyxColorTokens.divider),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$label: ',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              displayLabel(activeValue),
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textPrimary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(width: 2),
+            const Icon(
+              Icons.arrow_drop_down_rounded,
+              size: 16,
+              color: OnyxColorTokens.textMuted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _scopeRailResetButton(VoidCallback onReset) {
+    return InkWell(
+      key: const ValueKey('events-scope-rail-reset'),
+      borderRadius: BorderRadius.circular(999),
+      onTap: onReset,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: OnyxColorTokens.surfaceElevated,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: OnyxColorTokens.divider),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.replay_rounded,
+              size: 13,
+              color: OnyxColorTokens.textMuted,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'RESET',
+              style: GoogleFonts.inter(
+                color: OnyxColorTokens.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2131,100 +2350,24 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
-  Widget _reviewOpsRail({
-    required List<String> identityPolicyOptions,
-    required DispatchEvent? selected,
-    required int visibleEvents,
-    required int totalEvents,
-    required String latestSequence,
-    required int scopedEventCount,
-    required VoidCallback onResetFilters,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          key: const ValueKey('events-workspace-selection-banner'),
-          width: double.infinity,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: OnyxColorTokens.backgroundSecondary,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: OnyxColorTokens.divider),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                selected == null ? 'Pick one event.' : _eventSummary(selected),
-                style: GoogleFonts.inter(
-                  color: OnyxColorTokens.textPrimary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Wrap(
-                spacing: 5,
-                runSpacing: 5,
-                children: [
-                  _heroChip('Selected', selected?.eventId ?? 'none'),
-                  _heroChip('Visible', '$visibleEvents of $totalEvents'),
-                  _heroChip('Latest', latestSequence),
-                  if (_activeFilter != _filterAll)
-                    _heroChip('Type Filter', _activeFilter),
-                  if (_activeSourceFilter != _sourceFilterAll)
-                    _heroChip('Source', _activeSourceFilter),
-                  if (_activeProviderFilter != _providerFilterAll)
-                    _heroChip('Provider', _activeProviderFilter),
-                  if (_activeIdentityPolicyFilter != _identityPolicyFilterAll)
-                    _heroChip('Policy', _activeIdentityPolicyFilter),
-                  if (scopedEventCount > 0)
-                    _heroChip('Scoped', '$scopedEventCount linked'),
-                ],
-              ),
-            ],
-          ),
+  Widget _reviewOpsRail({required DispatchEvent? selected}) {
+    return Container(
+      key: const ValueKey('events-workspace-selection-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: OnyxColorTokens.divider),
+      ),
+      child: Text(
+        selected == null ? 'Pick one event.' : _eventSummary(selected),
+        style: GoogleFonts.inter(
+          color: OnyxColorTokens.textPrimary,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
         ),
-        const SizedBox(height: 6),
-        _outlineAction(
-          'RESET FILTERS',
-          actionKey: const ValueKey('events-workspace-reset-filters'),
-          onTap: onResetFilters,
-        ),
-        const SizedBox(height: 6),
-        _filterStrip(identityPolicyOptions),
-      ],
-    );
-  }
-
-  Widget _heroHeader({
-    required int visibleEvents,
-    required int totalEvents,
-    required String latestSequence,
-    required DispatchEvent? selected,
-    required VoidCallback? openGovernanceAction,
-    Widget? workspaceBanner,
-  }) {
-    final selectedLabel = selected == null ? 'None' : selected.eventId;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 5,
-          runSpacing: 5,
-          children: [
-            _heroChip('Visible', '$visibleEvents'),
-            _heroChip('Total', '$totalEvents'),
-            _heroChip('Latest', latestSequence),
-            _heroChip('Selected', selectedLabel),
-          ],
-        ),
-        if (workspaceBanner != null) ...[
-          const SizedBox(height: 6),
-          workspaceBanner,
-        ],
-      ],
+      ),
     );
   }
 
@@ -4199,167 +4342,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     });
   }
 
-  Widget _filterStrip(List<String> identityPolicyOptions) {
-    final sourceOptions = _sourceFilterOptions();
-    final providerOptions = _providerFilterOptions();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-      decoration: BoxDecoration(
-        color: OnyxColorTokens.backgroundSecondary,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: OnyxColorTokens.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compactHeader = constraints.maxWidth < 330;
-              final title = Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.filter_alt_outlined,
-                    color: OnyxColorTokens.textMuted,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'FORENSIC FILTERS:',
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: OnyxColorTokens.textSecondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.7,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-              final resetAction = InkWell(
-                borderRadius: BorderRadius.circular(6),
-                onTap: _resetFilters,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: OnyxColorTokens.backgroundSecondary,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: OnyxColorTokens.divider),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.replay_rounded,
-                        color: OnyxColorTokens.textMuted,
-                        size: 13,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'RESET',
-                        style: GoogleFonts.inter(
-                          color: OnyxColorTokens.textSecondary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-              if (compactHeader) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [title, const SizedBox(height: 6), resetAction],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: title),
-                  const SizedBox(width: 8),
-                  resetAction,
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final option in _filterOptions)
-                _filterChip(
-                  label: option,
-                  selected: _activeFilter == option,
-                  onTap: () => setState(() => _activeFilter = option),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final source in sourceOptions)
-                _filterChip(
-                  label: source,
-                  selected: _activeSourceFilter == source,
-                  onTap: () => setState(() {
-                    _activeSourceFilter = source;
-                    _activeProviderFilter = _providerFilterAll;
-                  }),
-                ),
-            ],
-          ),
-          if (providerOptions.length > 1 ||
-              _activeProviderFilter != _providerFilterAll) ...[
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final provider in providerOptions)
-                  _filterChip(
-                    label: provider,
-                    selected:
-                        _activeProviderFilter ==
-                        _normalizeProviderFilter(provider),
-                    onTap: () => setState(
-                      () => _activeProviderFilter = _normalizeProviderFilter(
-                        provider,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (identityPolicyOptions.length > 1 ||
-              _activeIdentityPolicyFilter != _identityPolicyFilterAll) ...[
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final policy in identityPolicyOptions)
-                  _filterChip(
-                    label: policy,
-                    selected: _activeIdentityPolicyFilter == policy,
-                    onTap: () =>
-                        setState(() => _activeIdentityPolicyFilter = policy),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 
   Widget _timelinePane({
     required List<DispatchEvent> events,
@@ -6299,35 +6281,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         alignment: 0.16,
       );
     });
-  }
-
-  Widget _filterChip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? OnyxColorTokens.accentPurple.withValues(alpha: 0.10) : OnyxColorTokens.backgroundSecondary,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: selected ? OnyxColorTokens.borderStrong : OnyxColorTokens.borderSubtle,
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: selected ? OnyxColorTokens.accentCyan : OnyxColorTokens.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
   }
 
   List<String> _sourceFilterOptions() {

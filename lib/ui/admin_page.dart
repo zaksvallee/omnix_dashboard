@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../application/admin/admin_directory_service.dart';
+import 'events_route_source.dart';
 import '../application/admin_write_follow_up_policy.dart';
 import '../application/client_delivery_message_formatter.dart';
 import '../application/morning_sovereign_report_service.dart';
@@ -956,8 +957,7 @@ class AdministrationPage extends StatefulWidget {
   final void Function(String clientId, String siteId)? onOpenOperationsForScope;
   final ValueChanged<String>? onOpenTacticalForIncident;
   final ValueChanged<String>? onOpenEventsForIncident;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
   final ValueChanged<String>? onOpenLedgerForIncident;
   final ValueChanged<String>? onOpenDispatchesForIncident;
   final void Function(String clientId, String siteId)? onOpenDispatchesForScope;

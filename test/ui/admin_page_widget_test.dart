@@ -6274,7 +6274,7 @@ void main() {
             openedDispatchSiteId = siteId;
             openedDispatchReference = incidentReference;
           },
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },

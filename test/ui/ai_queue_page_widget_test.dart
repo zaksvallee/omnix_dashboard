@@ -237,7 +237,7 @@ void main() {
               siteId: 'SITE-VALLEE',
             ),
           ],
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
@@ -1462,7 +1462,7 @@ void main() {
           events: events,
           sceneReviewByIntelligenceId: reviews,
           videoOpsLabel: 'Hikvision',
-          onOpenEventsForScope: (eventIds, selectedEventId) {
+          onOpenEventsForScope: (eventIds, selectedEventId, {originLabel = ''}) {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },

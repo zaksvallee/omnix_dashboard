@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/dispatch_snapshot_file_service.dart';
+import 'events_route_source.dart';
 import '../application/email_bridge_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/review_shortcut_contract.dart';
@@ -55,8 +56,7 @@ class DashboardPage extends StatelessWidget {
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
   final Future<void> Function()? onGenerateMorningSovereignReport;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
 
   const DashboardPage({
     super.key,
@@ -366,8 +366,7 @@ class _DesktopDashboard extends StatelessWidget {
   final List<DispatchEvent> allEvents;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
 
   const _DesktopDashboard({
     required this.snapshot,
@@ -562,8 +561,7 @@ class _CompactDashboard extends StatelessWidget {
   final List<DispatchEvent> allEvents;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
 
   const _CompactDashboard({
     required this.snapshot,
@@ -3036,8 +3034,7 @@ class _RightRail extends StatelessWidget {
   final List<DispatchEvent> allEvents;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
-  final void Function(List<String> eventIds, String? selectedEventId)?
-  onOpenEventsForScope;
+  final EventsScopeCallback? onOpenEventsForScope;
 
   const _RightRail({
     required this.snapshot,

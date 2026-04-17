@@ -298,9 +298,14 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
 
   void _openEventsForScopeRoute(
     List<String> eventIds,
-    String? selectedEventId,
-  ) {
-    _openEventsForScopedEventIds(eventIds, selectedEventId: selectedEventId);
+    String? selectedEventId, {
+    String originLabel = '',
+  }) {
+    _openEventsForScopedEventIds(
+      eventIds,
+      selectedEventId: selectedEventId,
+      originLabel: originLabel,
+    );
   }
 
   Widget _buildClientsRoute(List<DispatchEvent> events) {
@@ -371,6 +376,10 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
   }
 
   Widget _buildEventsRoute(List<DispatchEvent> events) {
+    final routeSource = _eventsRouteSource;
+    final hasOrigin =
+        routeSource != ZaraEventsRouteSource.navRail &&
+        routeSource != ZaraEventsRouteSource.unknown;
     return EventsReviewPage(
       events: events,
       morningSovereignReportHistory: _morningSovereignReportHistory,
@@ -392,6 +401,9 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
       initialScopedMode: _eventsScopedMode.trim().isEmpty
           ? null
           : _eventsScopedMode,
+      initialRouteSource: routeSource,
+      initialOriginLabel: _eventsOriginLabel,
+      onReturnToOrigin: hasOrigin ? _returnEventsToOrigin : null,
     );
   }
 }

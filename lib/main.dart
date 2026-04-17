@@ -204,6 +204,7 @@ import 'ui/controller_login_page.dart';
 import 'ui/alarms_page.dart';
 import 'ui/dispatch_page.dart';
 import 'ui/events_review_page.dart';
+import 'ui/events_route_source.dart';
 import 'ui/governance_page.dart';
 import 'ui/guards_workforce_page.dart';
 import 'ui/guard_mobile_shell_page.dart';
@@ -1738,6 +1739,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _eventsSelectedEventId = '';
   List<String> _eventsScopedEventIds = const <String>[];
   String _eventsScopedMode = '';
+  ZaraEventsRouteSource _eventsRouteSource = ZaraEventsRouteSource.navRail;
+  String _eventsOriginLabel = '';
   ReportShellState _reportShellState = const ReportShellState();
   String _operationsFocusIncidentReference = '';
   String? _operationsAgentReturnIncidentReference;
@@ -34513,6 +34516,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             _eventsProviderFilter = '';
             _eventsSelectedEventId = '';
             _eventsScopedEventIds = const <String>[];
+            _eventsRouteSource = ZaraEventsRouteSource.navRail;
+            _eventsOriginLabel = '';
           }
         }),
         onIntelTickerTap: _focusEventsFromTickerItem,
@@ -34575,6 +34580,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsSelectedEventId = '';
       _eventsScopedEventIds = const <String>[];
       _eventsScopedMode = '';
+      _eventsRouteSource = ZaraEventsRouteSource.navRail;
+      _eventsOriginLabel = '';
       _reportShellState = const ReportShellState();
       _operationsFocusIncidentReference = '';
       _aiQueueFocusIncidentReference = '';
@@ -34594,6 +34601,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsSelectedEventId = '';
       _eventsScopedEventIds = const <String>[];
       _eventsScopedMode = '';
+      _eventsRouteSource = ZaraEventsRouteSource.navRail;
+      _eventsOriginLabel = '';
       _reportShellState = const ReportShellState();
       _operationsFocusIncidentReference = '';
       _operationsAgentReturnIncidentReference = null;
@@ -35221,6 +35230,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     List<String> eventIds, {
     String? selectedEventId,
     String scopeMode = '',
+    ZaraEventsRouteSource routeSource = ZaraEventsRouteSource.unknown,
+    String originLabel = '',
   }) {
     final scopedIds = eventIds
         .map((value) => value.trim())
@@ -35239,6 +35250,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : scopedIds.first;
       _eventsScopedEventIds = scopedIds;
       _eventsScopedMode = scopeMode.trim();
+      _eventsRouteSource = routeSource;
+      _eventsOriginLabel = originLabel.trim();
       _route = OnyxRoute.events;
     });
     widget.onEventsScopeOpened?.call(
@@ -35248,6 +35261,30 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : scopedIds.first,
       scopeMode.trim(),
     );
+  }
+
+  void _returnEventsToOrigin() {
+    final source = _eventsRouteSource;
+    if (source == ZaraEventsRouteSource.navRail ||
+        source == ZaraEventsRouteSource.unknown) {
+      return;
+    }
+    _cancelDemoAutopilot();
+    final nextRoute = switch (source) {
+      ZaraEventsRouteSource.ledger => OnyxRoute.ledger,
+      ZaraEventsRouteSource.aiQueue => OnyxRoute.aiQueue,
+      ZaraEventsRouteSource.dispatches => OnyxRoute.dispatches,
+      ZaraEventsRouteSource.reports => OnyxRoute.reports,
+      ZaraEventsRouteSource.governance => OnyxRoute.governance,
+      ZaraEventsRouteSource.liveOps => OnyxRoute.dashboard,
+      ZaraEventsRouteSource.navRail => OnyxRoute.events,
+      ZaraEventsRouteSource.unknown => OnyxRoute.events,
+    };
+    setState(() {
+      _route = nextRoute;
+      _eventsRouteSource = ZaraEventsRouteSource.navRail;
+      _eventsOriginLabel = '';
+    });
   }
 
   void _openEventsForVehicleVisit(
