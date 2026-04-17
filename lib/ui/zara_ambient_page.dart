@@ -36,6 +36,10 @@ class ZaraAmbientPage extends StatefulWidget {
 
 class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     with TickerProviderStateMixin {
+  static const double _heartbeatChipHeight = 44;
+  static const double _floatingCardCompactClearance = 220;
+  static const double _floatingCardWideClearance = 192;
+
   late final AnimationController _fadeController;
   late final AnimationController _pulseController;
   late final AnimationController _surfaceController;
@@ -47,8 +51,8 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
   Timer? _statementTimer;
   String _timeLabel = '';
   bool _actionCardVisible = false;
-  int _previousIncidentCount = 0;
-  int _previousDispatchCount = 0;
+  int _previousIncidentCount = -1;
+  int _previousDispatchCount = -1;
   int _statementIndex = 0;
 
   @override
@@ -76,13 +80,13 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _surfaceSlide = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _surfaceController,
-      curve: Curves.easeInOutCubic,
-    ));
+    _surfaceSlide = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _surfaceController,
+            curve: Curves.easeInOutCubic,
+          ),
+        );
     _surfaceFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _surfaceController, curve: Curves.easeOut),
     );
@@ -92,12 +96,9 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
       const Duration(seconds: 30),
       (_) => _updateTime(),
     );
-    _statementTimer = Timer.periodic(
-      const Duration(seconds: 8),
-      (_) {
-        if (mounted) setState(() => _statementIndex++);
-      },
-    );
+    _statementTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (mounted) setState(() => _statementIndex++);
+    });
   }
 
   void _updateTime() {
@@ -106,8 +107,8 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     final greeting = hour < 12
         ? 'Good morning'
         : hour < 18
-            ? 'Good afternoon'
-            : 'Good evening';
+        ? 'Good afternoon'
+        : 'Good evening';
     if (mounted) setState(() => _timeLabel = greeting);
   }
 
@@ -122,6 +123,11 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
   }
 
   void _evaluateEventSurface(int incidentCount, int dispatchCount) {
+    if (_previousIncidentCount < 0) {
+      _previousIncidentCount = incidentCount;
+      _previousDispatchCount = dispatchCount;
+      return;
+    }
     final shouldSurface =
         incidentCount > _previousIncidentCount ||
         (dispatchCount > _previousDispatchCount && dispatchCount > 0);
@@ -140,6 +146,20 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     });
   }
 
+  double _bottomContentClearance({required bool compact}) {
+    final actionCardClearance = _actionCardVisible
+        ? (compact ? _floatingCardCompactClearance : _floatingCardWideClearance)
+        : 0.0;
+    return _heartbeatChipHeight + 36 + actionCardClearance;
+  }
+
+  double _heartbeatBottomOffset({required bool compact}) {
+    final actionCardClearance = _actionCardVisible
+        ? (compact ? _floatingCardCompactClearance : _floatingCardWideClearance)
+        : 0.0;
+    return 24 + actionCardClearance;
+  }
+
   @override
   Widget build(BuildContext context) {
     final projection = OperationsHealthProjection.build(widget.events);
@@ -147,7 +167,8 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
         ? 'Operator'
         : widget.operatorLabel.trim().split(' ').first;
     final siteCount = projection.totalSites;
-    final activeDispatches = projection.totalDecisions -
+    final activeDispatches =
+        projection.totalDecisions -
         projection.totalExecuted -
         projection.totalDenied;
     final activeDispatchCount = activeDispatches.clamp(0, 999);
@@ -156,27 +177,26 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     final highRiskIntel = projection.highRiskIntelligence;
     final pressure = projection.controllerPressureIndex;
 
-    final allClear = activeDispatchCount == 0 &&
-        incidentCount == 0 &&
-        highRiskIntel == 0;
+    final allClear =
+        activeDispatchCount == 0 && incidentCount == 0 && highRiskIntel == 0;
 
     final statusMessage = allClear
         ? 'All systems operational.\nNo incidents require your attention.'
         : incidentCount > 0
-            ? '$incidentCount active incident${incidentCount == 1 ? '' : 's'} detected.\nHuman decision may be required.'
-            : activeDispatchCount > 0
-                ? '$activeDispatchCount dispatch${activeDispatchCount == 1 ? '' : 'es'} in progress.\nMonitoring autonomously.'
-                : highRiskIntel > 0
-                    ? '$highRiskIntel high-risk intelligence signal${highRiskIntel == 1 ? '' : 's'}.\nArea threat elevated.'
-                    : 'All systems operational.';
+        ? '$incidentCount active incident${incidentCount == 1 ? '' : 's'} detected.\nHuman decision may be required.'
+        : activeDispatchCount > 0
+        ? '$activeDispatchCount dispatch${activeDispatchCount == 1 ? '' : 'es'} in progress.\nMonitoring autonomously.'
+        : highRiskIntel > 0
+        ? '$highRiskIntel high-risk intelligence signal${highRiskIntel == 1 ? '' : 's'}.\nArea threat elevated.'
+        : 'All systems operational.';
 
     final statusAccent = allClear
         ? OnyxColorTokens.accentGreen
         : incidentCount > 0
-            ? OnyxColorTokens.accentRed
-            : activeDispatchCount > 0
-                ? OnyxColorTokens.accentAmber
-                : OnyxColorTokens.accentAmber;
+        ? OnyxColorTokens.accentRed
+        : activeDispatchCount > 0
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentAmber;
 
     _evaluateEventSurface(incidentCount, activeDispatchCount);
 
@@ -188,59 +208,68 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 700;
+            final horizontalPadding = compact ? 24.0 : 48.0;
+            final surfacedCardWidth = compact ? 520.0 : 460.0;
             return Stack(
               children: [
-                Column(
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: compact ? 24 : 48,
-                            vertical: 32,
-                          ),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 640),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _zaraIdentity(),
-                                const SizedBox(height: 32),
-                                _greetingCard(
-                                  operatorName: operatorName,
-                                  siteLabel: widget.siteLabel,
-                                  statusMessage: statusMessage,
-                                  statusAccent: statusAccent,
-                                  allClear: allClear,
-                                ),
-                                const SizedBox(height: 24),
-                                _zaraIntelligenceStatement(projection),
-                                const SizedBox(height: 32),
-                                _systemHealthBar(
-                                  siteCount: siteCount,
-                                  guardCount: guardCount,
-                                  dispatchCount: activeDispatchCount,
-                                  pressure: pressure,
-                                ),
-                                if (autonomousOps.isNotEmpty) ...[
-                                  const SizedBox(height: 32),
-                                  _autonomousOpsSection(autonomousOps),
-                                ],
-                                const SizedBox(height: 32),
-                                if (projection.liveSignals.isNotEmpty) ...[
-                                  _liveSignalFeed(projection.liveSignals),
-                                  const SizedBox(height: 32),
-                                ],
-                                _quickActions(compact: compact),
-                                const SizedBox(height: 48),
-                                _zaraHeartbeat(),
-                              ],
+                SizedBox.expand(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      32,
+                      horizontalPadding,
+                      32 + _bottomContentClearance(compact: compact),
+                    ),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 640),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _zaraIdentity(),
+                            const SizedBox(height: 32),
+                            _greetingCard(
+                              operatorName: operatorName,
+                              siteLabel: widget.siteLabel,
+                              statusMessage: statusMessage,
+                              statusAccent: statusAccent,
+                              allClear: allClear,
                             ),
-                          ),
+                            const SizedBox(height: 24),
+                            _zaraIntelligenceStatement(projection),
+                            const SizedBox(height: 32),
+                            _systemHealthBar(
+                              siteCount: siteCount,
+                              guardCount: guardCount,
+                              dispatchCount: activeDispatchCount,
+                              pressure: pressure,
+                            ),
+                            if (autonomousOps.isNotEmpty) ...[
+                              const SizedBox(height: 32),
+                              _autonomousOpsSection(autonomousOps),
+                            ],
+                            const SizedBox(height: 32),
+                            if (projection.liveSignals.isNotEmpty) ...[
+                              _liveSignalFeed(projection.liveSignals),
+                              const SizedBox(height: 32),
+                            ],
+                            _quickActions(compact: compact),
+                          ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                ),
+                Positioned(
+                  right: compact ? 16 : 24,
+                  bottom: _heartbeatBottomOffset(compact: compact),
+                  child: IgnorePointer(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 220),
+                      child: _zaraHeartbeatChip(),
+                    ),
+                  ),
                 ),
                 if (_actionCardVisible)
                   Positioned(
@@ -249,7 +278,9 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
                     bottom: 24,
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 640),
+                        constraints: BoxConstraints(
+                          maxWidth: surfacedCardWidth,
+                        ),
                         child: SlideTransition(
                           position: _surfaceSlide,
                           child: FadeTransition(
@@ -357,9 +388,7 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
       decoration: BoxDecoration(
         color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: statusAccent.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: statusAccent.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
             color: statusAccent.withValues(alpha: 0.06),
@@ -535,27 +564,36 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     final pressureLabel = pressure < 30
         ? 'LOW'
         : pressure < 65
-            ? 'NORMAL'
-            : 'ELEVATED';
+        ? 'NORMAL'
+        : 'ELEVATED';
     final pressureColor = pressure < 30
         ? OnyxColorTokens.accentGreen
         : pressure < 65
-            ? OnyxColorTokens.accentCyanTrue
-            : OnyxColorTokens.accentAmber;
+        ? OnyxColorTokens.accentCyanTrue
+        : OnyxColorTokens.accentAmber;
 
     return Wrap(
       spacing: 12,
       runSpacing: 12,
       alignment: WrapAlignment.center,
       children: [
-        _healthPill(Icons.apartment_rounded, '$siteCount sites',
-            OnyxColorTokens.accentCyanTrue),
-        _healthPill(Icons.shield_rounded, '$guardCount guards',
-            OnyxColorTokens.accentGreen),
-        _healthPill(Icons.send_rounded, '$dispatchCount active',
-            dispatchCount > 0
-                ? OnyxColorTokens.accentAmber
-                : OnyxColorTokens.textMuted),
+        _healthPill(
+          Icons.apartment_rounded,
+          '$siteCount sites',
+          OnyxColorTokens.accentCyanTrue,
+        ),
+        _healthPill(
+          Icons.shield_rounded,
+          '$guardCount guards',
+          OnyxColorTokens.accentGreen,
+        ),
+        _healthPill(
+          Icons.send_rounded,
+          '$dispatchCount active',
+          dispatchCount > 0
+              ? OnyxColorTokens.accentAmber
+              : OnyxColorTokens.textMuted,
+        ),
         _healthPill(Icons.speed_rounded, pressureLabel, pressureColor),
       ],
     );
@@ -669,51 +707,69 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
       spacing: 10,
       runSpacing: 10,
       alignment: WrapAlignment.center,
-      children: [
-        for (final action in actions)
-          _actionChip(action),
-      ],
+      children: [for (final action in actions) _actionChip(action)],
     );
   }
 
   // ── Zara heartbeat ─────────────────────────────────────────────────────────
 
-  Widget _zaraHeartbeat() {
+  Widget _zaraHeartbeatChip() {
     return AnimatedBuilder(
       animation: _pulseAnimation,
       builder: (context, child) {
         return Opacity(
-          opacity: 0.3 + 0.3 * _pulseAnimation.value,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: OnyxColorTokens.brand,
-                  boxShadow: [
-                    BoxShadow(
-                      color: OnyxColorTokens.brand.withValues(
-                        alpha: 0.4 * _pulseAnimation.value,
+          opacity: 0.76 + 0.12 * _pulseAnimation.value,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.backgroundSecondary.withValues(
+                alpha: 0.94,
+              ),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: OnyxColorTokens.brand.withValues(alpha: 0.18),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: OnyxColorTokens.brand.withValues(
+                    alpha: 0.18 * _pulseAnimation.value,
+                  ),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: OnyxColorTokens.brand,
+                    boxShadow: [
+                      BoxShadow(
+                        color: OnyxColorTokens.brand.withValues(
+                          alpha: 0.4 * _pulseAnimation.value,
+                        ),
+                        blurRadius: 8,
                       ),
-                      blurRadius: 8,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Zara is watching',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: OnyxColorTokens.textMuted,
-                  letterSpacing: 0.5,
+                const SizedBox(width: 8),
+                Text(
+                  'Zara is watching',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: OnyxColorTokens.textMuted,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -774,7 +830,8 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     }
     if (projection.totalIntelligenceReceived > 0) {
       final lowRisk =
-          projection.totalIntelligenceReceived - projection.highRiskIntelligence;
+          projection.totalIntelligenceReceived -
+          projection.highRiskIntelligence;
       if (lowRisk > 0) {
         log.add(
           'Processed $lowRisk low-risk intelligence signal'
@@ -784,7 +841,9 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     }
     if (projection.sites.isNotEmpty) {
       final strongSites = projection.sites
-          .where((s) => s.healthStatus == 'STRONG' || s.healthStatus == 'STABLE')
+          .where(
+            (s) => s.healthStatus == 'STRONG' || s.healthStatus == 'STABLE',
+          )
           .length;
       if (strongSites > 0) {
         log.add(
@@ -883,8 +942,8 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
     final detail = dispatchFeed.isNotEmpty
         ? dispatchFeed.last
         : isIncident
-            ? '$incidentCount active incident${incidentCount == 1 ? '' : 's'}'
-            : '$dispatchCount dispatch${dispatchCount == 1 ? '' : 'es'} in progress';
+        ? '$incidentCount active incident${incidentCount == 1 ? '' : 's'}'
+        : '$dispatchCount dispatch${dispatchCount == 1 ? '' : 'es'} in progress';
     final actionLabel = isIncident ? 'OPEN DISPATCHES' : 'VIEW ACTIVITY';
     final actionCallback = isIncident
         ? widget.onOpenDispatches
@@ -904,15 +963,9 @@ class _ZaraAmbientPageState extends State<ZaraAmbientPage>
         ),
         boxShadow: [
           BoxShadow(
-            color: statusAccent.withValues(alpha: 0.15),
-            blurRadius: 30,
-            spreadRadius: 2,
-            offset: const Offset(0, -4),
-          ),
-          BoxShadow(
-            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.6),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: statusAccent.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -2),
           ),
         ],
       ),

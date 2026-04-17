@@ -620,15 +620,10 @@ class _ShellTopBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Flexible(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: OnyxGlobalSystemStateChip(
-                    state: systemState,
-                    detail: OnyxSystemStateService.detailFor(systemSnapshot),
-                    compact: compactSystemState,
-                  ),
-                ),
+              OnyxGlobalSystemStateChip(
+                state: systemState,
+                detail: OnyxSystemStateService.detailFor(systemSnapshot),
+                compact: compactSystemState,
               ),
               const SizedBox(width: 10),
               OnyxEventStoreStatusChip(
