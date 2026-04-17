@@ -805,36 +805,38 @@ class _DispatchPageState extends State<DispatchPage> {
   Widget build(BuildContext context) {
     final contentPadding = const EdgeInsets.fromLTRB(2.95, 2.95, 2.95, 3.7);
     return OnyxPageScaffold(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final selectedDispatch = _dispatches.isEmpty
-              ? null
-              : _selectedDispatch(dispatches: _dispatches);
-          final twoColumn = constraints.maxWidth >= 1180;
-          if (_desktopWorkspaceActive != twoColumn) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                setState(() => _desktopWorkspaceActive = twoColumn);
-              }
-            });
-          }
-          final surfaceMaxWidth = commandSurfaceMaxWidth(
-            context,
-            compactDesktopWidth: 1580,
-            viewportWidth: constraints.maxWidth,
-            widescreenFillFactor: 0.985,
-          );
-          return OnyxViewportWorkspaceLayout(
-            padding: contentPadding,
-            maxWidth: surfaceMaxWidth,
-            spacing: 0,
-            header: const SizedBox.shrink(),
-            body: _dispatchOutcomeSurface(
-              selectedDispatch: selectedDispatch,
-              twoColumn: twoColumn,
-            ),
-          );
-        },
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final selectedDispatch = _dispatches.isEmpty
+                ? null
+                : _selectedDispatch(dispatches: _dispatches);
+            final twoColumn = constraints.maxWidth >= 1180;
+            if (_desktopWorkspaceActive != twoColumn) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() => _desktopWorkspaceActive = twoColumn);
+                }
+              });
+            }
+            final surfaceMaxWidth = commandSurfaceMaxWidth(
+              context,
+              compactDesktopWidth: 1580,
+              viewportWidth: constraints.maxWidth,
+              widescreenFillFactor: 0.985,
+            );
+            return OnyxViewportWorkspaceLayout(
+              padding: contentPadding,
+              maxWidth: surfaceMaxWidth,
+              spacing: 0,
+              header: const SizedBox.shrink(),
+              body: _dispatchOutcomeSurface(
+                selectedDispatch: selectedDispatch,
+                twoColumn: twoColumn,
+              ),
+            );
+          },
+        ),
       ),
     );
   }

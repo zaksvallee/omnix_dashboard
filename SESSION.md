@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-11 21:19
-- **Last commit:** fix: persistent RTSP reader — survive H.264 decode errors for HD frames
-- **Commit hash:** 8091999
+- **Date:** 2026-04-17 09:10
+- **Last commit:** feat: admin control authority + reports proof engine
+- **Commit hash:** 8a5ac6d
 
 ## Completed today (2026-04-10)
 - [x] YOLO in pipeline — false positive filter active (0814e25)

@@ -137,36 +137,39 @@ class ClientCommsQueueBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey('clients-simple-queue-board'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _pageHeader(),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final twoColumn = constraints.maxWidth >= 860;
-            if (twoColumn) {
-              return Row(
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        key: const ValueKey('clients-simple-queue-board'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _pageHeader(),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final twoColumn = constraints.maxWidth >= 860;
+              if (twoColumn) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 7, child: _leftColumn()),
+                    const SizedBox(width: 16),
+                    SizedBox(width: 240, child: _rightColumn()),
+                  ],
+                );
+              }
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 7, child: _leftColumn()),
-                  const SizedBox(width: 16),
-                  SizedBox(width: 240, child: _rightColumn()),
+                  _leftColumn(),
+                  const SizedBox(height: 16),
+                  _rightColumn(),
                 ],
               );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _leftColumn(),
-                const SizedBox(height: 16),
-                _rightColumn(),
-              ],
-            );
-          },
-        ),
-      ],
+            },
+          ),
+        ],
+      ),
     );
   }
 

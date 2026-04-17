@@ -391,36 +391,38 @@ class _ClientsPageState extends State<ClientsPage> {
         : model.sites;
     if (clients.isEmpty || sites.isEmpty) {
       return OnyxPageScaffold(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final surfaceMaxWidth = commandSurfaceMaxWidth(
-              context,
-              compactDesktopWidth: 1760,
-              viewportWidth: constraints.maxWidth,
-              widescreenFillFactor: 0.96,
-            );
-            return OnyxViewportWorkspaceLayout(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-              maxWidth: surfaceMaxWidth,
-              spacing: 0,
-              lockToViewport: false,
-              header: const SizedBox.shrink(),
-              body: ClientCommsQueueBoard(
-                items: const <ClientCommsQueueItem>[],
-                onToggleDetailedWorkspace: () {},
-                onSend: (_) {},
-                onEdit: (_) {},
-                onReject: (_) {},
-                selectedTone: _selectedPinnedVoice,
-                onToneChanged: (tone) =>
-                    setState(() => _selectedPinnedVoice = tone),
-                messageHistory: const <ClientCommsHistoryEntry>[],
-                onOpenLiveFeeds: widget.onOpenLiveFeedsForIncident == null
-                    ? null
-                    : () => widget.onOpenLiveFeedsForIncident!(null),
-              ),
-            );
-          },
+        child: SizedBox.expand(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final surfaceMaxWidth = commandSurfaceMaxWidth(
+                context,
+                compactDesktopWidth: 1760,
+                viewportWidth: constraints.maxWidth,
+                widescreenFillFactor: 0.96,
+              );
+              return OnyxViewportWorkspaceLayout(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+                maxWidth: surfaceMaxWidth,
+                spacing: 0,
+                lockToViewport: false,
+                header: const SizedBox.shrink(),
+                body: ClientCommsQueueBoard(
+                  items: const <ClientCommsQueueItem>[],
+                  onToggleDetailedWorkspace: () {},
+                  onSend: (_) {},
+                  onEdit: (_) {},
+                  onReject: (_) {},
+                  selectedTone: _selectedPinnedVoice,
+                  onToneChanged: (tone) =>
+                      setState(() => _selectedPinnedVoice = tone),
+                  messageHistory: const <ClientCommsHistoryEntry>[],
+                  onOpenLiveFeeds: widget.onOpenLiveFeedsForIncident == null
+                      ? null
+                      : () => widget.onOpenLiveFeedsForIncident!(null),
+                ),
+              );
+            },
+          ),
         ),
       );
     }
@@ -539,291 +541,294 @@ class _ClientsPageState extends State<ClientsPage> {
         : () => widget.onOpenLiveFeedsForIncident!(agentIncidentReference);
 
     return OnyxPageScaffold(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final desktopWorkspace = constraints.maxWidth >= 1240;
-          final stacked = constraints.maxWidth < 1220;
-          final boundedDesktopSurface =
-              desktopWorkspace && allowEmbeddedPanelScroll(context);
-          final ultrawideSurface = isUltrawideLayout(
-            context,
-            viewportWidth: constraints.maxWidth,
-          );
-          final widescreenSurface = isWidescreenLayout(
-            context,
-            viewportWidth: constraints.maxWidth,
-          );
-          final surfaceMaxWidth = ultrawideSurface || widescreenSurface
-              ? constraints.maxWidth
-              : 1760.0;
-          final communicationsBoard = Column(
-            children: [
-              _messageHistoryCard(
-                rows,
-                currentClient: currentClient,
-                currentSite: currentSite,
-                pendingAsks: pendingAsks,
-                unreadAlerts: unreadAlerts,
-                directUpdates: directUpdates,
-              ),
-              const SizedBox(height: 8),
-              KeyedSubtree(
-                key: _roomThreadContextCardKey,
-                child: _roomThreadContextCard(
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final desktopWorkspace = constraints.maxWidth >= 1240;
+            final stacked = constraints.maxWidth < 1220;
+            final boundedDesktopSurface =
+                desktopWorkspace && allowEmbeddedPanelScroll(context);
+            final ultrawideSurface = isUltrawideLayout(
+              context,
+              viewportWidth: constraints.maxWidth,
+            );
+            final widescreenSurface = isWidescreenLayout(
+              context,
+              viewportWidth: constraints.maxWidth,
+            );
+            final surfaceMaxWidth = ultrawideSurface || widescreenSurface
+                ? constraints.maxWidth
+                : 1760.0;
+            final communicationsBoard = Column(
+              children: [
+                _messageHistoryCard(
+                  rows,
                   currentClient: currentClient,
                   currentSite: currentSite,
-                  clients: clients,
-                  sites: sites,
-                  availableSites: availableSites,
-                  pendingAsks: pendingAsks,
-                  agentIncidentReference: agentIncidentReference,
-                  queuedDraftItemId: queuedDraftItemId,
-                ),
-              ),
-              const SizedBox(height: 8),
-              KeyedSubtree(
-                key: _communicationChannelsCardKey,
-                child: _communicationChannelsCard(
-                  telegramBlocked: telegramBlocked,
-                  smsFallbackActive: smsFallbackActive,
-                  voipConfigured: voipConfigured,
-                  voipReady: voipReady,
-                  voipStaged: voipStaged,
-                  pushNeedsReview: pushNeedsReview,
-                  pushIdle: pushIdle,
-                  backendProbeHealthy:
-                      backendProbeLower.contains('healthy') ||
-                      backendProbeLower.contains('ok'),
-                  pendingAsks: pendingAsks,
-                  agentIncidentReference: agentIncidentReference,
-                  queuedDraftItemId: queuedDraftItemId,
-                ),
-              ),
-            ],
-          );
-          final contextRail = Column(
-            children: [
-              KeyedSubtree(
-                key: _pendingDraftsCardKey,
-                child: _pendingDraftsCard(
-                  pendingAsks: pendingAsks,
-                  activeIncidents: activeIncidents,
-                  reviewEventId: reviewEventId,
-                  agentIncidentReference: agentIncidentReference,
-                  queuedDraftItemId: queuedDraftItemId,
-                ),
-              ),
-              if (learnedStyleSummary != null) ...[
-                const SizedBox(height: 8),
-                _learnedStyleCard(
-                  label: learnedStyleSummary.label,
-                  source: learnedStyleSummary.source,
-                ),
-              ],
-              const SizedBox(height: 8),
-              _pinnedVoiceCard(),
-            ],
-          );
-
-          final body = desktopWorkspace
-              ? _clientsDesktopWorkspace(
-                  currentClient: currentClient,
-                  currentSite: currentSite,
-                  clients: clients,
-                  sites: sites,
                   pendingAsks: pendingAsks,
                   unreadAlerts: unreadAlerts,
                   directUpdates: directUpdates,
-                  activeIncidents: activeIncidents,
-                  reviewEventId: reviewEventId,
-                  pushRetryAvailable: widget.onRetryPushSync != null,
-                  roomRoutingAvailable: widget.onOpenClientRoomForScope != null,
-                  communicationsBoard: communicationsBoard,
-                  contextRail: contextRail,
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _activeLanesSection(
-                      currentClient: currentClient,
-                      currentSite: currentSite,
-                      clients: clients,
-                      sites: availableSites,
-                      pendingAsks: pendingAsks,
-                    ),
-                    const SizedBox(height: 8),
-                    stacked
-                        ? Column(
-                            children: [
-                              communicationsBoard,
-                              const SizedBox(height: 8),
-                              contextRail,
-                            ],
-                          )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(flex: 2, child: communicationsBoard),
-                              const SizedBox(width: 8),
-                              Expanded(flex: 1, child: contextRail),
-                            ],
-                          ),
-                  ],
-                );
-          final detailedBody = _buildDetailedWorkspaceBody(
-            desktopWorkspace: desktopWorkspace,
-            boundedDesktopSurface: boundedDesktopSurface,
-            currentClient: currentClient,
-            currentSite: currentSite,
-            clients: clients,
-            sites: sites,
-            pendingAsks: pendingAsks,
-            unreadAlerts: unreadAlerts,
-            directUpdates: directUpdates,
-            activeIncidents: activeIncidents,
-            reviewEventId: reviewEventId,
-            communicationsBoard: communicationsBoard,
-            contextRail: contextRail,
-            legacyBody: body,
-          );
+                ),
+                const SizedBox(height: 8),
+                KeyedSubtree(
+                  key: _roomThreadContextCardKey,
+                  child: _roomThreadContextCard(
+                    currentClient: currentClient,
+                    currentSite: currentSite,
+                    clients: clients,
+                    sites: sites,
+                    availableSites: availableSites,
+                    pendingAsks: pendingAsks,
+                    agentIncidentReference: agentIncidentReference,
+                    queuedDraftItemId: queuedDraftItemId,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                KeyedSubtree(
+                  key: _communicationChannelsCardKey,
+                  child: _communicationChannelsCard(
+                    telegramBlocked: telegramBlocked,
+                    smsFallbackActive: smsFallbackActive,
+                    voipConfigured: voipConfigured,
+                    voipReady: voipReady,
+                    voipStaged: voipStaged,
+                    pushNeedsReview: pushNeedsReview,
+                    pushIdle: pushIdle,
+                    backendProbeHealthy:
+                        backendProbeLower.contains('healthy') ||
+                        backendProbeLower.contains('ok'),
+                    pendingAsks: pendingAsks,
+                    agentIncidentReference: agentIncidentReference,
+                    queuedDraftItemId: queuedDraftItemId,
+                  ),
+                ),
+              ],
+            );
+            final contextRail = Column(
+              children: [
+                KeyedSubtree(
+                  key: _pendingDraftsCardKey,
+                  child: _pendingDraftsCard(
+                    pendingAsks: pendingAsks,
+                    activeIncidents: activeIncidents,
+                    reviewEventId: reviewEventId,
+                    agentIncidentReference: agentIncidentReference,
+                    queuedDraftItemId: queuedDraftItemId,
+                  ),
+                ),
+                if (learnedStyleSummary != null) ...[
+                  const SizedBox(height: 8),
+                  _learnedStyleCard(
+                    label: learnedStyleSummary.label,
+                    source: learnedStyleSummary.source,
+                  ),
+                ],
+                const SizedBox(height: 8),
+                _pinnedVoiceCard(),
+              ],
+            );
 
-          if (!_showDetailedWorkspace) {
+            final body = desktopWorkspace
+                ? _clientsDesktopWorkspace(
+                    currentClient: currentClient,
+                    currentSite: currentSite,
+                    clients: clients,
+                    sites: sites,
+                    pendingAsks: pendingAsks,
+                    unreadAlerts: unreadAlerts,
+                    directUpdates: directUpdates,
+                    activeIncidents: activeIncidents,
+                    reviewEventId: reviewEventId,
+                    pushRetryAvailable: widget.onRetryPushSync != null,
+                    roomRoutingAvailable:
+                        widget.onOpenClientRoomForScope != null,
+                    communicationsBoard: communicationsBoard,
+                    contextRail: contextRail,
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _activeLanesSection(
+                        currentClient: currentClient,
+                        currentSite: currentSite,
+                        clients: clients,
+                        sites: availableSites,
+                        pendingAsks: pendingAsks,
+                      ),
+                      const SizedBox(height: 8),
+                      stacked
+                          ? Column(
+                              children: [
+                                communicationsBoard,
+                                const SizedBox(height: 8),
+                                contextRail,
+                              ],
+                            )
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 2, child: communicationsBoard),
+                                const SizedBox(width: 8),
+                                Expanded(flex: 1, child: contextRail),
+                              ],
+                            ),
+                    ],
+                  );
+            final detailedBody = _buildDetailedWorkspaceBody(
+              desktopWorkspace: desktopWorkspace,
+              boundedDesktopSurface: boundedDesktopSurface,
+              currentClient: currentClient,
+              currentSite: currentSite,
+              clients: clients,
+              sites: sites,
+              pendingAsks: pendingAsks,
+              unreadAlerts: unreadAlerts,
+              directUpdates: directUpdates,
+              activeIncidents: activeIncidents,
+              reviewEventId: reviewEventId,
+              communicationsBoard: communicationsBoard,
+              contextRail: contextRail,
+              legacyBody: body,
+            );
+
+            if (!_showDetailedWorkspace) {
+              return OnyxViewportWorkspaceLayout(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+                maxWidth: surfaceMaxWidth,
+                spacing: 0,
+                lockToViewport: false,
+                header: const SizedBox.shrink(),
+                body: ClientCommsQueueBoard(
+                  items: queueItems,
+                  latestSentFollowUpAuthor: widget.liveFollowUpNotice?.author,
+                  latestSentFollowUpBody: widget.liveFollowUpNotice?.body,
+                  latestSentFollowUpOccurredAtUtc:
+                      widget.liveFollowUpNotice?.occurredAtUtc,
+                  latestSentFollowUpUrgent:
+                      widget.liveFollowUpNotice?.urgent ?? false,
+                  preparingLatestSentFollowUpReply:
+                      _preparingLatestSentFollowUpReply,
+                  onPrepareLatestSentFollowUpReply:
+                      widget.liveFollowUpNotice == null ||
+                          _preparingLatestSentFollowUpReply
+                      ? null
+                      : () {
+                          unawaited(_prepareLatestSentFollowUpReply());
+                        },
+                  onToggleDetailedWorkspace: _toggleDetailedWorkspace,
+                  focusedItemId: _focusedQueueItemId,
+                  focusedResumeActionLabel: _focusedQueueResumeActionLabel,
+                  onResumeDetailedWorkspaceForItem:
+                      _resumeDetailedWorkspaceForQueueItem,
+                  onSend: (item) {
+                    unawaited(_sendQueueItem(item));
+                  },
+                  onEdit: _editQueueItem,
+                  onReject: _rejectQueueItem,
+                  onOpenAgentForIncident: widget.onOpenAgentForIncident,
+                  selectedTone: _selectedPinnedVoice,
+                  onToneChanged: (tone) =>
+                      setState(() => _selectedPinnedVoice = tone),
+                  messageHistory: const [],
+                  lastDraftTimestampLabel: latestDraft == null
+                      ? null
+                      : _utc(latestDraft.createdAtUtc),
+                  lastCommunication: lastCommunication,
+                  onViewLastCommunication: viewLastCommunication,
+                  onOpenLiveFeeds: openLiveFeeds,
+                ),
+              );
+            }
+
             return OnyxViewportWorkspaceLayout(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
               maxWidth: surfaceMaxWidth,
-              spacing: 0,
-              lockToViewport: false,
-              header: const SizedBox.shrink(),
-              body: ClientCommsQueueBoard(
-                items: queueItems,
-                latestSentFollowUpAuthor: widget.liveFollowUpNotice?.author,
-                latestSentFollowUpBody: widget.liveFollowUpNotice?.body,
-                latestSentFollowUpOccurredAtUtc:
-                    widget.liveFollowUpNotice?.occurredAtUtc,
-                latestSentFollowUpUrgent:
-                    widget.liveFollowUpNotice?.urgent ?? false,
-                preparingLatestSentFollowUpReply:
-                    _preparingLatestSentFollowUpReply,
-                onPrepareLatestSentFollowUpReply:
-                    widget.liveFollowUpNotice == null ||
-                        _preparingLatestSentFollowUpReply
-                    ? null
-                    : () {
-                        unawaited(_prepareLatestSentFollowUpReply());
-                      },
-                onToggleDetailedWorkspace: _toggleDetailedWorkspace,
-                focusedItemId: _focusedQueueItemId,
-                focusedResumeActionLabel: _focusedQueueResumeActionLabel,
-                onResumeDetailedWorkspaceForItem:
-                    _resumeDetailedWorkspaceForQueueItem,
-                onSend: (item) {
-                  unawaited(_sendQueueItem(item));
-                },
-                onEdit: _editQueueItem,
-                onReject: _rejectQueueItem,
-                onOpenAgentForIncident: widget.onOpenAgentForIncident,
-                selectedTone: _selectedPinnedVoice,
-                onToneChanged: (tone) =>
-                    setState(() => _selectedPinnedVoice = tone),
-                messageHistory: const [],
-                lastDraftTimestampLabel: latestDraft == null
-                    ? null
-                    : _utc(latestDraft.createdAtUtc),
-                lastCommunication: lastCommunication,
-                onViewLastCommunication: viewLastCommunication,
-                onOpenLiveFeeds: openLiveFeeds,
-              ),
-            );
-          }
-
-          return OnyxViewportWorkspaceLayout(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-            maxWidth: surfaceMaxWidth,
-            spacing: 6,
-            lockToViewport: boundedDesktopSurface,
-            header: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Clients',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: OnyxDesignTokens.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (pendingAsks + unreadAlerts > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
+              spacing: 6,
+              lockToViewport: boundedDesktopSurface,
+              header: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Clients',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: OnyxDesignTokens.textPrimary,
+                          letterSpacing: -0.3,
                         ),
-                        decoration: BoxDecoration(
-                          color: _clientsInfoAccent.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: _clientsInfoAccent.withValues(alpha: 0.15),
+                      ),
+                      const Spacer(),
+                      if (pendingAsks + unreadAlerts > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _clientsInfoAccent.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: _clientsInfoAccent.withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _clientsInfoAccent,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '${pendingAsks + unreadAlerts} active',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: _clientsInfoAccent,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _clientsInfoAccent,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              '${pendingAsks + unreadAlerts} active',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: _clientsInfoAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                _heroHeader(
-                  currentClient: currentClient,
-                  currentSite: currentSite,
-                  unreadAlerts: unreadAlerts,
-                  pendingAsks: pendingAsks,
-                  directUpdates: directUpdates,
-                  agentIncidentReference: agentIncidentReference,
-                  desktopStatusCard: desktopWorkspace
-                      ? _clientsWorkspaceStatusBanner(
-                          currentClient: currentClient,
-                          currentSite: currentSite,
-                          unreadAlerts: unreadAlerts,
-                          pendingAsks: pendingAsks,
-                          directUpdates: directUpdates,
-                          activeIncidents: activeIncidents,
-                          reviewEventId: reviewEventId,
-                          agentIncidentReference: agentIncidentReference,
-                          pushRetryAvailable: widget.onRetryPushSync != null,
-                          roomRoutingAvailable:
-                              widget.onOpenClientRoomForScope != null,
-                          shellless: true,
-                        )
-                      : null,
-                ),
-              ],
-            ),
-            body: detailedBody,
-          );
-        },
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _heroHeader(
+                    currentClient: currentClient,
+                    currentSite: currentSite,
+                    unreadAlerts: unreadAlerts,
+                    pendingAsks: pendingAsks,
+                    directUpdates: directUpdates,
+                    agentIncidentReference: agentIncidentReference,
+                    desktopStatusCard: desktopWorkspace
+                        ? _clientsWorkspaceStatusBanner(
+                            currentClient: currentClient,
+                            currentSite: currentSite,
+                            unreadAlerts: unreadAlerts,
+                            pendingAsks: pendingAsks,
+                            directUpdates: directUpdates,
+                            activeIncidents: activeIncidents,
+                            reviewEventId: reviewEventId,
+                            agentIncidentReference: agentIncidentReference,
+                            pushRetryAvailable: widget.onRetryPushSync != null,
+                            roomRoutingAvailable:
+                                widget.onOpenClientRoomForScope != null,
+                            shellless: true,
+                          )
+                        : null,
+                  ),
+                ],
+              ),
+              body: detailedBody,
+            );
+          },
+        ),
       ),
     );
   }

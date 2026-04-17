@@ -776,50 +776,52 @@ class TacticalPage extends StatelessWidget {
                 }
 
                 return OnyxPageScaffold(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final compactTacticalLane =
-                          constraints.maxWidth <
-                              _tacticalDesktopOverviewMinWidth ||
-                          math.min(
-                                constraints.maxWidth,
-                                constraints.maxHeight,
-                              ) <
-                              700;
-                      wide =
-                          !compactTacticalLane &&
-                          constraints.maxWidth >=
-                              _tacticalDetailedWorkspaceMinWidth &&
-                          constraints.maxHeight >=
-                              _tacticalDetailedWorkspaceMinHeight;
-                      final boundedDesktopSurface =
-                          wide &&
-                          constraints.hasBoundedHeight &&
-                          constraints.maxHeight.isFinite;
-                      final ultrawideSurface = isUltrawideLayout(
-                        context,
-                        viewportWidth: constraints.maxWidth,
-                      );
-                      final widescreenSurface = isWidescreenLayout(
-                        context,
-                        viewportWidth: constraints.maxWidth,
-                      );
-                      final surfaceMaxWidth = ultrawideSurface
-                          ? constraints.maxWidth
-                          : widescreenSurface
-                          ? constraints.maxWidth * 0.94
-                          : 1500.0;
-                      return OnyxViewportWorkspaceLayout(
-                        padding: contentPadding,
-                        maxWidth: surfaceMaxWidth,
-                        lockToViewport: boundedDesktopSurface,
-                        spacing: 6,
-                        header: const SizedBox.shrink(),
-                        body: buildWideWorkspace(
-                          embedScroll: boundedDesktopSurface,
-                        ),
-                      );
-                    },
+                  child: SizedBox.expand(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compactTacticalLane =
+                            constraints.maxWidth <
+                                _tacticalDesktopOverviewMinWidth ||
+                            math.min(
+                                  constraints.maxWidth,
+                                  constraints.maxHeight,
+                                ) <
+                                700;
+                        wide =
+                            !compactTacticalLane &&
+                            constraints.maxWidth >=
+                                _tacticalDetailedWorkspaceMinWidth &&
+                            constraints.maxHeight >=
+                                _tacticalDetailedWorkspaceMinHeight;
+                        final boundedDesktopSurface =
+                            wide &&
+                            constraints.hasBoundedHeight &&
+                            constraints.maxHeight.isFinite;
+                        final ultrawideSurface = isUltrawideLayout(
+                          context,
+                          viewportWidth: constraints.maxWidth,
+                        );
+                        final widescreenSurface = isWidescreenLayout(
+                          context,
+                          viewportWidth: constraints.maxWidth,
+                        );
+                        final surfaceMaxWidth = ultrawideSurface
+                            ? constraints.maxWidth
+                            : widescreenSurface
+                            ? constraints.maxWidth * 0.94
+                            : 1500.0;
+                        return OnyxViewportWorkspaceLayout(
+                          padding: contentPadding,
+                          maxWidth: surfaceMaxWidth,
+                          lockToViewport: boundedDesktopSurface,
+                          spacing: 6,
+                          header: const SizedBox.shrink(),
+                          body: buildWideWorkspace(
+                            embedScroll: boundedDesktopSurface,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 );
               },

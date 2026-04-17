@@ -99,13 +99,20 @@ class _AlarmRecord {
   String get humanSiteId {
     final raw = siteId.trim();
     final cleaned = raw
-        .replaceFirst(RegExp(r'^(SITE|CLIENT|REGION)-', caseSensitive: false), '')
+        .replaceFirst(
+          RegExp(r'^(SITE|CLIENT|REGION)-', caseSensitive: false),
+          '',
+        )
         .replaceAll(RegExp(r'[-_]+'), ' ')
         .trim();
     if (cleaned.isEmpty) return raw;
     return cleaned
         .split(' ')
-        .map((t) => t.isEmpty ? t : '${t[0].toUpperCase()}${t.substring(1).toLowerCase()}')
+        .map(
+          (t) => t.isEmpty
+              ? t
+              : '${t[0].toUpperCase()}${t.substring(1).toLowerCase()}',
+        )
         .join(' ');
   }
 
@@ -118,7 +125,11 @@ class _AlarmRecord {
     if (cleaned.isEmpty) return raw;
     return cleaned
         .split(' ')
-        .map((t) => t.isEmpty ? t : '${t[0].toUpperCase()}${t.substring(1).toLowerCase()}')
+        .map(
+          (t) => t.isEmpty
+              ? t
+              : '${t[0].toUpperCase()}${t.substring(1).toLowerCase()}',
+        )
         .join(' ');
   }
 
@@ -147,7 +158,9 @@ class _AlarmRecord {
   String get shortId {
     final uid = eventUid.trim();
     if (uid.isEmpty) return id.substring(0, 8).toUpperCase();
-    return uid.length > 12 ? uid.substring(0, 12).toUpperCase() : uid.toUpperCase();
+    return uid.length > 12
+        ? uid.substring(0, 12).toUpperCase()
+        : uid.toUpperCase();
   }
 
   bool get isActive =>
@@ -279,17 +292,20 @@ class _AlarmsPageState extends State<AlarmsPage> {
     if (_busyAlarms.contains(alarmId)) return;
     setState(() => _busyAlarms.add(alarmId));
     try {
-      await Supabase.instance.client.from('incidents').update({
-        'status': 'dispatched',
-        'dispatch_time': DateTime.now().toUtc().toIso8601String(),
-        'controller_notes': 'Dispatched $officer via Alarms dashboard.',
-      }).eq('id', alarmId);
+      await Supabase.instance.client
+          .from('incidents')
+          .update({
+            'status': 'dispatched',
+            'dispatch_time': DateTime.now().toUtc().toIso8601String(),
+            'controller_notes': 'Dispatched $officer via Alarms dashboard.',
+          })
+          .eq('id', alarmId);
       await _loadAlarms();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Dispatch failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Dispatch failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busyAlarms.remove(alarmId));
@@ -300,17 +316,21 @@ class _AlarmsPageState extends State<AlarmsPage> {
     if (_busyAlarms.contains(alarmId)) return;
     setState(() => _busyAlarms.add(alarmId));
     try {
-      await Supabase.instance.client.from('incidents').update({
-        'status': 'secured',
-        'resolution_time': DateTime.now().toUtc().toIso8601String(),
-        'controller_notes': 'False alarm — cleared by operator via Alarms dashboard.',
-      }).eq('id', alarmId);
+      await Supabase.instance.client
+          .from('incidents')
+          .update({
+            'status': 'secured',
+            'resolution_time': DateTime.now().toUtc().toIso8601String(),
+            'controller_notes':
+                'False alarm — cleared by operator via Alarms dashboard.',
+          })
+          .eq('id', alarmId);
       await _loadAlarms();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Update failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busyAlarms.remove(alarmId));
@@ -322,6 +342,8 @@ class _AlarmsPageState extends State<AlarmsPage> {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
+      height: double.infinity,
       color: _alarmBg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,8 +397,7 @@ class _AlarmsPageState extends State<AlarmsPage> {
               OnyxColorTokens.redSurface,
               OnyxColorTokens.redBorder,
             ),
-          if (!_loading && _alarms.isEmpty)
-            _nominalStatusBadge(),
+          if (!_loading && _alarms.isEmpty) _nominalStatusBadge(),
         ],
       ),
     );
@@ -441,7 +462,9 @@ class _AlarmsPageState extends State<AlarmsPage> {
   Widget _buildBody() {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(color: OnyxDesignTokens.cyanInteractive),
+        child: CircularProgressIndicator(
+          color: OnyxDesignTokens.cyanInteractive,
+        ),
       );
     }
     if (_error != null) {
@@ -464,7 +487,8 @@ class _AlarmsPageState extends State<AlarmsPage> {
     final signalNominal = signalLabel.toLowerCase() == 'stable';
     final hasLastIncident = (widget.lastIncidentTitle ?? '').trim().isNotEmpty;
     final lastIncidentReference = (widget.lastIncidentReference ?? '').trim();
-    final canReviewLastIncident = hasLastIncident || lastIncidentReference.isNotEmpty;
+    final canReviewLastIncident =
+        hasLastIncident || lastIncidentReference.isNotEmpty;
 
     VoidCallback? reviewLastIncidentCallback() {
       if (!canReviewLastIncident) {
@@ -852,10 +876,7 @@ class _AlarmsPageState extends State<AlarmsPage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          OutlinedButton(
-            onPressed: _loadAlarms,
-            child: const Text('Retry'),
-          ),
+          OutlinedButton(onPressed: _loadAlarms, child: const Text('Retry')),
         ],
       ),
     );
@@ -971,8 +992,8 @@ class _AlarmsPageState extends State<AlarmsPage> {
             return 'Last attempt: $h:$m';
           }()
         : 'No attempt yet';
-    final hasResponse = alarm.fieldReport != null &&
-        alarm.fieldReport!.trim().isNotEmpty;
+    final hasResponse =
+        alarm.fieldReport != null && alarm.fieldReport!.trim().isNotEmpty;
     final transcript = alarm.controllerNotes?.trim();
     final hasTranscript = transcript != null && transcript.isNotEmpty;
 
@@ -1104,7 +1125,8 @@ class _AlarmsPageState extends State<AlarmsPage> {
   }
 
   Widget _clientResponseBadge(String response) {
-    final isEmergency = response.toLowerCase().contains('real') ||
+    final isEmergency =
+        response.toLowerCase().contains('real') ||
         response.toLowerCase().contains('emergency') ||
         response.toLowerCase().contains('confirmed');
     final color = isEmergency
@@ -1156,10 +1178,7 @@ class _AlarmsPageState extends State<AlarmsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               hint: Text(
                 'Choose officer to dispatch…',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: _alarmMuted,
-                ),
+                style: GoogleFonts.inter(fontSize: 13, color: _alarmMuted),
               ),
               style: GoogleFonts.inter(
                 fontSize: 13,
@@ -1167,12 +1186,7 @@ class _AlarmsPageState extends State<AlarmsPage> {
                 fontWeight: FontWeight.w500,
               ),
               items: _officers
-                  .map(
-                    (o) => DropdownMenuItem(
-                      value: o,
-                      child: Text(o),
-                    ),
-                  )
+                  .map((o) => DropdownMenuItem(value: o, child: Text(o)))
                   .toList(growable: false),
               onChanged: (v) => setState(() => _selectedOfficers[alarm.id] = v),
             ),
@@ -1201,8 +1215,7 @@ class _AlarmsPageState extends State<AlarmsPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: OnyxDesignTokens.redCritical,
                   foregroundColor: OnyxColorTokens.textPrimary,
-                  disabledBackgroundColor:
-                      OnyxColorTokens.redSurface,
+                  disabledBackgroundColor: OnyxColorTokens.redSurface,
                   disabledForegroundColor: OnyxDesignTokens.textMuted,
                   minimumSize: const Size(0, 44),
                   textStyle: GoogleFonts.inter(
@@ -1353,7 +1366,8 @@ class _AlarmsPageState extends State<AlarmsPage> {
   Color _callStatusColor(_AlarmStatus status) => switch (status) {
     _AlarmStatus.detected => OnyxDesignTokens.amberWarning,
     _AlarmStatus.verified => OnyxDesignTokens.cyanInteractive,
-    _AlarmStatus.dispatched || _AlarmStatus.onSite => OnyxDesignTokens.greenNominal,
+    _AlarmStatus.dispatched ||
+    _AlarmStatus.onSite => OnyxDesignTokens.greenNominal,
     _ => OnyxDesignTokens.textMuted,
   };
 
@@ -1367,14 +1381,12 @@ class _AlarmsPageState extends State<AlarmsPage> {
   String _nextAction(_AlarmStatus status) => switch (status) {
     _AlarmStatus.detected =>
       'Awaiting client verification. Select an officer and dispatch if confirmed real.',
-    _AlarmStatus.verified =>
-      'Client verified. Dispatch armed response now.',
+    _AlarmStatus.verified => 'Client verified. Dispatch armed response now.',
     _AlarmStatus.dispatched =>
       'Response unit en route. Monitor ETA and maintain comms.',
     _AlarmStatus.onSite =>
       'Unit on site. Await all-clear or escalation signal.',
-    _ =>
-      'Alarm resolved. No further action required.',
+    _ => 'Alarm resolved. No further action required.',
   };
 }
 
@@ -1402,9 +1414,10 @@ class _StatusDotState extends State<_StatusDot>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _scale = Tween<double>(begin: 0.85, end: 1.15).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 0.85,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     if (widget.pulsing) _controller.repeat(reverse: true);
   }
 
@@ -1431,10 +1444,7 @@ class _StatusDotState extends State<_StatusDot>
       return Container(
         width: 8,
         height: 8,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: widget.color,
-        ),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: widget.color),
       );
     }
     return ScaleTransition(
@@ -1476,9 +1486,10 @@ class _MonitoringHeartbeatState extends State<_MonitoringHeartbeat>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _opacity = Tween<double>(begin: 1.0, end: 0.40).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _opacity = Tween<double>(
+      begin: 1.0,
+      end: 0.40,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override

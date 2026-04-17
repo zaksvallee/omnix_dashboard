@@ -450,52 +450,55 @@ class _AIQueuePageState extends State<AIQueuePage> {
     }
 
     return OnyxPageScaffold(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final boundedDesktopSurface =
-              useEmbeddedWorkspace &&
-              constraints.hasBoundedHeight &&
-              constraints.maxHeight.isFinite;
-          final ultrawideSurface = isUltrawideLayout(
-            context,
-            viewportWidth: constraints.maxWidth,
-          );
-          final surfaceMaxWidth = commandSurfaceMaxWidth(
-            context,
-            compactDesktopWidth: 1600,
-            viewportWidth: constraints.maxWidth,
-            widescreenFillFactor: ultrawideSurface ? 1 : 0.95,
-          );
-          return OnyxViewportWorkspaceLayout(
-            padding: contentPadding,
-            maxWidth: surfaceMaxWidth,
-            lockToViewport: boundedDesktopSurface,
-            spacing: 1.55,
-            header: _heroHeader(
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final boundedDesktopSurface =
+                useEmbeddedWorkspace &&
+                constraints.hasBoundedHeight &&
+                constraints.maxHeight.isFinite;
+            final ultrawideSurface = isUltrawideLayout(
               context,
-              compact: compact,
-              totalQueueCount: _actions.length,
-              showOverviewToggle: !compact && viewport >= 1180,
-              agentIncidentReference: agentIncidentReference,
-              onOpenAgent:
-                  widget.onOpenAgentForIncident == null ||
-                      agentIncidentReference.isEmpty
-                  ? null
-                  : () =>
-                        widget.onOpenAgentForIncident!(agentIncidentReference),
-              workspaceBanner: mergeWorkspaceBannerIntoHero
-                  ? _workspaceStatusBanner(
-                      activeAction: activeAction,
-                      selectedFocus: selectedFocus,
-                      effectiveLane: effectiveLane,
-                      summaryOnly: true,
-                      shellless: true,
-                    )
-                  : null,
-            ),
-            body: buildSurfaceBody(),
-          );
-        },
+              viewportWidth: constraints.maxWidth,
+            );
+            final surfaceMaxWidth = commandSurfaceMaxWidth(
+              context,
+              compactDesktopWidth: 1600,
+              viewportWidth: constraints.maxWidth,
+              widescreenFillFactor: ultrawideSurface ? 1 : 0.95,
+            );
+            return OnyxViewportWorkspaceLayout(
+              padding: contentPadding,
+              maxWidth: surfaceMaxWidth,
+              lockToViewport: boundedDesktopSurface,
+              spacing: 1.55,
+              header: _heroHeader(
+                context,
+                compact: compact,
+                totalQueueCount: _actions.length,
+                showOverviewToggle: !compact && viewport >= 1180,
+                agentIncidentReference: agentIncidentReference,
+                onOpenAgent:
+                    widget.onOpenAgentForIncident == null ||
+                        agentIncidentReference.isEmpty
+                    ? null
+                    : () => widget.onOpenAgentForIncident!(
+                        agentIncidentReference,
+                      ),
+                workspaceBanner: mergeWorkspaceBannerIntoHero
+                    ? _workspaceStatusBanner(
+                        activeAction: activeAction,
+                        selectedFocus: selectedFocus,
+                        effectiveLane: effectiveLane,
+                        summaryOnly: true,
+                        shellless: true,
+                      )
+                    : null,
+              ),
+              body: buildSurfaceBody(),
+            );
+          },
+        ),
       ),
     );
   }
@@ -600,83 +603,87 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final feeds = _buildCctvFeeds(selectedAlert: selectedAlert);
 
     return OnyxPageScaffold(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final ultrawideSurface = isUltrawideLayout(
-            context,
-            viewportWidth: constraints.maxWidth,
-          );
-          final surfaceMaxWidth = commandSurfaceMaxWidth(
-            context,
-            compactDesktopWidth: 1600,
-            viewportWidth: constraints.maxWidth,
-            widescreenFillFactor: ultrawideSurface ? 1 : 0.95,
-          );
-          final singleColumn = constraints.maxWidth < 1420;
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final ultrawideSurface = isUltrawideLayout(
+              context,
+              viewportWidth: constraints.maxWidth,
+            );
+            final surfaceMaxWidth = commandSurfaceMaxWidth(
+              context,
+              compactDesktopWidth: 1600,
+              viewportWidth: constraints.maxWidth,
+              widescreenFillFactor: ultrawideSurface ? 1 : 0.95,
+            );
+            final singleColumn = constraints.maxWidth < 1420;
 
-          final content = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'CCTV monitoring',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: OnyxColorTokens.textPrimary,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'AI-powered video surveillance and alerts',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                      color: OnyxColorTokens.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              if (showPinnedCommandReceipt) ...[
-                const SizedBox(height: 16),
-                _workspaceCommandReceiptCard(),
-              ],
-              const SizedBox(height: 16),
-              if (singleColumn) ...[
-                _buildCctvAlertPanel(selectedAlert: selectedAlert),
-                const SizedBox(height: 16),
-                _buildCctvFeedsPanel(feeds: feeds),
-              ] else
-                Row(
+            final content = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 360,
-                      child: _buildCctvAlertPanel(selectedAlert: selectedAlert),
+                    Text(
+                      'CCTV monitoring',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: OnyxColorTokens.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(child: _buildCctvFeedsPanel(feeds: feeds)),
+                    const SizedBox(height: 2),
+                    Text(
+                      'AI-powered video surveillance and alerts',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: OnyxColorTokens.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
-              const SizedBox(height: 16),
-              _buildCctvWorkspaceToggle(),
-            ],
-          );
+                if (showPinnedCommandReceipt) ...[
+                  const SizedBox(height: 16),
+                  _workspaceCommandReceiptCard(),
+                ],
+                const SizedBox(height: 16),
+                if (singleColumn) ...[
+                  _buildCctvAlertPanel(selectedAlert: selectedAlert),
+                  const SizedBox(height: 16),
+                  _buildCctvFeedsPanel(feeds: feeds),
+                ] else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 360,
+                        child: _buildCctvAlertPanel(
+                          selectedAlert: selectedAlert,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildCctvFeedsPanel(feeds: feeds)),
+                    ],
+                  ),
+                const SizedBox(height: 16),
+                _buildCctvWorkspaceToggle(),
+              ],
+            );
 
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: surfaceMaxWidth),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-                child: content,
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: surfaceMaxWidth),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                  child: content,
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
