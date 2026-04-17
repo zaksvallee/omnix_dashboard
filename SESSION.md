@@ -140,3 +140,90 @@ dart run scripts/clean_zara_smoke.dart --config config/onyx.smoke.local.json
 3. Check /claude_review/ for latest audit report
 4. Confirm current priority from queue above
 5. Report status in one line before starting work
+
+## Standing items — 2026-04-17 night
+
+**Active-sweep gap (NEW, critical for productization)**
+Camera-worker is event-driven only. It calls YOLO when Hikvision DVR
+pushes a motion event via /alertStream. It does NOT actively pull frames
+from the RTSP frame server on a schedule. Confirmed by walk-past test:
+5 cameras walked, zero detections in the worker log, while direct YOLO
+probe of the same channels showed vehicles/motion with 76% confidence.
+
+This is a design gap, not a bug. Hikvision motion triggers are
+conservative and sometimes miss obvious activity. Without active-sweep,
+the heartbeat "perimeter: clear, humans:0" is a lagging indicator of
+DVR triggers, not a live read.
+
+Decision needed:
+- Sweep frequency (N seconds)
+- Replace event-driven or supplement it
+- Where sweep runs (cloud worker vs Pi edge-compute)
+- Aggregator and suppression integration
+
+Likely best addressed as part of the Pi/edge-compute deployment session.
+
+**RTSP frame server — not broken**
+Previously suspected broken due to 6-day-old JPGs in tmp/onyx_rtsp_frames/.
+Investigation revealed disk persistence was removed by design in commit
+8091999 (2026-04-11). Current architecture is in-memory HTTP server on
+port 11638. Proven working: /health shows 4 channels connected with
+live timestamps, /frame/<ch> serves valid JPEGs, YOLO direct probe
+against live frames returned vehicle@0.767 on CH12. Orphan JPG files
+cleaned up 2026-04-17 night.
+
+**Hetzner state**
+- Hetzner `onyx-camera-worker.service` was disabled on 2026-04-17 night.
+  Cloud cannot reach 192.168.0.117 without a tunnel, so the service was
+  permanently stopped to prevent pointless SYN flood / crash churn.
+- Camera-worker is now local-only on the MS-Vallee-Mac until Pi deployment.
+
+**Architecture**
+- Pi 4B on order — deploy plan is edge-compute per site, camera-worker at
+  residence, Hetzner keeps cloud-facing services only. Next proper session.
+- Endpoint contract ambiguity: tonight we aligned worker config to proxy's
+  /alertStream. Inverse (proxy accepts full ISAPI path) is cleaner long-term.
+  Decide in follow-up.
+
+**Local stack hygiene**
+- DVR proxy is now in the `make start` stack.
+- `scripts/onyx_watchdog.sh` is restored on disk and the local runtime is back
+  on the maintained watchdog path via `ensure_camera_worker.sh`.
+- `make status` now reports uptime + respawn heuristics instead of a shallow
+  pgrep-only "RUNNING".
+
+**Monitoring**
+- No alerting when camera-worker crash-loops, when DVR proxy dies, or when
+  Supabase returns 402. 24h of silence before I noticed Telegram was down.
+  "N consecutive failed polls = DOWN" alerting would have caught tonight's
+  outage in ~15 minutes.
+
+**Design follow-ups (from polish pass 2026-04-17)**
+- Reports line 6326 and Ledger line 1156: mixed ID+timestamp strings. Need
+  design call on whether to split into two Text widgets (ID mono, prose Inter)
+  or full-string mono.
+- Reports _partnerScopeChip (8+ call sites): chip API embeds IDs in prose.
+  Proper fix is chip refactor with separate prose+ID slots.
+- Risk Intelligence page: signal IDs exist in data model but aren't rendered.
+  Product decision needed — surface them or not?
+- Org Chart amber hue: swapped Color(0xFFFFB830) to OnyxColorTokens.accentAmber
+  (F5A623). Visual verification pending — may want to add accentGold token if
+  original yellow was intentional.
+
+**Events page**
+- Stages 2 (lane tabs replace priority chain) and 3 (temporal rail + mono IDs)
+  still pending. Previous session diagnosed and scoped. One session,
+  contained to events_review_page.dart.
+
+**Supabase**
+- Migration-history drift: 14+ repo migrations not recorded remotely. 3 files
+  silently skipped by CLI (filename pattern mismatch). Reconcile in dedicated
+  session — not urgent while applying new migrations directly via psql works.
+
+**Product**
+- Zara Theatre smoke run: harness ready, migrations live, not yet run because
+  of tonight's incidents. Next session when head is fresh. Six evaluation
+  questions already drafted.
+- Zara action log is live, but the doctrine layer that turns Zara's proposed
+  actions into validated controller protocol still needs a design session
+  before autonomy expands beyond supervised execution.
