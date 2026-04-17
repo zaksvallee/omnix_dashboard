@@ -1008,7 +1008,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                     children: [
                       Text(
                         entry.recordCode,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.robotoMono(
                           color: _obTextPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -1336,10 +1336,18 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           const SizedBox(height: 12),
           _buildDetailGrid(
             items: [
-              _DetailItem(label: 'Record', value: selected.recordCode),
+              _DetailItem(
+                label: 'Record',
+                value: selected.recordCode,
+                mono: true,
+              ),
               _DetailItem(label: 'Category', value: selected.category.label),
               _DetailItem(label: 'Guard', value: selected.guardLabel),
-              _DetailItem(label: 'Callsign', value: selected.callsign),
+              _DetailItem(
+                label: 'Callsign',
+                value: selected.callsign,
+                mono: true,
+              ),
               _DetailItem(label: 'Site', value: selected.siteLabel),
               if (clientHandoffRoom != null)
                 _DetailItem(
@@ -1916,7 +1924,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                       ),
                       child: Text(
                         eventId,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.robotoMono(
                           color: _obBlueAccent,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -1966,7 +1974,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                                 children: [
                                   Text(
                                     relatedEntries[i].recordCode,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.robotoMono(
                                       color: _obTextPrimary,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
@@ -2458,11 +2466,17 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   const SizedBox(height: 6),
                   Text(
                     item.value,
-                    style: GoogleFonts.inter(
-                      color: _obTextPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: item.mono
+                        ? GoogleFonts.robotoMono(
+                            color: _obTextPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          )
+                        : GoogleFonts.inter(
+                            color: _obTextPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                   ),
                 ],
               ),
@@ -3034,7 +3048,16 @@ class _DetailItem {
   final String label;
   final String value;
 
-  const _DetailItem({this.key, required this.label, required this.value});
+  /// Only set true for structured identifiers (IDs, hashes, refs).
+  /// Do not use for timestamps, numeric values, labels, or other prose.
+  final bool mono;
+
+  const _DetailItem({
+    this.key,
+    required this.label,
+    required this.value,
+    this.mono = false,
+  });
 }
 
 class _ObCommandReceipt {
