@@ -118,6 +118,17 @@
 - Remaining TODOs in lib/: 4 (all pre-existing, scoped vendor/model items)
 - Unguarded mock data in UI layer: 0
 
+## Zara Theatre smoke
+- Launch command:
+```bash
+flutter run -d chrome -t lib/smoke/zara_theatre_smoke.dart --dart-define-from-file=config/onyx.smoke.local.json --web-port 7410
+```
+- Cleanup command:
+```bash
+dart run scripts/clean_zara_smoke.dart --config config/onyx.smoke.local.json
+```
+- This smoke harness renders Zara Theatre inside the real AppShell chrome, signs into Supabase anonymously for authenticated RLS, and persists a reusable alarmTriage scenario under sentinel IDs like `SCENARIO-SMOKE-*`. On refresh, it reuses the newest smoke scenario instead of creating duplicates; run the cleanup script when you want a fresh seed. During the loop, Zara writes to `zara_scenarios` and `zara_action_log` in live Supabase, but outbound client messaging and dispatch side effects are stubbed so nothing operational is sent to a real site.
+
 ## Model roles
 - Claude (claude.ai): spec · decisions · verification · SESSION.md authoring
 - Codex: queue execution · bulk edits · commits · SESSION.md update
