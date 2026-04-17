@@ -118,12 +118,15 @@ class ZaraIntentParser {
     if (decoded == null) {
       return const <ZaraActionSelection>[];
     }
+    final clarification = (decoded['clarification'] ?? '').toString().trim();
     final rawSelections = decoded['selections'];
     if (rawSelections is! List) {
-      final clarification = (decoded['clarification'] ?? '').toString().trim();
       if (clarification.isEmpty) {
         return const <ZaraActionSelection>[];
       }
+      return <ZaraActionSelection>[ZaraActionSelection.unclear(clarification)];
+    }
+    if (rawSelections.isEmpty && clarification.isNotEmpty) {
       return <ZaraActionSelection>[ZaraActionSelection.unclear(clarification)];
     }
     final byId = <String, ZaraAction>{
@@ -153,6 +156,9 @@ class ZaraIntentParser {
           clarificationRequest: clarification,
         ),
       );
+    }
+    if (selections.isEmpty && clarification.isNotEmpty) {
+      return <ZaraActionSelection>[ZaraActionSelection.unclear(clarification)];
     }
     return selections;
   }
