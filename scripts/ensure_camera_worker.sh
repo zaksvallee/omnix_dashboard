@@ -12,6 +12,7 @@ WATCHDOG_PID_FILE="${ONYX_CAMERA_WORKER_WATCHDOG_PID_FILE:-tmp/onyx_camera_worke
 WATCHDOG_INTERVAL_SECONDS="${ONYX_CAMERA_WORKER_WATCHDOG_INTERVAL_SECONDS:-30}"
 WATCHDOG_MODE=0
 WATCHDOG_LOOP_MODE=0
+START_REASON="bootstrap"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -100,6 +101,18 @@ watchdog_running_pid() {
   return 1
 }
 
+log_lifecycle_event() {
+  local reason="${1:-bootstrap}"
+  mkdir -p "$(dirname "$LOG_FILE")"
+  local epoch timestamp
+  epoch="$(date +%s)"
+  timestamp="$(TZ=Africa/Johannesburg date '+%Y-%m-%d %H:%M:%S %Z')"
+  printf '[ONYX-LIFECYCLE] start epoch=%s reason=%s at=%s\n' \
+    "$epoch" \
+    "$reason" \
+    "$timestamp" >>"$LOG_FILE"
+}
+
 send_restart_alert() {
   local token chat thread
   token="$(json_value "ONYX_TELEGRAM_BOT_TOKEN" | tr -d '\r')"
@@ -133,6 +146,7 @@ start_worker_once() {
   mkdir -p "$(dirname "$LOG_FILE")"
   mkdir -p "$(dirname "$PID_FILE")"
   touch "$LOG_FILE"
+  log_lifecycle_event "$START_REASON"
   # Mirror worker output to both the terminal and the persistent log file.
   nohup bash -lc 'exec ./scripts/run_camera_worker.sh --config "$1"' _ "$CONFIG_FILE" \
     > >(tee -a "$LOG_FILE") \
@@ -172,9 +186,11 @@ run_watchdog_loop() {
   while true; do
     if ! running_pid >/dev/null 2>&1; then
       echo "[ONYX] ⚠️ Camera worker stopped — restarting..." | tee -a "$WATCHDOG_LOG_FILE"
+      START_REASON="watchdog_restart"
       if start_worker_once >>"$WATCHDOG_LOG_FILE" 2>&1; then
         send_restart_alert
       fi
+      START_REASON="bootstrap"
     fi
     sleep "$WATCHDOG_INTERVAL_SECONDS"
   done

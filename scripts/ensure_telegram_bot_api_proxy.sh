@@ -7,6 +7,7 @@ cd "$ROOT_DIR"
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 LOG_FILE="${ONYX_TELEGRAM_PROXY_LOG_FILE:-tmp/onyx_telegram_proxy.log}"
 PID_FILE="${ONYX_TELEGRAM_PROXY_PID_FILE:-tmp/onyx_telegram_proxy.pid}"
+START_REASON="bootstrap"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -82,6 +83,18 @@ running_pid() {
   return 1
 }
 
+log_lifecycle_event() {
+  local reason="${1:-bootstrap}"
+  mkdir -p "$(dirname "$LOG_FILE")"
+  local epoch timestamp
+  epoch="$(date +%s)"
+  timestamp="$(TZ=Africa/Johannesburg date '+%Y-%m-%d %H:%M:%S %Z')"
+  printf '[ONYX-LIFECYCLE] start epoch=%s reason=%s at=%s\n' \
+    "$epoch" \
+    "$reason" \
+    "$timestamp" >>"$LOG_FILE"
+}
+
 healthcheck() {
   python3 - "$proxy_url/health" <<'PY'
 import json
@@ -110,6 +123,7 @@ fi
 
 mkdir -p "$(dirname "$LOG_FILE")"
 mkdir -p "$(dirname "$PID_FILE")"
+log_lifecycle_event "$START_REASON"
 nohup dart run bin/onyx_telegram_bot_api_proxy.dart --config "$CONFIG_FILE" \
   >"$LOG_FILE" 2>&1 &
 proxy_pid=$!

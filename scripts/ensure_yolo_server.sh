@@ -9,6 +9,7 @@ LOG_FILE="${ONYX_YOLO_SERVER_LOG_FILE:-tmp/onyx_yolo_server.log}"
 PID_FILE="${ONYX_YOLO_SERVER_PID_FILE:-tmp/onyx_yolo_server.pid}"
 VENV_PYTHON="${ROOT_DIR}/.venv-monitoring-yolo/bin/python"
 START_SCRIPT="${ROOT_DIR}/scripts/start_yolo_server.sh"
+START_REASON="bootstrap"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -111,6 +112,18 @@ running_pid() {
   return 1
 }
 
+log_lifecycle_event() {
+  local reason="${1:-bootstrap}"
+  mkdir -p "$(dirname "$LOG_FILE")"
+  local epoch timestamp
+  epoch="$(date +%s)"
+  timestamp="$(TZ=Africa/Johannesburg date '+%Y-%m-%d %H:%M:%S %Z')"
+  printf '[ONYX-LIFECYCLE] start epoch=%s reason=%s at=%s\n' \
+    "$epoch" \
+    "$reason" \
+    "$timestamp" >>"$LOG_FILE"
+}
+
 healthcheck() {
   python3 - "$yolo_url/health" <<'PY'
 import json
@@ -198,6 +211,7 @@ if existing_pid="$(running_pid)"; then
     exit 0
   fi
   echo "Restarting unhealthy ONYX YOLO detector (pid ${existing_pid})"
+  START_REASON="restart_unhealthy"
   kill -TERM "$existing_pid" 2>/dev/null || true
   sleep 1
   if kill -0 "$existing_pid" 2>/dev/null; then
@@ -213,6 +227,7 @@ fi
 
 mkdir -p "$(dirname "$LOG_FILE")"
 mkdir -p "$(dirname "$PID_FILE")"
+log_lifecycle_event "$START_REASON"
 nohup bash "$START_SCRIPT" --config "$CONFIG_FILE" \
   >"$LOG_FILE" 2>&1 &
 yolo_pid=$!

@@ -10,6 +10,7 @@ PID_FILE="${ONYX_DVR_PROXY_PID_FILE:-tmp/onyx_dvr_proxy.pid}"
 PYTHON_BIN="${ONYX_DVR_PROXY_PYTHON_BIN:-python3}"
 PORT="${ONYX_DVR_PROXY_PORT:-11635}"
 LOG_ROTATE_BYTES="${ONYX_DVR_PROXY_LOG_ROTATE_BYTES:-52428800}"
+START_REASON="bootstrap"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -80,6 +81,18 @@ running_pid() {
   return 1
 }
 
+log_lifecycle_event() {
+  local reason="${1:-bootstrap}"
+  mkdir -p "$(dirname "$LOG_FILE")"
+  local epoch timestamp
+  epoch="$(date +%s)"
+  timestamp="$(TZ=Africa/Johannesburg date '+%Y-%m-%d %H:%M:%S %Z')"
+  printf '[ONYX-LIFECYCLE] start epoch=%s reason=%s at=%s\n' \
+    "$epoch" \
+    "$reason" \
+    "$timestamp" >>"$LOG_FILE"
+}
+
 if existing_pid="$(running_pid)"; then
   mkdir -p "$(dirname "$PID_FILE")"
   printf '%s\n' "$existing_pid" >"$PID_FILE"
@@ -91,6 +104,7 @@ rotate_log_if_needed
 mkdir -p "$(dirname "$LOG_FILE")"
 mkdir -p "$(dirname "$PID_FILE")"
 touch "$LOG_FILE"
+log_lifecycle_event "$START_REASON"
 nohup "$PYTHON_BIN" scripts/onyx_dvr_cors_proxy.py --config "$CONFIG_FILE" --port "$PORT" \
   >>"$LOG_FILE" 2>&1 &
 proxy_pid=$!
