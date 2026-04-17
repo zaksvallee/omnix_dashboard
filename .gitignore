@@ -47,3 +47,6 @@ yolov8n.pt
 tool/model_cache/
 .venv-monitoring-yolo/
 /scripts/deploy_pi_msvallee.sh
+
+# Auto-generated session state (written by post-commit hook)
+SESSION_STATE.md
