@@ -623,4 +623,9 @@ class _RawEventStore implements EventStore {
   List<DispatchEvent> allEvents() {
     return List<DispatchEvent>.unmodifiable(_events);
   }
+
+  @override
+  Stream<List<DispatchEvent>> watchAllEvents() {
+    return Stream<List<DispatchEvent>>.value(allEvents());
+  }
 }
