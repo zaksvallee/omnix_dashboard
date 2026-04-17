@@ -1371,17 +1371,26 @@ class _ClientIntelligenceReportsPageState
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          activeReceipt == null
-                              ? 'GET A RECEIPT BACK'
-                              : activeReceipt.event.eventId,
-                          style: GoogleFonts.inter(
-                            color: _reportsTitleColor,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            height: 0.95,
+                        if (activeReceipt == null)
+                          Text(
+                            'GET A RECEIPT BACK',
+                            style: GoogleFonts.inter(
+                              color: _reportsTitleColor,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              height: 0.95,
+                            ),
+                          )
+                        else
+                          Text(
+                            activeReceipt.event.eventId,
+                            style: GoogleFonts.robotoMono(
+                              color: _reportsTitleColor,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              height: 0.95,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -7950,7 +7959,7 @@ class _ClientIntelligenceReportsPageState
               Expanded(
                 child: Text(
                   chain.dispatchId,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.robotoMono(
                     color: _reportsTitleColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -9566,6 +9575,7 @@ class _ClientIntelligenceReportsPageState
                   label: 'REPORT ID',
                   value: row.event.eventId,
                   accent: OnyxColorTokens.accentPurple,
+                  mono: true,
                 ),
                 _reportsMetaBadge(
                   label: 'PERIOD',
@@ -9631,6 +9641,10 @@ class _ClientIntelligenceReportsPageState
     required String label,
     required String value,
     required Color accent,
+
+    /// Only set true for structured identifiers (IDs, hashes, refs).
+    /// Do not use for timestamps, numeric values, labels, or other prose.
+    bool mono = false,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
@@ -9655,11 +9669,17 @@ class _ClientIntelligenceReportsPageState
           const SizedBox(height: 2),
           Text(
             value,
-            style: GoogleFonts.inter(
-              color: accent,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
+            style: mono
+                ? GoogleFonts.robotoMono(
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  )
+                : GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
           ),
         ],
       ),
