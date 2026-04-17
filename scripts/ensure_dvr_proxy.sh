@@ -10,6 +10,7 @@ PID_FILE="${ONYX_DVR_PROXY_PID_FILE:-tmp/onyx_dvr_proxy.pid}"
 PYTHON_BIN="${ONYX_DVR_PROXY_PYTHON_BIN:-python3}"
 PORT="${ONYX_DVR_PROXY_PORT:-11635}"
 LOG_ROTATE_BYTES="${ONYX_DVR_PROXY_LOG_ROTATE_BYTES:-52428800}"
+LOG_ROTATE_BACKUPS="${ONYX_DVR_PROXY_LOG_ROTATE_BACKUPS:-3}"
 START_REASON="bootstrap"
 
 while [[ $# -gt 0 ]]; do
@@ -106,7 +107,11 @@ mkdir -p "$(dirname "$PID_FILE")"
 touch "$LOG_FILE"
 log_lifecycle_event "$START_REASON"
 nohup "$PYTHON_BIN" scripts/onyx_dvr_cors_proxy.py --config "$CONFIG_FILE" --port "$PORT" \
-  >>"$LOG_FILE" 2>&1 &
+  > >(python3 "$ROOT_DIR/scripts/rotating_log_sink.py" \
+    --file "$LOG_FILE" \
+    --max-bytes "$LOG_ROTATE_BYTES" \
+    --backups "$LOG_ROTATE_BACKUPS") \
+  2>&1 &
 proxy_pid=$!
 printf '%s\n' "$proxy_pid" >"$PID_FILE"
 

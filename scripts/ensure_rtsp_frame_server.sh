@@ -8,6 +8,8 @@ CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 LOG_FILE="${ONYX_RTSP_FRAME_SERVER_LOG_FILE:-tmp/onyx_rtsp_frame_server.log}"
 PID_FILE="${ONYX_RTSP_FRAME_SERVER_PID_FILE:-tmp/onyx_rtsp_frame_server.pid}"
 PYTHON_BIN="${ROOT_DIR}/.venv-monitoring-yolo/bin/python"
+LOG_ROTATE_BYTES="${ONYX_RTSP_FRAME_SERVER_LOG_ROTATE_BYTES:-52428800}"
+LOG_ROTATE_BACKUPS="${ONYX_RTSP_FRAME_SERVER_LOG_ROTATE_BACKUPS:-3}"
 START_REASON="bootstrap"
 
 while [[ $# -gt 0 ]]; do
@@ -132,7 +134,11 @@ mkdir -p "$(dirname "$LOG_FILE")"
 mkdir -p "$(dirname "$PID_FILE")"
 log_lifecycle_event "$START_REASON"
 nohup "$PYTHON_BIN" "$ROOT_DIR/tool/onyx_rtsp_frame_server.py" --config "$CONFIG_FILE" \
-  >"$LOG_FILE" 2>&1 &
+  > >(python3 "$ROOT_DIR/scripts/rotating_log_sink.py" \
+    --file "$LOG_FILE" \
+    --max-bytes "$LOG_ROTATE_BYTES" \
+    --backups "$LOG_ROTATE_BACKUPS") \
+  2>&1 &
 server_pid=$!
 printf '%s\n' "$server_pid" >"$PID_FILE"
 

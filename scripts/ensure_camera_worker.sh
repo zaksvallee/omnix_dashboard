@@ -10,6 +10,8 @@ PID_FILE="${ONYX_CAMERA_WORKER_PID_FILE:-tmp/onyx_camera_worker.pid}"
 WATCHDOG_LOG_FILE="${ONYX_CAMERA_WORKER_WATCHDOG_LOG_FILE:-tmp/onyx_camera_worker_watchdog.log}"
 WATCHDOG_PID_FILE="${ONYX_CAMERA_WORKER_WATCHDOG_PID_FILE:-tmp/onyx_camera_worker_watchdog.pid}"
 WATCHDOG_INTERVAL_SECONDS="${ONYX_CAMERA_WORKER_WATCHDOG_INTERVAL_SECONDS:-30}"
+LOG_ROTATE_BYTES="${ONYX_CAMERA_WORKER_LOG_ROTATE_BYTES:-52428800}"
+LOG_ROTATE_BACKUPS="${ONYX_CAMERA_WORKER_LOG_ROTATE_BACKUPS:-3}"
 WATCHDOG_MODE=0
 WATCHDOG_LOOP_MODE=0
 START_REASON="bootstrap"
@@ -147,10 +149,14 @@ start_worker_once() {
   mkdir -p "$(dirname "$PID_FILE")"
   touch "$LOG_FILE"
   log_lifecycle_event "$START_REASON"
-  # Mirror worker output to both the terminal and the persistent log file.
+  # Mirror worker output to both the terminal and the rotating persistent log.
   nohup bash -lc 'exec ./scripts/run_camera_worker.sh --config "$1"' _ "$CONFIG_FILE" \
-    > >(tee -a "$LOG_FILE") \
-    2> >(tee -a "$LOG_FILE" >&2) &
+    > >(python3 "$ROOT_DIR/scripts/rotating_log_sink.py" \
+      --file "$LOG_FILE" \
+      --max-bytes "$LOG_ROTATE_BYTES" \
+      --backups "$LOG_ROTATE_BACKUPS" \
+      --tee) \
+    2>&1 &
   worker_pid=$!
   printf '%s\n' "$worker_pid" >"$PID_FILE"
 

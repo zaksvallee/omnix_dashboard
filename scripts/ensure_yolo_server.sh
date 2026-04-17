@@ -9,6 +9,8 @@ LOG_FILE="${ONYX_YOLO_SERVER_LOG_FILE:-tmp/onyx_yolo_server.log}"
 PID_FILE="${ONYX_YOLO_SERVER_PID_FILE:-tmp/onyx_yolo_server.pid}"
 VENV_PYTHON="${ROOT_DIR}/.venv-monitoring-yolo/bin/python"
 START_SCRIPT="${ROOT_DIR}/scripts/start_yolo_server.sh"
+LOG_ROTATE_BYTES="${ONYX_YOLO_SERVER_LOG_ROTATE_BYTES:-52428800}"
+LOG_ROTATE_BACKUPS="${ONYX_YOLO_SERVER_LOG_ROTATE_BACKUPS:-3}"
 START_REASON="bootstrap"
 
 while [[ $# -gt 0 ]]; do
@@ -229,7 +231,11 @@ mkdir -p "$(dirname "$LOG_FILE")"
 mkdir -p "$(dirname "$PID_FILE")"
 log_lifecycle_event "$START_REASON"
 nohup bash "$START_SCRIPT" --config "$CONFIG_FILE" \
-  >"$LOG_FILE" 2>&1 &
+  > >(python3 "$ROOT_DIR/scripts/rotating_log_sink.py" \
+    --file "$LOG_FILE" \
+    --max-bytes "$LOG_ROTATE_BYTES" \
+    --backups "$LOG_ROTATE_BACKUPS") \
+  2>&1 &
 yolo_pid=$!
 printf '%s\n' "$yolo_pid" >"$PID_FILE"
 
