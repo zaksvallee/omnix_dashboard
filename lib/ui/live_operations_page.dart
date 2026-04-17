@@ -1200,6 +1200,7 @@ class LiveOperationsPage extends StatefulWidget {
   final Color? guardRosterSignalAccent;
   final bool guardRosterSignalNeedsAttention;
   final ScenarioReplayHistorySignalService scenarioReplayHistorySignalService;
+  final Widget? theatrePanel;
 
   const LiveOperationsPage({
     super.key,
@@ -1254,6 +1255,7 @@ class LiveOperationsPage extends StatefulWidget {
     this.guardRosterSignalNeedsAttention = false,
     this.scenarioReplayHistorySignalService =
         const LocalScenarioReplayHistorySignalService(),
+    this.theatrePanel,
   });
 
   @override
@@ -2844,6 +2846,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return OnyxPageScaffold(
       child: Column(
         children: [
+          if (widget.theatrePanel != null) widget.theatrePanel!,
           _commandCenterHero(
             activeIncident: activeIncident,
             clientCommsSnapshot: clientCommsSnapshot,
@@ -16576,21 +16579,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                         sitePosture.moShadowEventIds,
                                         sitePosture.moShadowSelectedEventId,
                                         originLabel:
-                                            (sitePosture
-                                                            .moShadowSelectedEventId ??
-                                                        '')
-                                                    .trim()
-                                                    .isNotEmpty
-                                                ? sitePosture
-                                                      .moShadowSelectedEventId!
-                                                      .trim()
-                                                : (sitePosture
-                                                          .moShadowEventIds
-                                                          .isNotEmpty
-                                                      ? sitePosture
-                                                            .moShadowEventIds
-                                                            .first
-                                                      : ''),
+                                            (sitePosture.moShadowSelectedEventId ??
+                                                    '')
+                                                .trim()
+                                                .isNotEmpty
+                                            ? sitePosture
+                                                  .moShadowSelectedEventId!
+                                                  .trim()
+                                            : (sitePosture
+                                                      .moShadowEventIds
+                                                      .isNotEmpty
+                                                  ? sitePosture
+                                                        .moShadowEventIds
+                                                        .first
+                                                  : ''),
                                       );
                                     },
                                     style: OutlinedButton.styleFrom(

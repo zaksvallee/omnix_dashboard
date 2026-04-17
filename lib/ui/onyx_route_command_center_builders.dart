@@ -122,8 +122,12 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
             ?.trim();
     final initialScopeClientId = routeClientId.isEmpty ? null : routeClientId;
     final initialScopeSiteId = routeSiteId.isEmpty ? null : routeSiteId;
-    return LiveOperationsPage(
+    return CommandCenterPage(
       events: events,
+      theatreOrchestrator: ZaraTheatreOrchestrator(
+        intentParser: ZaraIntentParser(),
+        actionExecutor: ZaraActionExecutor(),
+      ),
       morningSovereignReportHistory: _morningSovereignReportHistory,
       historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
       historicalShadowMoLabels: _recentShadowMoLabels(),
@@ -142,10 +146,7 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
         siteId: operationsSiteId,
       ),
       onLoadCameraHealthFactPacketForScope: (clientId, siteId) =>
-          _cameraHealthFactPacketForScope(
-            clientId: clientId,
-            siteId: siteId,
-          ),
+          _cameraHealthFactPacketForScope(clientId: clientId, siteId: siteId),
       controlInboxSnapshot: _liveControlInboxSnapshot(
         clientId: operationsClientId,
         siteId: operationsSiteId,
@@ -458,9 +459,7 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
     final timestampLabel =
         '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')} UTC';
     if (latest case final IncidentClosed event) {
-      final resolution = event.resolutionType
-          .replaceAll('_', ' ')
-          .trim();
+      final resolution = event.resolutionType.replaceAll('_', ' ').trim();
       return _AlarmHistorySnapshot(
         reference: event.dispatchId.trim(),
         title: 'Dispatch ${event.dispatchId.trim()}',
