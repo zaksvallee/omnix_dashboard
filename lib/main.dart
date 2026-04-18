@@ -35903,8 +35903,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         }
         _pendingDispatchAgentReturnIncidentReference = null;
         _pendingDispatchEvidenceReturnReceipt = evidenceReturnReceipt;
-        _route = OnyxRoute.dispatches;
       });
+      _router.go(OnyxRoute.dispatches.path);
       widget.onDispatchRouteOpened?.call(
         _dispatchRouteClientId,
         _dispatchRouteSiteId,
@@ -36029,8 +36029,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _dispatchRouteClientId = '';
       _dispatchRouteSiteId = '';
       _pendingDispatchAgentReturnIncidentReference = null;
-      _route = OnyxRoute.dispatches;
     });
+    _router.go(OnyxRoute.dispatches.path);
     widget.onDispatchRouteOpened?.call('', '', '');
   }
 
@@ -36280,8 +36280,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _dispatchRouteClientId = normalizedClientId;
       _dispatchRouteSiteId = normalizedSiteId;
       _pendingDispatchAgentReturnIncidentReference = null;
-      _route = OnyxRoute.dispatches;
     });
+    _router.go(OnyxRoute.dispatches.path);
     widget.onDispatchRouteOpened?.call(
       normalizedClientId,
       normalizedSiteId,
@@ -36299,8 +36299,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     setState(() {
       _assignDispatchRouteForIncident(ref);
       _pendingDispatchAgentReturnIncidentReference = null;
-      _route = OnyxRoute.dispatches;
     });
+    _router.go(OnyxRoute.dispatches.path);
     widget.onDispatchRouteOpened?.call(
       _dispatchRouteClientId,
       _dispatchRouteSiteId,
@@ -36326,8 +36326,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : selectedDispatchId.trim();
       _pendingDispatchAgentReturnIncidentReference = null;
       _pendingDispatchEvidenceReturnReceipt = evidenceReturnReceipt;
-      _route = OnyxRoute.dispatches;
     });
+    _router.go(OnyxRoute.dispatches.path);
     widget.onDispatchRouteOpened?.call(
       _dispatchRouteClientId,
       _dispatchRouteSiteId,
@@ -36349,8 +36349,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ? null
           : selectedDispatchId.trim();
       _pendingDispatchAgentReturnIncidentReference = ref;
-      _route = OnyxRoute.dispatches;
     });
+    _router.go(OnyxRoute.dispatches.path);
     widget.onDispatchRouteOpened?.call(
       _dispatchRouteClientId,
       _dispatchRouteSiteId,
@@ -37524,8 +37524,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _dispatchRouteClientId = normalizedClientId;
       _dispatchRouteSiteId = normalizedSiteId;
       _operationsFocusIncidentReference = ref;
-      _route = OnyxRoute.dispatches;
     });
+    _router.go(OnyxRoute.dispatches.path);
     widget.onDispatchRouteOpened?.call(
       normalizedClientId,
       normalizedSiteId,
