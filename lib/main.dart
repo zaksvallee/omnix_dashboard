@@ -37635,7 +37635,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _demoAutopilotIncidentReference = ref;
       _demoAutopilotCompletionLabel = completionLabel;
       _operationsFocusIncidentReference = ref;
-      _route = firstRoute;
       _eventsSourceFilter = '';
       _eventsProviderFilter = '';
       _eventsSelectedEventId = firstRoute == OnyxRoute.events ? ref : '';
@@ -37652,6 +37651,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ? sequence[1].autopilotLabel
           : '';
     });
+    _router.go(firstRoute.path);
     if (sequence.length > 1) {
       _restartDemoAutopilotCountdownTicker();
       _scheduleDemoAutopilotRouteHop(delaySeconds: stepIntervalSeconds);
@@ -37712,7 +37712,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final nextRoute = _demoAutopilotSequence[nextIndex];
     final isLast = nextIndex == _demoAutopilotSequence.length - 1;
     setState(() {
-      _route = nextRoute;
       if (nextRoute == OnyxRoute.events) {
         _eventsSourceFilter = '';
         _eventsProviderFilter = '';
@@ -37726,6 +37725,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             _demoAutopilotSequence[nextIndex + 1].autopilotLabel;
       }
     });
+    _router.go(nextRoute.path);
     if (!isLast && showStepSnack) {
       _showDemoAutopilotStepSnack(
         step: _demoAutopilotCurrentStep,
