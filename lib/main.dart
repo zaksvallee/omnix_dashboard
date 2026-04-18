@@ -35960,8 +35960,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _governancePartnerScopeClientId = '';
       _governancePartnerScopeSiteId = '';
       _governancePartnerScopePartnerLabel = '';
-      _route = OnyxRoute.governance;
     });
+    _router.go(OnyxRoute.governance.path);
   }
 
   void _openGovernanceForReportDate(String? reportDate) {
@@ -35974,8 +35974,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _governancePartnerScopeClientId = '';
       _governancePartnerScopeSiteId = '';
       _governancePartnerScopePartnerLabel = '';
-      _route = OnyxRoute.governance;
     });
+    _router.go(OnyxRoute.governance.path);
   }
 
   void _openGovernanceForScope(String clientId, String siteId) {
@@ -35993,8 +35993,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _governancePartnerScopeClientId = '';
       _governancePartnerScopeSiteId = '';
       _governancePartnerScopePartnerLabel = '';
-      _route = OnyxRoute.governance;
     });
+    _router.go(OnyxRoute.governance.path);
   }
 
   void _openGovernanceForPartnerScope(
@@ -36019,8 +36019,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _governancePartnerScopeClientId = normalizedClientId;
       _governancePartnerScopeSiteId = normalizedSiteId;
       _governancePartnerScopePartnerLabel = normalizedPartnerLabel;
-      _route = OnyxRoute.governance;
     });
+    _router.go(OnyxRoute.governance.path);
   }
 
   void _openDispatchesFromAdmin() {
