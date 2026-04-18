@@ -35935,8 +35935,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _operationsRouteClientId = clientId;
         _operationsRouteSiteId = siteId;
         _operationsFocusIncidentReference = '';
-        _route = OnyxRoute.sites;
       });
+      _router.go(OnyxRoute.sites.path);
       return;
     }
     setState(() {
