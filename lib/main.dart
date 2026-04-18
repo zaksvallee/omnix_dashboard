@@ -3587,9 +3587,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   // ignore: unused_element
   void _openGuardSyncFromDashboard() {
     setState(() {
-      _route = OnyxRoute.guards;
       _guardSyncLandingPending = true;
     });
+    _router.go(OnyxRoute.guards.path);
   }
 
   GuardMobileInitialScreen _consumeGuardInitialScreen() {
@@ -36774,8 +36774,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ? 'ALL'
           : normalizedSiteFilter;
       _pendingGuardsEvidenceReturnReceipt = evidenceReturnReceipt;
-      _route = OnyxRoute.guards;
     });
+    _router.go(OnyxRoute.guards.path);
   }
 
   void _openSitesActionFromAudit() {
