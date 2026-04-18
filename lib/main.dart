@@ -36850,8 +36850,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ClientAppViewerRole.client.name: normalizedRoom,
         };
       }
-      _route = OnyxRoute.clients;
     });
+    _router.go(OnyxRoute.clients.path);
     widget.onClientLaneRouteOpened?.call(
       effectiveClientId,
       effectiveSiteId,
@@ -36958,8 +36958,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _clientsRouteHandoffTarget = ClientsRouteHandoffTarget.threadContext;
       _operationsFocusIncidentReference = ref;
       _pendingClientsEvidenceReturnReceipt = evidenceReturnReceipt;
-      _route = OnyxRoute.clients;
     });
+    _router.go(OnyxRoute.clients.path);
     widget.onClientLaneRouteOpened?.call(scope.clientId, scope.siteId, '');
   }
 
