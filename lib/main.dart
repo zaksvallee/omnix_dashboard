@@ -34900,8 +34900,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _operationsFocusIncidentReference = ref;
       _operationsAgentReturnIncidentReference = null;
       _pendingOperationsAgentReturnIncidentReference = null;
-      _route = OnyxRoute.dashboard;
     });
+    _router.go(OnyxRoute.dashboard.path);
   }
 
   void _openOperationsFromAgentIncident(String incidentReference) {
@@ -34915,8 +34915,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _operationsFocusIncidentReference = ref;
       _operationsAgentReturnIncidentReference = ref;
       _pendingOperationsAgentReturnIncidentReference = ref;
-      _route = OnyxRoute.dashboard;
     });
+    _router.go(OnyxRoute.dashboard.path);
   }
 
   void _openAgentFromOperationsIncident(String incidentReference) {
@@ -34999,8 +34999,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _operationsFocusIncidentReference = ref;
       _operationsAgentReturnIncidentReference = null;
       _pendingOperationsAgentReturnIncidentReference = null;
-      _route = OnyxRoute.dashboard;
     });
+    _router.go(OnyxRoute.dashboard.path);
   }
 
   String _tacticalGuardPositionScopeKeyFor(String clientId, String siteId) {
@@ -35990,8 +35990,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : _latestOperationsFocusReferenceForScope(clientId, siteId);
       _operationsAgentReturnIncidentReference = null;
       _pendingOperationsAgentReturnIncidentReference = null;
-      _route = OnyxRoute.dashboard;
     });
+    _router.go(OnyxRoute.dashboard.path);
   }
 
   void _openGovernanceFromAdmin() {
