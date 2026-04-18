@@ -34933,8 +34933,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _operationsRouteSiteId = scope.siteId;
         }
       }
-      _route = OnyxRoute.agent;
     });
+    _router.go(OnyxRoute.agent.path);
   }
 
   void _openOperationsAgentFromEvidenceAudit(DispatchAuditOpenRequest request) {
@@ -34975,8 +34975,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         }
       }
       _operationsFocusIncidentReference = ref;
-      _route = OnyxRoute.agent;
     });
+    _router.go(OnyxRoute.agent.path);
   }
 
   void _openOperationsForScope(
@@ -35307,8 +35307,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _tacticalRouteSiteId = scope.siteId;
         }
       }
-      _route = OnyxRoute.agent;
     });
+    _router.go(OnyxRoute.agent.path);
   }
 
   void _openEventsFromAdminIncident(String incidentReference) {
@@ -36162,8 +36162,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (ref.isNotEmpty) {
         _aiQueueFocusIncidentReference = ref;
       }
-      _route = OnyxRoute.agent;
     });
+    _router.go(OnyxRoute.agent.path);
   }
 
   void _consumePendingOperationsAgentReturnIncidentReference(
@@ -36230,8 +36230,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _dispatchRouteSiteId = scope.siteId;
         }
       }
-      _route = OnyxRoute.agent;
     });
+    _router.go(OnyxRoute.agent.path);
   }
 
   String _dispatchSelectionForIncidentReference(String incidentReference) {
@@ -36293,8 +36293,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _controllerClientsRouteSiteId = scope.siteId;
         }
       }
-      _route = OnyxRoute.agent;
     });
+    _router.go(OnyxRoute.agent.path);
   }
 
   void _assignDispatchRouteForIncident(String incidentReference) {
