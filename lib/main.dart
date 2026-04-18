@@ -36043,8 +36043,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _aiQueueAgentReturnIncidentReference = null;
       _pendingAiQueueAgentReturnIncidentReference = null;
       _pendingAiQueueEvidenceReturnReceipt = null;
-      _route = OnyxRoute.aiQueue;
     });
+    _router.go(OnyxRoute.aiQueue.path);
   }
 
   void _openAiQueueFromAdminIncident(
@@ -36064,8 +36064,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _aiQueueAgentReturnIncidentReference = null;
       _pendingAiQueueAgentReturnIncidentReference = null;
       _pendingAiQueueEvidenceReturnReceipt = null;
-      _route = OnyxRoute.aiQueue;
     });
+    _router.go(OnyxRoute.aiQueue.path);
   }
 
   void _openAiQueueFromEvidenceAudit(DispatchAuditOpenRequest request) {
@@ -36085,8 +36085,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _aiQueueAgentReturnIncidentReference = null;
       _pendingAiQueueAgentReturnIncidentReference = null;
       _pendingAiQueueEvidenceReturnReceipt = evidenceReturnReceipt;
-      _route = OnyxRoute.aiQueue;
     });
+    _router.go(OnyxRoute.aiQueue.path);
   }
 
   void _openAiQueueFromAgentIncident(
@@ -36106,8 +36106,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _aiQueueAgentReturnIncidentReference = ref;
       _pendingAiQueueAgentReturnIncidentReference = ref;
       _pendingAiQueueEvidenceReturnReceipt = null;
-      _route = OnyxRoute.aiQueue;
     });
+    _router.go(OnyxRoute.aiQueue.path);
   }
 
   void _openAgentFromAiQueueIncident(String incidentReference) {
