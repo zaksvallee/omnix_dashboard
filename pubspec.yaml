@@ -28,6 +28,9 @@ dependencies:
   latlong2: ^0.9.1
   easy_onvif: ^3.0.0
   xml: ^6.6.1
+  go_router: ^14.6.2
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

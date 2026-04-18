@@ -65,49 +65,44 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
     );
   }
 
+  /// Zara Home (`/`). Split from `_buildDashboardRoute` in the Phase 1
+  /// router migration — previously the dashboard route toggled between
+  /// Zara and Command Center via the now-deleted `_zaraAmbientActive`
+  /// flag. Zara Home is now its own top-level route outside the AppShell.
+  Widget _buildZaraHomeRoute(List<DispatchEvent> events) {
+    final operatorName =
+        _signedInAccount?.displayName ?? service.operator.operatorId;
+    final siteLabel = _selectedSite
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ')
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .map((s) => s[0].toUpperCase() + s.substring(1).toLowerCase())
+        .join(' ');
+    return ZaraAmbientPage(
+      events: events,
+      operatorLabel: operatorName,
+      siteLabel: siteLabel,
+      onOpenCommandCenter: () => _router.go(OnyxRoute.dashboard.path),
+      onOpenDispatches: () {
+        _cancelDemoAutopilot();
+        _router.go(OnyxRoute.dispatches.path);
+      },
+      onOpenAlarms: () {
+        _cancelDemoAutopilot();
+        _router.go(OnyxRoute.alarms.path);
+      },
+      onOpenCctv: () {
+        _cancelDemoAutopilot();
+        _router.go(OnyxRoute.aiQueue.path);
+      },
+    );
+  }
+
   Widget _buildDashboardRoute(
     List<DispatchEvent> events,
     String previousTomorrowUrgencySummary,
   ) {
-    if (_zaraAmbientActive) {
-      final operatorName =
-          _signedInAccount?.displayName ?? service.operator.operatorId;
-      final siteLabel = _selectedSite
-          .replaceAll('-', ' ')
-          .replaceAll('_', ' ')
-          .split(RegExp(r'\s+'))
-          .where((s) => s.isNotEmpty)
-          .map((s) => s[0].toUpperCase() + s.substring(1).toLowerCase())
-          .join(' ');
-      return ZaraAmbientPage(
-        events: events,
-        operatorLabel: operatorName,
-        siteLabel: siteLabel,
-        onOpenCommandCenter: () {
-          _applyRouteBuilderState(() {
-            _zaraAmbientActive = false;
-          });
-        },
-        onOpenDispatches: () {
-          _cancelDemoAutopilot();
-          _applyRouteBuilderState(() {
-            _route = OnyxRoute.dispatches;
-          });
-        },
-        onOpenAlarms: () {
-          _cancelDemoAutopilot();
-          _applyRouteBuilderState(() {
-            _route = OnyxRoute.alarms;
-          });
-        },
-        onOpenCctv: () {
-          _cancelDemoAutopilot();
-          _applyRouteBuilderState(() {
-            _route = OnyxRoute.aiQueue;
-          });
-        },
-      );
-    }
     final routeClientId = _operationsRouteClientId.trim();
     final routeSiteId = _operationsRouteSiteId.trim();
     final operationsClientId = routeClientId.isNotEmpty

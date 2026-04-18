@@ -7,6 +7,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
@@ -225,6 +227,7 @@ import 'ui/vip_protection_page.dart';
 import 'ui/video_fleet_scope_health_sections.dart';
 import 'ui/video_fleet_scope_health_view.dart';
 
+part 'routing/onyx_router.dart';
 part 'ui/onyx_route_builders.dart';
 part 'ui/onyx_route_command_center_builders.dart';
 part 'ui/onyx_route_operations_builders.dart';
@@ -825,6 +828,7 @@ class _ScopedCommsExecutionUpdate {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  usePathUrlStrategy();
   const allowFontRuntimeFetching = bool.fromEnvironment(
     'ONYX_ALLOW_FONT_RUNTIME_FETCHING',
     defaultValue: false,
@@ -982,6 +986,13 @@ class OnyxApp extends StatefulWidget {
 
   @override
   State<OnyxApp> createState() => _OnyxAppState();
+}
+
+/// Thin ChangeNotifier so `_OnyxAppState` can poke GoRouter's
+/// `refreshListenable` after every `setState`. Exists only because
+/// `ChangeNotifier.notifyListeners` is protected.
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void ping() => notifyListeners();
 }
 
 class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
@@ -2000,7 +2011,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool? _telegramAiApprovalRequiredOverride;
   Map<String, String> _telegramAiClientProfileOverrideByScope = const {};
   bool _liveOperationsQueueHintSeen = false;
-  bool _zaraAmbientActive = true;
+  late final GoRouter _router;
+  // Fires on every `setState`. Wired into GoRouter as `refreshListenable`
+  // so the router re-evaluates and rebuilds the current route whenever
+  // app state changes. Without this bridge, `setState` on `_OnyxAppState`
+  // does not propagate rebuilds past `MaterialApp.router` because
+  // `routerConfig` is stable — the 74 legacy `setState(() { _route = X; })`
+  // call sites would otherwise become dead writes under the router.
+  final _RouterRefreshNotifier _routerRefreshNotifier = _RouterRefreshNotifier();
   OnyxAgentCameraBridgeHealthSnapshot? _onyxAgentCameraBridgeHealthSnapshot;
   Map<String, List<TelegramAiLearnedReplyExample>>
   _telegramAiApprovedRewriteExamplesByScope = const {};
@@ -2204,6 +2222,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   void _applyRouteBuilderState(VoidCallback mutation) {
     setState(mutation);
+  }
+
+  @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    // Tell GoRouter "app state changed; rebuild the current route." Without
+    // this, every legacy `setState(() { _route = X; })` call site becomes a
+    // dead write under `MaterialApp.router` — see `_routerRefreshNotifier`
+    // field comment. Phase 2 migration converts those call sites to
+    // `_router.go(path)`; until then, this is the compatibility bridge.
+    _routerRefreshNotifier.ping();
   }
 
   void _runDispatchDemoGenerationFromRoute({
@@ -3321,6 +3350,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (widget.initialAdminTabOverride != null) {
       _adminPageTab = widget.initialAdminTabOverride!;
     }
+    _router = _buildOnyxRouter();
+    _router.routerDelegate.addListener(_syncRouteFromRouter);
     _watchIdentityPolicyService = MonitoringIdentityPolicyService.parseJson(
       _monitoringIdentityRulesJsonEnv,
     );
@@ -3742,6 +3773,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void dispose() {
     _guardCheckpointScanChannel.setMethodCallHandler(null);
     WidgetsBinding.instance.removeObserver(this);
+    _router.routerDelegate.removeListener(_syncRouteFromRouter);
+    _router.dispose();
+    _routerRefreshNotifier.dispose();
     _livePollTimer?.cancel();
     _opsIntegrationPollTimer?.cancel();
     _guardOpsSyncTimer?.cancel();
@@ -34476,7 +34510,74 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final events = store.allEvents();
+    if (_showControllerLoginGate) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        navigatorKey: _navigatorKey,
+        theme: OnyxTheme.dark(),
+        home: ControllerLoginPage(
+          demoAccounts: _controllerDemoAccounts,
+          onAuthenticated: _handleControllerAuthenticated,
+          onResetRequested: _resetControllerPreviewSession,
+        ),
+      );
+    }
+    if (_appMode == OnyxAppMode.controller) {
+      return MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        theme: OnyxTheme.dark(),
+        routerConfig: _router,
+      );
+    }
+    final Widget home = _appMode == OnyxAppMode.guard
+        ? _buildGuardPage()
+        : _buildClientPage(store.allEvents());
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      navigatorKey: _navigatorKey,
+      theme: OnyxTheme.dark(),
+      home: home,
+    );
+  }
+
+  /// Handles a shell-level (nav-rail) route change. This is the single
+  /// place where clicking the AppShell nav rail turns into a router
+  /// navigation plus the coupled scope/focus state reset that existed
+  /// before the router migration.
+  ///
+  /// Phase 1: routes via `_router.go(r.path)` so the URL updates. Phase 2
+  /// will migrate the remaining 74 `_route = X` setState call sites to
+  /// this same pattern.
+  void _handleShellRouteChanged(OnyxRoute r) {
+    setState(() {
+      _cancelDemoAutopilot();
+      if (r == OnyxRoute.agent && _route != OnyxRoute.agent) {
+        _agentSourceRoute = _route;
+      }
+      if (r == OnyxRoute.aiQueue) {
+        _aiQueueRouteActivationToken++;
+      }
+      if (r != OnyxRoute.agent) {
+        _aiQueueFocusIncidentReference = '';
+        _aiQueueSelectedFeedId = '';
+        _eventsSourceFilter = '';
+        _eventsProviderFilter = '';
+        _eventsSelectedEventId = '';
+        _eventsScopedEventIds = const <String>[];
+        _eventsRouteSource = ZaraEventsRouteSource.navRail;
+        _eventsOriginLabel = '';
+      }
+    });
+    _router.go(r.path);
+  }
+
+  /// Builds the AppShell chrome that wraps every in-shell route. Invoked
+  /// by the router's top-level ShellRoute.
+  Widget _buildControllerShell(
+    BuildContext context,
+    Widget child,
+    List<DispatchEvent> events,
+  ) {
     final activeIncidentCount = EventSourcingService.activeIncidentCount(
       events,
     );
@@ -34496,78 +34597,51 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       complianceIssuesCount: complianceIssuesCount,
       tacticalSosAlerts: tacticalSosAlerts,
     );
-    final modeHome = switch (_appMode) {
-      OnyxAppMode.controller => AppShell(
-        currentRoute: _route,
-        onRouteChanged: (r) => setState(() {
-          _cancelDemoAutopilot();
-          if (r == OnyxRoute.agent && _route != OnyxRoute.agent) {
-            _agentSourceRoute = _route;
-          }
-          if (r == OnyxRoute.aiQueue) {
-            _aiQueueRouteActivationToken++;
-          }
-          _route = r;
-          if (r == OnyxRoute.dashboard) {
-            _zaraAmbientActive = true;
-          }
-          if (r != OnyxRoute.agent) {
-            _aiQueueFocusIncidentReference = '';
-            _aiQueueSelectedFeedId = '';
-            _eventsSourceFilter = '';
-            _eventsProviderFilter = '';
-            _eventsSelectedEventId = '';
-            _eventsScopedEventIds = const <String>[];
-            _eventsRouteSource = ZaraEventsRouteSource.navRail;
-            _eventsOriginLabel = '';
-          }
-        }),
-        onIntelTickerTap: _focusEventsFromTickerItem,
-        activeIncidentCount: activeIncidentCount,
-        aiActionCount: aiActionCount,
-        guardsOnlineCount: guardsOnlineCount,
-        operatorLabel:
-            _signedInAccount?.displayName ?? service.operator.operatorId,
-        operatorRoleLabel: _signedInAccount?.roleLabel ?? '',
-        operatorShiftLabel: _signedInShiftLabel(),
-        complianceIssuesCount: complianceIssuesCount,
-        tacticalSosAlerts: tacticalSosAlerts,
-        elevatedRiskCount: elevatedRiskCount,
-        liveAlarmCount: liveAlarmCount,
-        intelTickerItems: _intelTickerItems(events),
-        incidentLifecycleSnapshot: eventSourcingSnapshot.lifecycle,
-        eventSourcingSnapshot: eventSourcingSnapshot,
-        demoAutopilotStatusLabel: _demoAutopilotRunning
-            ? 'Demo $_demoAutopilotCurrentStep/$_demoAutopilotTotalSteps • $_demoAutopilotFlowLabel${_demoAutopilotPaused ? ' • paused' : ''}${_demoAutopilotNextHopSeconds > 0 && _demoAutopilotNextRouteLabel.isNotEmpty && !_demoAutopilotPaused ? ' • next: $_demoAutopilotNextRouteLabel in $_demoAutopilotNextHopSeconds s' : ''}'
-            : '',
-        onStopDemoAutopilot: _demoAutopilotRunning
-            ? _stopDemoAutopilotFromShell
-            : null,
-        onSkipDemoAutopilot: _demoAutopilotRunning
-            ? _skipDemoAutopilotFromShell
-            : null,
-        onToggleDemoAutopilotPause: _demoAutopilotRunning
-            ? _toggleDemoAutopilotPauseFromShell
-            : null,
-        demoAutopilotPaused: _demoAutopilotPaused,
-        child: _buildPage(events),
-      ),
-      OnyxAppMode.guard => _buildGuardPage(),
-      OnyxAppMode.client => _buildClientPage(events),
-    };
-    final home = _showControllerLoginGate
-        ? ControllerLoginPage(
-            demoAccounts: _controllerDemoAccounts,
-            onAuthenticated: _handleControllerAuthenticated,
-            onResetRequested: _resetControllerPreviewSession,
-          )
-        : modeHome;
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      navigatorKey: _navigatorKey,
-      theme: OnyxTheme.dark(),
-      home: home,
+    return AppShell(
+      currentRoute: _route,
+      onRouteChanged: _handleShellRouteChanged,
+      onIntelTickerTap: _focusEventsFromTickerItem,
+      activeIncidentCount: activeIncidentCount,
+      aiActionCount: aiActionCount,
+      guardsOnlineCount: guardsOnlineCount,
+      operatorLabel:
+          _signedInAccount?.displayName ?? service.operator.operatorId,
+      operatorRoleLabel: _signedInAccount?.roleLabel ?? '',
+      operatorShiftLabel: _signedInShiftLabel(),
+      complianceIssuesCount: complianceIssuesCount,
+      tacticalSosAlerts: tacticalSosAlerts,
+      elevatedRiskCount: elevatedRiskCount,
+      liveAlarmCount: liveAlarmCount,
+      intelTickerItems: _intelTickerItems(events),
+      incidentLifecycleSnapshot: eventSourcingSnapshot.lifecycle,
+      eventSourcingSnapshot: eventSourcingSnapshot,
+      demoAutopilotStatusLabel: _demoAutopilotRunning
+          ? 'Demo $_demoAutopilotCurrentStep/$_demoAutopilotTotalSteps • $_demoAutopilotFlowLabel${_demoAutopilotPaused ? ' • paused' : ''}${_demoAutopilotNextHopSeconds > 0 && _demoAutopilotNextRouteLabel.isNotEmpty && !_demoAutopilotPaused ? ' • next: $_demoAutopilotNextRouteLabel in $_demoAutopilotNextHopSeconds s' : ''}'
+          : '',
+      onStopDemoAutopilot: _demoAutopilotRunning
+          ? _stopDemoAutopilotFromShell
+          : null,
+      onSkipDemoAutopilot: _demoAutopilotRunning
+          ? _skipDemoAutopilotFromShell
+          : null,
+      onToggleDemoAutopilotPause: _demoAutopilotRunning
+          ? _toggleDemoAutopilotPauseFromShell
+          : null,
+      demoAutopilotPaused: _demoAutopilotPaused,
+      child: child,
     );
+  }
+
+  /// Keeps the legacy `_route` field in lockstep with the router's current
+  /// URL. Fires on every router configuration change. Phase 2 gradually
+  /// makes `_route` read-only; Phase 3 removes the field.
+  void _syncRouteFromRouter() {
+    final next = _routeFromCurrentRouter();
+    if (next != null && _route != next) {
+      setState(() {
+        _route = next;
+      });
+    }
   }
 
   void _handleControllerAuthenticated(ControllerLoginAccount account) {
@@ -34589,6 +34663,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _aiQueueFocusIncidentReference = '';
       _aiQueueSelectedFeedId = '';
     });
+    // Controllers whose landing is the dashboard get the v1.1 Zara Home
+    // surface; everyone else lands at their landingRoute URL directly.
+    final targetPath = account.landingRoute == OnyxRoute.dashboard
+        ? _zaraHomeRouterPath
+        : account.landingRoute.path;
+    _router.go(targetPath);
   }
 
   void _resetControllerPreviewSession() {
@@ -38673,18 +38753,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteId,
   }) async {
     final key = _clientCommsScopeKey(clientId, siteId);
+    // Mark the scope as loading synchronously so callers relying on the
+    // `_clientCommsDeliveryReadinessLoading` set see the flip immediately.
+    // The visual rebuild is deferred to the next frame to avoid triggering
+    // a setState during build when this refresh is kicked off from a
+    // router-driven page builder (see onyx_router.dart — each GoRoute
+    // wraps its body in a Builder, which makes synchronous setState calls
+    // from within the body's build fail the "setState during build" guard
+    // that was tolerated under the old MaterialApp(home:) tree).
+    _clientCommsDeliveryReadinessLoading = {
+      ..._clientCommsDeliveryReadinessLoading,
+      key,
+    };
     if (mounted) {
-      setState(() {
-        _clientCommsDeliveryReadinessLoading = {
-          ..._clientCommsDeliveryReadinessLoading,
-          key,
-        };
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
       });
-    } else {
-      _clientCommsDeliveryReadinessLoading = {
-        ..._clientCommsDeliveryReadinessLoading,
-        key,
-      };
     }
 
     var telegramTargetCount = _fallbackTelegramTargetCountForScope(
