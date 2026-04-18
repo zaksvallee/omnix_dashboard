@@ -35398,8 +35398,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _ledgerRouteClientId = scope?.clientId ?? '';
       _ledgerRouteSiteId = scope?.siteId ?? '';
       _operationsFocusIncidentReference = ref;
-      _route = OnyxRoute.ledger;
     });
+    _router.go(OnyxRoute.ledger.path);
   }
 
   void _openLedgerForFocus(String focusReference) {
@@ -35413,8 +35413,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _ledgerRouteClientId = scope?.clientId ?? '';
       _ledgerRouteSiteId = scope?.siteId ?? '';
       _operationsFocusIncidentReference = ref;
-      _route = OnyxRoute.ledger;
     });
+    _router.go(OnyxRoute.ledger.path);
   }
 
   void _openLedgerForScope(String clientId, String? siteId) {
@@ -35427,8 +35427,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _ledgerRouteClientId = normalizedClientId;
       _ledgerRouteSiteId = (siteId ?? '').trim();
       _operationsFocusIncidentReference = '';
-      _route = OnyxRoute.ledger;
     });
+    _router.go(OnyxRoute.ledger.path);
   }
 
   void _openLedgerForRosterPlannerAudit() {
@@ -35478,8 +35478,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _ledgerRouteClientId = auditEntry.clientId.trim();
       _ledgerRouteSiteId = auditEntry.siteId.trim();
       _operationsFocusIncidentReference = auditEntry.auditId;
-      _route = OnyxRoute.ledger;
     });
+    _router.go(OnyxRoute.ledger.path);
   }
 
   DispatchEvidenceReturnReceipt _dispatchEvidenceReturnReceiptForAction({
