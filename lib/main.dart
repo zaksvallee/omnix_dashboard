@@ -35917,8 +35917,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _operationsRouteClientId = clientId;
         _operationsRouteSiteId = siteId;
         _operationsFocusIncidentReference = '';
-        _route = OnyxRoute.intel;
       });
+      _router.go(OnyxRoute.intel.path);
       return;
     }
     if (sourceRoute == OnyxRoute.vip.autopilotKey) {
