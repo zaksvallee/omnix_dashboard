@@ -36394,8 +36394,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         accent: _adminSitesCommandAccent(normalizedAction),
       );
       _adminPageTab = AdministrationPageTab.sites;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _openAdminGuardsTab() {
@@ -36403,8 +36403,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     setState(() {
       _clearAdminInitialCommandReceipt();
       _adminPageTab = AdministrationPageTab.guards;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _openAdminGuardsTabForAction(String action, {DateTime? date}) {
@@ -36419,8 +36419,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _adminInitialGuardsPlannerAction = action;
       _adminInitialGuardsPlannerDate = date;
       _adminPageTab = AdministrationPageTab.guards;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _openAdminGuardsPlannerFromAudit() {
@@ -36436,8 +36436,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _adminInitialGuardsPlannerAction = 'open-month-planner';
       _adminInitialGuardsPlannerDate = null;
       _adminPageTab = AdministrationPageTab.guards;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _openAdminSystemTab() {
@@ -36445,8 +36445,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     setState(() {
       _clearAdminInitialCommandReceipt();
       _adminPageTab = AdministrationPageTab.system;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _openAdminSystemTabFromIntelAudit() {
@@ -36460,8 +36460,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         accent: const Color(0xFF54C8FF),
       );
       _adminPageTab = AdministrationPageTab.system;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _openAdminSystemTabForVipPackage() {
@@ -36475,8 +36475,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         accent: const Color(0xFF5BE2A3),
       );
       _adminPageTab = AdministrationPageTab.system;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _openAdminSystemTabForVipPackageReview(VipScheduledDetail detail) {
@@ -36491,8 +36491,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         accent: detail.badgeForeground,
       );
       _adminPageTab = AdministrationPageTab.system;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _openAdminSystemTabFromVipAudit() {
@@ -36513,8 +36513,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           accent: const Color(0xFF7DDCFF),
         );
         _adminPageTab = AdministrationPageTab.system;
-        _route = OnyxRoute.admin;
       });
+      _router.go(OnyxRoute.admin.path);
       return;
     }
     _cancelDemoAutopilot();
@@ -36527,8 +36527,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         accent: const Color(0xFF5BE2A3),
       );
       _adminPageTab = AdministrationPageTab.system;
-      _route = OnyxRoute.admin;
     });
+    _router.go(OnyxRoute.admin.path);
   }
 
   void _setAdminInitialCommandReceipt({
