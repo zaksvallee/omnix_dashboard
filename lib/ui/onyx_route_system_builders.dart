@@ -26,7 +26,7 @@ extension _OnyxRouteSystemBuilders on _OnyxAppState {
       onMonitoringIdentityPolicyServiceChanged: (value) {
         _watchIdentityPolicyService = value;
         _rebuildWatchSceneAssessmentService();
-        _applyRouteBuilderState(() {
+        setState(() {
           _monitoringIdentityRulesJsonOverride = value.toCanonicalJsonString();
         });
       },
@@ -39,7 +39,7 @@ extension _OnyxRouteSystemBuilders on _OnyxAppState {
       initialMonitoringIdentityRuleAuditHistory:
           _monitoringIdentityRuleAuditHistory,
       onMonitoringIdentityRuleAuditHistoryChanged: (value) {
-        _applyRouteBuilderState(() {
+        setState(() {
           _monitoringIdentityRuleAuditHistory = value;
         });
         unawaited(_persistMonitoringIdentityRuleAuditHistory());
@@ -47,7 +47,7 @@ extension _OnyxRouteSystemBuilders on _OnyxAppState {
       initialMonitoringIdentityRuleAuditSourceFilter:
           _adminIdentityPolicyAuditSourceFilter,
       onMonitoringIdentityRuleAuditSourceFilterChanged: (value) {
-        _applyRouteBuilderState(() {
+        setState(() {
           _adminIdentityPolicyAuditSourceFilter = value;
         });
         unawaited(_persistMonitoringIdentityRuleAuditSourceFilter());
@@ -55,7 +55,7 @@ extension _OnyxRouteSystemBuilders on _OnyxAppState {
       initialMonitoringIdentityRuleAuditExpanded:
           _adminIdentityPolicyAuditExpanded,
       onMonitoringIdentityRuleAuditExpandedChanged: (value) {
-        _applyRouteBuilderState(() {
+        setState(() {
           _adminIdentityPolicyAuditExpanded = value;
         });
         unawaited(_persistMonitoringIdentityRuleAuditExpanded());
@@ -78,14 +78,14 @@ extension _OnyxRouteSystemBuilders on _OnyxAppState {
             );
           },
       onTabChanged: (value) {
-        _applyRouteBuilderState(() {
+        setState(() {
           _adminPageTab = value;
         });
         unawaited(_persistAdminPageTab());
       },
       initialWatchActionDrilldown: _adminWatchActionDrilldown,
       onWatchActionDrilldownChanged: (value) {
-        _applyRouteBuilderState(() {
+        setState(() {
           _adminWatchActionDrilldown = value;
           if (value != null) {
             _adminPageTab = AdministrationPageTab.system;
@@ -300,7 +300,7 @@ extension _OnyxRouteSystemBuilders on _OnyxAppState {
         if (!_liveOperationsQueueHintSeen) {
           return;
         }
-        _applyRouteBuilderState(() {
+        setState(() {
           _liveOperationsQueueHintSeen = false;
         });
         await _persistTelegramAdminRuntimeState();

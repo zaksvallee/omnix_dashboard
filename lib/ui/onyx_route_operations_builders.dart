@@ -376,7 +376,17 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
   }
 
   Widget _buildEventsRoute(List<DispatchEvent> events) {
-    final routeSource = _eventsRouteSource;
+    // Origin chip + back-link: source the values from the URL first
+    // (so browser back/forward and hard-reload at /events?origin=…&label=…
+    // render correctly), falling back to the in-memory state fields when
+    // the URL has no params (those fields are populated by callers like
+    // _openEventsForScopedEventIds in the same setState that triggers
+    // the router.go).
+    final uri = _currentRouterUri();
+    final urlOrigin = _eventsOriginFromUri(uri);
+    final urlLabel = _eventsOriginLabelFromUri(uri);
+    final routeSource = urlOrigin ?? _eventsRouteSource;
+    final originLabel = urlLabel.isNotEmpty ? urlLabel : _eventsOriginLabel;
     final hasOrigin =
         routeSource != ZaraEventsRouteSource.navRail &&
         routeSource != ZaraEventsRouteSource.unknown;
@@ -402,7 +412,7 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
           ? null
           : _eventsScopedMode,
       initialRouteSource: routeSource,
-      initialOriginLabel: _eventsOriginLabel,
+      initialOriginLabel: originLabel,
       onReturnToOrigin: hasOrigin ? _returnEventsToOrigin : null,
     );
   }

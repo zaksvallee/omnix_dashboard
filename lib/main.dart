@@ -215,7 +215,6 @@ import 'ui/guard_mobile_shell_page.dart';
 import 'ui/live_operations_page.dart';
 import 'ui/onyx_agent_page.dart';
 import 'ui/onyx_route_registry.dart';
-import 'ui/onyx_route_registry_sections.dart';
 import 'ui/risk_intelligence_page.dart';
 import 'ui/sites_page.dart';
 import 'ui/zara_ambient_page.dart';
@@ -234,7 +233,6 @@ part 'ui/onyx_route_operations_builders.dart';
 part 'ui/onyx_route_evidence_builders.dart';
 part 'ui/onyx_route_governance_builders.dart';
 part 'ui/onyx_route_system_builders.dart';
-part 'ui/onyx_route_dispatcher.dart';
 
 enum OnyxAppMode { controller, guard, client }
 
@@ -989,7 +987,8 @@ class OnyxApp extends StatefulWidget {
 }
 
 /// Thin ChangeNotifier so `_OnyxAppState` can poke GoRouter's
-/// `refreshListenable` after every `setState`. Exists only because
+/// `refreshListenable` and the per-route `ListenableBuilder` wrappers
+/// after every `setState`. Exists only because
 /// `ChangeNotifier.notifyListeners` is protected.
 class _RouterRefreshNotifier extends ChangeNotifier {
   void ping() => notifyListeners();
@@ -1724,7 +1723,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   ControllerLoginAccount? _signedInAccount;
   DateTime? _signedInAt;
 
-  OnyxRoute _route = OnyxRoute.dashboard;
+  /// The active controller-mode route, derived from the GoRouter's
+  /// current configuration. Falls back to dashboard when the URL is
+  /// outside the OnyxRoute enum (e.g. `/` for Zara Home).
+  OnyxRoute _activeRoute() =>
+      _routeFromCurrentRouter() ?? OnyxRoute.dashboard;
+
+  // _route field retired in Stage 3.7. The router's current URL is the
+  // single source of truth — read via `_activeRoute()`. Tests and deep-
+  // link entry harnesses still pass `initialRouteOverride` to seed the
+  // router's initialLocation; that value is consumed by
+  // `_resolveInitialRouterLocation` in lib/routing/onyx_router.dart.
+
   DispatchAutoAuditReceipt? _latestDispatchAutoAuditReceipt;
   DispatchEvidenceReturnReceipt? _pendingDispatchEvidenceReturnReceipt;
   AiQueueEvidenceReturnReceipt? _pendingAiQueueEvidenceReturnReceipt;
@@ -2013,11 +2023,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool _liveOperationsQueueHintSeen = false;
   late final GoRouter _router;
   // Fires on every `setState`. Wired into GoRouter as `refreshListenable`
-  // so the router re-evaluates and rebuilds the current route whenever
-  // app state changes. Without this bridge, `setState` on `_OnyxAppState`
-  // does not propagate rebuilds past `MaterialApp.router` because
-  // `routerConfig` is stable — the 74 legacy `setState(() { _route = X; })`
-  // call sites would otherwise become dead writes under the router.
+  // and used by ListenableBuilder wrappers around each route builder
+  // (see lib/routing/onyx_router.dart). Required because
+  // `MaterialApp.router` short-circuits parent rebuilds when its
+  // `routerConfig` is unchanged — without this bridge, every setState
+  // mutation to a non-routing field (events scope, ops focus, dispatch
+  // selection, Telegram queue updates, scope rail state, etc.) would not
+  // propagate into the router-mounted page widgets. Permanent
+  // architecture; retiring requires a larger refactor to consume state
+  // via Provider/InheritedWidget.
   final _RouterRefreshNotifier _routerRefreshNotifier = _RouterRefreshNotifier();
   OnyxAgentCameraBridgeHealthSnapshot? _onyxAgentCameraBridgeHealthSnapshot;
   Map<String, List<TelegramAiLearnedReplyExample>>
@@ -2220,18 +2234,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String get _routeBuilderOperatorId => service.operator.operatorId;
 
-  void _applyRouteBuilderState(VoidCallback mutation) {
-    setState(mutation);
-  }
-
   @override
   void setState(VoidCallback fn) {
     super.setState(fn);
-    // Tell GoRouter "app state changed; rebuild the current route." Without
-    // this, every legacy `setState(() { _route = X; })` call site becomes a
-    // dead write under `MaterialApp.router` — see `_routerRefreshNotifier`
-    // field comment. Phase 2 migration converts those call sites to
-    // `_router.go(path)`; until then, this is the compatibility bridge.
+    // Tell every router-mounted page builder that app state changed. See
+    // `_routerRefreshNotifier` field comment for why this is permanent
+    // architecture rather than a transition shim.
     _routerRefreshNotifier.ping();
   }
 
@@ -2241,7 +2249,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteId,
   }) {
     widget.onDispatchGenerateTriggered?.call();
-    _applyRouteBuilderState(() {
+    setState(() {
       service.processIntelligenceDemo(
         clientId: clientId,
         regionId: regionId,
@@ -2251,7 +2259,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   void _importDispatchTelemetryFromRoute(IntakeTelemetry telemetry) {
-    _applyRouteBuilderState(() {
+    setState(() {
       _intakeTelemetry = telemetry;
       _lastIntakeStatus =
           'Telemetry imported from clipboard (${telemetry.runs} runs).';
@@ -3344,14 +3352,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    if (widget.initialRouteOverride != null) {
-      _route = widget.initialRouteOverride!;
-    }
     if (widget.initialAdminTabOverride != null) {
       _adminPageTab = widget.initialAdminTabOverride!;
     }
     _router = _buildOnyxRouter();
-    _router.routerDelegate.addListener(_syncRouteFromRouter);
     _watchIdentityPolicyService = MonitoringIdentityPolicyService.parseJson(
       _monitoringIdentityRulesJsonEnv,
     );
@@ -3506,7 +3510,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         widget.initialPinnedLedgerAuditEntryOverride;
     if (initialPinnedLedgerAuditEntry != null) {
       _activeLedgerPinnedAuditEntry = initialPinnedLedgerAuditEntry;
-      if (_route == OnyxRoute.ledger) {
+      if (widget.initialRouteOverride == OnyxRoute.ledger) {
         _ledgerRouteClientId = initialPinnedLedgerAuditEntry.clientId;
         _ledgerRouteSiteId = initialPinnedLedgerAuditEntry.siteId;
         _operationsFocusIncidentReference =
@@ -3520,7 +3524,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final initialDispatchIncidentReference =
         widget.initialDispatchIncidentReferenceOverride?.trim() ?? '';
-    if (_route == OnyxRoute.dispatches &&
+    if (widget.initialRouteOverride == OnyxRoute.dispatches &&
         initialDispatchIncidentReference.isNotEmpty) {
       _assignDispatchRouteForIncident(initialDispatchIncidentReference);
       widget.onDispatchRouteOpened?.call(
@@ -3773,7 +3777,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void dispose() {
     _guardCheckpointScanChannel.setMethodCallHandler(null);
     WidgetsBinding.instance.removeObserver(this);
-    _router.routerDelegate.removeListener(_syncRouteFromRouter);
     _router.dispose();
     _routerRefreshNotifier.dispose();
     _livePollTimer?.cancel();
@@ -33110,7 +33113,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     } else {
       _startDemoAutopilotFromAdminIncident(incidentRef);
     }
-    return 'ONYX DEMO\nStarted ${full ? 'full' : 'quick'} autopilot for $incidentRef.\nRoute now: ${_route.autopilotLabel}';
+    return 'ONYX DEMO\nStarted ${full ? 'full' : 'quick'} autopilot for $incidentRef.\nRoute now: ${_activeRoute().autopilotLabel}';
   }
 
   Future<String> _telegramAdminDemoStopCommand() async {
@@ -33123,13 +33126,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   Future<String> _telegramAdminDemoStatusCommand() async {
     if (!_demoAutopilotRunning) {
-      return 'ONYX DEMO\nStatus: idle\nRoute: ${_route.autopilotLabel}\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
+      return 'ONYX DEMO\nStatus: idle\nRoute: ${_activeRoute().autopilotLabel}\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
     }
     return 'ONYX DEMO\n'
         'Status: ${_demoAutopilotPaused ? 'paused' : 'running'}\n'
         'Flow: $_demoAutopilotFlowLabel\n'
         'Step: $_demoAutopilotCurrentStep/$_demoAutopilotTotalSteps\n'
-        'Current route: ${_route.autopilotLabel}\n'
+        'Current route: ${_activeRoute().autopilotLabel}\n'
         'Next route: ${_demoAutopilotNextRouteLabel.isEmpty ? 'n/a' : _demoAutopilotNextRouteLabel}\n'
         'Next hop seconds: ${_demoAutopilotNextHopSeconds > 0 ? _demoAutopilotNextHopSeconds : 0}\n'
         'Incident: ${_demoAutopilotIncidentReference.isEmpty ? 'n/a' : _demoAutopilotIncidentReference}\n'
@@ -34540,19 +34543,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
-  /// Handles a shell-level (nav-rail) route change. This is the single
-  /// place where clicking the AppShell nav rail turns into a router
-  /// navigation plus the coupled scope/focus state reset that existed
-  /// before the router migration.
-  ///
-  /// Phase 1: routes via `_router.go(r.path)` so the URL updates. Phase 2
-  /// will migrate the remaining 74 `_route = X` setState call sites to
-  /// this same pattern.
+  /// Handles a shell-level (nav-rail) route change. The nav rail's
+  /// `onRouteChanged` callback fires here; we reset the per-route scope
+  /// and focus state that operational pages assume is fresh after a
+  /// nav-rail click, capture the source route for `/agent` deep-links,
+  /// then drive the actual navigation through the router.
   void _handleShellRouteChanged(OnyxRoute r) {
+    final previousRoute = _activeRoute();
     setState(() {
       _cancelDemoAutopilot();
-      if (r == OnyxRoute.agent && _route != OnyxRoute.agent) {
-        _agentSourceRoute = _route;
+      if (r == OnyxRoute.agent && previousRoute != OnyxRoute.agent) {
+        _agentSourceRoute = previousRoute;
       }
       if (r == OnyxRoute.aiQueue) {
         _aiQueueRouteActivationToken++;
@@ -34598,7 +34599,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       tacticalSosAlerts: tacticalSosAlerts,
     );
     return AppShell(
-      currentRoute: _route,
+      currentRoute: _activeRoute(),
       onRouteChanged: _handleShellRouteChanged,
       onIntelTickerTap: _focusEventsFromTickerItem,
       activeIncidentCount: activeIncidentCount,
@@ -34632,56 +34633,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
-  /// Keeps the legacy `_route` field in lockstep with the router's current
-  /// URL. Fires on every router configuration change. Phase 2 gradually
-  /// makes `_route` read-only; Phase 3 removes the field.
-  void _syncRouteFromRouter() {
-    final next = _routeFromCurrentRouter();
-    final uri = _currentRouterUri();
-
-    // Scope-rail origin params (Events-only). Parsed from the URL on every
-    // router configuration change so the in-memory mirror stays in lockstep
-    // with the URL. Phase 3.7 will retire these state fields and make the
-    // Events page read origin directly from GoRouterState — until then the
-    // mirror is what keeps existing read sites (including EventsReviewPage
-    // constructor props wired in `_buildEventsRoute`) accurate.
-    final onEvents = next == OnyxRoute.events;
-    final parsedOrigin = onEvents ? _eventsOriginFromUri(uri) : null;
-    final parsedLabel = onEvents ? _eventsOriginLabelFromUri(uri) : '';
-    final nextRouteSource =
-        parsedOrigin ?? ZaraEventsRouteSource.navRail;
-    final nextOriginLabel = onEvents ? parsedLabel : '';
-
-    final routeChanged = next != null && _route != next;
-    final originSourceChanged =
-        onEvents && _eventsRouteSource != nextRouteSource;
-    final originLabelChanged =
-        onEvents && _eventsOriginLabel != nextOriginLabel;
-
-    if (!routeChanged && !originSourceChanged && !originLabelChanged) {
-      return;
-    }
-
-    setState(() {
-      if (routeChanged) {
-        _route = next;
-      }
-      if (originSourceChanged) {
-        _eventsRouteSource = nextRouteSource;
-      }
-      if (originLabelChanged) {
-        _eventsOriginLabel = nextOriginLabel;
-      }
-    });
-  }
-
   void _handleControllerAuthenticated(ControllerLoginAccount account) {
     _cancelDemoAutopilot();
     setState(() {
       _signedInAccount = account;
       _signedInAt = DateTime.now();
       _showControllerLoginGate = false;
-      _route = account.landingRoute;
       _eventsSourceFilter = '';
       _eventsProviderFilter = '';
       _eventsSelectedEventId = '';
@@ -34708,7 +34665,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     setState(() {
       _signedInAccount = null;
       _signedInAt = null;
-      _route = OnyxRoute.dashboard;
       _eventsSourceFilter = '';
       _eventsProviderFilter = '';
       _eventsSelectedEventId = '';
@@ -35909,7 +35865,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (incidentReference.isNotEmpty) {
       _operationsFocusIncidentReference = incidentReference;
     }
-    _route = OnyxRoute.clients;
   }
 
   void _returnToWarRoomFromPinnedAudit() {
@@ -36595,7 +36550,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (action.trim() != 'roster_planner_opened') {
       return;
     }
-    if (_route != OnyxRoute.admin ||
+    if (_activeRoute() != OnyxRoute.admin ||
         _adminPageTab != AdministrationPageTab.guards) {
       return;
     }
@@ -37937,8 +37892,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   OnyxRoute _resolvedAgentSourceRoute() {
-    if (_route != OnyxRoute.agent) {
-      return _route;
+    final active = _activeRoute();
+    if (active != OnyxRoute.agent) {
+      return active;
     }
     return _agentSourceRoute == OnyxRoute.agent
         ? OnyxRoute.dashboard

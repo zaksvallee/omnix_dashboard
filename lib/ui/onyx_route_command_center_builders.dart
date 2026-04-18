@@ -46,9 +46,7 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
     if (cancelDemoAutopilot) {
       _cancelDemoAutopilot();
     }
-    _applyRouteBuilderState(() {
-      _route = route;
-    });
+    _router.go(route.path);
   }
 
   void _recoverFleetWatchScopeForActor(
@@ -602,7 +600,7 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
       onConsumeAgentReturnIncidentReference:
           _consumePendingDispatchAgentReturnIncidentReference,
       onSelectedDispatchChanged: (value) {
-        _applyRouteBuilderState(() {
+        setState(() {
           _dispatchSelectedDispatchId = value;
         });
       },

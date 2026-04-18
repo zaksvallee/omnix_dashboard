@@ -52,7 +52,7 @@ extension _OnyxRouteGovernanceBuilders on _OnyxAppState {
       onOpenLedgerForScope: _openLedgerForScope,
       initialSceneActionFocus: _governanceSceneActionFocus,
       onSceneActionFocusChanged: (value) {
-        _applyRouteBuilderState(() {
+        setState(() {
           _governanceSceneActionFocus = value;
         });
       },

@@ -1,17 +1,24 @@
 part of '../main.dart';
 
-/// Phase 1 ONYX router scaffold.
+/// ONYX router configuration.
 ///
 /// Serves two flavours of routes:
 ///   - `/` — Zara Home (ambient surface, no AppShell chrome).
-///   - `<OnyxRoute.path>` for every enum value — wrapped in a ShellRoute that
-///     renders AppShell chrome and delegates the body to the existing
-///     `_buildRouteBuilders` map.
+///   - `<OnyxRoute.path>` for every enum value — wrapped in a ShellRoute
+///     that renders AppShell chrome and delegates the body to the
+///     matching `_buildXxxRoute` method via the `_buildRouteBuilders`
+///     registry.
 ///
-/// Only one page is considered fully migrated in Phase 1 (Alarms). Phase 2
-/// will convert the remaining `_route = X` setState call sites to
-/// `_router.go(path)` following the recipe in
-/// docs/migrations/router-migration-recipe.md.
+/// `_routerRefreshNotifier` (defined on `_OnyxAppState`) is fired on every
+/// `setState`. It's threaded into GoRouter as `refreshListenable` AND each
+/// route builder is wrapped in a `ListenableBuilder` listening to it. Both
+/// jobs are necessary: `MaterialApp.router` short-circuits parent rebuilds
+/// when its `routerConfig` is unchanged, so without this bridge any
+/// setState mutation to a non-routing field (events scope, ops focus,
+/// dispatch selection, Telegram queue updates, etc.) would not propagate
+/// into the router-mounted page widgets. The bridge is permanent
+/// architecture, not a transition artefact — its retirement requires a
+/// larger refactor to consume state via Provider/InheritedWidget.
 const String _zaraHomeRouterPath = '/';
 
 extension _OnyxAppRouter on _OnyxAppState {
@@ -51,18 +58,9 @@ extension _OnyxAppRouter on _OnyxAppState {
               GoRoute(
                 path: route.path,
                 name: route.name,
-                // Phase 1: the router's in-shell children delegate to the
-                // legacy `_route`-driven dispatcher. That keeps every
-                // non-migrated `setState(() { _route = X; })` call site
-                // working — setState pings the refresh notifier, the
-                // ListenableBuilder rebuilds, the dispatcher picks the
-                // current `_route` and returns its widget. Phase 2 migrates
-                // those call sites to `_router.go(X.path)` one at a time;
-                // Phase 3 flips the dispatcher to dispatch from the URL and
-                // retires `_route`.
                 builder: (context, state) => ListenableBuilder(
                   listenable: _routerRefreshNotifier,
-                  builder: (ctx, _) => _buildPage(store.allEvents()),
+                  builder: (ctx, _) => _buildRouterPage(route),
                 ),
               ),
           ],
@@ -71,11 +69,26 @@ extension _OnyxAppRouter on _OnyxAppState {
     );
   }
 
+  /// Builds the page widget for the given OnyxRoute by looking up the
+  /// matching builder in the registry. Replaces the retired
+  /// `_buildPage` dispatcher (which read the long-gone `_route` field).
+  Widget _buildRouterPage(OnyxRoute route) {
+    final events = store.allEvents();
+    final summary = _morningSovereignReportHistory.length > 1
+        ? _globalReadinessTomorrowUrgencySummary(
+            _globalReadinessIntentsForReport(
+              _morningSovereignReportHistory[1],
+            ),
+          )
+        : '';
+    final builders = _buildRouteBuilders(events, summary);
+    return builders[route]?.call() ?? const SizedBox.shrink();
+  }
+
   /// Returns the `OnyxRoute` whose `path` matches the router's current URL,
   /// or `null` if the current URL is outside the enum (e.g. the Zara Home
-  /// root `/`). Used by `_OnyxAppState._syncRouteFromRouter` to keep the
-  /// legacy `_route` field in lockstep with the URL during the Phase 1–2
-  /// transition.
+  /// root `/`). Wrapped by `_OnyxAppState._activeRoute()` for read sites
+  /// that need a non-nullable OnyxRoute.
   OnyxRoute? _routeFromCurrentRouter() {
     final configuration = _router.routerDelegate.currentConfiguration;
     final currentPath = configuration.uri.path;
@@ -87,8 +100,9 @@ extension _OnyxAppRouter on _OnyxAppState {
     return null;
   }
 
-  /// Returns the URI the router is currently showing. Used by
-  /// `_syncRouteFromRouter` to parse Events scope-rail origin params.
+  /// Returns the URI the router is currently showing. Read by
+  /// `_buildEventsRoute` to parse the `?origin=…&label=…` scope-rail
+  /// query params on every render.
   Uri _currentRouterUri() =>
       _router.routerDelegate.currentConfiguration.uri;
 }
