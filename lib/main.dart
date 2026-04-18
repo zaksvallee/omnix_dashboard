@@ -38035,8 +38035,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _reportsScopeSiteId = '';
       _reportsScopePartnerLabel = '';
       _reportShellState = _reportShellState.copyWith(clearEntryContext: true);
-      _route = OnyxRoute.reports;
     });
+    _router.go(OnyxRoute.reports.path);
   }
 
   void _openReportsForScope(String clientId, String siteId) {
@@ -38052,8 +38052,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _reportsScopeSiteId = normalizedSiteId;
       _reportsScopePartnerLabel = '';
       _reportShellState = _reportShellState.copyWith(clearEntryContext: true);
-      _route = OnyxRoute.reports;
     });
+    _router.go(OnyxRoute.reports.path);
   }
 
   void _openReportsForSite(String siteId) {
@@ -38085,8 +38085,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _reportsScopeSiteId = normalizedSiteId;
       _reportsScopePartnerLabel = normalizedPartnerLabel;
       _reportShellState = _reportShellState.copyWith(clearEntryContext: true);
-      _route = OnyxRoute.reports;
     });
+    _router.go(OnyxRoute.reports.path);
   }
 
   void _openReportsForReceiptEvent(
@@ -38114,8 +38114,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         entryContext: ReportEntryContext.governanceBrandingDrift,
         clearPartnerScopeFocus: true,
       );
-      _route = OnyxRoute.reports;
     });
+    _router.go(OnyxRoute.reports.path);
   }
 
   void _openReportsForDispatchId(String dispatchId) {
@@ -38135,8 +38135,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _reportsScopeSiteId = decision.siteId.trim();
       _reportsScopePartnerLabel = '';
       _reportShellState = _reportShellState.copyWith(clearEntryContext: true);
-      _route = OnyxRoute.reports;
     });
+    _router.go(OnyxRoute.reports.path);
     widget.onDispatchReportRouteOpened?.call(
       normalizedDispatchId,
       decision.clientId.trim(),
@@ -38165,8 +38165,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _reportsScopePartnerLabel = '';
       _reportShellState = _reportShellState.copyWith(clearEntryContext: true);
       _pendingReportsEvidenceReturnReceipt = evidenceReturnReceipt;
-      _route = OnyxRoute.reports;
     });
+    _router.go(OnyxRoute.reports.path);
     widget.onDispatchReportRouteOpened?.call(
       normalizedDispatchId,
       decision.clientId.trim(),
