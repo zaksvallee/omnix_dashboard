@@ -34637,11 +34637,42 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   /// makes `_route` read-only; Phase 3 removes the field.
   void _syncRouteFromRouter() {
     final next = _routeFromCurrentRouter();
-    if (next != null && _route != next) {
-      setState(() {
-        _route = next;
-      });
+    final uri = _currentRouterUri();
+
+    // Scope-rail origin params (Events-only). Parsed from the URL on every
+    // router configuration change so the in-memory mirror stays in lockstep
+    // with the URL. Phase 3.7 will retire these state fields and make the
+    // Events page read origin directly from GoRouterState — until then the
+    // mirror is what keeps existing read sites (including EventsReviewPage
+    // constructor props wired in `_buildEventsRoute`) accurate.
+    final onEvents = next == OnyxRoute.events;
+    final parsedOrigin = onEvents ? _eventsOriginFromUri(uri) : null;
+    final parsedLabel = onEvents ? _eventsOriginLabelFromUri(uri) : '';
+    final nextRouteSource =
+        parsedOrigin ?? ZaraEventsRouteSource.navRail;
+    final nextOriginLabel = onEvents ? parsedLabel : '';
+
+    final routeChanged = next != null && _route != next;
+    final originSourceChanged =
+        onEvents && _eventsRouteSource != nextRouteSource;
+    final originLabelChanged =
+        onEvents && _eventsOriginLabel != nextOriginLabel;
+
+    if (!routeChanged && !originSourceChanged && !originLabelChanged) {
+      return;
     }
+
+    setState(() {
+      if (routeChanged) {
+        _route = next;
+      }
+      if (originSourceChanged) {
+        _eventsRouteSource = nextRouteSource;
+      }
+      if (originLabelChanged) {
+        _eventsOriginLabel = nextOriginLabel;
+      }
+    });
   }
 
   void _handleControllerAuthenticated(ControllerLoginAccount account) {
@@ -34849,13 +34880,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final provider = _normalizeIntelProviderFilter(item.provider);
     final selectedEventId = _resolveTickerEventId(item);
     setState(() {
-      _route = OnyxRoute.events;
       _eventsSourceFilter = source;
       _eventsProviderFilter = provider;
       _eventsSelectedEventId = selectedEventId ?? '';
       _eventsScopedEventIds = const <String>[];
       _eventsScopedMode = '';
     });
+    _router.go(OnyxRoute.events.path);
   }
 
   void _openOperationsFromAdminIncident(String incidentReference) {
@@ -35290,8 +35321,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsSelectedEventId = ref;
       _eventsScopedEventIds = const <String>[];
       _eventsScopedMode = '';
-      _route = OnyxRoute.events;
     });
+    _router.go(OnyxRoute.events.path);
   }
 
   void _openEventsForEventId(String eventId) {
@@ -35304,8 +35335,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsSelectedEventId = ref;
       _eventsScopedEventIds = const <String>[];
       _eventsScopedMode = '';
-      _route = OnyxRoute.events;
     });
+    _router.go(OnyxRoute.events.path);
   }
 
   void _openEventsForScopedEventIds(
@@ -35322,26 +35353,38 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .toList(growable: false);
     if (scopedIds.isEmpty) return;
     final selected = (selectedEventId ?? '').trim();
+    final trimmedOriginLabel = originLabel.trim();
+    final resolvedSelected =
+        selected.isNotEmpty && scopedIds.contains(selected)
+        ? selected
+        : scopedIds.first;
     _cancelDemoAutopilot();
+    // Pre-seed the transient in-memory scope state so EventsReviewPage sees
+    // the list + selection + mode on first render. Origin source + label
+    // will be mirrored back from the URL by `_syncRouteFromRouter` — still
+    // written here so read sites that run before the router listener fires
+    // see consistent values.
     setState(() {
       _eventsSourceFilter = '';
       _eventsProviderFilter = '';
-      _eventsSelectedEventId =
-          selected.isNotEmpty && scopedIds.contains(selected)
-          ? selected
-          : scopedIds.first;
+      _eventsSelectedEventId = resolvedSelected;
       _eventsScopedEventIds = scopedIds;
       _eventsScopedMode = scopeMode.trim();
       _eventsRouteSource = routeSource;
-      _eventsOriginLabel = originLabel.trim();
-      _route = OnyxRoute.events;
+      _eventsOriginLabel = trimmedOriginLabel;
     });
+    // Test hook: fire BEFORE `_router.go` so observers receive the scope
+    // notification with the exact scopedIds / selectedEventId / scopeMode
+    // combination that the pre-seed established. This ordering is
+    // semantically load-bearing — tests assert that the hook fires with
+    // pre-navigation state.
     widget.onEventsScopeOpened?.call(
       scopedIds,
-      selected.isNotEmpty && scopedIds.contains(selected)
-          ? selected
-          : scopedIds.first,
+      resolvedSelected,
       scopeMode.trim(),
+    );
+    _router.go(
+      _eventsRouterLocation(source: routeSource, label: trimmedOriginLabel),
     );
   }
 
@@ -35363,10 +35406,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ZaraEventsRouteSource.unknown => OnyxRoute.events,
     };
     setState(() {
-      _route = nextRoute;
       _eventsRouteSource = ZaraEventsRouteSource.navRail;
       _eventsOriginLabel = '';
     });
+    _router.go(nextRoute.path);
   }
 
   void _openEventsForVehicleVisit(
@@ -35385,8 +35428,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           .map((id) => id.trim())
           .where((id) => id.isNotEmpty)
           .toList(growable: false);
-      _route = OnyxRoute.events;
     });
+    _router.go(OnyxRoute.events.path);
   }
 
   void _openLedgerFromAdminIncident(String incidentReference) {

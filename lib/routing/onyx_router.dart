@@ -86,4 +86,74 @@ extension _OnyxAppRouter on _OnyxAppState {
     }
     return null;
   }
+
+  /// Returns the URI the router is currently showing. Used by
+  /// `_syncRouteFromRouter` to parse Events scope-rail origin params.
+  Uri _currentRouterUri() =>
+      _router.routerDelegate.currentConfiguration.uri;
+}
+
+// ── Events scope-rail URL encoding ──────────────────────────────────────────
+//
+// Events deep-links carry optional `origin` + `label` query parameters that
+// drive the scope-rail back-link chip:
+//
+//   /events                                   → no chip (navRail)
+//   /events?origin=ledger&label=OB-2441       → "← LEDGER: OB-2441" chip
+//   /events?origin=governance                 → "← GOVERNANCE" chip (no label)
+//
+// `origin` values correspond to `ZaraEventsRouteSource.name` for ledger,
+// aiQueue, dispatches, reports, governance, liveOps. navRail and unknown are
+// represented by the param being absent. Unrecognised values fall back to
+// navRail. `label` is URL-encoded/decoded via `Uri.queryParameters` automatically.
+//
+// Scoped event IDs (`_eventsScopedEventIds`, `_eventsSelectedEventId`,
+// `_eventsScopedMode`) stay in-memory during the Phase 3 transition. Hard-reload
+// at a scoped URL loses the scope details but preserves the origin chip + the
+// back-link — acceptable, and strictly better than pre-migration behaviour where
+// hard-reload dropped the chip entirely.
+
+/// Parses `origin` from an Events URI into a `ZaraEventsRouteSource`. Returns
+/// `null` when the param is missing or unrecognised; callers treat that as
+/// navRail / unknown (no origin chip).
+ZaraEventsRouteSource? _eventsOriginFromUri(Uri uri) {
+  final raw = uri.queryParameters['origin']?.trim() ?? '';
+  if (raw.isEmpty) return null;
+  for (final candidate in ZaraEventsRouteSource.values) {
+    if (candidate == ZaraEventsRouteSource.navRail ||
+        candidate == ZaraEventsRouteSource.unknown) {
+      continue;
+    }
+    if (candidate.name == raw) return candidate;
+  }
+  return null;
+}
+
+/// Extracts and trims the `label` query param from an Events URI.
+String _eventsOriginLabelFromUri(Uri uri) =>
+    (uri.queryParameters['label'] ?? '').trim();
+
+/// Composes the `/events` URL for a given origin + label. navRail / unknown
+/// / null source produce the bare `/events` path (no query params).
+String _eventsRouterLocation({
+  ZaraEventsRouteSource? source,
+  String label = '',
+}) {
+  final effectiveSource =
+      source == ZaraEventsRouteSource.navRail ||
+          source == ZaraEventsRouteSource.unknown
+      ? null
+      : source;
+  final trimmedLabel = label.trim();
+  if (effectiveSource == null && trimmedLabel.isEmpty) {
+    return OnyxRoute.events.path;
+  }
+  final params = <String, String>{};
+  if (effectiveSource != null) {
+    params['origin'] = effectiveSource.name;
+  }
+  if (trimmedLabel.isNotEmpty) {
+    params['label'] = trimmedLabel;
+  }
+  return Uri(path: OnyxRoute.events.path, queryParameters: params).toString();
 }
