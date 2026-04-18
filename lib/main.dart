@@ -35209,8 +35209,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _tacticalAgentReturnIncidentReference = null;
       _pendingTacticalAgentReturnIncidentReference = null;
       _pendingTacticalEvidenceReturnReceipt = null;
-      _route = OnyxRoute.tactical;
     });
+    _router.go(OnyxRoute.tactical.path);
     _configureTacticalMapLiveData(
       clientId: scope?.clientId ?? '',
       siteId: scope?.siteId ?? '',
@@ -35234,8 +35234,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _tacticalAgentReturnIncidentReference = null;
       _pendingTacticalAgentReturnIncidentReference = null;
       _pendingTacticalEvidenceReturnReceipt = evidenceReturnReceipt;
-      _route = OnyxRoute.tactical;
     });
+    _router.go(OnyxRoute.tactical.path);
     _configureTacticalMapLiveData(
       clientId: scope?.clientId ?? '',
       siteId: scope?.siteId ?? '',
@@ -35254,8 +35254,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _tacticalAgentReturnIncidentReference = ref;
       _pendingTacticalAgentReturnIncidentReference = ref;
       _pendingTacticalEvidenceReturnReceipt = null;
-      _route = OnyxRoute.tactical;
     });
+    _router.go(OnyxRoute.tactical.path);
     _configureTacticalMapLiveData(
       clientId: scope?.clientId ?? '',
       siteId: scope?.siteId ?? '',
@@ -37467,8 +37467,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _operationsFocusIncidentReference = ref;
       _tacticalAgentReturnIncidentReference = null;
       _pendingTacticalAgentReturnIncidentReference = null;
-      _route = OnyxRoute.tactical;
     });
+    _router.go(OnyxRoute.tactical.path);
     _configureTacticalMapLiveData(
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
@@ -37486,8 +37486,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _tacticalAgentReturnIncidentReference = null;
       _pendingTacticalAgentReturnIncidentReference = null;
       _pendingTacticalEvidenceReturnReceipt = null;
-      _route = OnyxRoute.tactical;
     });
+    _router.go(OnyxRoute.tactical.path);
     _configureTacticalMapLiveData(
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
