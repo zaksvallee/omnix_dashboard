@@ -35317,9 +35317,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _cancelDemoAutopilot();
     // Pre-seed the transient in-memory scope state so EventsReviewPage sees
     // the list + selection + mode on first render. Origin source + label
-    // will be mirrored back from the URL by `_syncRouteFromRouter` — still
-    // written here so read sites that run before the router listener fires
-    // see consistent values.
+    // are also written here so synchronous reads (before the URL change
+    // propagates through the router) see consistent values; the URL is
+    // the source of truth and `_buildEventsRoute` reads from it directly.
     setState(() {
       _eventsSourceFilter = '';
       _eventsProviderFilter = '';
