@@ -4179,7 +4179,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
 
   List<String> _stringListFromReason(Object? value) {
     if (value is! List) {
-      return const <String>[];
+      // Growable — callers append to this list (signals/rules) before
+      // writing back to the reason map. A `const <String>[]` fallback
+      // crashed with "Cannot add to an unmodifiable list".
+      return <String>[];
     }
     return value
         .map((entry) => entry.toString().trim())
