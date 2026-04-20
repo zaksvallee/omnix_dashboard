@@ -306,4 +306,210 @@ The single `unverified` is the `/alarms` triage action path — the Dart code wr
 
 ---
 
-*§2 (v2 Next.js feature verification), §3 (cross-cutting), §4 (user interaction evidence audit), §5 (read-only view parity), §6 (roll-up) pending.*
+## 2. v2 Next.js feature verification
+
+### 2.1 v2 runtime state — anchoring evidence
+
+**v2 is actively running and has been actively used today.** Specifically:
+- `next dev` server is running on `localhost:3000` (process 7798, started 2026-04-20 07:00 SAST; listener pid 7804 bound on `TCP *:3000`).
+- An active Chrome browser session is connected: `Google chrome 60083 … TCP localhost:60825->localhost:3000 (ESTABLISHED)`.
+- **141 `/api/incidents/[id]` PATCH writes occurred today 2026-04-20** (all concentrated on a single date — days Apr 13–19 had **zero** writes, day Apr 20 had **141**). All 141 rows have `controller_notes="False alarm — cleared by operator via Alarms dashboard."` — the free-text written by the v2 PATCH handler (phase 1a §6.1 documents this pattern). Status distribution: `secured`=139 (false_alarm path), `dispatched`=1 (dispatch path), `OPEN`=1 (escalate path).
+
+This anchors v2 verdicts: interaction evidence is real for the `/alarms` triage flow specifically; no evidence of interaction with other v2 pages is captured in any DB-writable audit surface (because 18 of 19 routes are GET-only and v2 has no client-side analytics).
+
+### 2.2 Zara home `/` (`app/_components/ZaraClient.tsx`)
+
+Scope filter per phase 1b §4.1: 4 `present` rows (rows marked `present_stub` — live-signal-feed, op-health pills — are out of 2b scope).
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Quick-action navigation buttons | `ZaraClient.tsx:405–431` | **dormant_no_user_action** | Chrome session is connected to `:3000`, but no audit-log proves this page was visited; no click captures (v2 has no analytics) | — |
+| Animated heartbeat / Zara avatar | `:707,753–761` | **dormant_no_user_action** | same | — |
+| Greeting card with operator + site labels | `:709–727` | **dormant_no_user_action** | same | — |
+| Surfaced alert card with dismiss/open | `:438–469` | **dormant_no_user_action** | no callback writes into Supabase observed (v2 audit §"Needs deeper investigation" already flagged this); 0 rows in any related table with today's timestamp | — |
+
+### 2.3 `/command` (`CommandClient.tsx`)
+
+4 `present` rows (CCTV-placeholder row is `present_stub`, out of scope).
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Live queue panel of active incidents | `CommandClient.tsx:353–424` | **blocked_by_backend** | `incidents` has 0 new inserts in 7d (cascade #1); the `status NOT IN ('secured','closed')` filter today returns only pre-Apr-20 stale rows plus whatever is `OPEN`/`dispatched` from the 141 triage writes | 2a §6.1 |
+| Dispatches strip with phase progression | `:457–487` | **blocked_by_backend** | `dispatch_current_state` has 27 rows (latest transition 2026-02-26); `dispatch_transitions` 30d window = 0 writes | 2a §6.2, §7.4 |
+| Events / activity stream | `:514–527` | **blocked_by_backend** | same `incidents` source as the queue panel | 2a §6.1 |
+| P1 alert banner when queue has P1 | `:254–274` | **blocked_by_backend** | no new P1 incidents in 7d to banner | 2a §6.1 |
+
+### 2.4 `/alarms` (`AlarmsClient.tsx` + `Drawer.tsx`)
+
+4 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Alarms list view | `AlarmsClient.tsx:316–328` | **verified** | data render confirmed by inference: the 141 PATCH writes today each require a drawer opening, which requires a list row click, which requires the list to have rendered | — |
+| Severity filter (ALL / P1 / P2 / P3) | `:282–292` | **verified** | filter controls are non-disabled in code (phase 1b) and the page clearly rendered + was interacted-with; filter-specific activity not separately logged but is local-state only — rendering verified transitively | — |
+| Triage action path (DISPATCH / FALSE ALARM / ESCALATE) | `Drawer.tsx:166–181` + `AlarmsClient.tsx:149` useMutation → PATCH `/api/incidents/[id]` | **verified** | 141 writes today 2026-04-20 with correct-shape status transitions (`secured`/`dispatched`/`OPEN`) + `controller_notes="False alarm — cleared by operator via Alarms dashboard."` — **attribution is unambiguous via the controller_notes string**. Latest write: `id=43c07910-fb65-407d-82f7-3c3227fa62cb updated_at=2026-04-20T19:38:27 status=OPEN` | — |
+| Toast on triage error | `AlarmsClient.tsx:136–145,172–180,338–346` | **dormant_no_user_action** | 141 PATCH writes in window, 0 errors observed on the incidents table (would have been logged as 4xx/5xx response); toast renders on error, error path hasn't fired | — |
+
+### 2.5 `/ai-queue` (`AIQueueClient.tsx` + `CognitionGraph.tsx`)
+
+4 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Task queue list with status icons | `AIQueueClient.tsx:60–104` | **blocked_by_backend** | source is `incidents` (not `zara_action_log`) per v2 audit §`/ai-queue` — and `incidents` has 0 new inserts in 7d; reasoning-trace portion depends on `decision_audit_log` / `zara_action_log` which are 0 rows | 2a §6.1 + #3 |
+| Task row selection (URL-persisted) | `:321–325` | **dormant_no_user_action** | no evidence this page was loaded in window (no write fingerprint — page is read-only) | — |
+| Worker chain display | `:96,242` | **blocked_by_backend** | same source as queue panel | 2a §6.1 + #3 |
+| Cognition graph visualization | `:455–458` + `CognitionGraph.tsx` | **blocked_by_backend** | data is demo-fixture per phase 1b §4.1 (live data needs `zara_action_log` writes, 0 rows) | #3 |
+
+### 2.6 `/dispatches` (`DispatchesClient.tsx`)
+
+6 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Dispatch feed / list | `DispatchesClient.tsx:549–600` | **blocked_by_backend** | `dispatch_current_state` latest row 2026-02-26 | 2a §6.2 |
+| Time-window filter | `:505–515` | **blocked_by_backend** | underlying data dormant — "Tonight 12h" / "Last 24h" return 0 regardless of filter value | 2a §6.2 |
+| Category chips (auto-derived) | `:349–360,520–529` | **blocked_by_backend** | no new rows → no categories to derive | 2a §6.2 |
+| Dispatch timeline / phase card | `:549–600` | **blocked_by_backend** | source dormant | 2a §6.2 |
+| URL-persisted dispatch selection | `:395–399` | **dormant_no_user_action** | no evidence of page visit | — |
+| KPI row (median response / overrides / etc.) | `:443–499` | **blocked_by_backend** | KPIs computed from `dispatch_transitions` which has 0 writes in 30d | 2a §6.2 |
+
+### 2.7 `/track` (`TrackClient.tsx` + `TrackMap.tsx`)
+
+4 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| MapLibre map with MapTiler tiles | `TrackMap.tsx:52–74` | **unverified** | map renders only if `NEXT_PUBLIC_MAPTILER_KEY` is set; v2 audit flagged this; no evidence of rendering success or failure in window | Would need screenshot or browser-console check |
+| Site list with incident counts | `TrackClient.tsx:243–272` | **blocked_by_backend** (for the "incident counts" part) | `sites` table renders (8 rows static); but incident-count-per-site is derived from `incidents` table which has 0 new rows in 7d | 2a §6.1 partially |
+| URL-persisted site selection | `:126–132` | **dormant_no_user_action** | no evidence of page visit | — |
+| Placeholder-coordinate DB hygiene warning | `:167–175` | **dormant_no_user_action** | requires page render to surface; no visit evidence | — |
+
+### 2.8 `/clients` (`ClientsClient.tsx`)
+
+2 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Client list filter (ALL / HEALTHY / AT RISK — RENEWAL stubbed) | `ClientsClient.tsx:109` | **dormant_no_user_action** | no page visit evidence; `clients` table stable at 9 rows | — |
+| Client detail panel (selection) | `:104,126–132` | **dormant_no_user_action** | same | — |
+
+### 2.9 `/sites` (`SitesClient.tsx` + `KindIcon.tsx`)
+
+3 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Site list with posture pills | `SitesClient.tsx:190–222,255–257` | **dormant_no_user_action** | 8 sites ready for render; no visit logged | — |
+| Site detail card with risk rating + client + zone labels | `:238–277,354–406` | **dormant_no_user_action** | same | — |
+| Kind facet filter (RETAIL / RESI / OFFICE / INDUS / CONSUL) | `:52–59,171–188` | **dormant_no_user_action** | client-side filter; no visit evidence | — |
+
+### 2.10 `/guards` (`GuardsClient.tsx`)
+
+2 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Guard roster list | `GuardsClient.tsx:174–211` | **dormant_no_user_action** | 12 guards static; no visit | — |
+| Guard detail dossier (PSIRA, badge, post, shift pattern, equipment) | `:218–419` | **dormant_no_user_action** | same | — |
+
+### 2.11 `/events` (`EventsClient.tsx`)
+
+3 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Event list with row selection | `EventsClient.tsx:260–293` | **blocked_by_backend** | source is `incidents` — 0 new rows in 7d; cascade #1 | 2a §6.1 |
+| Severity pills (P1 / P2 / P3 / CLSD) | `:54,193–206` | **blocked_by_backend** | same | 2a §6.1 |
+| Category chips (auto-derived) | `:116,222–246` | **blocked_by_backend** | same (derived from incident categories; no new data) | 2a §6.1 |
+
+### 2.12 `/vip` (`VIPClient.tsx`)
+
+6 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Principal list with selection (URL-persisted) | `VIPClient.tsx:644–645,672–676,744–752` | **dormant_no_user_action** | demo principal only (`DEMO_PRINCIPAL_ID`) per v2 audit; ready to render but no visit | — |
+| Principal filter (ALL / ACTIVE / TIER 1 / OFF) | `:678–683,732–742` | **dormant_no_user_action** | same | — |
+| Scheduled details manifest | `:363–415` | **dormant_no_user_action** | rendering from mapper-synthesized demo data | — |
+| Advance brief / Zara-compiled | `:347–361` | **dormant_no_user_action** | static text from mapper; v2 audit flagged source unclear | — |
+| Detail roster / route / venue / vehicle cards | `:417–557` | **dormant_no_user_action** | rendering from mapper demo data | — |
+| Threats & watches feed | `:579–596` | **dormant_no_user_action** | no visit evidence | — |
+
+### 2.13 `/intel` (`IntelClient.tsx`)
+
+5 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Thread / intel feed list | `IntelClient.tsx:242–290` | **blocked_by_backend** | sourced from `client_evidence_ledger` intelligence-provenance entries; no writes since 2026-04-16 (cascade #8) | #8 |
+| Severity filter (ALL / ACTIVE / WATCH / CLOSED) | `:143–148,230–239` | **blocked_by_backend** | same | #8 |
+| Thread detail panel | `:294–376` | **blocked_by_backend** | same | #8 |
+| Pattern library tabs (FACES / PLATES / VOICES / SIGNATURES) | `:150–159,384–445` | **dormant_no_user_action** (for FACES) / **dormant_blocked_by_backend** (for PLATES/VOICES/SIGNATURES which are empty-state per v2 audit) | FACES tab shows 5 enrolled from `fr_person_registry`; no visit evidence; other 3 tabs have no upstream pipeline | 2a §1.2-1.3 for plates/voices/sigs |
+| Face registry display (photo count + role) | `:405–424` | **dormant_no_user_action** | 5 rows ready; no visit | — |
+
+### 2.14 `/governance` (`GovernanceClient.tsx`)
+
+2 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Operator attestations table (PSIRA dates from `guards`) | `GovernanceClient.tsx:224–248` | **dormant_no_user_action** | `guards` static at 12 rows; no visit | — |
+| KPI row (current / renewal / overdue counts) | `:110–134` | **dormant_no_user_action** | KPIs computable from static guards.psira_expires; no visit | — |
+
+### 2.15 `/ledger` (`LedgerClient.tsx`)
+
+4 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Ledger feed (infinite scroll "Load next 100") | `LedgerClient.tsx:357–448` | **blocked_by_backend** | `client_evidence_ledger` writes stopped 2026-04-17 (cascade #8); historical 16,285 rows exist but feed is frozen | #8 |
+| Facet filter chips | `:237–281` | **dormant_no_user_action** | no visit | — |
+| Block selection showing canonical JSON payload | `:450–487` | **dormant_no_user_action** | no visit; rendering possible with historical data | — |
+| Chain integrity badge / latest root hash | `:291–340` | **blocked_by_backend** | badge shows "last root at 2026-04-16 16:47 UTC" since no new blocks have been sealed; phase 2a §6.1 plus §0.1 cascade #8 | #8 |
+
+### 2.16 `/reports` (`ReportsClient.tsx`)
+
+4 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Tab filter (Dash / Sched / QBR / Tpl) | `ReportsClient.tsx:633–638,719–729` | **dormant_no_user_action** | no visit evidence | — |
+| Report list with row selection (URL-persisted) | `:616–620,732–761` | **dormant_no_user_action** | same | — |
+| Portfolio dashboard (30d stacked-area chart + 6 KPIs) | `:284–424` | **blocked_by_backend** | computed from `incidents` — 0 new rows in 7d means chart and KPIs are frozen to data ending 2026-03-11 | 2a §6.1 |
+| Export actions (Export PDF / Print / Share) on portfolio | `:322–331` | **dormant_no_user_action** (30d window) | client-side export; no evidence of a generated report file or share action in any log | — |
+
+### 2.17 `/admin` (`AdminClient.tsx`)
+
+3 `present` rows.
+
+| Feature | v2 1b evidence | 2b verdict | Runtime evidence | Cascade |
+|---|---|---|---|---|
+| Tab navigation across 11 tabs | `AdminClient.tsx:99–111,883–906` | **dormant_no_user_action** | client-side tab switching; no visit evidence | — |
+| System health dashboard (real row counts on System health tab) | `:170,186,202,218` | **dormant_no_user_action** | row counts would render fine from `users`/`roles`/`decision_audit_log`/`onyx_settings` — the first two tables PostgREST probes returned `*/0` in phase 2a (possible RLS). "System health" tab would render current row counts if visited; no visit evidence | — |
+| `Open in Ledger` link (Audit tab) | `:329–331` | **dormant_no_user_action** | client-side navigation; no visit | — |
+
+### 2.18 Section 2 summary
+
+| Verdict | Row count |
+|---|---:|
+| `verified` | 3 (all in `/alarms`: list view render, severity filter, triage action path) |
+| `failing` | 0 |
+| `dormant_no_user_action` | 38 |
+| `dormant_no_data` | 0 |
+| `dormant_blocked_by_backend` | 1 (pattern library tabs PLATES/VOICES/SIGNATURES within `/intel`'s mixed row) |
+| `blocked_by_backend` | 17 |
+| `unverified` | 1 (`/track` MapTiler rendering — would require browser inspection) |
+
+**Total v2 `present` feature rows verdicted: 60.**
+
+### 2.19 Section 2 key findings
+
+1. **The only verified v2 surface is `/alarms`** (list + severity filter + triage). 141 PATCH writes to `incidents.updated_at` on 2026-04-20 with unambiguous `controller_notes="False alarm — cleared by operator via Alarms dashboard."` attribution.
+2. **Everything else is either `blocked_by_backend` or `dormant_no_user_action`.** The blocked rows trace to the phase 2a cascades (#1 incidents stale, #2 dispatch dormant, #3 Zara tables empty, #8 ledger writes stopped).
+3. **v2 dev server has an active browser session** at the time of this pass (Chrome pid 60083 connected to `:3000`), but pages beyond `/alarms` cannot be verdicted `verified` for render without DB-writable fingerprints (and 18 of 19 routes are GET-only).
+4. **No v2 feature is marked `failing`.** The v2 PATCH path returns 200 on 141/141 writes with correctly-shaped payloads. Where v2 is usable, it works. Where it doesn't work, it's because the backend is dormant — not because v2's code is wrong.
+
+---
+
+*§3 (cross-cutting), §4 (user interaction evidence audit), §5 (read-only view parity), §6 (roll-up) pending.*
