@@ -629,4 +629,65 @@ One row per concern. Status values per column use the same vocabulary as §4 (`p
 
 ---
 
-*§6 (shared-code findings) pending.*
+## 6. Shared-code findings — `lib/` files imported by `bin/` entrypoints
+
+Phase 1a treated `lib/application/**` as backend because `bin/onyx_camera_worker.dart` and `bin/onyx_status_api.dart` import from it. Phase 1b's job here is to **map the shared-code boundary** so the "what happens to `lib/application/**` when v1 UI is killed" question has an evidence trail — not to audit the files themselves.
+
+### 6.1 Import map
+
+Grep on `import 'package:omnix_dashboard/` per `bin/` entrypoint:
+
+| `bin/` entrypoint | imports from `lib/` |
+|---|---:|
+| `bin/onyx_camera_worker.dart` | 12 files (lines 31–43) |
+| `bin/onyx_status_api.dart` | 1 file (line 23) |
+| `bin/onyx_telegram_ai_processor.dart` | 0 |
+| `bin/onyx_telegram_webhook.dart` | 0 |
+| `bin/onyx_telegram_bot_api_proxy.dart` | 0 |
+
+Only `onyx_camera_worker.dart` and `onyx_status_api.dart` pull from `lib/`. The three Telegram binaries (processor, webhook, bot-api-proxy) are self-contained — they import only `dart:*` / `package:http/` / `package:supabase/`.
+
+### 6.2 File-by-file boundary map
+
+Per the brief: "Whether it has UI dependencies (imports Flutter widgets, BuildContext, etc.)" — `flutter_widgets_imports` column counts `package:flutter/material.dart` / `package:flutter/widgets.dart` imports plus any use of the `BuildContext` identifier.
+
+| `lib/` file | Imported by | LOC | UI deps (Flutter widgets / BuildContext) | Purpose (from code — class names + top-of-file comment where present) |
+|---|---|---:|---|---|
+| `lib/application/onyx_alert_reason_builder.dart` | camera-worker | 109 | 0 | Pure data class `OnyxAlertReason` — holds headline / signals / scores / rulesFired / contextNote for an alert. Imports only `onyx_site_awareness_snapshot.dart` sibling. |
+| `lib/application/onyx_awareness_latency_service.dart` | camera-worker | 210 | 0 | `OnyxLatencyRecord` + service that writes per-alert DVR→YOLO→Telegram stage timings to Supabase. |
+| `lib/application/onyx_evidence_certificate_service.dart` | camera-worker | 483 | 0 | Evidence-certificate issuance: hash-chained JSON certificates for dispatched alerts. Issuer string "ONYX Risk and Intelligence Group", genesis hash "GENESIS". Imports `package:crypto/crypto.dart` + `package:supabase/`. |
+| `lib/application/onyx_environment_engine.dart` | camera-worker | 216 | 0 | `OnyxEnvironmentContext` — power mode, adapted threshold, zone overrides, synthetic-guard flag. Re-exports from `onyx_awareness_latency_service`, `onyx_outcome_feedback_service`, `onyx_power_mode_service`. |
+| `lib/application/onyx_lpr_service.dart` | camera-worker | 61 | 0 | `OnyxLprResult` — plate number / confidence / summary / error. Imports `onyx_live_snapshot_yolo_service`. |
+| `lib/application/onyx_outcome_feedback_service.dart` | camera-worker | 275 | 0 | `enum OnyxAlertOutcome { trueThreat, falseAlarm, unknown, guardDispatched, armedResponse, clientAcknowledged }` + `OnyxZoneSignalAccuracy` + Supabase-backed outcome-learning service. |
+| `lib/application/onyx_power_mode_service.dart` | camera-worker | 215 | 0 | `OnyxPowerHealthSnapshot` + power-mode service (imports `dart:async`, `package:supabase/`). |
+| `lib/application/onyx_proactive_alert_service.dart` | camera-worker | 665 | 0 | Pre-alert scoring / proactive-alert composition. |
+| `lib/application/onyx_site_profile_service.dart` | camera-worker | 1064 | 0 | `AlertThresholds` + per-site profile/threshold service. Largest shared file. |
+| `lib/application/site_awareness/onyx_live_snapshot_yolo_service.dart` | camera-worker | 293 | 0 | HTTP client for the optional enhancement-tier YOLO+FR+LPR endpoint (`ONYX_MONITORING_YOLO_ENDPOINT`). Top-of-file comment documents the two-tier architecture (core alert pipeline does NOT require this service). |
+| `lib/application/site_awareness/onyx_site_awareness_snapshot.dart` | camera-worker | 855 | 0 | `OnyxSiteAwarenessSnapshot` etc. — the awareness snapshot type-system shared with `bin/onyx_camera_worker.dart` (which re-inlines a copy at `bin/onyx_camera_worker.dart:45–80` — see §7). |
+| `lib/application/telegram_bridge_service.dart` | camera-worker | 780 | 0 | `TelegramBridgeMessage` + outbound Telegram helpers (inline-keyboard helpers live here and are partly duplicated in `lib/main.dart` and `bin/onyx_camera_worker.dart` — see §7). |
+| `lib/application/onyx_patrol_monitor_service.dart` | status-api | 592 | 0 | `OnyxPatrolRoute` + patrol monitoring logic consumed by `bin/onyx_status_api.dart`. |
+
+**Totals:** 13 unique `lib/` files imported across `bin/`. LOC sum: **5,818**. All **0 Flutter-widget-or-BuildContext references** — no UI dependencies.
+
+### 6.3 Import statement evidence
+
+- `bin/onyx_camera_worker.dart:31–43` — 12 imports, grouped as `lib/application/onyx_*_service.dart` (9) + `lib/application/site_awareness/onyx_*_service.dart` (1) + `lib/application/site_awareness/onyx_site_awareness_snapshot.dart` (1) + `lib/application/telegram_bridge_service.dart` (1).
+- `bin/onyx_status_api.dart:23` — `import 'package:omnix_dashboard/application/onyx_patrol_monitor_service.dart';`
+
+### 6.4 Adjacent `tool/` usage (for completeness, outside the brief's `bin/`-only scope)
+
+Phase 1a §6.4 noted that `tool/local_hikvision_dvr_proxy.dart` (which backs the `onyx-dvr-proxy.service` systemd unit on the Pi) imports `lib/application/local_hikvision_dvr_proxy_service.dart`. Adding that one file would bring the shared-boundary total to 14 files. It is not included in §6.2 because it is imported by a `tool/` entrypoint, not a `bin/` entrypoint — the brief is `bin/`-only.
+
+### 6.5 Downstream purpose
+
+Derivable from the evidence in §6.1–6.2:
+
+- **Zero of the 13 shared files import Flutter.** A retirement of `lib/pages/**`, `lib/ui/**`, `lib/routing/**`, and the UI portions of `lib/main.dart` would **not mechanically break** any import from `bin/`.
+- **Two `bin/` binaries depend on `lib/`** (camera-worker + status-api); three (Telegram processor, webhook, bot-api-proxy) do not.
+- The shared files cluster around a clear boundary: *site-awareness data types*, *evidence certificate issuance*, *outcome / power-mode / latency instrumentation*, *Telegram bridge helpers*, *proactive-alert composition*, *patrol monitoring*. None of them compose widgets, display layouts, or reference `BuildContext`.
+
+No recommendation in this section — per the brief, this is a map, not a plan.
+
+---
+
+*§7 (duplication findings) pending.*
