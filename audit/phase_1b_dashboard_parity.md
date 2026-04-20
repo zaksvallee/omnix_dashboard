@@ -379,4 +379,104 @@ Renamed route.
 
 ---
 
-*§4 Batch A (Command Center, 7 pages) written — Operations, Governance/Evidence/System, and remaining v1-only batches pending.*
+### 4.2 Operations
+
+#### Page: `/clients` (v1 nav "Comms" | v2 nav "Clients")
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Client / site selector with room routing | present | `lib/ui/clients_page.dart:2455` (`_selectorSurface`), `:2399` (`_roomButton`) | present | `app/clients/_components/ClientsClient.tsx:104,126–132` (client row selection) | — |
+| Client list filter (ALL / HEALTHY / AT RISK / RENEWAL) | unverified | not directly located; v1 surfaces client state via selectors rather than filter chips | present | `app/clients/_components/ClientsClient.tsx:109` | v2 audit: `RENEWAL` is disabled. |
+| Hero actions (touchpoint / contract / ticket) | absent | not found in v1 (v1 routes these via direct message/agent flows) | present_stub | `app/clients/_components/ClientsClient.tsx:258–260` (all three buttons disabled) | v2-only UI, stubbed. |
+| Message history with live thread context | present | `lib/ui/clients_page.dart:_messageHistoryKey` (`_messageHistoryKey`-scoped scroll anchor) | absent | not found | — |
+| Pending drafts queue for AI replies | present | `lib/ui/clients_page.dart:3113` (`_pendingDraftsCard`) | absent | not found | — |
+| Communication channels delivery status (Telegram / SMS / VoIP) | present | `lib/ui/clients_page.dart:2546` (`_communicationChannelsCard`) | absent | not found | — |
+| Voice/tone selector (Auto / Concise / Reassuring / Formal) | present | `lib/ui/clients_page.dart:3268` (`_pinnedVoiceCard`) | absent | not found | — |
+| Junior Analyst agent handoff | present | `lib/ui/clients_page.dart:2330` (`onPressed: () => openAgent(...)`) | absent | not found | — |
+| Evidence return receipt banner | present | `lib/ui/clients_page.dart:1165` (`_acknowledgeEvidenceReturnReceipt`) | absent | not found | — |
+| Desktop workspace toggle (3-panel vs compact) | present | `lib/ui/clients_page.dart:892` (`_clientsDetailedWorkspaceToggle`) | absent | not found | — |
+
+#### Page: `/sites`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Site list / roster with selection | present | `lib/ui/sites_page.dart:210` (`_buildRosterPanel`) | present | `app/sites/_components/SitesClient.tsx:190–222,255–257` (site list with posture pills) | — |
+| Site detail card with stats | present | `lib/ui/sites_page.dart:414` (`_siteDetailContent`; guard on-site, cameras active, 24h incidents, avg response) | present | `app/sites/_components/SitesClient.tsx:238–277,354–406` (risk rating + client + zone labels) | v2 detail misses the 24h-incidents and avg-response counters listed in v1. |
+| Site posture summary bar (totals + Strong / At-Risk / Critical) | present | `lib/ui/sites_page.dart:70` (`_buildPostureSummaryBar`) | absent | not found | — |
+| Site posture filter (ALL / ARMED / ISSUES / VIP) | absent | not found (v1 uses summary bar counts, not filter chips) | present_stub | `app/sites/_components/SitesClient.tsx:45–50` (filter chip row; `ARMED`/`ISSUES`/`VIP` disabled per v2 audit) | — |
+| Kind facet filter (RETAIL / RESI / OFFICE / INDUS / CONSUL) | absent | not found | present | `app/sites/_components/SitesClient.tsx:52–59,171–188` (kind facets work) | v2-only; Section 4 of v2 audit confirms these are wired. |
+| Hero actions (Ops log / Cameras / Dispatch) | absent | not found (v1 surfaces these via LiveOps / Tactical routes) | present_stub | `app/sites/_components/SitesClient.tsx:281–290` (all three disabled per v2 audit) | — |
+| Watch health status card | present | `lib/ui/sites_page.dart:542` (WATCH HEALTH STATUS container) | absent | not found | — |
+| Navigate to tactical map button | present | `lib/ui/sites_page.dart:154` (`onPressed: () => _navigateToRoute(context, OnyxRoute.tactical)`) | absent | not found | — |
+
+#### Page: Guards (v1: `/guards-workforce` | v2: `/guards`)
+
+Renamed route.
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Guard roster list with status pills | present | `lib/ui/guards_workforce_page.dart:1180` (`onTap: () => _selectGuard(guard.id)`) | present | `app/guards/_components/GuardsClient.tsx:174–211` | — |
+| Status filter (ALL / ON DUTY / INACTIVE / STANDBY / TRAINING / LEAVE) | unverified | not located as a single chip row in v1 | present_stub | `app/guards/_components/GuardsClient.tsx:43–50,159–172` (STANDBY/TRAINING/LEAVE disabled per v2 audit) | — |
+| Guard detail dossier (PSIRA, badge, post, shift pattern, equipment) | present | `lib/ui/guards_workforce_page.dart:2027` (`_actionBar` over guard detail surface) | present | `app/guards/_components/GuardsClient.tsx:218–419` | v2 audit: PSIRA + badge + post + callsign + equipment all rendered read-only. |
+| Hero actions (Message / Roster / Reassign) | unverified | v1 has `_actionBar` with Dispatch/Contact/Location/Activity — different set; grep didn't surface `Message/Roster/Reassign` handlers in v1 | present_stub | `app/guards/_components/GuardsClient.tsx:260–262` (all three disabled per v2 audit) | v1 has Dispatch/Contact/Location/Activity buttons instead (different action set). |
+| Tabs: Active Guards / Shift Roster / Shift History | present | `lib/ui/guards_workforce_page.dart:34` (`enum _WorkforceTab`), `:609` (shiftRosterTab), `:614` (shiftHistoryTab) | absent | not found — v2 has no tab switcher on `/guards` | v2 is single-view. |
+| ZARA continuity summary strip | present | `lib/ui/guards_workforce_page.dart:683` (`_zaraSummaryStrip`) | absent | not found | — |
+| Workforce status bar (aggregate readiness pills + site selector) | present | `lib/ui/guards_workforce_page.dart:598` (`_workforceStatusBar`) | absent | not found | — |
+| Shift coverage grid | present | `lib/ui/guards_workforce_page.dart:609` (`_shiftRosterTab`) | absent | not found (v2 audit: "will appear once shift tracking is enabled") | — |
+| Shift history anomaly markers | present | `lib/ui/guards_workforce_page.dart:614` (`_shiftHistoryTab`) | absent | not found | — |
+| 30-day attendance heatmap | absent | not found in v1 | present_stub | `app/guards/_components/GuardsClient.tsx:331–334` (empty-state rendered; v2 audit: "will appear once shift tracking is enabled") | — |
+| Export workforce snapshot | present | `lib/ui/guards_workforce_page.dart:660` (`onPressed: _exportWorkforceSnapshot`) | absent | not found | — |
+
+#### Page: `/events`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Event list with row selection | present | `lib/ui/events_review_page.dart:4384` (`onTap: () => setState(() => _selectedEvent = event)`) | present | `app/events/_components/EventsClient.tsx:260–293` | — |
+| Activity filter (ACTIVE / ALL / MINE / ESCAL) | absent | not found (v1 uses different filter axes — see next rows) | present_stub | `app/events/_components/EventsClient.tsx:43–52,209–220` (`MINE`/`ESCAL` disabled per v2 audit) | — |
+| Event type filter (ALL / INCIDENT / DISPATCH / AI DECISION / ALARM) | present | `lib/ui/events_review_page.dart:2026` (`_scopeRailDropdown<String>` with `_filterOptions` at `:130`) | absent | not found (v2 has category chips auto-derived, not these explicit types) | — |
+| Source + provider filter (cascading) | present | `lib/ui/events_review_page.dart:2034,2047` (two `_scopeRailDropdown<String>`) | absent | not found | — |
+| Identity policy filter (flagged / temporary / allowlisted) | present | `lib/ui/events_review_page.dart:2058` (`_scopeRailDropdown<String>` with policy options) | absent | not found | — |
+| Severity pills (P1 / P2 / P3 / CLSD) | unverified | not located in v1 events-review as a pill row | present | `app/events/_components/EventsClient.tsx:54,193–206` | — |
+| Category chips (auto-derived) | absent | not found in v1 | present | `app/events/_components/EventsClient.tsx:116,222–246` | — |
+| Hero actions (Note / Dispatch / Resolve) | absent | not found (v1 routes these via dispatch page + agent) | present_stub | `app/events/_components/EventsClient.tsx:344–346` (all three disabled per v2 audit) | — |
+| Desktop workspace toggle (scoped detail vs full list) | present | `lib/ui/events_review_page.dart:146` (`_desktopWorkspaceActive`) | absent | not found | — |
+| Scope rail with origin back-link chip | present | `lib/ui/events_review_page.dart:1998` (`_buildScopeRail`); URL encoding at `lib/routing/onyx_router.dart:133–172` | absent | not found (v2 has no deep-link origin chip) | v1 has full `origin=ledger&label=X` round-trip; v2 does not. |
+| Row actions (copy JSON / copy CSV / open governance) | present | `lib/ui/events_review_page.dart:4384` (contextual row actions) | absent | not found | — |
+| Site-scoped minimap | absent | not found in v1 | present_stub | `app/events/_components/EventsClient.tsx:352–364` (empty-state rendered per v2 audit) | — |
+| Readiness / tomorrow banner | present | `lib/ui/events_review_page.dart:550` (`if (readinessScopeSummary != null)`) | absent | not found | — |
+
+#### Page: `/vip`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Principal list with selection | present | `lib/ui/vip_protection_page.dart:195` (`_vipDetailCard` clickable); scheduled-details section at `:162` | present | `app/vip/_components/VIPClient.tsx:644–645,672–676,744–752` (URL-persisted `?principal=`) | — |
+| Principal filter (ALL / ACTIVE / TIER 1 / OFF) | absent | not found in v1 (single demo detail listing) | present | `app/vip/_components/VIPClient.tsx:678–683,732–742` | — |
+| Scheduled details manifest | present | `lib/ui/vip_protection_page.dart:162–194` (scheduled-details list + for-loop) | present | `app/vip/_components/VIPClient.tsx:363–415` (today's movements manifest) | — |
+| Advance brief / Zara-compiled | absent | not found in v1 | present | `app/vip/_components/VIPClient.tsx:347–361` | v2-only. |
+| Detail roster / route / venue / vehicle cards | absent | not found in v1 | present | `app/vip/_components/VIPClient.tsx:417–557` | v2-only. |
+| Threats & watches feed | absent | not found in v1 | present | `app/vip/_components/VIPClient.tsx:579–596` | v2-only. |
+| Hero actions (Open on map / Itinerary / Link event / Hail detail) | absent | not found | present_stub | `app/vip/_components/VIPClient.tsx:322–342` (all four currently disabled; v2 audit flags "verify before demo") | Unclear whether `Link event` / `Hail detail` are actually wired (v2 audit flagged for deeper investigation). |
+| New VIP detail button | present | `lib/ui/vip_protection_page.dart:136` (`onPressed: () => _createNewVipDetail(context)`) | absent | not found | — |
+| VIP empty-state with templates (Executive / Diplomatic / High-Net-Worth) | present | `lib/ui/vip_protection_page.dart:493` (`_VipEmptyState` class) | absent | not found | — |
+| Latest auto-audit receipt notice | present | `lib/ui/vip_protection_page.dart:157` (`_VipEmptyState` with `onOpenLatestAudit`) | absent | not found | — |
+
+#### Page: `/intel`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Thread / intel feed list | present | `lib/ui/risk_intelligence_page.dart:124` (`recentItems` + build) | present | `app/intel/_components/IntelClient.tsx:242–290` | — |
+| Severity filter (ALL / ACTIVE / WATCH / CLOSED) | absent | not found in v1 (v1 filters by area-state instead) | present | `app/intel/_components/IntelClient.tsx:143–148,230–239` | — |
+| Thread detail panel | unverified | v1 surfaces detail inline on each row; no separate panel found | present | `app/intel/_components/IntelClient.tsx:294–376` | — |
+| Add manual intel button | present | `lib/ui/risk_intelligence_page.dart:118` (`onAddManualIntel`) | absent | not found | — |
+| Risk-area state cards (STABLE / ELEVATED / HIGH ALERT with counts + View/Track) | present | `lib/ui/risk_intelligence_page.dart:685` (`_areaStateCard`) | absent | not found | v1-only area-state grid. |
+| Predictive forecast block | present | `lib/ui/risk_intelligence_page.dart:532` (`_forecastBlock`) | absent | not found | — |
+| Send area → track action | present | `lib/ui/risk_intelligence_page.dart:781` (`onSendAreaToTrack`) | absent | not found | — |
+| Send individual signal → track action | present | `lib/ui/risk_intelligence_page.dart:966` (`onSendSignalToTrack`) | absent | not found | — |
+| Pattern library tabs (FACES / PLATES / VOICES / SIGNATURES) | absent | not found in v1 | present | `app/intel/_components/IntelClient.tsx:150–159,384–445` | v2-only. v2 audit: only FACES has data. |
+| Face registry display (photo count + role) | unverified | v1 FR is via the Zara/agent surface and `tool/face_gallery/` — not a UI registry here | present | `app/intel/_components/IntelClient.tsx:405–424` | — |
+| Cross-site timeline | absent | not found in v1 | present_stub | `app/intel/_components/IntelClient.tsx:341–348` (empty-state) | — |
+| Entity-link graph | absent | not found in v1 | present_stub | `app/intel/_components/IntelClient.tsx:350–357` (empty-state) | — |
+
+---
+
+*§4 Batch B (Operations, 6 pages) written — Governance/Evidence/System and remaining v1-only batches pending.*
