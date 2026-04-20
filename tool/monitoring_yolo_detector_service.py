@@ -1186,12 +1186,29 @@ class UltralyticsBackend(DetectorBackend):
         weapon_confidence: float,
         face_module: FaceRecognitionModule,
         plate_module: PlateRecognitionModule,
+        device: str = "",
     ) -> None:
         self._model_name = model_name.strip() or "yolov8l.pt"
         self._confidence = confidence
         self._image_size = image_size
+        # Empty string means "let ultralytics auto-detect device". Valid
+        # explicit values: "cpu", "mps" (Apple Silicon), "cuda", "cuda:0",
+        # "0", etc. Pi 4B default: "cpu" (no choice). Mac enhancement
+        # default: "mps". Hetzner GPU default: "cuda".
+        self._device = device.strip()
         self._tracking_enabled = tracking_enabled
         self._tracker_name = tracker_name.strip() or "bytetrack"
+        if self._device:
+            _log.info(
+                "[ONYX-YOLO] inference device: %s (override via "
+                "ONYX_MONITORING_YOLO_DEVICE)",
+                self._device,
+            )
+        else:
+            _log.info(
+                "[ONYX-YOLO] inference device: auto (ultralytics picks; "
+                "set ONYX_MONITORING_YOLO_DEVICE=mps|cuda|cpu to force)"
+            )
         if self._tracking_enabled:
             _log.info(
                 "[ONYX-YOLO] tracking enabled — using model.track() with %s",
@@ -1375,6 +1392,13 @@ class UltralyticsBackend(DetectorBackend):
             ) from exc
         return YOLO(model_name)
 
+    def _device_kwargs(self) -> Dict[str, Any]:
+        """Returns {"device": <value>} when a device is explicitly
+        configured, else {}. Spread into predict()/track() kwargs so the
+        call shape stays identical when device is left to ultralytics'
+        auto-detect."""
+        return {"device": self._device} if self._device else {}
+
     def warmup(self) -> None:
         """Run a single dummy inference so weight JIT + lazy imports + any
         first-call initialisation happen BEFORE the first real camera-worker
@@ -1409,6 +1433,7 @@ class UltralyticsBackend(DetectorBackend):
                 conf=self._confidence,
                 imgsz=self._image_size,
                 verbose=False,
+                **self._device_kwargs(),
             )
         except Exception as exc:
             _log.warning(
@@ -1498,6 +1523,7 @@ class UltralyticsBackend(DetectorBackend):
                     tracker=self._tracker_config_name(),
                     persist=True,
                     verbose=False,
+                    **self._device_kwargs(),
                 )[0]
             except Exception as exc:
                 print(
@@ -1509,6 +1535,7 @@ class UltralyticsBackend(DetectorBackend):
                     conf=confidence,
                     imgsz=self._image_size,
                     verbose=False,
+                    **self._device_kwargs(),
                 )[0]
                 use_tracking = False
         else:
@@ -1517,6 +1544,7 @@ class UltralyticsBackend(DetectorBackend):
                 conf=confidence,
                 imgsz=self._image_size,
                 verbose=False,
+                **self._device_kwargs(),
             )[0]
         names = getattr(result, "names", {}) or {}
         detections: List[Dict[str, Any]] = []
@@ -1823,6 +1851,11 @@ class DetectorRuntime:
             ),
             face_module=face_module,
             plate_module=plate_module,
+            device=_read_string(
+                config,
+                "ONYX_MONITORING_YOLO_DEVICE",
+                fallback="",
+            ),
         )
 
     def ready_state(self) -> Dict[str, Any]:
