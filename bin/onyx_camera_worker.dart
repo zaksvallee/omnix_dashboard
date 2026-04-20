@@ -2939,6 +2939,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         stackTrace: disconnectStackTrace,
         level: disconnectLogLevel,
       );
+      stderr.writeln(
+        '[ONYX] ⚠️ Camera stream disconnected from $host:$port — '
+        'reconnecting in ${delay.inSeconds}s (attempt $nextAttempt). '
+        'Reason: $disconnectReason. Error: $disconnectError',
+      );
       if (nextAttempt >= 3 &&
           !_disconnectAlertSent &&
           onReconnectFailure != null) {
@@ -2960,6 +2965,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           '[ONYX] Camera worker terminating after 3 failures',
           name: 'OnyxHikIsapiStream',
           level: 1000,
+        );
+        stderr.writeln(
+          '[ONYX] Camera worker terminating after 3 failures. '
+          'Last disconnect reason: $disconnectReason. '
+          'Last error: $disconnectError',
         );
         await stop();
         exit(1);
