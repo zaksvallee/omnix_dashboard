@@ -3207,6 +3207,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
           name: 'OnyxHikIsapiStream',
         );
+        stderr.writeln(
+          '[ONYX-TELEGRAM] Gate check: suppressed=known face match '
+          '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
+        );
       } else {
         if (_currentPowerMode == OnyxPowerMode.degraded &&
             !(zone?.isPerimeter ?? false) &&
@@ -3217,6 +3221,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             name: 'OnyxHikIsapiStream',
             level: 800,
           );
+          stderr.writeln(
+            '[ONYX-TELEGRAM] Gate check: suppressed=degraded non-priority '
+            'channel ${event.channelId}.',
+          );
         } else {
           final channelId = int.tryParse(event.channelId.trim()) ?? 0;
           if (channelId <= 0) {
@@ -3225,6 +3233,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
               '${event.channelId}.',
               name: 'OnyxHikIsapiStream',
               level: 800,
+            );
+            stderr.writeln(
+              '[ONYX-TELEGRAM] Gate check: suppressed=invalid channel '
+              '${event.channelId}.',
             );
             return;
           }
@@ -3244,6 +3256,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
                 name: 'OnyxHikIsapiStream',
                 level: 800,
               );
+              stderr.writeln(
+                '[ONYX-TELEGRAM] Gate check: suppressed=confidence '
+                'channel=${event.channelId} zone=$zoneName '
+                'confidence=${confidence.toStringAsFixed(2)} '
+                'required=${minimumConfidence.toStringAsFixed(2)}',
+              );
               return;
             }
             final consecutiveDetections = _recordQualifiedHumanDetectionForZone(
@@ -3259,6 +3277,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
                 'confidence=${confidence.toStringAsFixed(2)}',
                 name: 'OnyxHikIsapiStream',
                 level: 800,
+              );
+              stderr.writeln(
+                '[ONYX-TELEGRAM] Gate check: suppressed=awaiting consecutive '
+                'human detection channel=${event.channelId} zone=$zoneName '
+                'count=$consecutiveDetections/'
+                '$_requiredConsecutiveHumanDetections '
+                'confidence=${confidence.toStringAsFixed(2)}',
               );
               return;
             }
@@ -3277,6 +3302,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
                 name: 'OnyxHikIsapiStream',
                 level: 800,
               );
+              stderr.writeln(
+                '[ONYX-TELEGRAM] Gate check: suppressed=zone cooldown '
+                'channel=${event.channelId} zone=$zoneName '
+                'confidence=${confidence.toStringAsFixed(2)} '
+                'last_alert=${lastTriggeredAt?.toIso8601String() ?? 'unknown'}',
+              );
               return;
             }
           }
@@ -3286,6 +3317,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             'unknown_human=${event.unknownPerson} '
             'face=${(event.faceMatchId ?? '').trim().isEmpty ? 'null' : event.faceMatchId}',
             name: 'OnyxHikIsapiStream',
+          );
+          stderr.writeln(
+            '[ONYX-TELEGRAM] Gate check: proceeding to proactive evaluation '
+            'channel=${event.channelId} zone=$zoneName '
+            'unknown_human=${event.unknownPerson} '
+            'face=${(event.faceMatchId ?? '').trim().isEmpty ? 'null' : event.faceMatchId}',
           );
           unawaited(
             proactiveAlertService.evaluateDetection(
@@ -3323,6 +3360,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         name: 'OnyxHikIsapiStream',
         level: 800,
       );
+      stderr.writeln(
+        '[ONYX-TELEGRAM] Gate check: suppressed=decision site ${decision.siteId} '
+        'does not match active site $_siteId.',
+      );
       return;
     }
     final projector = _projector;
@@ -3332,6 +3373,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         'for CH${decision.channelId}.',
         name: 'OnyxHikIsapiStream',
         level: 900,
+      );
+      stderr.writeln(
+        '[ONYX-TELEGRAM] Gate check: suppressed=projector not ready '
+        'for CH${decision.channelId}.',
       );
       return;
     }
@@ -3385,6 +3430,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       'snapshot=${snapshotBytes != null && snapshotBytes.isNotEmpty}',
       name: 'OnyxHikIsapiStream',
     );
+    stderr.writeln(
+      '[ONYX-TELEGRAM] Gate check: proceeding to send '
+      'channel=${decision.channelId} alert_id=$alertId '
+      'snapshot=${snapshotBytes != null && snapshotBytes.isNotEmpty}',
+    );
     await _sendImmediateTelegramAlert(
       decision,
       alertId: alertId,
@@ -3405,6 +3455,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         name: 'OnyxHikIsapiStream',
         level: 900,
       );
+      stderr.writeln(
+        '[ONYX-TELEGRAM] Gate check: suppressed=ONYX_TELEGRAM_BRIDGE_ENABLED false.',
+      );
       return;
     }
     final bridgeService = _telegramBridgeService;
@@ -3413,6 +3466,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         '[ONYX-TELEGRAM] Gate check: suppressed=bridge service not configured.',
         name: 'OnyxHikIsapiStream',
         level: 900,
+      );
+      stderr.writeln(
+        '[ONYX-TELEGRAM] Gate check: suppressed=bridge service not configured.',
       );
       return;
     }
@@ -3427,6 +3483,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         name: 'OnyxHikIsapiStream',
         level: 900,
       );
+      stderr.writeln(
+        '[ONYX-TELEGRAM] Gate check: suppressed=empty message '
+        'for CH${decision.channelId}.',
+      );
       return;
     }
 
@@ -3437,6 +3497,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         '$_clientId/$_siteId.',
         name: 'OnyxHikIsapiStream',
         level: 900,
+      );
+      stderr.writeln(
+        '[ONYX-TELEGRAM] Gate check: suppressed=no Telegram targets for '
+        '$_clientId/$_siteId.',
       );
       return;
     }
@@ -3549,6 +3613,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           level: 900,
           error: error,
           stackTrace: stackTrace,
+        );
+        stderr.writeln(
+          '[ONYX-TELEGRAM] Gate check: managed target lookup failed for $_clientId/$_siteId. '
+          'Falling back to environment targets. Error: $error',
         );
       }
     }
