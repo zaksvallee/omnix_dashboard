@@ -8,7 +8,10 @@
 # Usage:
 #   scripts/mac_enhancement_start.sh
 #
-# Ctrl-C to stop. Logs to terminal.
+# Ctrl-C to stop. Logs stream to the terminal AND tee into a persistent
+# log file at tmp/onyx_mac_enhancement.log so post-hoc analysis (e.g. of
+# [ONYX-YOLO-TIMING] latency) has history to grep after a crash or
+# terminal scroll-back loss.
 
 set -euo pipefail
 
@@ -16,6 +19,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv-mac-enhancement"
 SERVICE_PY="${ROOT_DIR}/tool/monitoring_yolo_detector_service.py"
 CONFIG_FILE="${ROOT_DIR}/config/onyx.mac_enhancement.json"
+LOG_DIR="${ROOT_DIR}/tmp"
+LOG_FILE="${LOG_DIR}/onyx_mac_enhancement.log"
 
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   echo "[mac-start] ERROR: venv not found at ${VENV_DIR}" >&2
@@ -30,6 +35,8 @@ if [[ ! -f "${SERVICE_PY}" ]]; then
   echo "[mac-start] ERROR: service not found at ${SERVICE_PY}" >&2
   exit 1
 fi
+
+mkdir -p "${LOG_DIR}"
 
 # Show the LAN IP the Pi should point at, if we can figure it out.
 LAN_IP=""
@@ -49,6 +56,7 @@ if [[ -n "${LAN_IP}" ]]; then
   echo "[mac-start] Point the Pi camera worker at:"
   echo "[mac-start]   ONYX_MONITORING_YOLO_ENDPOINT=http://${LAN_IP}:11636/detect"
 fi
+echo "[mac-start] Persistent log: ${LOG_FILE}"
 echo "[mac-start] Ctrl-C to stop."
 echo ""
 
@@ -57,4 +65,8 @@ export ONYX_DART_DEFINE_FILE="${CONFIG_FILE}"
 # the tooling added for the Pi service in commit d6e53f7).
 export PYTHONUNBUFFERED=1
 
-exec "${VENV_DIR}/bin/python" -u "${SERVICE_PY}" --config "${CONFIG_FILE}"
+# tee so output goes to both the terminal AND the log file. Ctrl-C still
+# propagates to the python process — tee exits when its upstream closes.
+# `exec` replaces this shell so signals reach python directly.
+exec "${VENV_DIR}/bin/python" -u "${SERVICE_PY}" --config "${CONFIG_FILE}" \
+  2>&1 | tee -a "${LOG_FILE}"
