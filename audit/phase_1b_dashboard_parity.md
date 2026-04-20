@@ -135,4 +135,89 @@ These are documented here rather than in §1.1/1.2 so §3 (page-level matrix) on
 
 ---
 
-*§2 (v2 Next.js UI page inventory) pending — to be committed separately per per-section rule.*
+## 2. v2 Next.js UI page inventory
+
+### 2.1 Canonical route table
+
+Sourced from `app/**/page.tsx` (Next.js App Router — every folder under `app/` that contains a `page.tsx` is a route; underscore-prefixed folders like `_components` and `_scaffold` are opted out of routing). Nav grouping is taken from the `NAV` array in `components/shell/nav.ts` (flat, no section headers). Rows here are ordered as they appear in the left rail so cross-mapping to v1's sectioned nav is explicit in §3.
+
+All 16 routes declare `export const dynamic = "force-dynamic"` and `export const revalidate = 0` in their `page.tsx`. The `page.tsx` file per route is a thin server component that renders a client component (`*Client.tsx`) under `_components/` — the server→client boundary is consistent across all 16 routes.
+
+| Nav order | Route | Server page | Client shell | Extra `_components/*.tsx` | Server LOC | Client LOC | Last modified |
+|---:|---|---|---|---|---:|---:|---|
+| 1 | `/` | `app/page.tsx` | `app/_components/ZaraClient.tsx` | — (`Zara.css` sibling) | 12 | 783 | 2026-04-19 |
+| 2 | `/command` | `app/command/page.tsx` | `app/command/_components/CommandClient.tsx` | — | 33 | 551 | 2026-04-19 |
+| 3 | `/alarms` | `app/alarms/page.tsx` | `app/alarms/_components/AlarmsClient.tsx` | `AlarmCard.tsx` (143), `Drawer.tsx` (199), `EvidenceBox.tsx` (64), `Lane.tsx` (54), `Waveform.tsx` (31) | 17 | 349 | 2026-04-19 |
+| 4 | `/ai-queue` | `app/ai-queue/page.tsx` | `app/ai-queue/_components/AIQueueClient.tsx` | `CognitionGraph.tsx` (76) | 15 | 467 | 2026-04-19 |
+| 5 | `/track` | `app/track/page.tsx` | `app/track/_components/TrackClient.tsx` | `TrackMap.tsx` (164, dynamic-import, `ssr:false`) | 15 | 445 | 2026-04-19 |
+| 6 | `/intel` | `app/intel/page.tsx` | `app/intel/_components/IntelClient.tsx` | — | 15 | 450 | 2026-04-19 |
+| 7 | `/vip` | `app/vip/page.tsx` | `app/vip/_components/VIPClient.tsx` | — | 15 | 794 | 2026-04-19 |
+| 8 | `/governance` | `app/governance/page.tsx` | `app/governance/_components/GovernanceClient.tsx` | — | 15 | 270 | 2026-04-19 |
+| 9 | `/clients` | `app/clients/page.tsx` | `app/clients/_components/ClientsClient.tsx` | — | 22 | 527 | 2026-04-19 |
+| 10 | `/sites` | `app/sites/page.tsx` | `app/sites/_components/SitesClient.tsx` | `KindIcon.tsx` (56) | 16 | 520 | 2026-04-19 |
+| 11 | `/guards` | `app/guards/page.tsx` | `app/guards/_components/GuardsClient.tsx` | — | 16 | 468 | 2026-04-19 |
+| 12 | `/dispatches` | `app/dispatches/page.tsx` | `app/dispatches/_components/DispatchesClient.tsx` | — | 15 | 613 | 2026-04-19 |
+| 13 | `/events` | `app/events/page.tsx` | `app/events/_components/EventsClient.tsx` | — | 16 | 540 | 2026-04-19 |
+| 14 | `/ledger` | `app/ledger/page.tsx` | `app/ledger/_components/LedgerClient.tsx` | — | 35 | 559 | 2026-04-19 |
+| 15 | `/reports` | `app/reports/page.tsx` | `app/reports/_components/ReportsClient.tsx` | — | 15 | 784 | 2026-04-19 |
+| 16 | `/admin` | `app/admin/page.tsx` | `app/admin/_components/AdminClient.tsx` | — | 15 | 967 | 2026-04-19 |
+
+**Total routes:** 16. Matches the v2 audit at `a19f9a2` (the current HEAD of `onyx_dashboard_v2` main, tagged `audit-2026-04-19`).
+
+### 2.2 Discrepancies vs the v2 audit
+
+HEAD of `onyx_dashboard_v2/main` is `a19f9a25feb35b8cb18a97cb9a122f4634582d9e` — the same commit the v2 audit was written against. `git log --oneline ..HEAD` on `onyx_dashboard_v2` returns empty. No pages added or removed since `a19f9a2`; the page list in the v2 audit (§Page-by-page inventory) is current.
+
+### 2.3 Non-routed v2 files
+
+| Path | LOC | Last modified | Role |
+|---|---:|---|---|
+| `app/_scaffold/page.tsx` | 74 | 2026-04-19 | underscore-prefixed folder → not a route; colour-swatch showcase for design-system visual inspection |
+| `app/_components/ZaraClient.tsx` | 783 | 2026-04-19 | mounted by `app/page.tsx`; private folder opted out of routing |
+| `app/_components/Zara.css` | — | 2026-04-19 | styles for ZaraClient |
+| `app/layout.tsx` | 36 | — | root layout: fonts (Inter, JetBrains_Mono), `Providers`, global + primitive + shell CSS imports |
+| `app/providers.tsx` | 42 | 2026-04-18 | TanStack Query client provider + (no auth provider observed) |
+| `app/globals.css` / `app/primitives.css` / `app/shell.css` | — | — | Tailwind v4 `@theme` CSS + primitive tokens + shell tokens |
+| `app/favicon.ico` | — | — | favicon asset |
+
+### 2.4 Chrome / scaffolding components
+
+One global shell — no per-page layouts.
+
+**`components/shell/` (chrome):**
+
+| File | LOC | Role |
+|---|---:|---|
+| `components/shell/Shell.tsx` | 46 | outer shell wrapper (Rail + Topbar + children) |
+| `components/shell/Rail.tsx` | 63 | left nav rail; consumes `NAV` + `activeIdForPathname` from `nav.ts` |
+| `components/shell/Topbar.tsx` | 82 | top bar (title, heartbeat, actions) |
+| `components/shell/HeartbeatChip.tsx` | 15 | live-pulse indicator |
+| `components/shell/nav.ts` | 46 | `NAV` array (16 entries, flat) + `activeIdForPathname(pathname)` |
+| `components/shell/index.ts` | — | barrel export |
+
+**`components/primitives/` (13 shared primitives):**
+
+`Button.tsx` (27) · `Card.tsx` (15) · `Chip.tsx` (17) · `FlowRow.tsx` (29) · `KPI.tsx` (24) · `PillGroup.tsx` (36) · `SectionHead.tsx` (24) · `StatusChip.tsx` (60) · `StatusDot.tsx` (14) · `Tabs.tsx` (36) · `ZaraSummary.tsx` (63) · `ZAvatar.tsx` (39) · `index.ts` (barrel).
+
+**`components/shared/`:**
+
+`EmptyState.tsx` (26) + `EmptyState.css`.
+
+### 2.5 Error and loading boundaries per page
+
+6 of 16 routes ship Next.js `error.tsx` + `loading.tsx` files in their route folder; the other 10 do not. Listed in alphabetical order:
+
+| Route | `error.tsx` LOC | `loading.tsx` LOC |
+|---|---:|---:|
+| `/alarms` | 78 | 75 |
+| `/clients` | 73 | 35 |
+| `/events` | 81 | 35 |
+| `/guards` | 73 | 35 |
+| `/ledger` | 81 | 33 |
+| `/sites` | 73 | 35 |
+
+Routes with no per-page error or loading boundary: `/`, `/admin`, `/ai-queue`, `/command`, `/dispatches`, `/governance`, `/intel`, `/reports`, `/track`, `/vip`. These fall back to the root `app/layout.tsx` error handling (no top-level `error.tsx` or `loading.tsx` exists at the app root — verified via `find app -maxdepth 1 -name "error.tsx" -o -name "loading.tsx"` returning empty).
+
+---
+
+*§3 (page-level matrix) pending.*
