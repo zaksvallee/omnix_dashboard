@@ -45,6 +45,18 @@ yolov8l.pt
 yolov8n.pt
 *.pt
 tool/model_cache/
+
+# Face-gallery images are PII (household members). Keep the folder
+# structure, .gitkeep files, and README.md tracked so the layout ships,
+# but the images themselves must never be committed. Canonical store
+# is the filesystem on the Pi (and rsync'd to the Mac for the
+# enhancement server — see docs/enhancement_tier.md).
+tool/face_gallery/**/*.jpg
+tool/face_gallery/**/*.jpeg
+tool/face_gallery/**/*.png
+tool/face_gallery/**/*.JPG
+tool/face_gallery/**/*.JPEG
+tool/face_gallery/**/*.PNG
 .venv-monitoring-yolo/
 /scripts/deploy_pi_msvallee.sh
 
