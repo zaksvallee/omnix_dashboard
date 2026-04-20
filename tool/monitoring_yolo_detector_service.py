@@ -3,6 +3,7 @@ import argparse
 import base64
 import io
 import json
+import logging
 import os
 import re
 import shutil
@@ -11,12 +12,39 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 import urllib.request
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
+
+
+# Ensure stdout/stderr are line-buffered even when redirected by systemd to a
+# file (non-TTY fds default to block-buffering in glibc — that's why the
+# service appeared silent under systemd for days). Belt-and-braces alongside
+# PYTHONUNBUFFERED=1 + `python -u` in scripts/start_yolo_server.sh.
+try:
+    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[attr-defined]
+    sys.stderr.reconfigure(line_buffering=True)  # type: ignore[attr-defined]
+except Exception:
+    pass
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    stream=sys.stderr,
+)
+_log = logging.getLogger("onyx.yolo")
+
+# Per-inference watchdog ceiling. If one call exceeds this, the main request
+# thread abandons it, logs "[ONYX-YOLO-WATCHDOG] …", returns a synthetic
+# failure to the caller, and releases the per-source lock. The stuck thread
+# keeps running — Python can't terminate a thread stuck in a native call —
+# so repeated hangs WILL accumulate memory; root-cause investigation of the
+# tracker hang remains a follow-up.
+_YOLO_INFERENCE_WATCHDOG_SECONDS = 30.0
 
 
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
@@ -1206,6 +1234,7 @@ class UltralyticsBackend(DetectorBackend):
         return modules
 
     def detect(self, item: Dict[str, Any]) -> Dict[str, Any]:
+        backend_started = time.monotonic()
         image_bytes = _decode_data_url(str(item["image_url"]))
         try:
             import cv2
@@ -1224,12 +1253,23 @@ class UltralyticsBackend(DetectorBackend):
         image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
         source_key = _tracking_source_key(item)
         use_tracking = self._tracking_enabled and bool(source_key)
+        _log.info(
+            "[ONYX-YOLO] detect start source=%s image=%dx%d tracking=%s "
+            "imgsz=%d conf=%.2f",
+            source_key or "(unknown)",
+            image_rgb.shape[1] if image_rgb.ndim >= 2 else 0,
+            image_rgb.shape[0] if image_rgb.ndim >= 2 else 0,
+            use_tracking,
+            self._image_size,
+            self._confidence,
+        )
         object_model = (
             self._tracked_object_model_for_source(source_key)
             if use_tracking
             else self._ensure_model()
         )
 
+        object_started = time.monotonic()
         detections = self._predict_detections(
             model=object_model,
             image=image,
@@ -1238,6 +1278,7 @@ class UltralyticsBackend(DetectorBackend):
             source_key=source_key,
             use_tracking=use_tracking,
         )
+        object_elapsed_ms = (time.monotonic() - object_started) * 1000.0
         if self._weapon_model_name:
             weapon_model = self._ensure_weapon_model()
             detections.extend(
@@ -1264,6 +1305,19 @@ class UltralyticsBackend(DetectorBackend):
         if primary_label is None and plate_match is not None:
             primary_label = "vehicle"
             primary_confidence = float(plate_match["plate_confidence"])
+
+        backend_elapsed_ms = (time.monotonic() - backend_started) * 1000.0
+        _log.info(
+            "[ONYX-YOLO] detect complete source=%s elapsed_ms=%.0f "
+            "object_ms=%.0f detections=%d primary=%s face_match=%s plate=%s",
+            source_key or "(unknown)",
+            backend_elapsed_ms,
+            object_elapsed_ms,
+            len(detections),
+            primary_label,
+            "yes" if face_match is not None else "no",
+            "yes" if plate_match is not None else "no",
+        )
 
         return {
             "record_key": item["record_key"],
@@ -1309,6 +1363,55 @@ class UltralyticsBackend(DetectorBackend):
                 "Ultralytics backend requires 'ultralytics' to be installed."
             ) from exc
         return YOLO(model_name)
+
+    def warmup(self) -> None:
+        """Run a single dummy inference so weight JIT + lazy imports + any
+        first-call initialisation happen BEFORE the first real camera-worker
+        request. On Pi 4B CPU with yolov8s the cold first call can exceed
+        30s; warm calls are typically sub-second. Called from main() after
+        the backend is built, before serve_forever().
+
+        Tracker session state is NOT warmed here — tracker init is lazy-
+        per-source and cheap relative to weight loading. Weapon model, if
+        configured, is also not warmed here (lazy-load on first real use;
+        orthogonal to the common path).
+        """
+        try:
+            import numpy as np
+        except Exception as exc:  # pragma: no cover
+            _log.warning(
+                "[ONYX-YOLO] warmup skipped — numpy unavailable: %s", exc
+            )
+            return
+        try:
+            model = self._ensure_model()
+        except Exception as exc:
+            _log.warning(
+                "[ONYX-YOLO] warmup skipped — model load failed: %s", exc
+            )
+            return
+        dummy = np.zeros((self._image_size, self._image_size, 3), dtype=np.uint8)
+        started = time.monotonic()
+        try:
+            model.predict(
+                source=dummy,
+                conf=self._confidence,
+                imgsz=self._image_size,
+                verbose=False,
+            )
+        except Exception as exc:
+            _log.warning(
+                "[ONYX-YOLO] warmup inference raised (non-fatal): %s", exc
+            )
+            return
+        elapsed_ms = (time.monotonic() - started) * 1000.0
+        _log.info(
+            "[ONYX-YOLO] model warmup complete in %.0f ms "
+            "(model=%s imgsz=%d)",
+            elapsed_ms,
+            self._model_name,
+            self._image_size,
+        )
 
     def _ensure_weapon_model(self):
         if not self._weapon_model_name:
@@ -1599,7 +1702,15 @@ class DetectorRuntime:
         self.backend_name = _read_string(
             config, "ONYX_MONITORING_YOLO_BACKEND", fallback="ultralytics"
         ).lower()
+        # `_lock` now ONLY protects bookkeeping counters and the per-source
+        # lock map below. Inference is NOT held behind this lock — see
+        # `detect_items` for the per-source serialization model.
         self._lock = threading.Lock()
+        # One lock per tracking source (camera channel) so requests for
+        # different cameras run concurrently while same-source requests
+        # still serialize (Ultralytics tracker state is not thread-safe
+        # per source).
+        self._source_locks: Dict[str, threading.Lock] = {}
         self._last_backend_error = ""
         self._last_request_error = ""
         self._last_request_at = 0.0
@@ -1715,38 +1826,149 @@ class DetectorRuntime:
             "successful_request_count": self._successful_request_count,
         }
 
+    def _acquire_source_lock(self, source_key: str) -> threading.Lock:
+        with self._lock:
+            lock = self._source_locks.get(source_key)
+            if lock is None:
+                lock = threading.Lock()
+                self._source_locks[source_key] = lock
+            return lock
+
+    @staticmethod
+    def _synthetic_failure(item: Dict[str, Any], exc: BaseException) -> Dict[str, Any]:
+        return {
+            "record_key": item.get("record_key", ""),
+            "primary_label": None,
+            "confidence": 0.0,
+            "track_id": None,
+            "summary": f"Detection failed: {exc}",
+            "detections": [],
+            "face_match_id": None,
+            "face_confidence": None,
+            "plate_number": None,
+            "plate_confidence": None,
+            "error": str(exc),
+        }
+
+    def _detect_with_watchdog(
+        self, item: Dict[str, Any], source_key: str
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[BaseException]]:
+        """Run backend.detect(item) in a worker thread with a hard timeout.
+
+        The worker cannot be terminated if it gets stuck in a native call
+        (pytorch / lap / opencv). On timeout we return a synthetic failure,
+        log the hang loudly, and move on — the orphan thread keeps running
+        until the native call eventually returns (or never). See module-
+        level _YOLO_INFERENCE_WATCHDOG_SECONDS for the ceiling.
+        """
+        record_key = str(item.get("record_key", ""))
+        result_box: Dict[str, Any] = {}
+        error_box: Dict[str, BaseException] = {}
+
+        def _runner() -> None:
+            try:
+                result_box["value"] = self.backend.detect(item)
+            except BaseException as exc:  # noqa: BLE001 — we log and propagate via box
+                error_box["value"] = exc
+
+        started = time.monotonic()
+        thread = threading.Thread(
+            target=_runner,
+            name=f"yolo-infer-{record_key or source_key or 'anon'}",
+            daemon=True,
+        )
+        thread.start()
+        thread.join(timeout=_YOLO_INFERENCE_WATCHDOG_SECONDS)
+        elapsed_ms = (time.monotonic() - started) * 1000.0
+
+        if thread.is_alive():
+            msg = (
+                f"[ONYX-YOLO-WATCHDOG] inference exceeded "
+                f"{_YOLO_INFERENCE_WATCHDOG_SECONDS:.0f}s — "
+                f"source={source_key or '(unknown)'} "
+                f"item={record_key or '(unknown)'} — returning synthetic failure"
+            )
+            print(msg, flush=True)
+            _log.error(msg)
+            return None, TimeoutError(
+                f"inference watchdog tripped after "
+                f"{_YOLO_INFERENCE_WATCHDOG_SECONDS:.0f}s"
+            )
+
+        if "value" in error_box:
+            exc = error_box["value"]
+            _log.warning(
+                "[ONYX-YOLO] inference raised source=%s item=%s elapsed_ms=%.0f "
+                "error=%s",
+                source_key or "(unknown)",
+                record_key or "(unknown)",
+                elapsed_ms,
+                exc,
+            )
+            return None, exc
+
+        _log.info(
+            "[ONYX-YOLO] inference ok source=%s item=%s elapsed_ms=%.0f",
+            source_key or "(unknown)",
+            record_key or "(unknown)",
+            elapsed_ms,
+        )
+        return result_box.get("value"), None
+
     def detect_items(self, items: List[Dict[str, Any]]) -> Dict[str, Any]:
-        results = []
+        results: List[Dict[str, Any]] = []
+        last_request_error = ""
+        successful_items = 0
+        request_started = time.monotonic()
+
+        _log.info("[ONYX-YOLO] detect_items batch_size=%d", len(items))
+
+        for item in items:
+            source_key = _tracking_source_key(item) or str(
+                item.get("record_key", "") or ""
+            )
+            lock_key = source_key or "__anon__"
+            source_lock = self._acquire_source_lock(lock_key)
+            # Per-source serialization — concurrent requests for DIFFERENT
+            # cameras run in parallel, same-source calls queue here.
+            with source_lock:
+                result, error = self._detect_with_watchdog(item, source_key)
+            if error is not None:
+                last_request_error = str(error)
+                results.append(self._synthetic_failure(item, error))
+                # Detailed traceback at debug level; the headline already
+                # went to stderr via _detect_with_watchdog.
+                _log.debug(
+                    "[ONYX-YOLO] failure traceback source=%s item=%s\n%s",
+                    source_key or "(unknown)",
+                    item.get("record_key", "(unknown)"),
+                    "".join(
+                        traceback.format_exception(
+                            type(error), error, error.__traceback__
+                        )
+                    ),
+                )
+            else:
+                assert result is not None
+                results.append(result)
+                successful_items += 1
+
+        # Bookkeeping — ONLY this section holds the global `_lock`.
         with self._lock:
             self._last_request_at = time.time()
-            last_request_error = ""
-            successful_items = 0
-            for item in items:
-                try:
-                    result = self.backend.detect(item)
-                    results.append(result)
-                    successful_items += 1
-                except Exception as exc:
-                    last_request_error = str(exc)
-                    results.append(
-                        {
-                            "record_key": item.get("record_key", ""),
-                            "primary_label": None,
-                            "confidence": 0.0,
-                            "track_id": None,
-                            "summary": f"Detection failed: {exc}",
-                            "detections": [],
-                            "face_match_id": None,
-                            "face_confidence": None,
-                            "plate_number": None,
-                            "plate_confidence": None,
-                            "error": str(exc),
-                        }
-                    )
             if successful_items > 0:
                 self._last_success_at = time.time()
                 self._successful_request_count += successful_items
             self._last_request_error = last_request_error
+
+        _log.info(
+            "[ONYX-YOLO] detect_items done batch_size=%d ok=%d err=%s "
+            "total_ms=%.0f",
+            len(items),
+            successful_items,
+            last_request_error or "none",
+            (time.monotonic() - request_started) * 1000.0,
+        )
         return {"results": results}
 
 
@@ -1786,7 +2008,13 @@ class DetectorRequestHandler(BaseHTTPRequestHandler):
             )
             return
         length = int(self.headers.get("Content-Length", "0"))
-        raw_body = self.rfile.read(length)
+        try:
+            raw_body = self.rfile.read(length)
+        except (BrokenPipeError, ConnectionResetError) as exc:
+            _log.info(
+                "[ONYX-YOLO] client disconnected before body read: %s", exc
+            )
+            return
         try:
             payload = json.loads(raw_body.decode("utf-8"))
         except Exception:
@@ -1815,7 +2043,17 @@ class DetectorRequestHandler(BaseHTTPRequestHandler):
         if not normalized_items:
             self._write_json(HTTPStatus.OK, {"results": []})
             return
-        response = self.runtime.detect_items(normalized_items)
+        try:
+            response = self.runtime.detect_items(normalized_items)
+        except BaseException as exc:  # noqa: BLE001
+            _log.exception(
+                "[ONYX-YOLO] detect_items raised (items=%d)", len(normalized_items)
+            )
+            self._write_json(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"ok": False, "detail": f"detect_items failed: {exc}"},
+            )
+            return
         self._write_json(HTTPStatus.OK, response)
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -1833,12 +2071,24 @@ class DetectorRequestHandler(BaseHTTPRequestHandler):
 
     def _write_json(self, status: HTTPStatus, payload: Dict[str, Any]) -> None:
         encoded = json.dumps(payload).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(encoded)))
-        self._write_cors_headers()
-        self.end_headers()
-        self.wfile.write(encoded)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(encoded)))
+            self._write_cors_headers()
+            self.end_headers()
+            self.wfile.write(encoded)
+        except (BrokenPipeError, ConnectionResetError) as exc:
+            # Normal when the camera worker times out before YOLO finishes
+            # a slow inference — log once at INFO and swallow so the
+            # threaded handler doesn't traceback into systemd's log.
+            _log.info(
+                "[ONYX-YOLO] client disconnected before response "
+                "(path=%s status=%s): %s",
+                getattr(self, "path", "?"),
+                int(status),
+                exc,
+            )
 
     def _write_cors_headers(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -1884,6 +2134,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(
         f"Backend: {ready_state['backend']} • ready={ready_state['ready']} • detail={ready_state['detail'] or 'ok'}"
     )
+    # Move weight-JIT + first-inference cost off the critical path of the
+    # first real camera-worker request. Duck-typed: only backends that
+    # implement warmup() participate; mock / darknet skip silently.
+    warmup = getattr(runtime.backend, "warmup", None)
+    if callable(warmup):
+        try:
+            warmup()
+        except Exception as exc:  # pragma: no cover
+            _log.warning("[ONYX-YOLO] warmup raised (non-fatal): %s", exc)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

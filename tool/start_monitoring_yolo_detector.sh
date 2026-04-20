@@ -13,4 +13,12 @@ if [[ -z "${PYTHON_BIN}" ]]; then
   fi
 fi
 
-exec "${PYTHON_BIN}" "${ROOT_DIR}/tool/monitoring_yolo_detector_service.py" "$@"
+# Force unbuffered stdout/stderr so systemd's log capture sees per-request
+# prints, tracebacks, and logging output in real time. Without this, prints
+# sit in glibc's block buffer (the fd is a file redirected by systemd, not
+# a TTY, so stdout defaults to block-buffering) and nothing reaches the
+# service log until the process dies or the buffer fills. This caused the
+# YOLO service to appear silent during the MS Vallee freeze investigation.
+export PYTHONUNBUFFERED=1
+
+exec "${PYTHON_BIN}" -u "${ROOT_DIR}/tool/monitoring_yolo_detector_service.py" "$@"
