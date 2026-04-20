@@ -68,6 +68,8 @@
   "ONYX_MONITORING_YOLO_DARKNET_WORKDIR": "",
   "ONYX_MONITORING_YOLO_ENABLED": "true",
   "ONYX_MONITORING_YOLO_ENDPOINT": "http://127.0.0.1:11636/detect",
+  "_NOTE_ENHANCEMENT": "Enhancement tier (YOLO/FR/LPR) is OPTIONAL. Set ONYX_MONITORING_YOLO_ENDPOINT to the Mac's LAN IP (e.g. http://192.168.0.7:11636/detect) when running scripts/mac_enhancement_start.sh on Mac. Leave as 127.0.0.1 on the Pi — that's a no-op today (Pi 4B CPU too slow for real-time inference; onyx-yolo-detector service is disabled by default). See docs/enhancement_tier.md.",
+  "_NOTE_ENHANCEMENT_TIMEOUT": "ONYX_MONITORING_YOLO_REQUEST_TIMEOUT_MS caps each enhancement call. Default 3000ms. Camera worker falls through to raw-snapshot Telegram delivery (commit 85ca876) if the timeout fires.",
   "ONYX_MONITORING_YOLO_HEALTH_TIMEOUT_SECONDS": "4",
   "ONYX_MONITORING_YOLO_HOST": "127.0.0.1",
   "ONYX_MONITORING_YOLO_IMAGE_SIZE": "960",
