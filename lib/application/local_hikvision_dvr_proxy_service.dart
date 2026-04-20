@@ -463,9 +463,17 @@ class LocalHikvisionDvrProxyService {
     _pruneBufferedAlerts();
   }
 
+  // Returns the current buffer as a single payload and clears the buffer.
+  // Long-polling handoff to the camera worker: one HTTP response delivers
+  // all buffered events since last drain, then the buffer resets so the
+  // next connection receives only new events. Without clearing here,
+  // the worker re-receives the same events for 3 min (retention window),
+  // dedup swallows them, and no alerts reach Telegram.
   String _bufferedAlertPayload() {
     _pruneBufferedAlerts();
-    return _bufferedAlertEvents.map((event) => event.payload).join('\n');
+    final payload = _bufferedAlertEvents.map((event) => event.payload).join('\n');
+    _bufferedAlertEvents.clear();
+    return payload;
   }
 
   void _pruneBufferedAlerts() {
