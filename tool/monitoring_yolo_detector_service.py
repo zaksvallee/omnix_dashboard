@@ -1263,6 +1263,18 @@ class UltralyticsBackend(DetectorBackend):
 
     def detect(self, item: Dict[str, Any]) -> Dict[str, Any]:
         backend_started = time.monotonic()
+        # --- stage timers: populated per stage, attached to result as
+        # `_timings` so DetectorRuntime.detect_items can emit a single
+        # [ONYX-YOLO-TIMING] line per request. ---
+        stage_ms: Dict[str, float] = {
+            "decode_ms": 0.0,
+            "object_ms": 0.0,
+            "weapon_ms": 0.0,
+            "fr_ms": 0.0,
+            "lpr_ms": 0.0,
+        }
+
+        decode_started = time.monotonic()
         image_bytes = _decode_data_url(str(item["image_url"]))
         try:
             import cv2
@@ -1279,6 +1291,8 @@ class UltralyticsBackend(DetectorBackend):
             raise RuntimeError(f"Image decode failed: {exc}") from exc
         image_rgb = np.array(image)
         image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+        stage_ms["decode_ms"] = (time.monotonic() - decode_started) * 1000.0
+
         source_key = _tracking_source_key(item)
         use_tracking = self._tracking_enabled and bool(source_key)
         _log.info(
@@ -1307,7 +1321,9 @@ class UltralyticsBackend(DetectorBackend):
             use_tracking=use_tracking,
         )
         object_elapsed_ms = (time.monotonic() - object_started) * 1000.0
+        stage_ms["object_ms"] = object_elapsed_ms
         if self._weapon_model_name:
+            weapon_started = time.monotonic()
             weapon_model = self._ensure_weapon_model()
             detections.extend(
                 self._predict_detections(
@@ -1319,10 +1335,16 @@ class UltralyticsBackend(DetectorBackend):
                     use_tracking=False,
                 )
             )
+            stage_ms["weapon_ms"] = (time.monotonic() - weapon_started) * 1000.0
         detections = _dedupe_detections(detections)
 
+        fr_started = time.monotonic()
         face_match = self._face_module.match(image_bgr, detections)
+        stage_ms["fr_ms"] = (time.monotonic() - fr_started) * 1000.0
+
+        lpr_started = time.monotonic()
         plate_match = self._plate_module.detect(image_bgr, detections, item)
+        stage_ms["lpr_ms"] = (time.monotonic() - lpr_started) * 1000.0
 
         best = _best_detection(detections)
         primary_label = None if best is None else best["label"]
@@ -1375,6 +1397,9 @@ class UltralyticsBackend(DetectorBackend):
             "threat_level": None if face_match is None else face_match.get("threat_level"),
             "plate_number": None if plate_match is None else plate_match["plate_number"],
             "plate_confidence": None if plate_match is None else plate_match["plate_confidence"],
+            # Internal: consumed + stripped by DetectorRuntime.detect_items
+            # before the response is serialised. Camera worker never sees it.
+            "_timings": stage_ms,
         }
 
     def _ensure_model(self):
@@ -1982,8 +2007,37 @@ class DetectorRuntime:
             source_lock = self._acquire_source_lock(lock_key)
             # Per-source serialization — concurrent requests for DIFFERENT
             # cameras run in parallel, same-source calls queue here.
+            lock_requested_at = time.monotonic()
             with source_lock:
+                queue_ms = (time.monotonic() - lock_requested_at) * 1000.0
+                detect_started_at = time.monotonic()
                 result, error = self._detect_with_watchdog(item, source_key)
+                total_ms = (time.monotonic() - detect_started_at) * 1000.0
+            # Strip the internal timing payload before it leaves the server.
+            # Camera worker never sees _timings on the wire.
+            stage_ms: Dict[str, float] = {}
+            if isinstance(result, dict):
+                popped = result.pop("_timings", None)
+                if isinstance(popped, dict):
+                    stage_ms = {
+                        k: float(v) for k, v in popped.items()
+                        if isinstance(v, (int, float))
+                    }
+            _log.info(
+                "[ONYX-YOLO-TIMING] source=%s record=%s queue_ms=%.0f "
+                "decode_ms=%.0f object_ms=%.0f weapon_ms=%.0f fr_ms=%.0f "
+                "lpr_ms=%.0f total_ms=%.0f outcome=%s",
+                source_key or "(unknown)",
+                item.get("record_key", "(unknown)"),
+                queue_ms,
+                stage_ms.get("decode_ms", 0.0),
+                stage_ms.get("object_ms", 0.0),
+                stage_ms.get("weapon_ms", 0.0),
+                stage_ms.get("fr_ms", 0.0),
+                stage_ms.get("lpr_ms", 0.0),
+                total_ms,
+                "err" if error is not None else "ok",
+            )
             if error is not None:
                 last_request_error = str(error)
                 results.append(self._synthetic_failure(item, error))
