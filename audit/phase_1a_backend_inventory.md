@@ -147,6 +147,20 @@ No user or system cron jobs for the `onyx` account (`no crontab for onyx`). Only
 
 TLS cert via Let's Encrypt at `/etc/letsencrypt/live/api.onyxsecurity.co.za/`. `/etc/cron.d/certbot` refreshes 2× daily (superseded by systemd timer per comment).
 
+#### 2.x Hetzner `onyx-telegram-ai-processor.service` — exec-path resolution
+
+Follow-up to the "stale `/opt/onyx` directories" flag at the end of this document. `systemctl cat onyx-telegram-ai-processor` on Hetzner:
+
+```
+# /etc/systemd/system/onyx-telegram-ai-processor.service
+WorkingDirectory=/opt/onyx
+ExecStart=/opt/onyx/bin/onyx_telegram_ai_processor
+```
+
+`/opt/onyx/bin/onyx_telegram_ai_processor` is an 8.2 MB file, owner `root:root`, mtime 2026-04-11 21:07 (compiled Dart AOT snapshot; `file(1)` is not installed on the host to confirm the Mach-O/ELF label, but size + permissions + the unit's `Type=simple` ExecStart pattern are consistent with the other `/opt/worker/bin/*` AOT binaries).
+
+The running service therefore executes from **`/opt/onyx/bin/`** with the cwd at **`/opt/onyx`**. The directories `/opt/onyx/src/`, `/opt/onyx/telegram_ai_processor/`, and `/opt/onyx/telegram_ai_processor_src/` are not referenced by this unit's `ExecStart` or `WorkingDirectory`. Whether any of them are loaded by other means (e.g. imported as source by the binary at build time, or required by sibling services) is out of scope here — phase 3 will resolve drift.
+
 ### Mac (`/Users/zaks/omnix_dashboard`)
 
 No launchd plists matching `onyx*` were found in `~/Library/LaunchAgents/`, `/Library/LaunchDaemons/`, or `/Library/LaunchAgents/`. All Mac processes are started from foreground shells under session `s000`:
