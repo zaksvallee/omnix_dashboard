@@ -5123,6 +5123,16 @@ Future<void> main() async {
   final yoloAuthToken =
       Platform.environment['ONYX_MONITORING_YOLO_AUTH_TOKEN'] ?? '';
   final yoloEndpoint = Uri.tryParse(yoloEndpointRaw.trim());
+  // Enhancement tier is OPTIONAL. 3s default keeps the alert pipeline
+  // fast when the Mac/Hetzner enhancement server is unreachable or slow;
+  // the camera worker falls through to raw-snapshot Telegram delivery
+  // (see commit 85ca876) when the request times out.
+  final yoloRequestTimeoutMs = int.tryParse(
+        (Platform.environment['ONYX_MONITORING_YOLO_REQUEST_TIMEOUT_MS'] ?? '')
+            .trim(),
+      ) ??
+      3000;
+  final yoloRequestTimeout = Duration(milliseconds: yoloRequestTimeoutMs);
   final rtspFrameServerEndpointRaw =
       Platform.environment['ONYX_RTSP_FRAME_SERVER_ENDPOINT'] ??
       'http://127.0.0.1:11638';
@@ -5214,6 +5224,18 @@ Future<void> main() async {
   stdout.writeln(
     '[ONYX] YOLO/FR: ${yoloEndpoint == null ? 'disabled' : yoloEndpoint.toString()}',
   );
+  if (yoloEndpoint == null) {
+    stdout.writeln(
+      '[ONYX] Enhancement tier disabled — '
+      'falling back to raw-snapshot Telegram',
+    );
+  } else {
+    stdout.writeln(
+      '[ONYX] Enhancement tier endpoint: '
+      '${yoloEndpoint.toString()} '
+      '(timeout ${yoloRequestTimeout.inMilliseconds}ms)',
+    );
+  }
   final yoloHttpClient = http.Client();
   final telegramBotToken =
       Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
@@ -5238,6 +5260,7 @@ Future<void> main() async {
           client: yoloHttpClient,
           endpoint: yoloEndpoint,
           authToken: yoloAuthToken,
+          requestTimeout: yoloRequestTimeout,
           rtspFrameServerBaseUri: rtspFrameServerEndpoint,
         );
 

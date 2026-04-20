@@ -3,6 +3,32 @@ import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
+/// OnyxLiveSnapshotYoloService connects to an OPTIONAL enhancement tier
+/// that provides YOLO object detection, face recognition, and license plate
+/// reading. The core alert pipeline does NOT require this service.
+///
+/// Two-tier architecture:
+///   Always-on: DVR proxy + camera worker + raw-snapshot Telegram delivery
+///   Enhancement: YOLO/FR/LPR HTTP service at configurable URL (optional)
+///
+/// When enhancement is:
+///   - reachable + fast (<3s): alerts include bounding boxes, confidence,
+///     face matches, plate reads, track IDs
+///   - reachable + slow (>3s): timeout, fall through to raw-snapshot
+///   - unreachable: isConfigured=false at startup, worker skips enhancement
+///
+/// Set ONYX_MONITORING_YOLO_ENDPOINT to any URL:
+///   - http://127.0.0.1:11636/detect  (local — not used in production since
+///     Pi 4B CPU is too slow for real-time inference)
+///   - http://192.168.0.NN:11636/detect  (Mac on LAN, for dev enhancement)
+///   - https://inference.onyxsecurity.co.za/detect  (future Hetzner)
+///
+/// Set ONYX_MONITORING_YOLO_REQUEST_TIMEOUT_MS to adjust timeout (default 3000).
+///
+/// If endpoint returns non-200 OR takes >timeout OR is unreachable, the
+/// raw-snapshot Telegram fallback fires with synthetic confidence 0.99
+/// (see commit 85ca876 in onyx_camera_worker.dart).
+
 class OnyxLiveSnapshotYoloResult {
   final String? primaryLabel;
   final bool personDetected;
@@ -43,7 +69,12 @@ class OnyxLiveSnapshotYoloService {
     required this.client,
     required this.endpoint,
     this.authToken = '',
-    this.requestTimeout = const Duration(seconds: 20),
+    // 3 seconds is right for Mac on LAN (normal response 1-2s) and Hetzner
+    // over internet (2-3s). Pi-local YOLO (30-120s on 4B CPU) always trips
+    // this, which is intentional — Pi-local YOLO is no longer the expected
+    // path. Override via ONYX_MONITORING_YOLO_REQUEST_TIMEOUT_MS on the
+    // camera worker side.
+    this.requestTimeout = const Duration(seconds: 3),
     this.rtspFrameServerBaseUri,
   });
 
