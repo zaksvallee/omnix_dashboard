@@ -4275,7 +4275,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       cameraId: channelId,
       eventType: OnyxEventType.humanDetected,
       unknownPerson: true,
-      personConfidence: personConfidence,
+      // When YOLO is unavailable we can't compute a real person confidence, but
+      // Hikvision's DVR classifier has already classified this event as a human
+      // (that's why we're in the human detection path). Treat fallback events as
+      // max-confidence so the downstream _ingestEvent confidence gate doesn't
+      // silently drop them. Explicit caller values still win via the ?? fallback.
+      personConfidence: personConfidence ?? 0.99,
       snapshotBytes: Uint8List.fromList(snapshotBytes),
       zoneId: zoneId ?? _projector?.cameraZones[channelId]?.zoneName,
       latencyRecord: latencyRecord,
