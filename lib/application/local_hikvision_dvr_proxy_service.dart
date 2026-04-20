@@ -103,7 +103,11 @@ class LocalHikvisionDvrProxyService {
     }
     final resolvedHost = host.trim().isEmpty ? '127.0.0.1' : host.trim();
     final server = await HttpServer.bind(resolvedHost, port);
-    server.idleTimeout = const Duration(seconds: 5);
+    // The alertStream subscription is silent between events (potentially minutes
+    // in quiet hours). A short idleTimeout here prematurely closes the worker's
+    // chunked response and causes a reconnect flap. 30 minutes is a safe ceiling
+    // — legitimate closes happen via server.close() in the close() method.
+    server.idleTimeout = const Duration(minutes: 30);
     _server = server;
     _subscription = server.listen((request) {
       unawaited(_handleRequest(request));
