@@ -1192,6 +1192,17 @@ class UltralyticsBackend(DetectorBackend):
         self._image_size = image_size
         self._tracking_enabled = tracking_enabled
         self._tracker_name = tracker_name.strip() or "bytetrack"
+        if self._tracking_enabled:
+            _log.info(
+                "[ONYX-YOLO] tracking enabled — using model.track() with %s",
+                self._tracker_name,
+            )
+        else:
+            _log.info(
+                "[ONYX-YOLO] tracking disabled — using predict() path "
+                "(set ONYX_MONITORING_YOLO_TRACKING_ENABLED=true to opt in; "
+                "known-broken on Pi 4B / aarch64 as of 2026-04-20)"
+            )
         self._track_ttl_seconds = max(30, track_ttl_seconds)
         self._weapon_model_name = weapon_model_name.strip()
         self._weapon_confidence = weapon_confidence
@@ -1785,7 +1796,14 @@ class DetectorRuntime:
             tracking_enabled=_read_bool(
                 config,
                 "ONYX_MONITORING_YOLO_TRACKING_ENABLED",
-                fallback=True,
+                # ByteTrack's linear-assignment solver (the `lap` package)
+                # hangs indefinitely inside its C extension on the Pi 4B
+                # (aarch64 / Raspberry Pi OS) for real-image inputs, even
+                # though model.predict() on the same image is fine. Safe
+                # default: tracking OFF. Flip the config flag to true
+                # once a working tracker is wired up or the lap hang is
+                # root-caused.
+                fallback=False,
             ),
             tracker_name=_read_string(
                 config,
