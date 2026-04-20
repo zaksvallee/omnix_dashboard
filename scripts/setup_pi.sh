@@ -227,12 +227,33 @@ install_repo_dependencies() {
 import json, pathlib
 p = pathlib.Path('${CONFIG_PATH}')
 c = json.loads(p.read_text())
-c['ONYX_MONITORING_YOLO_MODEL'] = 'yolov8n.pt'
+c['ONYX_MONITORING_YOLO_MODEL'] = 'yolov8s.pt'
 c['ONYX_MONITORING_YOLO_IMAGE_SIZE'] = '640'
 p.write_text(json.dumps(c, indent=2, sort_keys=True))
 "
-  log "Pi edge mode: using yolov8n.pt at 640px"
+  log "Pi edge mode: using yolov8s.pt at 640px"
   run_as_app_user "cd '$INSTALL_DIR' && ./.venv-monitoring-yolo/bin/pip install --upgrade opencv-python"
+}
+
+setup_swap() {
+  if [[ -f /swapfile ]]; then
+    log "Swap file already exists at /swapfile — skipping creation"
+  else
+    log "Creating 2GB swap file at /swapfile"
+    fallocate -l 2G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+  fi
+  if ! grep -q "^/swapfile" /etc/fstab; then
+    log "Adding /swapfile to /etc/fstab"
+    echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  fi
+  if [[ ! -f /etc/sysctl.d/99-onyx-swappiness.conf ]]; then
+    log "Setting vm.swappiness=10 for conservative swap usage"
+    echo 'vm.swappiness=10' > /etc/sysctl.d/99-onyx-swappiness.conf
+    sysctl -p /etc/sysctl.d/99-onyx-swappiness.conf
+  fi
 }
 
 install_systemd_units() {
@@ -280,11 +301,33 @@ ExecStart=/bin/bash -lc 'mkdir -p tmp && exec ./.venv-monitoring-yolo/bin/python
 WantedBy=multi-user.target
 EOF
 
+  cat > "${SYSTEMD_DIR}/onyx-dvr-proxy.service" <<EOF
+[Unit]
+Description=ONYX local Hikvision DVR proxy
+After=network-online.target
+Wants=network-online.target
+Before=onyx-camera-worker.service
+
+[Service]
+Type=simple
+User=${APP_USER}
+Group=${APP_GROUP}
+WorkingDirectory=${INSTALL_DIR}
+Environment=HOME=${APP_HOME}
+Environment=PATH=/usr/lib/dart/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Restart=always
+RestartSec=5
+ExecStart=/bin/bash -lc 'mkdir -p tmp && exec dart run tool/local_hikvision_dvr_proxy.dart --config "${CONFIG_PATH}" >>tmp/onyx_dvr_proxy.log 2>&1'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
   cat > "${SYSTEMD_DIR}/onyx-camera-worker.service" <<EOF
 [Unit]
 Description=ONYX camera worker
-After=network-online.target onyx-yolo-detector.service onyx-rtsp-frame-server.service
-Wants=network-online.target onyx-yolo-detector.service onyx-rtsp-frame-server.service
+After=network-online.target onyx-yolo-detector.service onyx-rtsp-frame-server.service onyx-dvr-proxy.service
+Wants=network-online.target onyx-yolo-detector.service onyx-rtsp-frame-server.service onyx-dvr-proxy.service
 
 [Service]
 Type=simple
@@ -348,7 +391,7 @@ EOF
 enable_services() {
   log "Enabling ONYX services on boot"
   systemctl daemon-reload
-  systemctl enable --now onyx-yolo-detector.service onyx-rtsp-frame-server.service onyx-camera-worker.service
+  systemctl enable --now onyx-yolo-detector.service onyx-rtsp-frame-server.service onyx-dvr-proxy.service onyx-camera-worker.service
 }
 
 print_status() {
@@ -356,6 +399,7 @@ print_status() {
   systemctl --no-pager --full --lines=5 status \
     onyx-yolo-detector.service \
     onyx-rtsp-frame-server.service \
+    onyx-dvr-proxy.service \
     onyx-camera-worker.service || true
   if [[ -x "${INSTALL_DIR}/scripts/onyx_status.sh" ]]; then
     run_as_app_user "cd '${INSTALL_DIR}' && ./scripts/onyx_status.sh --config '${CONFIG_PATH}'" || true
@@ -369,6 +413,7 @@ main() {
   ensure_flutter_sdk
   write_config_from_env
   install_repo_dependencies
+  setup_swap
   install_systemd_units
   enable_services
   print_status
