@@ -271,4 +271,112 @@ Routes that match semantically but differ by path (`renamed`): `/dashboard` → 
 
 ---
 
-*§4 (feature-level matrix) pending.*
+## 4. Feature-level matrix
+
+One table per page. v1 file paths are relative to `/Users/zaks/omnix_dashboard/`; v2 file paths are relative to `/Users/zaks/onyx_dashboard_v2/`. Status values: `present`, `present_stub`, `absent`, `unverified`.
+
+### 4.1 Command Center
+
+#### Page: `/` Zara home (v1: `ZaraAmbientPage` | v2: `ZaraClient`)
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Live signal/activity feed | present | `lib/ui/zara_ambient_page.dart:630` (recent-signals scroll) | present_stub | `app/_components/ZaraClient.tsx:329–360` (`AutonomousLog` renders hardcoded `AUTONOMOUS_OPS[]` per v2 audit) | v2 array is fabricated (v2 audit cross-cutting #4); no live read. |
+| Quick-action navigation buttons | present | `lib/ui/zara_ambient_page.dart:679` (navigates to Command Center / Alarms / Dispatches / Guards / CCTV via `onOpen*` callbacks) | present | `app/_components/ZaraClient.tsx:405–431` (`QuickNav` with `href` links) | — |
+| Animated heartbeat / Zara avatar | present | `lib/ui/zara_ambient_page.dart:716` (pulsing animation + status badge) | present | `app/_components/ZaraClient.tsx:707,753–761` (presence variants + heartbeat shelf) | v2 offers Orb/Rings/Field toggles (v2 audit §`/` interactive elements). |
+| Greeting card with operator + site labels | present | `lib/ui/zara_ambient_page.dart:378` | present | `app/_components/ZaraClient.tsx:709–727` | v1 takes `operatorLabel`/`siteLabel` as widget props; v2 uses `initialTimeIso` for server-rendered time-of-day greeting. |
+| Operational health pills (incidents / dispatches) | present | `lib/ui/zara_ambient_page.dart:602` | present_stub | `app/_components/ZaraClient.tsx:720–723` (rendered from `STATEMENTS[]` hardcoded array per v2 audit) | v2 fabricated, not live. |
+| Surfaced alert card with dismiss/open | present | `lib/ui/zara_ambient_page.dart:275` | present | `app/_components/ZaraClient.tsx:438–469` (`AlertChip` with `onDismiss`/`onOpen` handlers) | Per v2 audit Flagged-for-deeper-investigation: whether dismiss writes anywhere is not traced. |
+
+#### Page: Command Center (v1: `/dashboard` → `CommandCenterPage` → `LiveOperationsPage` | v2: `/command` → `CommandClient`)
+
+Renamed route. Feature rows are against `LiveOperationsPage` (21176-LOC body) vs `CommandClient` (551 LOC).
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Live queue panel of active incidents | present | `lib/ui/live_operations_page.dart:10899` (`_toggleTopBarPriorityFilter`, queue filter cue) | present | `app/command/_components/CommandClient.tsx:353–424` (`cc-queue` section) | v2 polls queue every 10s; v1 updates via `setState` + `_routerRefreshNotifier`. |
+| Dispatches strip with phase progression | present | `lib/ui/live_operations_page.dart:7642` (incident decision ledger with phase lifecycle rendering) | present | `app/command/_components/CommandClient.tsx:457–487` (`dispatch-strip` with `dispatchPhaseFor`) | — |
+| Events / activity stream | present | `lib/ui/live_operations_page.dart:9440` (workspace status banner + context tabs) | present | `app/command/_components/CommandClient.tsx:514–527` (`events-list`) | — |
+| P1 alert banner when queue has a P1 | unverified | not found by grep of `P1 banner` / `showBanner` in `live_operations_page.dart`; v1 surfaces severity differently (shell badges via `OnyxRouteShellBadgeKind.activeIncidents`) | present | `app/command/_components/CommandClient.tsx:254–274` (conditional `showBanner` with `p1Count`) | v1 may not have a dedicated P1 banner; noted `unverified` rather than `absent` because shell badge bar is a potential equivalent surface. |
+| CCTV live-view dialog | present | `lib/ui/live_operations_page.dart:538` (client lane live-view: `_refreshFrame`, `_toggleAutoRefresh`, `onCopyFrameUrl`, `onOpenStreamPlayer`) | present_stub | `app/command/_components/CommandClient.tsx:533–547` (`cc-cctv-strip` with `BOTTOM_CAMERAS` placeholder frames; v2 audit: "Live feed pending — camera pipeline wiring") | v1 has real camera frame refresh; v2 is placeholder. |
+| Client comms drawer / right rail | present | `lib/ui/live_operations_page.dart:7896` (`_openCommandClientLane`) | absent | not found | No v2 comms drawer on `/command`. |
+| Guards rail board | present | `lib/ui/live_operations_page.dart:7770` (`_openCommandGuardsBoard`) | absent | not found | — |
+
+#### Page: `/agent` Agent brain (v1_only)
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Multi-tab nav rail (Dispatch / CCTV / Comms / Track / Board) | present | `lib/ui/onyx_agent_page.dart:1697–1770` (`_zaraAgentNavRail`) | absent | — | No `/agent` route in v2. |
+| Thread / conversation rail | present | `lib/ui/onyx_agent_page.dart:3676–3760` (`_buildThreadRail`, `_createThread` at `:7099`, `_selectThread` at `:7137`) | absent | — | — |
+| Active signals panel (left rail) | present | `lib/ui/onyx_agent_page.dart:1831–1920` (`_zaraAgentLeftRail`, `_zaraSignalRow` at `:1923`) | absent | — | — |
+| Conversation composer with quick prompts | present | `lib/ui/onyx_agent_page.dart:3512–4794` (`_buildConversationSurface`, composer at `:4674`, quick-action chips at `:4712`) | absent | — | — |
+| Agent recommendation actions panel (right rail) | present | `lib/ui/onyx_agent_page.dart:2741–2830` (`_zaraAgentRightRail`) | absent | — | — |
+| Prompt submission → LLM synthesis | present | `lib/ui/onyx_agent_page.dart:7243–7559` (`_submitPrompt` → `_runCloudBoost` / `_runLocalBrainSynthesis`) | absent | — | v1 calls cloud or local-brain path. No v2 equivalent (Zara surfaces on `/` and `/ai-queue` are display-only). |
+| Action executor dispatcher | present | `lib/ui/onyx_agent_page.dart:9220–9589` (`_handleAction` with sub-handlers for each action kind) | absent | — | — |
+
+#### Page: `/ai-queue`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Task queue list with status icons | present | `lib/ui/ai_queue_page.dart:2627` (`_setWorkspaceView` lane selector) | present | `app/ai-queue/_components/AIQueueClient.tsx:60–104` (`iconForStatus`, `TaskFeedRow`) | — |
+| Task row selection / URL persistence | present | `lib/ui/ai_queue_page.dart:1119` (`_openDetailedWorkspace`) | present | `app/ai-queue/_components/AIQueueClient.tsx:321–325` (`selectTask` updates URL param) | — |
+| Reasoning trace panel per task | present | `lib/ui/ai_queue_page.dart:1855` (runbook/policy/context tabs in focused action) | present_stub | `app/ai-queue/_components/AIQueueClient.tsx:135–287` (`Inspector` with `demoTrace`/`demoThink`/`demoSteps`) | v2 audit: "Live traces will populate once Zara engine writes `decision_audit_log`"; status `present_stub` because rendering works but data is fixture. |
+| Action operation controls (cancel / pause / approve) | present | `lib/ui/ai_queue_page.dart:2755` (`_cancelAction`, `_promoteAction`, `_approveAction`) | absent | not found | v2 has no action-on-task controls. |
+| CCTV board with alert selector | present | `lib/ui/ai_queue_page.dart:857` (`_viewCctvAlert`) | absent | not found | — |
+| Worker chain display | unverified | not explicitly named in v1 grep; v1 focuses on approved/denied/shadow lanes instead (`ai_queue_page.dart:91` daily stats) | present | `app/ai-queue/_components/AIQueueClient.tsx:96,242` (`task.workers` rendered) | v1 may surface worker chain inside detailed workspace; not verified from static analysis. |
+| Cognition graph visualization | absent | not found in v1 | present | `app/ai-queue/_components/AIQueueClient.tsx:455–458` (`CognitionGraph` with workers/edges) + `app/ai-queue/_components/CognitionGraph.tsx` | — |
+| Standby workspace with focus groups (MO dossier, shift draft) | present | `lib/ui/ai_queue_page.dart:4793` (`_openStandbyWorkspace`) | absent | not found | — |
+
+#### Page: `/alarms`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Alarms list view | present | `lib/ui/alarms_page.dart:476` (ListView with `_buildAlarmCard`); `lib/ui/alarms_page.dart:887` (full alarm record detail) | present | `app/alarms/_components/AlarmsClient.tsx:316–328` (`Lane` components over `LANES`) + `AlarmCard.tsx` | — |
+| Severity filter (P1 / P2 / P3 / ALL) | unverified | not located via targeted grep in `alarms_page.dart`; v1 uses pagewide state filter idiom | present | `app/alarms/_components/AlarmsClient.tsx:282–292` (`SEV_FILTERS` with `onClick setSevFilter`) | — |
+| Kind filter (PERIMETER / PANIC / VEHICLE / AUDIO / FACE) | unverified | not located | present_stub | `app/alarms/_components/AlarmsClient.tsx:296–304` (`KIND_FILTERS` buttons; `onClick` not wired — per v2 audit a LOCAL no-op) | — |
+| Triage action path (dispatch / false alarm / escalate) | present | `lib/ui/alarms_page.dart:887` (`_buildAlarmCard` contains action buttons per-alarm); v1 routes triage through dispatch page workflows | present | `app/alarms/_components/Drawer.tsx:166–181` (`fire("dispatch")`/`fire("escalate")`/`fire("false_alarm")` → `PATCH /api/incidents/[id]` via useMutation at `AlarmsClient.tsx:149`) | v2's sole mutation path; same-origin, no user session (phase 1a §6.1). |
+| Status chip row (camera count / guard count / signal health) | present | `lib/ui/alarms_page.dart:522` (`_statusStatChip`) | absent | not found | v2's status surface lives elsewhere (command page). |
+| Quick actions (run system check / review last incident) | present | `lib/ui/alarms_page.dart:550` (`_quickActionButton`) | absent | not found | — |
+| Nominal "ALL SYSTEMS NOMINAL" empty state | present | `lib/ui/alarms_page.dart:406` | unverified | empty-state for v2 alarms not located in evidence pass | flagged for phase 2. |
+| Time/grouping toggles (LAST HOUR / GROUPED) | absent | not found | present_stub | `app/alarms/_components/AlarmsClient.tsx:307–312` (buttons exist, no `onClick` wired) | v2-only UI, stubbed. |
+| Toast on triage error | absent | not found | present | `app/alarms/_components/AlarmsClient.tsx:136–145,172–180,338–346` (`pushToast` on `onError`) | — |
+
+#### Page: `/dispatches`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Dispatch feed / list with selection | present | `lib/ui/dispatch_page.dart:3384` (`_setSelectedDispatchId`) | present | `app/dispatches/_components/DispatchesClient.tsx:549–600` (`dsp-table` with `TruthRail`) | — |
+| Lane filter chip row (status: all/active/pending/cleared) | present | `lib/ui/dispatch_page.dart:4401` (`_DispatchLaneFilter`) | unverified | v2 has a category-chip row (`:349–360,520–529`) but a status-lane chip row is not located; this may be the same thing reshaped | — |
+| Time-window filter (Tonight·12h / 24h / 7d / All) | absent | not found | present | `app/dispatches/_components/DispatchesClient.tsx:505–515` (`TIME_FILTERS` with `onClick setTimeFilter`) | v2-only. |
+| Category chips auto from `event.category` | absent | not found | present | `app/dispatches/_components/DispatchesClient.tsx:349–360,520–529` (`categoryChips` derived from `data.categoryCounts`) | v2-only. |
+| Dispatch timeline / phase card | present | `lib/ui/dispatch_page.dart:864` (`_incidentTimelineCard`) | present | `app/dispatches/_components/DispatchesClient.tsx:549–600` (truth-rail with intent + transitions) | — |
+| Communication transcript block | present | `lib/ui/dispatch_page.dart:868` (`_communicationTranscriptBlock`) | absent | not found | — |
+| Outcome card (real / false alarm / no response / safe word) | present | `lib/ui/dispatch_page.dart:893` (`_outcomeCard`) | absent | not found | — |
+| Chain-of-custody seal block | present | `lib/ui/dispatch_page.dart:897` (`_chainSealBlock`) | absent | not found | — |
+| Context grid (scene details / equipment / observations) | present | `lib/ui/dispatch_page.dart:901` (`_contextGrid`) | absent | not found | — |
+| Fleet-scope health sections (limited / alert / repeat / escalation) | present | `lib/ui/dispatch_page.dart:8068` (section tap handlers) | absent | not found | — |
+| Truth-rail actions (Full log / Add to report / Concur) | absent | not found as a named primitive | present_stub | `app/dispatches/_components/DispatchesClient.tsx:306–317` (all three buttons `disabled`) | v2-only UI, stubbed. |
+| URL-persisted dispatch selection (`?dispatch=`) | unverified | not located in v1 dispatch page | present | `app/dispatches/_components/DispatchesClient.tsx:395–399` (`selectDispatch` updates URL) | — |
+| KPI row (tonight count / Zara concurrence % / median response / overrides / executed) | absent | not found | present | `app/dispatches/_components/DispatchesClient.tsx:443–499` (`dsp-kpis` with 6 cards) | v2-only. |
+
+#### Page: Tactical / Track (v1: `/tactical` → `TacticalPage` | v2: `/track` → `TrackClient` + `TrackMap`)
+
+Renamed route.
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Map surface with live markers | present | `lib/ui/tactical_page.dart:2635` (map expand toggle), `:6285` (zoom controls) | present | `app/track/_components/TrackMap.tsx:52–74` (MapLibre GL with MapTiler tiles, `NEXT_PUBLIC_MAPTILER_KEY`) | v1 uses Flutter map widget; v2 uses MapLibre GL JS. |
+| Signals header row with top signal + review/send/dismiss | present | `lib/ui/tactical_page.dart:1491` (`_buildSignalsHeaderRow`) | absent | not found | — |
+| Verification queue tabs (Anomalies / Matches / Assets) | present | `lib/ui/tactical_page.dart:3328` (`onSetQueueTab`) | absent | not found | — |
+| Map filter cycle (all / responding / incidents) | present | `lib/ui/tactical_page.dart:3312` (`_cycleFilter`) | present_stub | `app/track/_components/TrackClient.tsx:220–241` (`tr-layer-pill` buttons with `toggleLayer`; only `sites` layer has data per v2 audit) | v2 offers 6 layer toggles (sites/guards/response/vip/patrols/awareness); 5 are aspirational. |
+| Center-active button (jump to active unit) | present | `lib/ui/tactical_page.dart:3320` (`_centerActive`) | absent | not found | — |
+| Site list with incident counts | absent | not found as a list (v1 uses map markers) | present | `app/track/_components/TrackClient.tsx:243–272` (`tr-sites` mapping `data.sites` with incidents count) | — |
+| Inspector actions (Open in Sites / Hail site / Dispatch) | present | `lib/ui/tactical_page.dart:5485` (section tap handlers for suppressed/limited actions with drilldown) | present_stub | `app/track/_components/TrackClient.tsx:412–429` (`tr-insp-actions`: `Open in Sites` as href link = `present`; `Hail site` + `Dispatch` disabled) | mixed — one working link, two stubs. |
+| URL-persisted site selection (`?site=`) | unverified | not located | present | `app/track/_components/TrackClient.tsx:126–132` (`selectSite` updates URL) | — |
+| Placeholder-coordinate DB hygiene warning | absent | not found | present | `app/track/_components/TrackClient.tsx:167–175` (`coordOverrideCount` warning text) | v2-only surfaced. |
+| Fleet-scope drilldown (recovery / tactical / dispatch / detail) | present | `lib/ui/tactical_page.dart:4999` (drilldown navigation) | absent | not found | — |
+| Live signals table | present | `lib/ui/tactical_page.dart:4848` (signal row with `onOpenTactical`, `onOpenDispatch`) | absent | not found | — |
+
+---
+
+*§4 Batch A (Command Center, 7 pages) written — Operations, Governance/Evidence/System, and remaining v1-only batches pending.*
