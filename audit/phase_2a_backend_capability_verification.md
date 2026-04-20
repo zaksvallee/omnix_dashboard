@@ -573,4 +573,174 @@ Phase 1a §6 enumerated 19 Next.js API routes, 2 Python HTTP services (Pi 11636/
 
 ---
 
-*§5 (external integrations), §6 (data layer), §7 (cross-capability flows) pending.*
+## 5. External integration verification
+
+Phase 1a §4 enumerated 17 external integrations. 7d window unless otherwise stated.
+
+| Integration | Call volume (7d) | Success rate | Last successful call | Error samples | Verdict |
+|---|---:|---|---|---|---|
+| **Supabase PostgREST** | ≥ 27,000 writes (10,750 alarms + 16,285 ledger rows + 282 certs + 141 incident updates + 31 power-mode + 41 webhooks + etc.) | ≥ 99% (only 5 `PostgrestException 502 Bad Gateway` observed post-17 Apr restart across Hetzner services; no failed writes surfaced in Pi worker logs) | 2026-04-20 19:51:32 UTC (webhook row stored) | 2 × 502 on Hetzner AI processor in 48h; pre-17 Apr egress-quota 402 errors (already resolved) | **verified** |
+| **Telegram Bot API** | 41 inbound (webhook) + 41 outbound AI replies + 81 outbound alert sends (camera worker) = 163 message exchanges + inline-keyboard | 100% inbound processed (41/41 marked processed); outbound success implied by observed user inbound-callback responses (`ack:`, `view:`, `dispatch:`, `view_cam_`) | 2026-04-20 19:51:32 UTC (reply row 65fc5d57-…) | none observed | **verified** |
+| **Hikvision ISAPI (alert stream + snapshot)** | camera-worker stream **currently disconnected** — 7,926 `Alert stream closed unexpectedly` reconnect events in current log (since 17:03 SAST today); prior to this morning, stream was delivering into 10,750 `site_alarm_events` rows in 7d | mixed — see note | last clean run evidence: 2026-04-20 09:27 SAST log entry `[09:27] … CH6: human detected … humans:1` (before the disconnect loop began) | ongoing disconnect loop | **failing** — capability was verified up to 2026-04-20 ~morning but is currently non-functional; marked failing rather than dormant because there *is* execution — just wrong output (disconnect loop instead of stream subscription) |
+| **Hikvision RTSP** | 4 channel workers warmed (CH4, CH5, CH12, CH16); RTSP frame server log has 106 request-line matches in 7d | RTSP decode success is noisy — h264 `decode_slice_header error` etc. dominate log, but frame workers do not terminate | 2026-04-20 00:30:47 SAST (last restart warmup) | decode warnings are continuous but non-fatal | **verified** (workers alive, frames served — see §4.2) |
+| **Hik-Connect (cloud)** | 0 | — | — | (tool/hik_connect_*.dart uses stub hostname `api.hik-connect.example.com`) | **dormant_no_trigger** — stubs never called in production |
+| **OpenAI Responses API** | 41 reply generations (1 per Telegram inbound) | 100% — every `Sending row X to AI/reply builder...` has a subsequent `AI response for row X:` line in processor log | 2026-04-20 19:51:32 UTC (row 65fc5d57-…, response `Signals normal at Ms Vallee Residence…`) | none observed post-17 Apr restart | **verified** |
+| **ElevenLabs TTS** (Mac dev proxy only) | 0 call evidence in window | — | no `/elevenlabs/tts/` activity in accessible logs | — | **dormant_no_trigger** — Mac dev proxy only; no production reach |
+| **NewsAPI.org** (edge `smart-handler` / `ingest_global_event`) | unverifiable from REST alone (no per-call timestamps on `global_events` response in accessible columns); `global_events` total = 96 rows; latest observable `created_at`/`published_at` on sample row = `2026-02-25T19:56:28Z` (a manual test row) | — | 2026-02-25 manual-test (not an actual ingest call) | — | **unverified** — expanded to 30d window and still no evidence of an edge-fn invocation in window. Would need Supabase dashboard → function invocation logs to confirm. Sub-type leaning `dormant_no_trigger` if confirmed |
+| **NewsData.io** (edge) | same as above | — | — | — | **unverified** (same reason) |
+| **NewsAPI.ai / EventRegistry** (edge `ingest-gdelt`) | same as above | — | — | — | **unverified** (same reason) |
+| **`face_recognition` Python lib (dlib)** | 0 invocations in 7d | — | — | — | **dormant_no_input** (see §1.2) |
+| **OpenCV FR ONNX (YuNet + SFace)** | 0 invocations in 7d | — | — | — | **dormant_no_input** (see §1.2) |
+| **EasyOCR** | 0 invocations in 7d | — | — | — | **dormant_no_input** (see §1.3) |
+| **Ultralytics YOLO** | 103 on Pi (pre-17:03 SAST restart); 0 post-restart; 0 on Mac (13-min uptime) | executed successfully (YOLO returns detections), but latency p50 14.1s and p95 162s breaks the 3s camera-worker budget | 2026-04-20 13:28:13 SAST `detect complete source=…\|9 elapsed_ms=18735 detections=0` | inference-watchdog trips 124× in window | **verified** (ran and produced output) |
+| **ByteTrack** (via ultralytics) | 0 invocations in 7d | — | — | — | **dormant_no_trigger** on Pi (env-disabled), **dormant_no_input** on Mac (see §1.4) |
+| **OpenCV (`cv2`)** | used by RTSP frame server + YOLO service continuously | n/a (library) | 2026-04-20 21:57 SAST (server still serving) | none | **verified** |
+| **Pillow (`PIL`)** | loaded by RTSP frame server at startup | n/a | same as OpenCV | none | **verified** |
+
+---
+
+## 6. Data layer verification
+
+Tables sampled from phase 1a §3.3 (only those phase 1a flagged with non-zero or expected-active writes). 7d window unless 30d noted. Writes = rows inserted/updated with a timestamp column ≥ window start.
+
+### 6.1 Tables with writes in window (verified active)
+
+| Table | Rows written in 7d | Timestamp column | Latest write | Verdict |
+|---|---:|---|---|---|
+| `site_alarm_events` | 10,750 | `occurred_at` | 2026-04-20 18:05 UTC (`event_type=camera_worker_offline` — internal self-report) | **verified** (active); latest entries are camera-worker-offline events rather than external VMD signals, consistent with the §0 stoppage flag |
+| `client_evidence_ledger` | 16,285 | `created_at` | 2026-04-16 16:47 UTC | **verified** (active); large intel-evidence-provenance stream (sample row `type=intelligence_evidence_provenance`, `provider=hikvision_dvr_monitor_only`) |
+| `onyx_evidence_certificates` | 282 | `issued_at` | 2026-04-20 15:06 UTC (chain_position 282, confidence 0.816, camera_id 5) | **verified**; daily split: Apr13=1, Apr14=247, Apr15=14, Apr16=8, Apr17=0, Apr18=0, Apr19=0, Apr20=12 — confirms the Apr 17–19 gap (correlates with the Apr 17 Supabase egress-quota incident) and partial recovery on Apr 20 |
+| `onyx_power_mode_events` | 31 | `occurred_at` | (not sampled in this pass) | **verified** |
+| `telegram_inbound_updates` | 41 | `received_at` | 2026-04-20 19:51:27 UTC | **verified** |
+| `incidents` | 0 new inserts / 141 `updated_at` writes | `signal_received_at` for new, `updated_at` for modifications | new: 2026-03-11 23:21 UTC (stale, outside 7d); updated: 2026-04-20 19:38 UTC | split verdict — see §6.2 |
+
+### 6.2 Tables that should have writes but have 0 — dormant with sub-type
+
+| Table | Rows in window | Phase 1a / 1b indication | Verdict |
+|---|---:|---|---|
+| `incidents` (new inserts) | 0 in 7d (last new row was 2026-03-11) | alarms flow into `site_alarm_events` (10,750 in 7d), but nothing promotes those into `incidents` — v2 PATCH only modifies existing ones; no INSERT path observed | **dormant_pipeline_break** — upstream input (alarms) is present, but the capability (promoting alarms to incidents) isn't consuming it |
+| `zara_action_log` | 0 total (table exists, never written) | phase 1a §3.3: "Zara engine … in v1 writes to decision_audit_log; in v2 the table has zero rows surfaced"; `zara_action_log` is the successor table created on 2026-04-17 per migration `202604170002_zara_action_log.sql` | **dormant_no_trigger** — Zara engine hasn't been pointed at this table yet |
+| `zara_scenarios` | 0 total | same — new table, no writer wired | **dormant_no_trigger** |
+| `onyx_awareness_latency` | 0 total | table exists (from `deploy/supabase_migrations/202604140003_create_onyx_awareness_latency.sql`); phase 1a §6.2 notes the service file is `lib/application/onyx_awareness_latency_service.dart` — but no writes evidenced | **dormant_no_trigger** — service code loaded into `bin/onyx_camera_worker.dart` but not writing to this table |
+| `onyx_alert_outcomes` | 0 total | table exists (from `202604140005_alert_outcomes.sql`); service file `lib/application/onyx_outcome_feedback_service.dart` is imported by camera worker | **dormant_no_trigger** — same pattern as `onyx_awareness_latency` |
+| `onyx_operator_scores` / `onyx_operator_simulations` / `onyx_client_trust_snapshots` / `onyx_event_store` | `*/0` or 0 | phase 1a §3.3 flagged all as REST probe returning `*/0` (either 0 rows or RLS-blocked) | **unverified** — would need direct DB read to confirm whether `*/0` means "0 rows" or "RLS denies count"; treat as `dormant_no_trigger` pending that probe |
+| `dispatch_current_state` / `dispatch_intents` / `dispatch_transitions` | 30d window: 0 rows `created_at >= 2026-03-21` | phase 1a §3.3 listed 27/27/34 total rows; latest `dispatch_transitions.created_at` = 2026-02-26 — 53 days ago | **dormant_no_trigger** (30d window expanded) — dispatch workflow has had no transitions in 30 days |
+
+### 6.3 Incidental schema-drift observation (briefly, per the §6 rule)
+
+`incidents.status` column carries mixed casing: `'open'` × 78 + `'OPEN'` × 19 + `'secured'` × 139 + `'closed'` × 2 + `'dispatched'` × 1 + `'on_site'` × 1 + `'detected'` × 1. Multiple writers are emitting non-canonical status strings. Flag for phase 4 (data integrity) — no deep-dive in this pass.
+
+### 6.4 Section 6 summary
+
+- **6 tables verified active** in 7d (real write activity).
+- **2 tables `dormant_pipeline_break`** (`incidents` new inserts — the critical pipeline gap: alarms flow but incidents don't).
+- **5 tables `dormant_no_trigger`** (`zara_action_log`, `zara_scenarios`, `onyx_awareness_latency`, `onyx_alert_outcomes`, plus the three dispatch tables in the 30d window).
+- **4 tables `unverified`** (`*/0` REST responses — RLS may be masking real rows).
+
+---
+
+## 7. Cross-capability flow verification
+
+Four flows requested. Each flow walked against a specific correlation ID where possible.
+
+### 7.1 Flow 1 — Alarm ingestion → Telegram (Mac enhancement online): frame → YOLO → FR/LPR → enrichment → Telegram → user receipt
+
+**Verdict: dormant — sub-type `dormant_no_input`.**
+
+Mac enhancement tier uptime at time of pass = 20 min. Mac received **0 `/detect` POSTs** from the Pi. Camera worker's runtime target is `127.0.0.1:11636` per its startup banner (see §1.5). There is **no end-to-end sample** in window that flows through Mac enhancement. Trace first disappears at **Stage 2** (the Pi→Mac HTTP POST never arrived on the Mac).
+
+### 7.2 Flow 2 — Alarm ingestion → Telegram (Mac offline, Pi raw-snapshot fallback): frame → Pi worker → 3s fallback timeout → raw snapshot → Telegram → user receipt
+
+**Verdict: verified.**
+
+Traced correlation ID: `alesidence16iterhhsdcnq58g`.
+
+| Stage | Timestamp | Evidence |
+|---|---|---|
+| 1. Hikvision ISAPI VMD event on CH16 | 2026-04-20 ~18:09 SAST (inferred from downstream) | camera-worker status line `[18:09] ... CH16: human detected ... alerts: 2` |
+| 2. Pi camera worker receives via dvr-proxy (11635), posts frame to YOLO (at 127.0.0.1:11636 per banner, receives null), applies 3s timeout → raw-snapshot fallback path | 2026-04-20 ~18:09 SAST | camera-worker log line 12678: `[ONYX-TELEGRAM] Gate check: proceeding to send channel=16 alert_id=alesidence16iterhhsdcnq58g snapshot=true` (accompanied by `confidence=0.99` synthetic marker in adjacent lines) |
+| 3. Telegram sendMessage to chat `-1003635485432` with inline-keyboard | 2026-04-20 ~18:09 SAST | implied by stage 2 `proceeding to send` marker + user-inbound-callback in stage 4 (closure of loop); direct Telegram message-ID not traced in this pass |
+| 4. User taps `ack` inline-keyboard button | 2026-04-20 19:50:58 UTC (= 21:50 SAST) | `telegram_inbound_updates` row `update_id=490675542`, `update_json.message.text=ack:alesidence16iterhhsdcnq58g` |
+| 5. Hetzner webhook stores | 2026-04-20 19:50:58 UTC | `[ONYX] Stored update #490675542 chat=-1003635485432` (webhook service log) |
+| 6. Hetzner AI processor picks up, replies | 2026-04-20 19:51:05 UTC | `[ONYX] Processing row 10dcf5c1-58b4-4bf8-9b1d-fe6438ad6ae9 from -1003635485432` → `[ONYX] Sending Telegram reply for row 10dcf5c1...` → `[ONYX] Row 10dcf5c1... marked processed.` |
+| 7. DB side-effect of the `ack` | not definitively traced | `incidents.updated_at` shows 141 writes in 7d but no explicit join from `callback_data.alert_id` to `incident_id` column traced in this pass |
+
+End-to-end elapsed time (alert → user ack): ~3h 41m (SAST), during which operator observed and acknowledged.
+
+### 7.3 Flow 3 — Telegram button press → Supabase write: user taps dispatch/ack/false-alarm → handler fires → DB state updated
+
+**Verdict: verified at the "handler marked processed" level; `unverified` at "specific incident-row updated as a consequence".**
+
+Traced correlation ID: `dispatch:alesidence14menthhnnzyludc:SITE-MS-VALLEE-RESIDENCE`.
+
+| Stage | Timestamp | Evidence |
+|---|---|---|
+| 1. User taps `dispatch` button | 2026-04-16 09:46:15 UTC | `telegram_inbound_updates` row with `update_json.message.text=dispatch:alesidence14menthhnnzyludc:SITE-MS-VALLEE-RESIDENCE` |
+| 2. Hetzner webhook stores | 2026-04-16 09:46:15 UTC | webhook service log line `Stored update #…` (exact update_id not extracted for this trace) |
+| 3. Processor handler `_handleDispatchCallback` fires | 2026-04-16 ~09:46 UTC | processor log shows `marked processed` lines on Apr 16 |
+| 4. DB write effect: expected to update `incidents.status` / write to `dispatch_current_state` | **not found** — `dispatch_current_state` / `dispatch_intents` / `dispatch_transitions` all have latest `created_at` of 2026-02-26 (53 days before this callback); `incidents.updated_at` on 2026-04-16 has non-zero activity but no join to this specific `alert_id` was traced | **`unverified`** at the DB-effect stage — the callback reaches the handler per log evidence, but whether the handler wrote anything meaningful to the DB is not confirmed from this pass |
+
+### 7.4 Flow 4 — Dispatch workflow (if evidence exists): incident created → guard assigned → ETA logged → status transitions
+
+**Verdict: dormant — sub-type `dormant_no_trigger`** (30d window).
+
+- `dispatch_transitions` latest row: 2026-02-26 09:24:13 UTC (`from_state=null, to_state=DECIDED, transition_reason=INITIAL_DECISION, actor=AI/SYSTEM`).
+- `dispatch_transitions` with `created_at >= 2026-03-21` (30d): **0 rows**.
+- No guard-assignment or ETA writes observed in `guard_assignments` / `guard_location_heartbeats` (both `*/0` per phase 1a §3.3) in window.
+
+Trace first disappears at **Stage 1** — there has been no new dispatch intent created in 53 days, so there is nothing to walk down.
+
+### 7.5 Section 7 summary
+
+| Flow | Verdict | Trace disappears at |
+|---|---|---|
+| 1. Alarm → Telegram (Mac online) | **dormant_no_input** | Stage 2 (Pi→Mac POST never arrives) |
+| 2. Alarm → Telegram (Pi raw-snapshot fallback) | **verified** | full 7-stage trace for `alesidence16iterhhsdcnq58g`; DB-side-effect at stage 7 partially traced |
+| 3. Telegram button press → Supabase write | **verified** for handler fire; **unverified** for DB side-effect | Stage 4 (DB-side effect cannot be joined back to the callback's alert_id) |
+| 4. Dispatch workflow | **dormant_no_trigger** | Stage 1 (30-day window: zero new dispatch transitions) |
+
+---
+
+## Appendix A — Capability verdict roll-up
+
+| Capability | Verdict (honest) |
+|---|---|
+| YOLO object detection | **verified** (latency out of budget; 22% watchdog trips) |
+| Face recognition | **dormant** (0 matches, 0 encodings in 7d; Pi disabled; Mac no input) |
+| LPR | **dormant_no_input** (0 plates; no vehicles in detection stream) |
+| ByteTrack | **dormant** (Pi env-disabled; Mac no input) |
+| Pi → Mac enhancement handoff | **dormant_pipeline_break** (config ≠ runtime; 0 POSTs reach Mac) |
+| Raw-snapshot fallback | **verified** (81 dispatches in 5h) |
+| Pi camera-worker | **failing** (stoppage in progress) |
+| Pi dvr-proxy | **verified** |
+| Pi rtsp-frame-server | **verified** |
+| Pi yolo-detector | **verified** (alive); detect-calls dormant post-restart |
+| Hetzner telegram-ai-processor | **verified** (41/41 processed) |
+| Hetzner telegram-webhook | **verified** (41/41 stored) |
+| Hetzner status-api | **dormant_no_trigger** |
+| Hetzner nginx | **verified** |
+| Mac enhancement YOLO | **dormant_no_input** |
+| Telegram `liveStatus` intent | **verified** (~28 fires) |
+| Telegram 11 other NL intents | **dormant_no_trigger** |
+| Telegram `ack`/`view`/`dispatch`/`view_cam_` callbacks | **verified** (each fired ≥ 1× in window) |
+| v2 Next.js PATCH `/api/incidents/[id]` | **verified** (141 updated_at writes; attribution ambiguous) |
+| v2 Next.js 18 GET routes | **dormant_no_trigger** (no production deployment) |
+| Supabase PostgREST | **verified** |
+| Telegram Bot API | **verified** |
+| Hikvision ISAPI | **failing** (stoppage in progress) |
+| Hikvision RTSP | **verified** |
+| OpenAI Responses API | **verified** |
+| 3 news-ingest edge functions | **unverified** (invocation logs not in PostgREST) |
+| Ultralytics YOLO (lib) | **verified** |
+| `face_recognition` / OpenCV FR / EasyOCR | **dormant_no_input** |
+| `incidents` new inserts | **dormant_pipeline_break** |
+| `client_evidence_ledger` / `site_alarm_events` / `onyx_evidence_certificates` / `telegram_inbound_updates` | **verified** |
+| `zara_action_log`, `zara_scenarios`, `onyx_awareness_latency`, `onyx_alert_outcomes`, dispatch_* | **dormant_no_trigger** |
+| Alarm→Telegram (Mac) | **dormant_no_input** |
+| Alarm→Telegram (Pi fallback) | **verified** |
+| Telegram button→DB | **verified** (handler); **unverified** (DB effect join) |
+| Dispatch workflow | **dormant_no_trigger** (30d) |
+
+---
+
+*End of Phase 2a.*
