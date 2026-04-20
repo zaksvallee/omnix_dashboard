@@ -690,4 +690,123 @@ No recommendation in this section — per the brief, this is a map, not a plan.
 
 ---
 
-*§7 (duplication findings) pending.*
+## 7. Duplication findings
+
+Catalogue only — no opinion on whether each duplication is a bug, a deliberate inlining, a migration artefact, or a tolerable workaround. File paths + line refs only.
+
+### 7.1 Duplication between `bin/` and `lib/`
+
+#### 7.1.1 Site-awareness type system (deliberate inline copy — comment-annotated)
+
+`OnyxSiteAwarenessSnapshot`, `OnyxChannelStatusType`, `OnyxEventType` are declared in both:
+
+- `bin/onyx_camera_worker.dart:49,51,81` — with an explicit comment at `bin/onyx_camera_worker.dart:47`: `// ─── Inlined from lib/application/site_awareness/onyx_site_awareness_snapshot.dart ───`
+- `lib/application/site_awareness/onyx_site_awareness_snapshot.dart:7,9,39` — canonical declaration (855 LOC file, imported by `bin/onyx_camera_worker.dart:41`)
+
+Note: `bin/onyx_camera_worker.dart:41` also *imports* the sibling file via `'package:omnix_dashboard/application/site_awareness/onyx_site_awareness_snapshot.dart' as awareness;` — so the module is both re-declared inline AND imported under an `awareness` prefix.
+
+#### 7.1.2 `OnyxTelegramCommandRouter`
+
+Phase 1a §5.2 already flagged this. Recorded here for §7 completeness:
+
+- `lib/application/telegram_command_router.dart:17` — canonical class, 515 LOC
+- `bin/onyx_telegram_ai_processor.dart:2956` — re-declared inline in the 3498-LOC processor binary (the binary does NOT import `package:omnix_dashboard/application/telegram_command_router.dart` — see §6.1; it redefines instead)
+
+#### 7.1.3 Telegram inline-keyboard helper
+
+Phase 1a §5 already flagged this. Recorded for §7 completeness:
+
+- `bin/onyx_camera_worker.dart:4764` — `_telegramInlineKeyboardForAlert({ ... })` helper returning `{'inline_keyboard': [...]}`, emitted by the camera worker (`bin/onyx_camera_worker.dart:3509,4572` call sites).
+- `lib/main.dart:15634,15647` — `_telegramInlineKeyboardForProactiveAlert({ ... })` returning the same shape.
+- `lib/main.dart:17822,17824` — `clearedMarkup` / empty `inline_keyboard` variant for "remove" operations.
+- `lib/application/telegram_bridge_service.dart` (780 LOC) — the canonical bridge service; whether it hosts a third copy of the keyboard builder is not re-verified in this pass (flagged for phase 2 if it matters).
+
+### 7.2 Duplication within v1 `lib/ui/`
+
+#### 7.2.1 Ternary-fallback pages (two page widgets registered for one route, selected at build time)
+
+- `/clients`: `ClientsPage` (primary, 4598 LOC) OR `ClientAppPage` (alternate, 10975 LOC) — selector at `lib/ui/onyx_route_operations_builders.dart:311–315` (ternary).
+- `/guards-workforce`: `GuardsWorkforcePage` (primary, 3555 LOC) OR `GuardsPage` (alternate, 2811 LOC) — selector at `lib/ui/onyx_route_operations_builders.dart:360–365` (ternary).
+
+#### 7.2.2 Defined-but-not-mounted page widgets (§1.3)
+
+These are page-class files that appear to be earlier / alternate implementations of routes now served by different widgets. Entries marked with a current-mount target in parentheses:
+
+- `lib/ui/dashboard_page.dart` — `DashboardPage` (5464 LOC) vs currently-mounted `CommandCenterPage` wrapping `LiveOperationsPage` for `/dashboard`
+- `lib/ui/ledger_page.dart` — `LedgerPage` (2788 LOC) vs currently-mounted `SovereignLedgerPage` for `/ledger`
+- `lib/ui/sites_command_page.dart` — `SitesCommandPage` (2783 LOC) vs currently-mounted `SitesPage` for `/sites`
+- `lib/presentation/reports_page.dart` — older `ReportsPage` (1040 LOC) vs currently-mounted `ClientIntelligenceReportsPage` for `/reports`
+- `lib/presentation/incidents_page.dart` (7 LOC), `lib/presentation/operations_page.dart` (9 LOC), `lib/presentation/overview_page.dart` (7 LOC) — stub files in `lib/presentation/` with no mount target
+
+Note: whether these files are truly dead or are reachable via test harnesses / dev builds was not re-verified; static grep of `main.dart`/`ui/`/`routing/`/`presentation/` did not show inbound references.
+
+### 7.3 Duplication within `lib/main.dart`
+
+Phase 1a §2.x already flagged that `bin/onyx_telegram_ai_processor.dart` reimplements the Telegram command router instead of importing it. Within `lib/main.dart` (42,987 LOC) the following are present but whether they represent true duplication is not further traced here (the file is too large for a static duplicate-detection pass):
+
+- `_telegramInlineKeyboardForProactiveAlert` helper at `lib/main.dart:15634` (already noted in §7.1.3).
+- Telegram webhook handling code — some overlap with `bin/onyx_telegram_webhook.dart` (338 LOC) noted by phase 1a §2.x flag "lib/main.dart has Telegram logic embedded in the Flutter app parallel to bin/onyx_telegram_webhook.dart".
+- Theme colour constants: `Color(0xFF9D4BFF)` / `Color(0xFFF59E0B)` / `Color(0xFF63E6A1)` and ~100 similar constants are defined inline across `lib/main.dart:21568–21620` (and elsewhere). v2 has the same tokens in `app/globals.css` / `primitives.css`. This is cross-system duplication (§7.4) rather than intra-`main.dart`.
+
+### 7.4 Duplication between v1 Flutter and v2 Next.js (same business rule, two implementations)
+
+These are the rules that live in both codebases because each system implements the same functional surface. Evidence is the pair of files where each implementation lives; no behaviour comparison is asserted here.
+
+- **Route definition / nav rail**
+  - v1: `lib/domain/authority/onyx_route.dart:39–185` (enum `OnyxRoute` with 16 variants, each carrying path + label + icon + section + shellHeaderLabel + badge metadata)
+  - v2: `components/shell/nav.ts:14–31` (`NAV` array of 16 entries with id + name + icon + href)
+  - Shape differs: v1 groups into 5 `OnyxRouteSection`s with badge kinds; v2 is flat with no sections or badges.
+- **Active-route resolution**
+  - v1: `lib/domain/authority/onyx_route.dart:236–246` (`OnyxRoute.fromLocation(String)`, longest-prefix pattern)
+  - v2: `components/shell/nav.ts:37–47` (`activeIdForPathname(pathname)`, also longest-prefix pattern)
+- **Alarm triage action set** (dispatch / false alarm / escalate)
+  - v1: consumed inside `lib/ui/alarms_page.dart:887` (alarm-detail card) and `lib/ui/dispatch_page.dart:893` (`_outcomeCard`).
+  - v2: `app/alarms/_components/Drawer.tsx:166–181` + `app/api/incidents/[id]/route.ts:57` (PATCH handler with `action: "dispatch"|"false_alarm"|"escalate"`).
+- **Ledger facet vocabulary** (EVIDENCE / COMMUNICATIONS / DECISIONS / INTEL / VIP / DISPATCH / UNTYPED)
+  - v1: `lib/ui/sovereign_ledger_page.dart:2921` (`enum _ObCategory`)
+  - v2: `app/ledger/_components/LedgerClient.tsx:237–281` (chip list)
+- **`OnyxAlertOutcome` vocabulary** (trueThreat / falseAlarm / unknown / guardDispatched / armedResponse / clientAcknowledged)
+  - v1: `lib/application/onyx_outcome_feedback_service.dart:3–10`
+  - v2: no v2 enum observed; the v2 PATCH accepts string literals "dispatch"/"false_alarm"/"escalate" (phase 1a §6.1), which does not map 1:1 to the 6-value v1 enum.
+- **Incident severity vocabulary** (P1 / P2 / P3)
+  - v1: referenced throughout `lib/ui/alarms_page.dart`, `dispatch_page.dart`, `events_review_page.dart` (exact enum not surfaced in this grep).
+  - v2: `app/alarms/_components/AlarmsClient.tsx:282–292` (`SEV_FILTERS` with ALL/P1/P2/P3); also used in `/events`, `/command`.
+- **Supabase table references** — identical across both systems (incidents, sites, guards, clients, dispatch_current_state, ledger_entries / client_evidence_ledger, etc.). Phase 1a §3 enumerates tables; v1 usage is scattered across `lib/main.dart` + `lib/application/` + `bin/onyx_camera_worker.dart` and v2 usage is in `lib/supabase/queries/*.ts` (15 files). No single canonical schema client in either stack; both reach into the same tables directly.
+
+### 7.5 Duplication within v2 — per-page `page.tsx` boilerplate
+
+All 16 routed `page.tsx` files (plus the non-routed `app/_scaffold/page.tsx`) declare the same two exports as a Next.js dynamic-rendering contract:
+
+```ts
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+```
+
+Evidence: grep shows the pair in `app/admin/page.tsx:6–7`, `app/ai-queue/page.tsx:6–7`, `app/alarms/page.tsx:8–9`, `app/clients/page.tsx:10–11`, `app/command/page.tsx:12–13`, `app/dispatches/page.tsx:6–7`, `app/events/page.tsx:7–8`, `app/governance/page.tsx:6–7`, `app/guards/page.tsx:7–8`, `app/intel/page.tsx:6–7`, `app/ledger/page.tsx:10–11` (approximate), `app/reports/page.tsx:6–7`, `app/sites/page.tsx:7–8`, `app/track/page.tsx:6–7`, `app/vip/page.tsx:6–7`, and `app/page.tsx:3–4` (Zara home). Total: 16 routed + 1 scaffold copies of the same two-line export pair.
+
+Next.js does not expose a Route Segment Config inheritance path through parent folders for these two flags; per-file declaration is the idiomatic Next.js App Router placement.
+
+### 7.6 Duplication across configuration / migration trees (phase 1a cross-reference)
+
+Phase 1a §3.2 noted:
+
+- `supabase/migrations/` (44 files) and `deploy/supabase_migrations/` (10 files) — parallel migration sets. 9 of 10 `deploy/` migrations are applied to the live DB; the other two (`telegram_operator_context`, `site_shift_schedules`) are not. Defined by phase 1a as out-of-scope for 1b; recorded here so the phase 1b `duplication findings` section is complete.
+
+Also noted in phase 1a §2.x:
+
+- Hetzner `/opt/onyx/` deploy tree contains `src/`, `telegram_ai_processor/`, `telegram_ai_processor_src/` directories parallel to the current `bin/` binary path (`/opt/onyx/bin/onyx_telegram_ai_processor`). The running service does not execute from those — the `ExecStart` points at the `bin/` binary — but the duplicate trees still live on disk. Phase 3 scope.
+
+---
+
+## 8. Appendix: Phase 1a cross-references and loose ends
+
+- **Shared-code boundary retroactive reclassification (phase 1a → 1b):** Phase 1a treated `lib/application/**` as backend because it is imported by `bin/`. Phase 1b §6 accepts that reclassification and maps the import surface without re-auditing the files.
+- **v2 HEAD stability:** `onyx_dashboard_v2` HEAD is unchanged since the audit at `a19f9a2` (tagged `audit-2026-04-19`). No page drift since.
+- **v1 HEAD:** `omnix_dashboard` HEAD at the start of this pass was `f216695`; this phase 1b adds further commits (c4137c2 §0-1, 5e62d06 §2, d8208b0 §3, f6b2766 §4A, ff7e8a9 §4B, 66d9a52 §4C, 36538e2 §5, 5bf8862 §6, and this final commit for §7+appendix).
+- **Items flagged and explicitly left for later phases:**
+  - Phase 1a flagged items: `_OnyxAlertCallbackAction` enum full list, Python YOLO service full HTTP path list, edge-function CRON schedules — all **not** re-investigated here per prior direction.
+  - Phase 1b §4 items marked `unverified`: 11 rows across pages (e.g. v1 severity filter on alarms, v1 worker-chain display on ai-queue, v1 KPI row on dispatches, v1 responsive breakpoint details on v2, v1 deep-link query params on events). These are reserved for phase 2 (or explicit follow-up) and are not assertions.
+
+---
+
+*End of phase 1b.*
