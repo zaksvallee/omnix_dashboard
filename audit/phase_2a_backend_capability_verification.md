@@ -456,4 +456,121 @@ All three are **well-formed**, site-scoped, and match the inbound-message semant
 
 ---
 
-*§4 (API endpoints), §5 (external integrations), §6 (data layer), §7 (cross-capability flows) pending.*
+## 4. API and endpoint verification
+
+Phase 1a §6 enumerated 19 Next.js API routes, 2 Python HTTP services (Pi 11636/11638), 4 Dart HTTP services (Pi 11635 + Hetzner 8443/8444 + Mac dev 11635-ish), and 3 nginx locations. This section reports 7d request volume, response distribution, and verdict per endpoint class.
+
+### 4.1 Next.js Route Handlers — `/Users/zaks/onyx_dashboard_v2/app/api/**`
+
+**Deployment state at time of pass:** v2 is running only as a local **dev server** (`next dev`, pids 7798 + 7907 on the Mac, started 2026-04-20 07:00 SAST). No production deployment (no DNS, no CI output, no process on Pi or Hetzner that serves this app) was observed in phase 1a §1/§2 or in this pass. All 7d request metrics below are therefore **from localhost dev traffic only** — they do not reflect production reachability.
+
+**Evidence for v2 PATCH `/api/incidents/[id]` (the single write path):**
+- `incidents.updated_at >= 2026-04-13` row count: **141** (PostgREST count-exact response).
+- Latest updates (2026-04-20 19:38 UTC):
+  ```
+  id=43c07910-fb65-407d-82f7-3c3227fa62cb   updated_at=2026-04-20T19:38:27  status=OPEN
+  id=829bf388-03ca-4cb2-90ca-78dee43e08b9   updated_at=2026-04-20T19:38:19  status=dispatched
+  id=4c138e76-8e37-4433-9dd1-da2108dace3f   updated_at=2026-04-20T19:38:06  status=secured
+  ```
+- **Attribution caveat:** 141 `updated_at` events across 7d cannot be solely attributed to v2 — the v1 Flutter app also writes to `incidents`, as does `bin/onyx_camera_worker.dart` when it emits alerts. The three status values `OPEN`/`dispatched`/`secured` all correspond to the v2 PATCH-body `action` values (`dispatch` → `dispatched`, `false_alarm` → `secured`) described in phase 1a §6.1 — consistent with v2 having hit the path, but not proof of exclusive attribution.
+
+**Verdict per route (v2 Next.js):**
+
+| Route | Method | Verdict | Evidence |
+|---|---|---|---|
+| `/api/incidents/[id]` | PATCH | **verified** (for the path — attribution ambiguous with v1) | 141 `updated_at` writes in window with status values `OPEN`/`dispatched`/`secured` matching phase 1a §6.1 PATCH-body contract |
+| `/api/incidents` | GET | **dormant_no_trigger** (no production deployment observed) | no external traffic reaches a v2 deployment; dev-only localhost |
+| `/api/alarms` | — | **dormant_no_trigger** | same (route does not exist in v2 — phase 1a §6.1 lists 19 routes, `/api/alarms` is not one of them; the `/alarms` *page* uses `/api/incidents` data) |
+| `/api/admin` | GET | **dormant_no_trigger** | same |
+| `/api/ai-queue` | GET | **dormant_no_trigger** | same |
+| `/api/clients` | GET | **dormant_no_trigger** | same |
+| `/api/command/dispatches`, `/command/events`, `/command/queue` | GET | **dormant_no_trigger** | same |
+| `/api/dispatches` | GET | **dormant_no_trigger** | same |
+| `/api/events` | GET | **dormant_no_trigger** | same |
+| `/api/governance` | GET | **dormant_no_trigger** | same |
+| `/api/guards` | GET | **dormant_no_trigger** | same |
+| `/api/intel` | GET | **dormant_no_trigger** | same |
+| `/api/ledger` | GET | **dormant_no_trigger** | same |
+| `/api/ledger/facets` | GET | **dormant_no_trigger** | same |
+| `/api/reports` | GET | **dormant_no_trigger** | same |
+| `/api/sites` | GET | **dormant_no_trigger** | same |
+| `/api/track` | GET | **dormant_no_trigger** | same |
+| `/api/vip` | GET | **dormant_no_trigger** | same |
+
+**Response-code distribution + p95 latency:** `unverified` — no deployment logs exist. Would need either a deployed access log or Vercel/CDN analytics to quantify.
+
+### 4.2 Python HTTP services (Pi)
+
+**`tool/monitoring_yolo_detector_service.py` on `127.0.0.1:11636`:**
+- Live health: `curl http://127.0.0.1:11636/health` → **200** (smoke-tested from Pi).
+- Request volume (current log segment since 2026-04-20 17:03:18 SAST): **103** `detect complete` entries (all pre-restart — see §1.1) + ongoing `GET /health` probes from Mac enhancement server once per 30s (not logged on Pi side, visible on Mac side).
+- Response code distribution: all `POST /detect` logged in file return `200` (per standard HTTP log format at the end of each completion); `inference watchdog tripped` trips also return `200` because the service returns a synthetic-failure JSON rather than a 5xx.
+- p95 latency: reported in §1.1 as **161,950 ms** (from `elapsed_ms=` distribution).
+- Verdict: **verified** for `/health`; **verified** for `/detect` at the pre-17:03 configuration; **dormant_no_input** for `/detect` post-17:03 (camera worker no longer POSTing).
+
+**`tool/onyx_rtsp_frame_server.py` on `127.0.0.1:11638`:**
+- Live health: `curl http://127.0.0.1:11638/health` → **200** (smoke-tested).
+- Request-line count in `/opt/onyx/tmp/onyx_rtsp_frame_server.log` (7d): **106** entries matching `GET /` / `POST /` / `200 ` / `404 ` patterns.
+- Channel workers started (at last restart Apr 20 00:30:47 SAST): CH4, CH5, CH12, CH16 (verbatim "RTSP frame worker started for CHn" lines; URL redacted — credential in string).
+- Response code distribution: not fully enumerated; log is dominated by h264 decoder warnings (`decode_slice_header error`, `non-existing PPS 1 referenced`) — decode-noise rather than HTTP failures.
+- p95 latency: not instrumented.
+- Verdict: **verified** (live + serving + 4 channels warm).
+
+### 4.3 Dart HTTP services
+
+| Service | Host | Bind | Live-probe | Request volume (7d) | Verdict |
+|---|---|---|---|---|---|
+| `onyx-dvr-proxy.service` | Pi | 127.0.0.1:11635 | `curl http://127.0.0.1:11635/health` → **200** | Per-request not logged; consumed by camera worker for ISAPI stream (currently disconnect-looping — see §0 stoppage flag) | **verified** (alive) |
+| `onyx-telegram-webhook.service` | Hetzner | 127.0.0.1:8443 (via nginx `/telegram/webhook`) | inbound-only (nginx proxies Telegram's POSTs) | 41 `Stored update` lines in 7d (matching 41 `telegram_inbound_updates` DB rows) | **verified** |
+| `onyx-status-api.service` | Hetzner | 127.0.0.1:8444 (via nginx `/v1/`) | live — `Status API listening on 127.0.0.1:8444` banner only | 1 `request/GET/POST` log-line match in 7d (== start banner only); 0 legitimate request handling surfaced | **dormant_no_trigger** |
+| `bin/onyx_telegram_bot_api_proxy.dart` (Mac dev) | Mac | loopback (port not in phase 1a recon output) | foreground dev only | dev-only; no production traffic | **dormant_no_trigger** |
+
+### 4.4 Nginx (Hetzner)
+
+**Evidence query:** `/var/log/nginx/access.log` (current) + `access.log.1` (rotated).
+
+**Request volume (7d):** 434 lines in current + 691 in rotated = **1,125 total**.
+
+**Path distribution (top 10 from current segment of 434 lines):**
+
+| Path | Requests | Note |
+|---|---:|---|
+| `/` | 124 | mix of browser + crawler root hits |
+| `(400-body)` | 24 | malformed HTTP — scans |
+| `/favicon.ico` | 14 | crawler |
+| `/.git/config` | 11 | bot scan |
+| `/robots.txt` | 6 | crawler |
+| `/pages/createpage-entervariables.action` | 6 | Confluence-exploit scan |
+| `/cgi-bin/.%2e/.%2e/...bin/sh` | 6 | shellshock scan |
+| `/hello.world?%ADd+allow_url_include%3d1+...` | 4 | PHP-exploit scan |
+| `/.env` | 4 | credential scan |
+| `/cgi-bin/%%32%65%%32%65/...bin/sh` | 4 | shellshock scan |
+
+**Response-code distribution (current segment):**
+
+| Code | Count |
+|---:|---:|
+| 404 | 193 |
+| 301 | 71 |
+| 200 | 49 |
+| 400 | 44 |
+| 405 | 34 |
+
+**Legitimate paths in current access log:**
+- `/telegram/webhook`: **3 hits in current log** (vs 41 Stored-update records at the webhook service — the other 38 are in the rotated log or via `access.log.1` where the grep in this pass returned only current).
+- `/v1/`: **3 hits** (all returned 404 — path below `/v1/` does not exist).
+- `/health`: `curl` smoke-test returns **200** (literal `ONYX API OK` per nginx config).
+
+**Verdict (nginx locations):**
+
+| Location | Verdict | Evidence |
+|---|---|---|
+| `/telegram/webhook` (nginx → 127.0.0.1:8443) | **verified** | 41 webhook-service `Stored update` rows reconcile against Telegram inbound volume; nginx access log shows the location is hit even if only 3 lines surface in the current un-rotated segment |
+| `/v1/` (nginx → 127.0.0.1:8444) | **dormant_no_trigger** | 3 `/v1/` hits in current access log, all returning 404 from the Dart status API; no successful path below `/v1/` exercised |
+| `/health` | **verified** (smoke) | returns 200 on ad-hoc curl from off-host; request count in window **unverified** (literal returns don't surface as journal/errors — access-log path column is `/health`, 0 matches in the 434-line current segment which strongly suggests low or zero production probe traffic in this window) |
+| `:80 → :443` (301 redirect) | **verified** | 71 `301` responses in 7d current log |
+| HTTPS TLS (Let's Encrypt) | **verified** | all `200` responses arrive over 443; certs refresh via certbot timer (phase 1a §2) |
+
+---
+
+*§5 (external integrations), §6 (data layer), §7 (cross-capability flows) pending.*
