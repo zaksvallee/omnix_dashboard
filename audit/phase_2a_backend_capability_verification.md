@@ -296,4 +296,47 @@ Evidence quality: **good** (gate-check log with timestamp + alert_id + channel +
 
 ---
 
-*§2 (service health and throughput), §3 (Telegram bot surface), §4 (API endpoints), §5 (external integrations), §6 (data layer), §7 (cross-capability flows) pending — to be committed separately per per-section rule.*
+## 2. Service health and throughput
+
+Window for all rows below: 7 days (2026-04-13 00:00 → 2026-04-20 21:57 SAST) unless otherwise stated. "Restarts" = count of `systemd[1]: Started <unit>` lines in `journalctl -u <unit> --since "2026-04-13"`.
+
+### 2.1 Pi (`onyx-pi-msvallee`)
+
+| Unit | Uptime (current segment) | Restarts (7d) | Failed results (7d) | Error rate indicator | Last successful op | Last error | Verdict |
+|---|---|---:|---:|---|---|---|---|
+| `onyx-camera-worker.service` | 4h 53m (since 2026-04-20 17:03:38 SAST) | **6,780** | **6,745** | 6,745 failures / 7d ≈ 963/day ≈ 1 failure every 1.5 min | 2026-04-20 15:06:14 SAST — `site_alarm_events` rows and `onyx_evidence_certificates` row `20860a98-…` issued for camera_id `5`, event `EVT-1776697568000000-5-VMD` | ongoing: `Alert stream closed unexpectedly` reconnect loop (every ~5s since 21:56 SAST) — 7,926 total disconnect lines in current log | **failing** — the service is `active (running)` from systemd's view but is emitting continuously and producing zero alerts since the stream-disconnect loop began |
+| `onyx-dvr-proxy.service` | 14h (since 2026-04-20 07:51:46 SAST) | 48 | 44 | 44 failed / 7d ≈ 6/day | service banner: `ONYX local Hikvision DVR proxy is live. Bind: http://127.0.0.1:11635`; last proxied traffic not enumerated (proxy log contains startup banner only) | 2026-04-19 23:52:36 SAST `Failed with result 'exit-code'` (phase 1a §2) | **verified** — binding up; throughput unverified from this pass (proxy writes no per-request log line) |
+| `onyx-rtsp-frame-server.service` | 21h 26m (since 2026-04-20 00:30:47 SAST) | 4 | 3 | low restart churn | last startup message `[ONYX] RTSP frame warmup complete for all configured channels` followed by 4 channel worker starts for CH4, CH5, CH12, CH16 (URLs redacted) | 2026-04-20 00:27:48 SAST `Failed with result 'timeout'` (phase 1a §2) | **verified** — 4 RTSP channels warmed up; log is dominated by h264 decode warnings (`decode_slice_header error`, `non-existing PPS 1 referenced`, etc.) — decoder-noise-under-load rather than capability failure |
+| `onyx-yolo-detector.service` | 4h 53m (since 2026-04-20 17:03:18 SAST) | 54 | 32 | 32 failed / 7d ≈ 4.5/day; **1 oom-kill** at 2026-04-20 13:16:50 SAST | 2026-04-20 17:03:47 SAST `model warmup complete in 6389 ms (model=yolov8s.pt imgsz=640)`; 103 successful `detect complete` log lines since restart (but all before 17:03 restart — post-restart POST count is 0 per §1.1 finding that camera worker now hits a different endpoint) | 2026-04-20 13:31:06 SAST `inference watchdog tripped after 30s` (last of 124 trips) | **verified** — process is healthy, answering health probes; no detection calls are reaching it post-restart (see §1.5) |
+
+**Pi resource snapshot (at time of pass):**
+- RAM: 3,784 MB total, 1,287 MB used, 510 MB free, 2,144 MB in buff/cache, 2,496 MB available
+- Swap: 2,047 MB total, 217 MB used
+- `/` filesystem: 20 GB used of 58 GB (35%)
+
+### 2.2 Hetzner (`ubuntu-4gb-nbg1-onyx-prod-1`)
+
+| Unit | Uptime (current segment) | Restarts (7d) | Failed results (7d) | Last successful op | Last error | Verdict |
+|---|---|---:|---:|---|---|---|
+| `onyx-telegram-ai-processor.service` | 3d 4h 38m (since 2026-04-17 15:18:38 UTC) | 2 (both on 2026-04-17 15:18 during deploy) | 0 | 2026-04-20 19:51:32 UTC — `[ONYX] Row 65fc5d57-7326-49e6-9c07-8995f81e21bd marked processed.` (AI response `"Signals normal at Ms Vallee Residence. - Perimeter clear - 0 people, 0 vehicles, 0 animals ..."`) | 2 `PostgrestException(code: 502, Bad Gateway)` events between 2026-04-17 and 2026-04-20 — self-recovered | **verified** — 41/41 inbound rows processed in window |
+| `onyx-telegram-webhook.service` | 3d 4h 38m | 1 | 0 | 2026-04-20 19:51:28 UTC — `[ONYX] Stored update #490675543 chat=-1003635485432` | 0 errors post-restart (Apr 17 11:27–11:31 UTC quota-exceed errors are **pre-restart**, not in the current segment) | **verified** — 41/41 inbound webhooks persisted to `telegram_inbound_updates` |
+| `onyx-status-api.service` | 3d 4h 38m | 1 | 0 | 2026-04-17 15:18:38 UTC — `[ONYX] Status API listening on 127.0.0.1:8444` | 2026-04-17 09:01:07 UTC `PostgrestException` (exceed_egress_quota — pre-restart) | **dormant** — sub-type **`dormant_no_trigger`**: only 12 journal lines in 7d, all start/stop/listening; no request handling observed because the upstream path (`/v1/` via nginx) has received no external traffic surfaced in logs. Endpoint reachability per §4 |
+| `onyx-camera-worker.service` (Hetzner unit, separate from Pi unit) | inactive (dead); unit `disabled` | 0 | 0 | never activated in window | n/a | **dormant** — sub-type **`dormant_no_trigger`**: unit exists but is disabled; deploy artefact only. Not in the current runtime topology. |
+| `nginx.service` | 10d 13h 26m (since 2026-04-10 06:31:37 UTC) | 0 | 0 | continuously serving `/telegram/webhook` → 8443 and `/v1/` → 8444 (webhook service shows 41 inbound updates landed via it) | n/a | **verified** — reverse proxy is the transport for the 41 Telegram webhook deliveries in window |
+| `docker.service` / `containerd.service` | active | — | — | — | — | **dormant** — sub-type **`dormant_no_trigger`**: phase 1a §2 already noted "no compose stack active in /opt/* observed". Docker is installed and running with no ONYX workload on it |
+
+### 2.3 Mac local (`/Users/zaks/omnix_dashboard`)
+
+No launchd / systemd supervision — processes run in foreground shells. `etime` from `ps -o etime,pid,command`.
+
+| Process | Uptime (elapsed at pass time) | Supervisor | Last successful op | Verdict |
+|---|---|---|---|---|
+| Mac enhancement YOLO (`tool/monitoring_yolo_detector_service.py`, pid 29468) | 20m 20s (since 2026-04-20 21:49 SAST) | `scripts/mac_enhancement_start.sh` foreground | 2026-04-20 21:52:02 SAST — `[ONYX-YOLO] model warmup complete in 917 ms (model=models/yolo11l.pt imgsz=640)` | **dormant_no_input** — 0 detect POSTs since start; health-pings only |
+| Mac dev camera-worker (`bin/onyx_camera_worker.dart`, pid 23714) | 2h 3m 54s | `scripts/ensure_camera_worker.sh --watchdog-loop` foreground | — (dev instance; not the production Pi worker) | **unverified** — this is the developer-machine dev copy; its dev interactions (if any) were not separately logged for this audit |
+| Mac dev camera-worker log sink (`scripts/rotating_log_sink.py`, pid 23717) | 2h 3m 54s | piped from the above | tail output to `tmp/onyx_camera_worker.log` | **verified** — log file is being written |
+| Mac DVR CORS proxy (`scripts/onyx_dvr_cors_proxy.py`, pid 72888) | 2d 1h 40m 58s (since 2026-04-18 20:06 SAST) | `scripts/ensure_dvr_proxy.sh` foreground | n/a (dev proxy — production DVR proxy is on Pi) | **dormant_no_trigger** — dev instance, has not been exercised by production traffic in window |
+| Mac Telegram Bot API proxy (`bin/onyx_telegram_bot_api_proxy.dart`, pid 72608) | 2d 1h 41m 40s | foreground | n/a (dev proxy) | **dormant_no_trigger** — dev instance |
+
+---
+
+*§3 (Telegram bot surface), §4 (API endpoints), §5 (external integrations), §6 (data layer), §7 (cross-capability flows) pending.*
