@@ -479,4 +479,118 @@ Renamed route.
 
 ---
 
-*§4 Batch B (Operations, 6 pages) written — Governance/Evidence/System and remaining v1-only batches pending.*
+### 4.3 Governance / Evidence / System
+
+#### Page: `/governance`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Operator attestations table (PSIRA dates) | unverified | v1 grep did not surface an attestations-only view — governance surface is wider (readiness signals, blockers, partner trends) | present | `app/governance/_components/GovernanceClient.tsx:224–248` (attestations from `guards` table per v2 audit) | v2 audit: this is the one live/honest surface on `/governance`. |
+| KPI row (current / renewal / overdue counts) | unverified | not located as a KPI row; v1 has compliance blockers instead | present | `app/governance/_components/GovernanceClient.tsx:110–134` | — |
+| Policy filter (ALL / AT-RISK / ZARA FLAGS / DRAFT) | absent | not found in v1 | present_stub | `app/governance/_components/GovernanceClient.tsx:148–159` (last three disabled per v2 audit) | — |
+| Policy catalogue list | absent | not found (v1 doesn't expose a policy catalogue UI) | absent | `app/governance/_components/GovernanceClient.tsx:161–165` (empty-state: "will appear here once SOP registry is enabled") | both absent — v2 is explicit empty-state. |
+| Selected policy detail (adherence + version history) | absent | not found | absent | `GovernanceClient.tsx:169–209` (empty-state) | — |
+| Exception review queue | absent | not found | absent | `GovernanceClient.tsx:191–198` (empty-state) | — |
+| Audit trail of signatures / amendments | absent | not found | absent | `GovernanceClient.tsx:250–256` (empty-state) | — |
+| Zara observations panel | absent | not found | absent | `GovernanceClient.tsx:258–264` (empty-state) | — |
+| Compliance blocker alerts (severity-tracked) | present | `lib/ui/governance_page.dart:2422` (`_readinessBlockersSurface`) | absent | not found | — |
+| Partner trend analysis (7-day) | present | `lib/ui/governance_page.dart:8565` (`_partnerTrendRows`) | absent | not found | — |
+| Operational readiness signals board | present | `lib/ui/governance_page.dart:2706` (`_readinessSignalsSurface`) | absent | not found | — |
+| Scope context rail with handoff actions | present | `lib/ui/governance_page.dart:1604` (`_governanceContextRail`) | absent | not found | — |
+| Quick actions recovery deck | present | `lib/ui/governance_page.dart:2596` (`_quickActionsSurface`) | absent | not found | — |
+| Desktop workspace layout (embedded panels + ops/board/context rails) | present | `lib/ui/governance_page.dart:1117` (`_governanceDesktopWorkspace`) | absent | not found | — |
+
+#### Page: Ledger (v1 nav "OB Log" → `/ledger` | v2 "Ledger" → `/ledger`)
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Ledger feed with entry selection | present | `lib/ui/sovereign_ledger_page.dart:1120` (`_buildDetailPanel`) | present | `app/ledger/_components/LedgerClient.tsx:357–448` (infinite-scroll "Load next 100") | — |
+| Category / facet filter | present | `lib/ui/sovereign_ledger_page.dart:2921` (`enum _ObCategory`) + full-text search | present | `app/ledger/_components/LedgerClient.tsx:237–281` (facet chips: All / EVIDENCE / COMMUNICATIONS / DECISIONS / INTEL / VIP / DISPATCH / UNTYPED) | v1 includes free-text search; v2 is chip-only. |
+| Block / entry detail inspector (canonical JSON payload) | present | `lib/ui/sovereign_ledger_page.dart:1120` (detail panel with payload, hash chain, related entries) | present | `app/ledger/_components/LedgerClient.tsx:450–487` | — |
+| Chain integrity badge | present | `lib/ui/sovereign_ledger_page.dart:335` (`_buildHeroPanel`) | present | `app/ledger/_components/LedgerClient.tsx:291–340` (chain integrity badge + latest root hash) | — |
+| Manual audit entry composer | present | `lib/ui/sovereign_ledger_page.dart:554` (`_buildComposerPanel`) | absent | not found (`LedgerClient.tsx:283–286` — panel placeholder only, no composer) | v1 ships the composer; v2 does not. |
+| Multi-view toggle (Record / Chain / Linked) | present | `lib/ui/sovereign_ledger_page.dart:3004` (`enum _ObWorkspaceView`) | absent | not found | — |
+| Hero actions (Verify chain / Export packet) | absent | not found in v1 | present_stub | `app/ledger/_components/LedgerClient.tsx:343–353` (both disabled per v2 audit) | — |
+| Pinned audit entry highlight | present | `lib/ui/sovereign_ledger_page.dart:38–68` (class `SovereignLedgerPinnedAuditEntry`) | absent | not found | — |
+| Cross-app navigation hooks (CCTV / Dispatch / Report / Track / Agent / Ops / Intel / VIP / Roster planner) | present | `lib/ui/sovereign_ledger_page.dart:97–107` (constructor callbacks) | absent | not found | — |
+
+#### Page: `/reports`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Report list with row selection | present | `lib/ui/client_intelligence_reports_page.dart:2379` (`_reportWorkbenchSurface`) | present | `app/reports/_components/ReportsClient.tsx:616–620,732–761` (URL-persisted) | — |
+| Report tab filter | unverified | v1 has scope-based filtering with date range (`:164–166`) rather than fixed tabs | present | `app/reports/_components/ReportsClient.tsx:633–638,719–729` (Dash / Sched / QBR / Tpl) | — |
+| Portfolio dashboard (30d stacked-area chart + KPIs) | absent | not found as a distinct chart view | present | `app/reports/_components/ReportsClient.tsx:284–424` (portfolio with 6 KPIs) | v2-only. |
+| Export actions (PDF / Print / Share) on portfolio | absent | not found as PDF/Print/Share trio (v1 has proof-engine export flow instead) | present | `app/reports/_components/ReportsClient.tsx:322–331` | v2-only working action set. |
+| Hero actions on non-portfolio reports | absent | not found | present_stub | `app/reports/_components/ReportsClient.tsx:451–458` (disabled per v2 audit) | — |
+| Report generation with proof-engine verification | present | `lib/ui/client_intelligence_reports_page.dart:149–151` (static members) | absent | not found | v1-only. |
+| Receipt history with JSON / CSV copy + status filters | present | `lib/ui/client_intelligence_reports_page.dart:10689` (`_exportCoordinator.copyJson()`) | absent | not found | — |
+| Report preview dock (proof builder side-by-side) | present | `lib/ui/client_intelligence_reports_page.dart:3098` (`_reportPreviewSurface`) | absent | not found | — |
+| Scope-based filtering with date range | present | `lib/ui/client_intelligence_reports_page.dart:164–166` (scope + start/end date state) | absent | not found | — |
+| Governance handoff integration (send report to governance desk) | present | `lib/ui/client_intelligence_reports_page.dart:80–82` (callback params) | absent | not found | — |
+| Scheduler / Recipients / Anomalies / Sign-off chain | absent | not found in v1 | absent | `app/reports/_components/ReportsClient.tsx:513–569` (empty-state sections) | both absent; v2 is honest empty-state. |
+
+#### Page: `/admin`
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Tab navigation across admin sections | present | `lib/ui/admin_page.dart:5177` (Guards tab), `:5180` (Sites), `:5183` (Clients), `:10365` (`_systemTab`) | present | `app/admin/_components/AdminClient.tsx:99–111,883–906` (11 tabs) | v1 has entity tabs + system tab; v2 has System health + 10 platform-config tabs. |
+| Directory sync and CSV bulk import/export | present | `lib/ui/admin_page.dart:5190–5246` (`_entityManagementView`) | absent | not found (v2 audit: no CSV import/export controls) | v1-only directory management. |
+| Interactive entity tables with live counts | present | `lib/ui/admin_page.dart:10152–10290` (table builders) | unverified | v2 has row counts on System health (`AdminClient.tsx:170,186,202,218`); full entity tables not located in evidence pass | partial v2 overlap. |
+| System health dashboard (multi-metric) | present | `lib/ui/admin_page.dart:10365–10415` (`_systemTab` aggregating 7+ cards: SLA compliance, policy effectiveness, AI comms, watch identity, listener parity) | present | `app/admin/_components/AdminClient.tsx:170–218` (real row counts on System health tab) | v1 has richer multi-metric; v2 shows row counts only. |
+| Partner scorecard with trend filtering | present | `lib/ui/admin_page.dart:10417` (`_partnerScorecardSummaryCard`) | absent | not found | — |
+| Global readiness policy monitor | present | `lib/ui/admin_page.dart:11047` (`_globalReadinessSummaryCard`) | absent | not found | — |
+| Radio intent phrase / listener alarm tracking | present | `lib/ui/admin_page.dart:11526` (`_radioIntentPhraseCard`) | absent | not found | — |
+| Identity & SSO / Roles & access / API keys / Webhooks / Feature flags / Billing & licence | absent | not found | present_stub | `app/admin/_components/AdminClient.tsx` 11-tab nav; all but System health show DUMMY DATA badge per `AdminClient.tsx:113–120` | v2-only surfaces; v2 audit: none are wired to real data. |
+| Hero actions (Health check all / + Add integration / New flag) | absent | not found | present_stub | `app/admin/_components/AdminClient.tsx:396–400,573–575` (all disabled per v2 audit) | — |
+| "Open in Ledger" link on audit tab | absent | not found | present | `app/admin/_components/AdminClient.tsx:329–331` | v2-only cross-nav hook. |
+
+### 4.4 Additional v1-only pages
+
+These have no v2 counterpart (see §3 row for each). All v2 status rows are therefore `absent`.
+
+#### Page: v1 `ControllerLoginPage` (pre-router; mounted at `lib/main.dart:34521`)
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Username + password entry with validation | present | `lib/ui/controller_login_page.dart:184–203` (`_buildField` username/password) | absent | — | v2 has no login surface. |
+| Demo account quick-select | present | `lib/ui/controller_login_page.dart:265–343` (autofill via `_fillDemoAccount`) | absent | — | — |
+| Submit authentication → `onAuthenticated` callback | present | `lib/ui/controller_login_page.dart:220–244` (`_submit` at `:52`) | absent | — | — |
+| Clear cache / reset preview | present | `lib/ui/controller_login_page.dart:347–373` (`_resetPreview` at `:85`; optional `onResetRequested`) | absent | — | — |
+| Inline error display | present | `lib/ui/controller_login_page.dart:204–215` (conditional error text) | absent | — | — |
+
+#### Page: v1 `GuardMobileShellPage` (alternate shell; returned at `lib/main.dart:40780`)
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Shift start verification screen | present | `lib/ui/guard_mobile_shell_page.dart:3200–3241` (`onShiftStartQueued` callback) | absent | — | — |
+| Dispatch alert screen | present | `lib/ui/guard_mobile_shell_page.dart:3336–3363` (dispatch tab via `_screenChip`) | absent | — | — |
+| Status update (on-duty / break / role-specific) | present | `lib/ui/guard_mobile_shell_page.dart:3442–3482` (`onStatusQueued`) | absent | — | — |
+| NFC checkpoint scanning | present | `lib/ui/guard_mobile_shell_page.dart:3484–3545` (`onCheckpointQueued`) | absent | — | — |
+| Emergency / panic button | present | `lib/ui/guard_mobile_shell_page.dart:3547–3695` (`onPanicQueued` at `:3605`) | absent | — | — |
+| Sync history + queue management (retry failed ops) | present | `lib/ui/guard_mobile_shell_page.dart:2203–2450` (panel with filter chips + retry at `:2364`, `:2389`, `:2792`, `:2817`) | absent | — | — |
+| Telemetry payload validation (test adapters / vendor connectors) | present | `lib/ui/guard_mobile_shell_page.dart:5048–5625` (payload replay + validation) | absent | — | — |
+
+#### Page: v1 `OrganizationPage` (pushed via `Navigator.push` from `app_shell.dart:1049`)
+
+| Feature | v1 status | v1 evidence | v2 status | v2 evidence | Notes |
+|---|---|---|---|---|---|
+| Hierarchy tree view (expandable) | present | `lib/ui/organization_page.dart:314–485` (`_hierarchyTreeView`, `_personCard` with expand/collapse at `:412`) | absent | — | — |
+| By-division grouping view | present | `lib/ui/organization_page.dart:514–597` (`_byDivisionView`, `_divisionGroup` at `:550`) | absent | — | — |
+| Organization summary stats (owner / ops manager / divisions / teams) | present | `lib/ui/organization_page.dart:216–310` (`_summaryStatsRow`, `_orgStatCard`) | absent | — | — |
+| Tree node expand / collapse | present | `lib/ui/organization_page.dart:410–420` (GestureDetector + `setState` on `person.expanded`) | absent | — | — |
+
+### 4.5 Feature row counts
+
+| Batch | Pages | Feature rows |
+|---|---|---|
+| A — Command Center + `/agent` | 7 | 51 |
+| B — Operations | 6 | 61 |
+| C — Governance / Evidence / System + v1-only extras | 7 | 55 |
+| **Total** | **20** | **167** |
+
+167 rows. Above the upper-bound target (80–150) set in the brief; the overrun is driven by `/dispatches` (13 rows), `/events` (13), `/reports` (11), `/governance` (14), `/admin` (10), and `/clients` (10). These were pages where v1 shipped many named feature surfaces that have no v2 counterpart — each such surface is a row. A deliberate collapse below 150 would have required merging multiple v1 features per row, which would have lost file:line evidence precision. Noted; no action taken per the audit-rules rule "no judgement."
+
+---
+
+*§5 (cross-cutting concerns) pending.*
