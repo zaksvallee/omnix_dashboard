@@ -220,4 +220,55 @@ Routes with no per-page error or loading boundary: `/`, `/admin`, `/ai-queue`, `
 
 ---
 
-*§3 (page-level matrix) pending.*
+## 3. Page-level matrix
+
+Rows sorted by v1 functional area (from `OnyxRouteSection`), then by page name within section. v2-only rows appended where no v1 counterpart exists; v1-only rows appended where no v2 counterpart exists.
+
+Abbreviations:
+- v1 files live under `lib/ui/` unless otherwise prefixed.
+- v2 server-page files are listed as `app/<route>/page.tsx`; the client shell is implied (see §2.1).
+- **Notes** distinguishes renamed/relocated pages and any known mount caveats.
+
+| Section | Page name | v1 route | v1 file | v2 route | v2 file | Status | Notes |
+|---|---|---|---|---|---|---|---|
+| (pre-shell / landing) | Zara home | `/` | `zara_ambient_page.dart` | `/` | `app/page.tsx` + `app/_components/ZaraClient.tsx` | both | Both pages render ambient surface without the nav rail chrome. v1 passes `events`, `operatorLabel`, `siteLabel` and four `onOpen*` callbacks into `ZaraAmbientPage` (`lib/ui/zara_ambient_page.dart:11`). v2 renders `ZaraClient` with only a server-emitted `initialTimeIso`. |
+| Command Center | Command Center | `/dashboard` | `command_center_page.dart` (wrapper) + `live_operations_page.dart` (21176-LOC body) | `/command` | `app/command/page.tsx` + `CommandClient.tsx` | renamed | v1 enum label is "Command"; the underlying path `/dashboard` was repurposed to the command surface. v2 consolidated the path to `/command`. Both serve the same role (unified operator surface). |
+| Command Center | Agent (Zara brain) | `/agent` | `onyx_agent_page.dart` | — | — | v1_only | 13549-LOC page; v2 has no `/agent` route. v2's Zara surface is split across `/` (ambient), `/ai-queue` (task queue), and the Zara summary primitive (`components/primitives/ZaraSummary.tsx`). |
+| Command Center | AI Queue | `/ai-queue` | `ai_queue_page.dart` | `/ai-queue` | `app/ai-queue/page.tsx` + `AIQueueClient.tsx` (+ `CognitionGraph.tsx`) | both | — |
+| Command Center | Alarms | `/alarms` | `alarms_page.dart` | `/alarms` | `app/alarms/page.tsx` + `AlarmsClient.tsx` (+ `AlarmCard`, `Drawer`, `EvidenceBox`, `Lane`, `Waveform`) | both | — |
+| Command Center | Dispatches | `/dispatches` | `dispatch_page.dart` | `/dispatches` | `app/dispatches/page.tsx` + `DispatchesClient.tsx` | both | — |
+| Command Center | Tactical / Track | `/tactical` | `tactical_page.dart` | `/track` | `app/track/page.tsx` + `TrackClient.tsx` + `TrackMap.tsx` | renamed | v1 route `/tactical`; v1 nav label "Track"; v2 route collapsed to `/track` matching the nav label. |
+| Operations | Clients / Comms | `/clients` | `clients_page.dart` (primary) + `client_app_page.dart` (alternate) | `/clients` | `app/clients/page.tsx` + `ClientsClient.tsx` | both | v1 nav label "Comms"; v2 nav label "Clients". v1 has a ternary fallback that renders `ClientAppPage` under some condition (see `lib/ui/onyx_route_operations_builders.dart:313`); v2 has one unconditional client. |
+| Operations | Events | `/events` | `events_review_page.dart` | `/events` | `app/events/page.tsx` + `EventsClient.tsx` | both | v1 supports deep-link query params `origin=…&label=…` decoded at `lib/routing/onyx_router.dart:133`. |
+| Operations | Guards | `/guards-workforce` | `guards_workforce_page.dart` (primary) + `guards_page.dart` (alternate) | `/guards` | `app/guards/page.tsx` + `GuardsClient.tsx` | renamed | v1 route `/guards-workforce`; v1 nav label "Guards". v2 path matches nav label. |
+| Operations | Intel | `/intel` | `risk_intelligence_page.dart` | `/intel` | `app/intel/page.tsx` + `IntelClient.tsx` | both | — |
+| Operations | Sites | `/sites` | `sites_page.dart` | `/sites` | `app/sites/page.tsx` + `SitesClient.tsx` + `KindIcon.tsx` | both | — |
+| Operations | VIP | `/vip` | `vip_protection_page.dart` | `/vip` | `app/vip/page.tsx` + `VIPClient.tsx` | both | — |
+| Governance | Governance | `/governance` | `governance_page.dart` | `/governance` | `app/governance/page.tsx` + `GovernanceClient.tsx` | both | — |
+| Evidence | Ledger / OB Log | `/ledger` | `sovereign_ledger_page.dart` | `/ledger` | `app/ledger/page.tsx` + `LedgerClient.tsx` | both | v1 nav label "OB Log"; v2 nav label "Ledger". |
+| Evidence | Reports | `/reports` | `client_intelligence_reports_page.dart` | `/reports` | `app/reports/page.tsx` + `ReportsClient.tsx` | both | v1 widget class is `ClientIntelligenceReportsPage`; v2 client shell is `ReportsClient`. |
+| System | Admin | `/admin` | `admin_page.dart` (class `AdministrationPage`, 47091 LOC) | `/admin` | `app/admin/page.tsx` + `AdminClient.tsx` | both | — |
+| (pre-router / login) | Controller login | *(not go_router; `home: ControllerLoginPage` at `lib/main.dart:34521`)* | `controller_login_page.dart` | — | — | v1_only | v2 has no login surface; per the v2 audit (cross-cutting finding #1), no `middleware.ts`, no session client wired to any page — no auth flow. |
+| (alternate shell) | Guard mobile shell | *(not go_router; `return GuardMobileShellPage` at `lib/main.dart:40780`)* | `guard_mobile_shell_page.dart` | — | — | v1_only | v1's guard-side mobile experience. No v2 equivalent observed. |
+| (modal) | Organization | *(pushed via `Navigator.push` from `app_shell.dart:1049`)* | `organization_page.dart` | — | — | v1_only | Pushed as modal screen, not a top-level route. No v2 equivalent. |
+
+### 3.1 Status counts
+
+- **both:** 14 rows (Zara home, Command Center, AI Queue, Alarms, Dispatches, Tactical/Track, Clients, Events, Guards, Intel, Sites, VIP, Governance, Ledger, Reports, Admin = 16 rows in the table; but "Command Center", "Tactical/Track", "Guards", "Clients/Comms" are marked `renamed` → both-routes-exist, counted under `both` for §4 feature-row scope). Total pages with a counterpart in both systems: **16**.
+- **renamed** (subset of `both`): 4 — Command Center (`/dashboard` ↔ `/command`), Tactical/Track (`/tactical` ↔ `/track`), Guards (`/guards-workforce` ↔ `/guards`), Clients/Comms (same path; nav labels differ only).
+- **v1_only:** 4 rows — Agent (`/agent`), Controller login, Guard mobile shell, Organization.
+- **v2_only:** 0 rows — every v2 route has a v1 counterpart with the same semantic meaning.
+
+Routes that match on path-exact basis in both systems (no rename): `/`, `/admin`, `/ai-queue`, `/alarms`, `/clients`, `/dispatches`, `/events`, `/governance`, `/intel`, `/ledger`, `/reports`, `/sites`, `/vip` (13 path-exact matches).
+
+Routes that match semantically but differ by path (`renamed`): `/dashboard` → `/command`, `/tactical` → `/track`, `/guards-workforce` → `/guards` (3 renames).
+
+**§4 feature-row scope** — based on these counts, §4 will produce feature tables for:
+- 16 `both` pages (including the 4 renames)
+- 4 `v1_only` pages (Agent, Controller login, Guard mobile shell, Organization)
+- 0 `v2_only` pages
+- Total = 20 per-page feature tables.
+
+---
+
+*§4 (feature-level matrix) pending.*
