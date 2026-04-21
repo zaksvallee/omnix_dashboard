@@ -256,4 +256,101 @@ Migration vs live via regex-parsed `CREATE TABLE` bodies. Keyword false-positive
 
 ---
 
-*§3a (write-never-read), §3b (read-never-written), §4–§11 pending.*
+---
+
+## 3a. Write-never-read columns
+
+### Method
+
+For every column in a populated table that has at least 1 non-null row: grep both codebases (`/Users/zaks/omnix_dashboard/{bin,lib,tool}` for Dart + Python; `/Users/zaks/onyx_dashboard_v2/{app,lib,components}` for TS/TSX/JS) for the column name in string-literal form (`'col'`, `"col"`) and property-access form (`.col_name`). **v2's auto-generated `lib/supabase/types.ts`** (7,371 LOC that lists every database column whether live or not) is **excluded** from v2 greps — otherwise the mere presence of `Database.public.Tables.<t>.Row.col` in the generated shape would produce false "reads" for every column in the schema.
+
+Ubiquitous column names that produce false positives in prose/comments (`id`, `name`, `type`, `status`, `source`, `code`, etc.) are skipped.
+
+### Findings
+
+Columns with ≥ 1 populated row in DB and 0 string-literal + 0 property-access hits across **both** codebases:
+
+| Table | Column | Rows populated | v1 hits | v2 hits (excl. types.ts) | Inference |
+|---|---|---:|---:|---:|---|
+| `dispatch_intents` | `geo_lat` | 22 | 0 | 0 | column exists + populated, never consumed by any pipeline code path |
+| `dispatch_intents` | `geo_lng` | 22 | 0 | 0 | same |
+| `employee_site_assignments` | `starts_on` | 6 | 0 | 0 | — |
+| `controllers` | `controller_id` | 3 | 0 | 0 | business-key column on a table; code uses `employee_code` or `id` instead |
+| `controllers` | `home_site_id` | 3 | 0 | 0 | — |
+| `controllers` | `role_label` | 3 | 0 | 0 | — |
+| `sites` | `postal_code` | 3 | 0 | 0 | — |
+| `staff` | `staff_id` | 3 | 0 | 0 | business-key column unused by code (code uses `employee_code`) |
+| `staff` | `staff_role` | 3 | 0 | 0 | — |
+
+Plus 9 additional columns where v1 has 0 hits but v2 has 1–6 hits (readers exist only in v2's dormant pages):
+
+| Table | Column | Rows | v1 | v2 | Note |
+|---|---|---:|---:|---:|---|
+| `incidents` | `action_code` | 172 | 0 | 2 | reads in v2 event-row mapper; v2 /events is `dormant_no_user_action` per phase 2b |
+| `incidents` | `action_hint` | 172 | 0 | 2 | same |
+| `incidents` | `location` | 162 | 3 | 6 | limited reads; mostly dormant path |
+| `incidents` | `operator_notes` | 6 | 0 | 1 | v2 PATCH writes `controller_notes` (not `operator_notes`); the 6 rows are from an earlier writer |
+| `guards` | `competent` | 12 | 0 | 1 | column coexists with `is_active` and `active`; `competent` appears once in v2 |
+| `guards` | `primary_site_id` | 7 | 0 | 2 | — |
+| `guards` | `device_serial` | 7 | 0 | 2 | — |
+| `guards` | `badge_number` | 3 | 0 | 4 | — |
+| `guards` | `ptt_identity` | 3 | 0 | 1 | — |
+
+### Section 3a summary
+
+- **9 columns definitively written but never read** (zero hits in either codebase): most concentrated in `controllers`, `staff`, `dispatch_intents.geo_lat/geo_lng`.
+- **9 additional columns with reads only in v2's dormant pages** (effectively dead in production given phase 2b's finding that only `/alarms` has user activity).
+- Severity: **medium** (storage cost + debugging confusion — future engineer reading `controllers.controller_id` or `staff.staff_id` would reasonably assume they're canonical business keys; they're populated but orphaned from the code graph).
+
+---
+
+## 3b. Read-never-written columns
+
+### Method
+
+For every column in the **live schema** (obtained from PostgREST `select=*&limit=1` per populated table) that has **zero populated rows** across the entire table: check if either codebase references the column name. If yes, flag — the reader will always receive NULL.
+
+### Findings
+
+Columns present in live schema with **zero populated rows** where at least one codebase references them:
+
+| Table | Column | Table rows | v1 hits | v2 hits | Severity note |
+|---|---|---:|---:|---:|---|
+| `onyx_evidence_certificates` | `incident_id` | 282 | 14 | 0 | **high** — every cert row NULL; v1 has 14 reads. Cascades from phase 2a: certs never linked to incidents |
+| `onyx_evidence_certificates` | `face_match_id` | 282 | 22 | 0 | **high** — every cert row NULL; v1 reads 22×. Cascades from phase 2a §1.2 (0 FR matches in window) |
+| `incidents` | `engine_message` | 241 | 0 | 12 | v2 reads engine-error surface that is never populated |
+| `incidents` | `revealed_at` | 241 | 4 | 0 | unused in v2; v1 reads 4× |
+| `incidents` | `risk_score` | 241 | 13 | 7 | — (coexists with `risk_level`; mixed model) |
+| `incidents` | `simulation_id` | 241 | 1 | 0 | — |
+| `site_alarm_events` | `area_id` | 11,223 | 9 | 0 | v1 reads 9×, never populated — silent NULL propagation |
+| `site_alarm_events` | `area_name` | 11,223 | 7 | 0 | same |
+| `site_alarm_events` | `armed_state` | 11,223 | 4 | 0 | same |
+| `site_alarm_events` | `zone_id` | 11,223 | 12 | 2 | readers across both sides |
+| `fr_person_registry` | `expected_start` | 5 | 1 | 0 | — |
+| `fr_person_registry` | `expected_end` | 5 | 1 | 0 | — |
+| `site_expected_visitors` | `expires_at` | 2 | 5 | 0 | — |
+| `site_expected_visitors` | `visit_date` | 2 | 8 | 0 | — |
+| `client_conversation_push_sync_state` | `failure_reason` | 2 | 10 | 0 | — |
+| `client_conversation_push_sync_state` | `probe_failure_reason` | 2 | 2 | 0 | — |
+| `client_messaging_endpoints` | `last_delivery_status` | 1 | 4 | 0 | delivery-status surface never written |
+| `client_messaging_endpoints` | `last_error` | 1 | 13 | 0 | **medium** — v1 reads `.last_error` 13 times (error-surface feature), column always NULL |
+| `client_messaging_endpoints` | `telegram_thread_id` | 1 | 9 | 0 | never populated |
+| `client_messaging_endpoints` | `verified_at` | 1 | 6 | 0 | verification-status column not emitted |
+| `dispatch_current_state` | `route_id` | 27 | 6 | 2 | route_id column never populated on dispatch state |
+| `dispatch_current_state` | `units` | 27 | 0 | 2 | — |
+| `dispatch_intents` | `route_id` | 27 | 6 | 2 | same column type on dispatch intents |
+| `dispatch_intents` | `units` | 27 | 0 | 2 | — |
+| `dispatch_transitions` | `failure_type` | 34 | 0 | 1 | — |
+| `sites` | `address_line_2` | 8 | 0 | 1 | — |
+
+**Excluded (high false-positive risk due to generic names):** `sites.address` (25 v1 hits — word too generic), `incidents.payload` (161 v1 hits — common Dart identifier), `incidents.zone` (111 v1 hits — common word), `site_camera_zones.notes` (30 — generic), `site_expected_visitors.notes` (30 — generic).
+
+### Section 3b summary
+
+- **26 columns where code reads but DB never writes.** Consumers always see NULL.
+- Most impactful: `onyx_evidence_certificates.incident_id` + `.face_match_id` (282 rows × 14+22 read paths); `site_alarm_events.area_id`/`area_name`/`armed_state`/`zone_id` (11,223 rows × multiple reads per path).
+- Cascade overlaps with phase 2a: the `incident_id`/`face_match_id` findings are the same as phase 2a §1.2 + §1.3 at the DB-integrity layer.
+
+---
+
+*§4–§11 pending.*
