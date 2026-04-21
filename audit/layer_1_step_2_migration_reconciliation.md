@@ -342,6 +342,87 @@ Layer 1 Step 3 (process lock) will formalise these rules in tooling (pre-commit 
 
 **PASS.** The reconciled chain reproduces the Step 1 baseline state exactly, and the baseline reproduces the live production schema (modulo PostGIS substitutions documented in Step 1 §6). Reconciliation is consistent — no objects differ.
 
+### 6.5 Object-level delta attribution (appended 2026-04-21)
+
+A follow-up check enumerated every specific object missing from scratch (live 129/24/157/57, scratch 127/17/146/42) and tested whether each missing object is attributable to a known scratch-environment limitation (PostGIS unavailable; Supabase `auth.*` functions stubbed only for `uid`/`jwt`; `storage.objects` minimally stubbed). **Every one of the 35 missing objects is attributable — zero represent uncaptured drops.**
+
+#### 6.5.1 Missing tables (2 of 129) — **PostGIS-cascade, both**
+
+| Table | PostGIS dependency |
+|---|---|
+| `intel_events` | column `geo_point` typed `public.geography(Point,4326)` |
+| `sites` | column `geo_point` typed `public.geography(Point,4326)` |
+
+#### 6.5.2 Missing views (7 of 24) — **PostGIS-cascade, all 7**
+
+| View | Dependency on missing object(s) |
+|---|---|
+| `area_intel_patrol_links` | references `intel_events` |
+| `intel_keyword_events` | references `intel_events` |
+| `intel_scoring_candidates` | references `intel_events` |
+| `intel_scoring_candidates_strategic` | references `intel_events` |
+| `intel_scoring_candidates_unlinked` | references `intel_events` |
+| `keyword_trend_spikes` | transitively references `intel_keyword_events` → `intel_events` (two-hop cascade — initial regex pass missed this and flagged NON-POSTGIS; deeper inspection of view body confirmed the chain) |
+| `guard_storage_readiness_checks` | references `storage.objects` — not PostGIS-specific, but requires the real Supabase Storage subsystem; the minimal `storage.objects` stub in §6.1 lacks downstream relations this view reads |
+
+All 7 will apply on a real Supabase target (PostGIS + Supabase Storage both provided natively).
+
+#### 6.5.3 Missing policies (11 of 157) — **4 PostGIS-cascade + 7 `auth.role()`-dependent**
+
+| Policy | Table | Cause |
+|---|---|---|
+| `sites_delete_policy` | `sites` | cascade — table missing (PostGIS) |
+| `sites_insert_policy` | `sites` | cascade — same |
+| `sites_select_policy` | `sites` | cascade — same |
+| `sites_update_policy` | `sites` | cascade — same |
+| `Authenticated insert abort logs` | `abort_logs` | USING/CHECK expression `auth.role() = 'authenticated'` — `auth.role()` not in §6.1's stub set |
+| `Authenticated read abort logs` | `abort_logs` | same |
+| `Service role full access` | `onyx_alert_outcomes` | USING expression `auth.role() = 'service_role'` |
+| `Allow authenticated insert` | `threats` | `auth.role() = 'authenticated'` |
+| `Allow authenticated read` | `threats` | same |
+| `Authenticated insert access` | `threats` | same |
+| `Authenticated read access` | `threats` | same |
+
+**Re-verification with `auth.role()` stub added** (added `CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT NULL::text $$`, re-applied baseline to fresh scratch DB `verify_delta2`): policy count rose from 146 → **153** — exactly +7, accounting for every non-cascade policy. Tables/views/FKs unchanged (still 127/17/42) because those are genuinely PostGIS-cascade.
+
+The `auth.role()` function is provided natively by Supabase's GoTrue auth layer on every Supabase project. Step 1 §6.1 and Step 2 §6.1 stubs should be amended in any future scratch-verification runs to include it alongside `auth.uid()` and `auth.jwt()`. This is a stub-set completeness bug, not a schema-reconciliation bug.
+
+#### 6.5.4 Missing foreign keys (15 of 57) — **100% cascade, all reference `public.sites`**
+
+| FK constraint name | Table.(columns) → referenced |
+|---|---|
+| `client_contact_endpoint_subscriptions_client_site_fk` | `client_contact_endpoint_subscriptions.(client_id,site_id) → public.sites` |
+| `client_contacts_client_site_fk` | `client_contacts.(client_id,site_id) → public.sites` |
+| `client_messaging_endpoints_client_site_fk` | `client_messaging_endpoints.(client_id,site_id) → public.sites` |
+| `controllers_client_site_fk` | `controllers.(client_id,home_site_id) → public.sites` |
+| `deployments_site_id_fkey` | `deployments.(site_id) → public.sites` |
+| `employee_site_assignments_site_fk` | `employee_site_assignments.(client_id,site_id) → public.sites` |
+| `guard_logs_site_id_fkey` | `guard_logs.(site_id) → public.sites` |
+| `guard_sites_site_id_fkey` | `guard_sites.(site_id) → public.sites` |
+| `site_identity_approval_decisions_site_fk` | `site_identity_approval_decisions.(client_id,site_id) → public.sites` |
+| `site_identity_profiles_site_fk` | `site_identity_profiles.(client_id,site_id) → public.sites` |
+| `site_zones_site_id_fkey` | `site_zones.(site_id) → public.sites` |
+| `staff_client_site_fk` | `staff.(client_id,site_id) → public.sites` |
+| `telegram_identity_intake_site_fk` | `telegram_identity_intake.(client_id,site_id) → public.sites` |
+| `vehicle_logs_site_id_fkey` | `vehicle_logs.(site_id) → public.sites` |
+| `vehicles_site_fk` | `vehicles.(client_id,site_id) → public.sites` |
+
+Every missing FK references `public.sites`. Since `sites` is missing in scratch (PostGIS), these FKs fail with "referenced relation does not exist." On a real Supabase target, `sites` exists → all 15 FKs apply.
+
+#### 6.5.5 Attribution roll-up
+
+| Category | Missing count | PostGIS-cascade | Storage-stub | auth.role()-stub | Genuinely uncaptured |
+|---|---:|---:|---:|---:|---:|
+| Tables | 2 | 2 | 0 | 0 | **0** |
+| Views | 7 | 6 | 1 | 0 | **0** |
+| Policies | 11 | 4 | 0 | 7 | **0** |
+| FKs | 15 | 15 | 0 | 0 | **0** |
+| **Total** | **35** | **27** | **1** | **7** | **0** |
+
+**Zero genuine drops.** Every delta resolves to a Homebrew-Postgres scratch-environment limitation (no PostGIS extension, no full Supabase auth schema, no full Supabase Storage schema). On an empty Supabase project — which provides all three natively — applying the baseline produces 129 tables / 24 views / 157 policies / 57 FKs, matching live exactly.
+
+The §6.1 scratch-prep stub set can be amended in any future pass to add `auth.role()` stub, which would raise the non-PostGIS-dependent reproducibility from 146 to 153 policies (+4.8%). PostGIS and Storage-subsystem gaps remain as documented scratch-environment limitations per Step 1 §7.1-7.2.
+
 ---
 
 ## 7. Known limitations
