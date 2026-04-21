@@ -353,4 +353,93 @@ Columns present in live schema with **zero populated rows** where at least one c
 
 ---
 
-*§4–§11 pending.*
+---
+
+## 4. Value inconsistencies (enum-like columns)
+
+### Method
+
+For every column that looks enum-like (columns named `status`/`type`/`kind`/`category`/`state`/`role`/`priority`/`severity`/`level`) **and** every column with a bounded distinct-value count relative to row count (effective enums without name signal), run:
+
+```
+SELECT col, COUNT(*) FROM <t> GROUP BY col ORDER BY COUNT(*) DESC;
+```
+
+via PostgREST (`GET /rest/v1/<t>?select=<col>&limit=1000` repeated, then Python `collections.Counter`). Flag case-variants, whitespace variants, apparent typos, legacy values.
+
+### Findings
+
+| Table | Column | Distinct | Inconsistency | Counts per variant |
+|---|---|---:|---|---|
+| `incidents` | `status` | 7 | **case-variant** (`open` / `OPEN`) + mixed vocabulary | `secured`=139, `open`=78, `OPEN`=19, `closed`=2, `dispatched`=1, `on_site`=1, `detected`=1 |
+| `incidents` | `priority` | 10 | **case-variant + dual-vocabulary** (severity words + p1/p2/p3 tags) | `critical`=73, `p3`=67, `medium`=38, `CRITICAL`=21, `high`=19, `MEDIUM`=12, `HIGH`=7, `LOW`=2, `p1`=1, `p2`=1 |
+| `incidents` | `risk_level` | 5 | co-exists with `priority` above but uses UPPERCASE-only form + NULL | `CRITICAL`=136, `MEDIUM`=50, NULL=27, `HIGH`=26, `LOW`=2 |
+| `incidents` | `scope` | 1 | de-facto dead enum (single value across all rows) | `AREA`=241 |
+| `incidents` | `incident_type` | 3 | dominated by 1 value (99.2%) | `technical_failure`=239, `breach`=1, `panic`=1 |
+| `incidents` | `action_code` | 5 | mixed UPPER_SNAKE + NULL | `CRITICAL_ALERT`=94, NULL=69, `MONITOR`=50, `ESCALATE`=26, `LOG_ONLY`=2 |
+| `incidents` | `action_label` | 5 | label-text; tracks `action_code` 1:1 | `Critical Alert`=94, NULL=69, `Monitor`=50, `Escalate to Control Room`=26, `Log Only`=2 |
+| `incidents` | `category` | 6 | — | `Unknown`=120, `Robbery`=88, NULL=27, `Public Unrest`=2, `Hijacking`=2, `General Incident`=2 |
+| `incidents` | `source` | 5 | — | `manual`=108, `news`=58, `social`=48, `ops`=24, NULL=3 |
+| `incidents` | `channel` | 1 | 241/241 NULL — read-never-written column (see §3b) | NULL=241 |
+| `site_alarm_events` | `event_type` | 3 | dominated by 1 value (99.96%) | `camera_worker_offline`=11,219, `false_alarm_cleared`=3, `armed_response_requested`=1 |
+| `dispatch_current_state` | `current_state` | 5 | UPPERCASE-consistent | `DECIDED`=22, `COMMITTING`=2, `EXECUTED`=1, `ABORTED`=1, `OVERRIDDEN`=1 |
+| `dispatch_current_state` | `risk_level` | 2 | consistent | `MEDIUM`=22, `HIGH`=5 |
+| `dispatch_current_state` | `action_type` | 3 | consistent | `GLOBAL_ESCALATION_RESPONSE`=11, `CONTAINMENT_RING`=11, `RESPONSE_DISPATCH`=5 |
+| `dispatch_transitions` | `to_state` | 5 | consistent | `DECIDED`=27, `COMMITTING`=4, `EXECUTED`=1, `ABORTED`=1, `OVERRIDDEN`=1 |
+| `dispatch_transitions` | `actor_type` | 3 | consistent | `AI`=27, `SYSTEM`=5, `HUMAN`=2 |
+| `dispatch_transitions` | `transition_reason` | 5 | consistent | `INITIAL_DECISION`=27, `DCW_STARTED`=4, `DCW_EXPIRED`=1, `OPERATOR_ABORT`=1, `HUMAN_OVERRIDE`=1 |
+| `guards` | `grade` | 3 | **format inconsistency**: single-letter `'C'` vs phrase `'Grade A'` | NULL=9, `C`=2, `Grade A`=1 |
+| `client_conversation_push_queue` | `priority` | 2 | **column typed as boolean**, not enum; deviation from the priority-as-enum pattern elsewhere | `False`=7, `True`=4 |
+| `client_conversation_push_queue` | `target_channel` | 2 | consistent | `client`=8, `control`=3 |
+| `client_conversation_push_queue` | `delivery_provider` | 2 | consistent | `in_app`=10, `telegram`=1 |
+| `client_conversation_messages` | `author` | 2 | Title-case | `Client`=16, `Control`=4 |
+| `client_conversation_messages` | `viewer_role` | 2 | lowercase variant of `author` | `client`=16, `control`=4 |
+| `client_conversation_messages` | `message_source` | 1 | dead enum (single value) | `in_app`=20 |
+| `client_conversation_messages` | `message_provider` | 1 | dead enum | `in_app`=20 |
+| `site_camera_zones` | `zone_type` | 3 | consistent | `semi_perimeter`=6, `indoor`=6, `perimeter`=4 |
+| `onyx_power_mode_events` | `mode` | 3 | consistent | `threat`=16, `normal`=14, `degraded`=1 |
+| `onyx_evidence_certificates` | `issuer` | 1 | dead enum (every cert same literal) | `ONYX Risk and Intelligence Group`=282 |
+| `onyx_evidence_certificates` | `version` | 1 | dead enum | `1.0`=282 |
+| `employees` | `employment_status` | 1 | dead enum | `active`=6 |
+| `employee_site_assignments` | `assignment_status` | 1 | dead enum | `active`=6 |
+
+No whitespace variants (leading/trailing spaces) observed in any column. No apparent typos.
+
+### 4.1 Severity summary
+
+| Severity | Finding |
+|---|---|
+| **high** | `incidents.status` — 19 rows use `OPEN`, 78 use `open`. v2 UI filter logic matching on exact case will misclassify 19 rows. Phase 2a §6.3 flagged. |
+| **high** | `incidents.priority` — 10 distinct values mixing 4 schemes: lowercase severity words, UPPERCASE severity words, `p1`/`p2`/`p3` tags. Any UI grouping by priority will show scattered counts. |
+| **medium** | `incidents.risk_level` + `priority` + `action_code` each encode roughly "how serious is this" in different vocabularies → triple-encoding of severity |
+| **medium** | `guards.grade` — `'C'` and `'Grade A'` represent same semantic; UI sort/filter breaks |
+| **medium** | `client_conversation_push_queue.priority` — column is boolean not enum (deviates from the priority-as-enum pattern used elsewhere); cross-table code paths expecting "high/medium/low" strings will fail |
+| **low** | Title-case vs lowercase on `author`/`viewer_role` pair — same rows, inconsistent case within a single row's semantic |
+| **low** | 8 dead-enum columns (single value across all rows): `incidents.scope`, `incidents.channel`, `incidents.incident_type` (de-facto; 99.2% one value), `site_alarm_events.event_type` (de-facto; 99.96% one value), `onyx_evidence_certificates.issuer`, `onyx_evidence_certificates.version`, `employees.employment_status`, `employee_site_assignments.assignment_status`, `client_conversation_messages.message_source`, `client_conversation_messages.message_provider`. Either the enum was designed for future variance that never arrived, or it's deployment-specific pollution |
+
+---
+
+## 5. Timestamp integrity
+
+### Method
+
+For every timestamp/timestamptz column in critical tables: check `created_at > updated_at`, future timestamps, mixed timezone offsets, NULL `created_at` where schema should require non-null.
+
+### Findings
+
+All 18 critical tables probed return **CLEAN** on every anomaly test:
+
+- **`created_at > updated_at`:** 0 violations anywhere.
+- **Future timestamps:** 0 rows.
+- **NULL `created_at`:** 0 rows where the column is nominally required.
+- **Timezone offsets:** all rows uniformly `+00:00` (UTC). No mixed-tz storage observed across 3-sample probe on `clients`, `sites`, `guards`.
+
+Tables probed: `clients`, `sites`, `guards`, `employees`, `staff`, `controllers`, `vehicles`, `incidents` (incl. 10 timestamp columns — `created_at`, `updated_at`, `signal_received_at`, `triage_time`, `dispatch_time`, `arrival_time`, `resolution_time`, `acknowledged_at`, `occurred_at`, `revealed_at`), `fr_person_registry`, `client_evidence_ledger` (16,388 rows × 1 ts), `onyx_evidence_certificates` (282 × 2 ts), `site_alarm_events` (11,223 × 1), `dispatch_current_state` (× 3), `dispatch_transitions`, `telegram_inbound_updates`, `client_conversation_messages`, `client_conversation_acknowledgements`, `onyx_power_mode_events`.
+
+### 5.1 Severity summary
+
+**Low / none.** Timestamp handling is the cleanest finding of the audit. Every time-bearing column uses `timestamptz`, all values are UTC, no rows violate temporal ordering.
+
+---
+
+*§6–§11 pending.*
