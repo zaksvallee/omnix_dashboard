@@ -442,4 +442,215 @@ Tables probed: `clients`, `sites`, `guards`, `employees`, `staff`, `controllers`
 
 ---
 
-*§6–§11 pending.*
+---
+
+## 6. Foreign key integrity
+
+### Method
+
+Scan all migration SQL for `REFERENCES` and `FOREIGN KEY` declarations. Live enforcement status (DEFERRABLE, dropped after creation) cannot be verified without `pg_constraint` access — flagged as **unknown** where load-bearing.
+
+### Findings — declared vs implied
+
+| Child | Column | References | Declared in migration | Enforced (verified)? | On delete | Soft FK? |
+|---|---|---|---|---|---|---|
+| `patrol_compliance` | `route_id` (uuid) | `public.patrol_routes(id)` | yes (`20260410_create_guard_patrol_system.sql:11`) | **unknown** — `pg_constraint` not accessible | not specified | no |
+| `patrol_scans` | `route_id` (uuid) | `public.patrol_routes(id)` | yes (same migration line 25) | **unknown** | not specified | no |
+| `patrol_scans` | `checkpoint_id` (uuid) | `public.patrol_checkpoints(id)` | yes (same migration line 36) | **unknown** | not specified | no |
+| `zara_action_log` | `scenario_id` (text) | `public.zara_scenarios(id)` | yes (`202604170002_zara_action_log.sql`) | **unknown** | `on delete cascade` | no |
+| `site_alarm_events` | `site_id` | `sites.(site_id or id)` | **no** | no | — | **yes** (soft) |
+| `incidents` | `site_id` | `sites.(site_id or id)` | no | no | — | yes |
+| `incidents` | `client_id` | `clients.(client_id or id)` | no | no | — | yes |
+| `onyx_evidence_certificates` | `site_id` / `client_id` / `camera_id` / `event_id` / `incident_id` / `face_match_id` / `zone_id` | various | no | no | — | yes |
+| `client_evidence_ledger` | `client_id` / `dispatch_id` | `clients` / various | no | no | — | yes |
+| `client_conversation_*` | `client_id` | `clients` | no | no | — | yes |
+| `fr_person_registry` | `site_id` | `sites` | no | no | — | yes |
+| `guard_ops_events` | `guard_id` / `site_id` / `client_id` | `guards` / `sites` / `clients` | no | no | — | yes |
+| `site_camera_zones` | `site_id` | `sites` | no | no | — | yes |
+| `employee_site_assignments` | `employee_id` / `site_id` / `client_id` | `employees` / `sites` / `clients` | no | no | — | yes |
+| `dispatch_*` tables | `dispatch_id` | self-ring or `dispatch_current_state` | no migration at all | unknown | — | yes |
+| … (170+ other `*_id` columns across migrations) | — | various | no | no | — | yes |
+
+### 6.1 Section 6 summary
+
+- **4 hard FK constraints** across the entire schema (3 in patrol_* + 1 in zara_action_log). All 4 target tables are **empty** per phase 2a §6.2 — so the constraints have never been exercised.
+- **172 soft FK columns** (counted in §1.1). None have constraints enforced. A parent-row deletion **cannot cascade** and **cannot be rejected** — every delete is silently orphan-generating.
+- Combined with §1's finding of **~16,430 rows already orphaned** across `client_evidence_ledger.dispatch_id` (16,388) + `client_conversation_*.client_id` (~53) + `guard_ops_events.guard_id` (3), the consequence of this FK-absence is already manifest, not hypothetical.
+- Severity: **high** — the soft-FK pattern is the root cause of the §1 orphan findings.
+
+---
+
+## 7. Null integrity
+
+### Method
+
+For each table, identify columns that are nominally business-critical (FK, lifecycle state, identity label) and measure NULL rates. Flag where code is observed (via §3a/§3b greps) to assume non-null.
+
+### Findings
+
+| Table | Column | Schema nullable? | Code assumes non-null | Null count / rows | Severity |
+|---|---|---|---|---:|---|
+| `incidents` | `site_id` | unknown (probably yes — all 238 rows null) | yes — v2 `/alarms` mapper (`incidentToAlarm.ts`), v1 `lib/ui/alarms_page.dart` both key on site | **238 / 241 (98.8%)** | **high** — 238 incidents belong to no site; UI grouping by site shows only 3 |
+| `onyx_evidence_certificates` | `incident_id` | yes | v1 reads 14×; v2 reads 0× | **282 / 282 (100%)** | **high** — cert→incident linkage never emitted |
+| `onyx_evidence_certificates` | `face_match_id` | yes | v1 reads 22× | **282 / 282 (100%)** | **high** — FR-match hint never emitted |
+| `dispatch_current_state` | `incident_id` | yes | v1 reads, v2 reads | **27 / 27 (100%)** | **high** — dispatch-to-incident linkage never emitted |
+| `guards` | `client_id` | yes | code joins on client_id | **5 / 12 (42%)** | medium — 5 placeholder rows with null client_id, primary_site_id, full_name simultaneously |
+| `guards` | `primary_site_id` | yes | code joins for site scope | 5 / 12 | medium |
+| `guards` | `full_name` | yes | displayed in roster UI | 5 / 12 | medium — UI would show empty name |
+| `client_evidence_ledger` | `previous_hash` | yes | hash-chain verification | 2 / 16,388 | low — likely genesis entries |
+| `incidents` | `action_code` | yes | v2 reads 2× | 69 / 241 | low — 28.6% null, expected for some incident types |
+| `incidents` | `risk_level` | yes | v2 + v1 read | 27 / 241 | low |
+
+---
+
+## 8. Duplicate detection
+
+### Method
+
+For tables with expected uniqueness, group by the uniqueness column(s) and flag duplicate groups.
+
+### Findings
+
+| Table | Uniqueness expectation | Duplicate groups | Sample duplicates |
+|---|---|---:|---|
+| `auth.users` | email | 0 | — |
+| `clients` | name | **1** | `"test"` × 3 rows |
+| `sites` | name | 0 | — |
+| `guards` | full_name | **3** | `Lerato Moletsane` × 2 (GRD-003 inactive + UUID-suffixed active), `Thabo Mokoena` × 2, `Sipho Ndlovu` × 2 |
+| `vehicles` | license_plate | 0 | — |
+| `fr_person_registry` | person_id | 0 | — |
+| `incidents` | event_uid | 0 | — |
+| `incidents` (site_id, signal_received_at-minute window) | site+time | 0 groups | — |
+| `client_evidence_ledger` | hash | **0** | hash-chain collisions would be catastrophic; chain is clean |
+| `onyx_evidence_certificates` | event_id | **5+** groups | `EVT-1776335047000000-5-VMD` × **3** certs, `EVT-1776243069000000-16-VMD` × 2, `EVT-1776243024000000-5-VMD` × 2, `EVT-1776248419000000-16-VMD` × 2, `EVT-1776339756000000-5-VMD` × 2 |
+| `onyx_evidence_certificates` | chain_position | 0 gaps (sequential 1–282) | — |
+| `dispatch_transitions` | (dispatch_id, to_state, created_at) | 0 | — |
+| `telegram_inbound_updates` | update_id | 0 | — |
+
+### 8.1 Severity summary
+
+| Severity | Finding |
+|---|---|
+| **high** | `guards` has 3 real persons each appearing twice (old `GRD-NNN` + new UUID-suffixed entries). UI lookups by `full_name` return ambiguous results. The 5 placeholder guards (§7) further inflate this table |
+| **medium** | `clients` — 3 rows literally named "test". Production clients table polluted by dev seed data. |
+| **medium** | `onyx_evidence_certificates.event_id` — at least 5 events have multiple certs issued. The chain absorbed duplicate issuance without rejection (chain-position incremented for each); chain-integrity is preserved but audit semantics are weakened |
+| **low** | `client_evidence_ledger.hash` — 0 duplicates; chain clean |
+
+---
+
+## 9. Orphaned blobs
+
+### Method
+
+`GET /storage/v1/bucket` → enumerate buckets. `POST /storage/v1/object/list/<bucket>` with body `{"prefix":"","limit":100,"offset":0}` → list objects per bucket. Cross-reference against any DB columns that reference storage paths.
+
+### Findings
+
+| Bucket | Public | Object count | Total size | DB-ref columns that could reference it |
+|---|---|---:|---:|---|
+| `guard-shift-verification` | false | **0** | 0 bytes | `guard_sync_operations.payload` (`*/0`), `guard_ops_media` (0 rows) |
+| `guard-patrol-images` | false | **0** | 0 bytes | `patrol_scans` (0 rows), `guard_checkpoint_scans` (0 rows) |
+| `guard-incident-media` | false | **0** | 0 bytes | `guard_incident_captures` (0 rows), `guard_ops_media` (0 rows) |
+
+**All three buckets are empty.** Zero orphaned files; zero broken references; zero storage cost from orphans.
+
+**Adjacent finding:** `incidents.media_attachments` column contains URLs pointing at `https://cdn.onyx.local/evidence/evt-.../photo-*.jpg` — a **non-Supabase domain** that is not resolvable outside of whatever dev/staging environment originally seeded the data. 241 rows carry this column; many arrays are empty, but the populated ones are all `cdn.onyx.local/...`. These are seed-data URLs that will never load in any UI. Not an orphan-blob finding (no Supabase storage involved) but a data-quality finding. Flagged here for completeness.
+
+### 9.1 Severity summary
+
+**Low** — no real orphaned storage, but the entire storage subsystem is unused by the current runtime. The `guard-*` buckets exist pre-provisioned for a guard-side-media flow that has never written a byte. Alongside phase 2a §6.2's finding that `guard_ops_media` / `guard_checkpoint_scans` / `guard_incident_captures` are all 0 rows, the guard data path is end-to-end dormant.
+
+---
+
+## 10. RLS policy coverage
+
+### Method
+
+Grep migrations for `ENABLE ROW LEVEL SECURITY` (case-insensitive, both lowercase and UPPERCASE variants used across the 54 SQL files). Policy bodies are out of scope per brief — only coverage is flagged.
+
+Live RLS state **cannot be verified** without `pg_catalog.pg_class.relrowsecurity` — flagged `unknown` where load-bearing.
+
+### Findings — RLS declaration coverage
+
+**Tables with RLS enabled per migration declarations (51):**
+
+`client_contact_endpoint_subscriptions`, `client_contacts`, `client_messaging_endpoints`, `clients`, `controllers`, `employee_site_assignments`, `employees`, `fr_person_registry`, `guard_assignments`, `guard_checkpoint_scans`, `guard_incident_captures`, `guard_location_heartbeats`, `guard_ops_events`, `guard_ops_media`, `guard_panic_signals`, `guard_sync_operations`, `guards`, `hourly_throughput`, `incidents`, `onyx_awareness_latency`, `onyx_evidence_certificates`, `onyx_operator_scores`, `onyx_operator_simulations`, `onyx_power_mode_events`, `patrol_checkpoint_scans`, `patrol_checkpoints`, `patrol_compliance`, `patrol_routes`, `patrol_scans`, `site_alarm_events`, `site_alert_config`, `site_api_tokens`, `site_camera_zones`, `site_expected_visitors`, `site_identity_approval_decisions`, `site_identity_profiles`, `site_intelligence_profiles`, `site_occupancy_config`, `site_occupancy_sessions`, `site_vehicle_presence`, `site_zone_rules`, `sites`, `staff`, `telegram_identity_intake`, `telegram_inbound_updates`, `vehicle_visits`, `vehicles`, `zara_action_log`, `zara_scenarios`, (and `storage.objects` via dynamic execute).
+
+### Tables likely **lacking** RLS coverage (no declaration observed)
+
+Tables in live schema that do NOT appear in the RLS-enable grep result above:
+
+| Table | Row count | Policy declarations observed | Risk flag |
+|---|---:|---|---|
+| `client_evidence_ledger` | 16,388 | **none** — ghost table, no migration exists (§2.3) | **medium/high** — 16,388 rows of audit-chain data with RLS status **unknown** |
+| `dispatch_current_state` | 27 | none — ghost table | **medium** — unknown RLS, written via Dart worker |
+| `dispatch_intents` | 27 | none — ghost table | same |
+| `dispatch_transitions` | 34 | none — ghost table | same |
+| `client_conversation_messages` | 20 | none observed | **medium** — 20 real operator↔client messages with unclear RLS |
+| `client_conversation_acknowledgements` | 22 | none observed | medium |
+| `client_conversation_push_queue` | 11 | none observed | medium |
+| `client_conversation_push_sync_state` | 2 | none observed | medium |
+| `global_events` | 96 | none observed | low (publicly-relevant news data; leak risk minimal) |
+| `onyx_event_store`, `onyx_alert_outcomes`, `onyx_client_trust_snapshots` | 0 / 0 / `*/0` | none observed (migration-declared but no RLS enable) | low (empty) |
+| `onyx_settings` | 1 | none observed | medium |
+| `roles`, `users` | `*/0` | none observed | unknown — v2 `/admin` reads these |
+| ~90 "ghost application tables" from §2.4 | various | none (no migration) | **unknown across the board** |
+
+### 10.1 Section 10 summary
+
+- **51 tables** have `ENABLE ROW LEVEL SECURITY` declared in migrations.
+- **~15+ tables** (plus 90 ghost tables from §2.4) have no RLS declaration observed in any scanned migration.
+- **Live RLS state unverifiable** from this pass (no pg_catalog access).
+- Severity: **medium** — the highest-risk gap is `client_evidence_ledger` (16,388 audit-chain rows, no migration, RLS unknown). If RLS is off, any authenticated user could read the full evidence log across all clients.
+
+---
+
+## 11. Writes from unexpected origins
+
+### Method
+
+Flag any row where an audit column (`created_by` / `updated_by` / `source`-style) reveals an unexpected origin — e.g. service-role writes where a specific user should have written, or vice versa.
+
+### Findings
+
+No `created_by` / `updated_by` / `actor_id`-style user-attribution columns observed on the most-written tables (`incidents`, `site_alarm_events`, `client_evidence_ledger`, `onyx_evidence_certificates`, `telegram_inbound_updates`). The closest audit proxy is `incidents.controller_notes` free-text (which phase 2a §6.1 used to attribute 141 Apr-20 PATCH writes to v2's alarms dashboard via the literal string `"via Alarms dashboard"`). `dispatch_transitions.actor_type` / `.actor_id` do exist (values `AI` / `SYSTEM` / `HUMAN` × small counts) — but they only apply to the 34 dormant transition rows.
+
+No findings in this category beyond the attribution caveats already documented in phase 2a §4.1 (141 PATCH writes ambiguous between v1 Flutter / v2 Next.js / bin/ camera-worker because no user-id column exists).
+
+---
+
+## 12. Roll-up
+
+### 12.1 Severity summary
+
+| Category | High-impact | Medium | Low | Notes |
+|---|---:|---:|---:|---|
+| §1 Orphaned rows | 4 (clients/conv×2, ledger.dispatch_id 100% orphan, guard_ops_events test pollution) | 2 | 1 | See §1.5 |
+| §2 Schema drift | 3 (4 tables w/ no migration, 27 drifted columns on incidents, 90 ghost tables) | 2 | — | See §2.7 |
+| §3a Write-never-read | — | 9 confirmed dead cols | 9 partial-read cols | See §3a |
+| §3b Read-never-written | 2 (evidence_certs.incident_id/face_match_id) | 6 | 18 | See §3b |
+| §4 Value inconsistencies | 2 (incidents.status/priority) | 3 | 8 dead-enums | See §4.1 |
+| §5 Timestamps | 0 | 0 | 0 | **cleanest section** |
+| §6 FK integrity | 1 (only 4 hard FKs across schema; 172 soft) | — | — | See §6.1 |
+| §7 Null integrity | 4 (incidents.site_id 98.8% null + 3×cert/dispatch FKs 100% null) | 3 (guards placeholders) | 3 | See §7 |
+| §8 Duplicates | 1 (guards — 3 real names × 2 each) | 2 | 1 | See §8.1 |
+| §9 Orphaned blobs | — | — | 1 (all 3 buckets empty; seed CDN URLs in incidents) | See §9.1 |
+| §10 RLS coverage | 1 (client_evidence_ledger 16,388 rows, RLS unknown) | 2 | — | See §10.1 |
+| §11 Unexpected origins | — | — | 0 (no user-attribution columns to audit against) | See §11 |
+
+### 12.2 Top 10 operationally significant findings
+
+1. **`client_evidence_ledger` has no migration at all** (16,388 rows of audit-chain data) — neither schema nor RLS policies are in version control. A schema reset loses it entirely. (§2.3, §10)
+2. **`client_evidence_ledger.dispatch_id` is 100% orphaned (16,388/16,388 rows)** — values like `DSP-0`, `INTEL-INT-50d52b2a14d5f79661c9` don't match `dispatch_current_state.dispatch_id` (UUID-format). The column is a polymorphic reference with no resolvable parent. (§1.4)
+3. **`incidents.status` mixed casing**: 19 rows `OPEN` + 78 rows `open` — any case-sensitive filter mis-classifies 19 rows. `priority` column is worse: 10 distinct values across 4 competing vocabularies (`critical`/`p3`/`medium`/`CRITICAL`/`high`/`p1`/`p2`/...). (§4)
+4. **`incidents.site_id` is NULL in 238 of 241 rows (98.8%)** — incidents are effectively unscoped to sites. v1/v2 site-grouping UIs show only 3 incidents across 8 sites. (§7)
+5. **`onyx_evidence_certificates.incident_id` is NULL in 282/282 rows** and `.face_match_id` NULL in 282/282 — certificates never link to incidents or FR matches. Cascades from phase 2a §1.2 at the data-integrity layer. (§1.4, §7)
+6. **`dispatch_current_state.incident_id` is NULL in 27/27 rows** — dispatches never tied back to incidents. (§1.4, §7)
+7. **`incidents` table has 27 out-of-band columns** that no migration created (including `operator_notes`, `acknowledged_at`, `acknowledged_by`, `engine_data`, `engine_message`, `action_code`, `revealed_at`). Every column v2's PATCH writes is out-of-band. (§2.5)
+8. **Only 4 hard FK constraints** across the whole schema; 172 soft-FK columns silently accumulate orphans as parents are deleted. (§1, §6)
+9. **Data pollution in directory tables:** 3 `clients` named "test", 4 of 8 `sites` pointing at a "test" client, 5 placeholder `guards` with NULL name/client/site, 3 real guards duplicated with inactive-old-ID + active-new-UUID-ID pairs. (§1.3, §7, §8)
+10. **90+ "ghost application tables"** in live public schema (declared in v2's auto-generated `types.ts` but absent from all scanned migrations) — the authoritative SQL-in-VCS describes a subset of the real schema; a freshly-reset environment would be missing most of the platform. (§2.4)
+
+---
+
+*End of Phase 4.*
