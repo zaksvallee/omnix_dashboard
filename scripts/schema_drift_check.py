@@ -135,21 +135,22 @@ EXCLUDE_SCHEMA = (
     "repack|tiger|tiger_data|timescaledb_*|_timescaledb_*|topology|vault"
 )
 
-# Self-test expected state — derived from Step 1 §1 + Step 2 §6.5 (Option A
-# branch, i.e. PostGIS installed in scratch, all auth.* stubs present).
-# These are the exact object counts the tool must reproduce to declare
-# "no new drift since Step 2 landed." If live changes out of band, these
-# numbers change and the assertion fails.
+# Self-test expected state — Post-Layer-1-Step-4 target.
+# After Step 4a applied to live via `supabase db push --linked` on 2026-04-22
+# (commits 9af9309 + a0953fb), live has +14 FKs, +11 CHECKs, +3 UNIQUE,
+# +13 indexes (10 new + 3 backing), +5 RLS-enabled tables, +10 policies.
+# These numbers are the current expected state. If live changes out of band,
+# these numbers change and the assertion fails.
 SELF_TEST_EXPECTED = {
-    "tables": 129,
-    "views": 24,
+    "tables": 129,        # Step 4a adds no tables
+    "views": 24,          # no new views
     "functions_public": 32,
     "triggers": 37,
-    "policies": 157,
+    "policies": 167,      # 157 pre-4a + 10 Step 4a (5 tables × 2 policies)
     "enums_public": 14,
     "sequences_public": 2,
-    "rls_enabled": 63,
-    "foreign_keys": 57,
+    "rls_enabled": 68,    # 63 + 5 Step 4a ENABLE
+    "foreign_keys": 71,   # 57 + 14 Step 4a FK promotions
     # After Step 2's quarantine-to-historical/ pattern, the active chain is
     # the baseline alone — so live vs scratch drift is expected to be zero
     # across every category (Option A branch).

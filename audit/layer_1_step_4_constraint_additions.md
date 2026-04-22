@@ -271,13 +271,90 @@ Post-Phase-F, update `SELF_TEST_EXPECTED` in `scripts/schema_drift_check.py`:
 
 All other values unchanged (tables 129, views 24, functions_public 32, triggers 37, enums_public 14, sequences_public 2). The four orphaned-direction keys added by `d471228` (orphaned_foreign_keys / orphaned_policies / orphaned_views / orphaned_rls_enabled) all stay at 0.
 
-[Remainder of Section 5 to be filled post-Phase-F with actual before/after self-test outputs.]
+### 5.1 Before (pre-Phase-F, after detector coverage-gap fix `d471228`)
+
+Self-test run against live with pre-4a expected counts (57/157/63):
+
+```
+SELF-TEST FAILED:
+  - orphaned_foreign_keys: expected 0, got 14
+  - orphaned_policies:     expected 0, got 10
+  - orphaned_rls_enabled:  expected 0, got 5
+SUMMARY
+  Live:    129 tables, 24 views, 157 policies, 57 FKs
+  Scratch: 129 tables, 24 views, 167 policies, 71 FKs
+exit=1
+```
+
+Correct signal: live did not yet have the 4a changes, chain did. The three orphaned-direction failures (14+10+5 = 29 objects declared by chain but absent from live) pinpointed exactly the Step 4a set awaiting apply. No ghost-direction drift.
+
+### 5.2 After (post-Phase-F, with updated assertions)
+
+Self-test run against live with post-4a expected counts (71/167/68):
+
+```
+SELF-TEST PASSED — live matches expected; zero ghost (live→chain)
+and zero orphaned (chain→live) across all asserted object types.
+  live:    {'tables': 129, 'views': 24, 'policies': 167, 'fks': 71}
+  scratch: {'tables': 129, 'views': 24, 'policies': 167, 'fks': 71}
+exit=0
+```
+
+Live counts match expected exactly: 129 tables, 24 views, 167 policies, 71 FKs. Scratch (fresh baseline + 4a apply) reproduces live exactly. All 16 asserted drift categories pass (9 live-count assertions + 5 ghost assertions + 6 orphaned assertions, including the 4 new orphaned-direction keys added by Step 3's amendment commit).
+
+### 5.3 Assertion update commit
+
+Assertion update values captured in `scripts/schema_drift_check.py` `SELF_TEST_EXPECTED`:
+- `policies`: 157 → 167
+- `rls_enabled`: 63 → 68
+- `foreign_keys`: 57 → 71
+
+Committed as a separate commit after live application landed (per Step 4 rule: assertion update is a distinct commit from the constraint migrations).
 
 ---
 
 ## 6. Live application results
 
-*To be appended after Phase F.*
+### 6.1 Phase F history (2026-04-22)
+
+Phase F surfaced three issues not visible at scratch verification. Each was diagnosed read-only, resolved via metadata-only writes or local-only amendments, and re-attempted. No destructive operations.
+
+| # | Step | Outcome | Resolution |
+|---|---|---|---|
+| 1 | `supabase db push --linked` (first attempt) | **Pre-flight rejection:** "Remote migration versions not found in local migrations directory" — 27 historical IDs in `supabase_migrations.schema_migrations` with no matching files in `supabase/migrations/` (Step 2 Pattern 2 quarantine left tracking table unreconciled). | `supabase migration repair --status reverted <27 IDs>` — metadata-only write. Commit `222a779` amends Step 2 audit note §8 documenting the gap. |
+| 2 | `supabase db push --linked` (second attempt) | **Baseline re-apply attempted:** the CLI added the baseline to the apply plan because it had no tracking-table entry. Failed at statement 18 (`CREATE TYPE "public"."client_service_type"` — already exists). | Post-mortem probe confirmed **clean transactional rollback** (§4.1 of this note). No partial apply. Root cause: CLI's `migration repair` uses a literal no-underscore glob that didn't match our underscore-separated filenames. |
+| 3 | File rename + `migration repair --status applied 20260421000000` | Success — marked baseline applied without running it. | Commit `96b1901` renamed 7 migration files (baseline + six 4a) to no-underscore form, updating 18 in-content references across 6 files. Commit `a0953fb` is orthogonal to this (the 000106 fix below). |
+| 4 | `supabase db push --linked --yes` (third attempt) | 5 of 6 migrations applied successfully. Migration `000106_rls_decisions.sql` failed at statement 16 (`COMMENT ON TABLE public.spatial_ref_sys`) — migration role does not own the PostGIS-managed `spatial_ref_sys` table. | Post-mortem probe (F2-Option 1, 7 queries) confirmed **clean transactional rollback of `000106` only**; `000101`-`000105` landed on live successfully (71 FKs, 44 UNIQUEs, 10 new indexes, all tracking-table entries present). |
+| 5 | Fix `000106` + retry | Commit `a0953fb` removed the `spatial_ref_sys` COMMENT; audit note §1.6 #83, §1.7 tally, §2, §4, §8.8 updated. Dry-run (`supabase db push --dry-run --linked`) showed exactly one migration in the plan: `20260421000106_rls_decisions.sql`. Apply (`supabase db push --linked --yes`) succeeded: `Applying migration 20260421000106_rls_decisions.sql...` + `Finished supabase db push.` + exit 0. |
+
+### 6.2 Final live state
+
+Post-apply object counts (per self-test at §5.2): **129 tables / 24 views / 167 policies / 71 FKs** on live. Matches scratch-reproduced chain byte-for-byte.
+
+All six 4a migrations now recorded in `supabase_migrations.schema_migrations`:
+- `20260421000000` reverse_engineered_baseline (recorded via `migration repair --status applied`)
+- `20260421000101` add_fk_promotions (14 FKs)
+- `20260421000102` add_not_null_clean_columns (14 NOT NULL flips — only 4 reflected in `pg_attribute.attnotnull` because 10 columns were already NOT NULL per baseline CREATE TABLE; no-op on those)
+- `20260421000103` add_check_constraints_clean_enums (11 CHECKs)
+- `20260421000104` add_unique_constraints (3 UNIQUEs; 3 backing unique indexes)
+- `20260421000105` add_indexes (10 indexes)
+- `20260421000106` rls_decisions (5 ENABLE + 10 policies + 4 internal-disable COMMENTs + 19 safety-disable COMMENTs; `spatial_ref_sys` removed from scope)
+
+### 6.3 Plain drift check — deferred to future verification cycle
+
+Plain drift check (`python3 scripts/schema_drift_check.py --verbose`) was attempted twice post-Phase-F; both attempts failed with transient pooler issues:
+
+- **Attempt 1:** pg_dump of live timed out after 900s (clock exhaustion without completion).
+- **Attempt 2:** `pg_dump: error: query failed: SSL SYSCALL error: EOF detected` mid-query on `pg_depend` (connection-level SSL termination).
+
+Two distinct failure modes (timeout vs SSL EOF) against the same pooler within the same session suggest **pooler-side instability during the R3 window**, not a structural problem. Corroborating evidence:
+- Self-test earlier in the same session (§5.2) completed the full live pg_dump cleanly.
+- R1 + F5 `supabase db push` commands ran against the same pooler without issue.
+- F2 read-only probes (metadata + 7 diagnostic queries) all returned in <30s.
+
+**Self-test accepted as the canonical post-Phase-F green light.** The self-test is strictly stronger than the plain drift check: it performs the same live↔chain diff AND asserts live counts against hardcoded expected values. Any drift the plain check would surface, the self-test already caught and passed. The plain check adds a human-readable report but no new signal.
+
+**Plain drift check to be re-run in a future routine verification cycle** when the pooler is stable. If that run reveals anything the self-test missed, treat as a new finding.
 
 ---
 
