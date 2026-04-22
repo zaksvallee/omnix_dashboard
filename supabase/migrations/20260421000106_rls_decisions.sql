@@ -7,8 +7,10 @@
 --      clear client_id column. Policy shape: service-role full access;
 --      authenticated users scoped by client_id claim.
 --
---   B) DISABLED explicitly (internal / operator-managed): 5 tables that are
---      internal retention/locking/PostGIS reference — not application data.
+--   B) DISABLED explicitly (internal / operator-managed): 4 tables that are
+--      internal retention/locking — not application data.
+--      (Originally 5 — spatial_ref_sys removed post-Phase-F: platform-managed
+--      by PostGIS extension, not ownable by migration role. See §8.)
 --      RLS remains off with a COMMENT documenting that the state is intentional.
 --
 --   C) DISABLED with safety comment (sensitive, scope unclear): 19 tables
@@ -85,11 +87,13 @@ CREATE POLICY client_conversation_push_sync_state_authenticated_read ON public.c
   USING (client_id = COALESCE(NULLIF(auth.jwt() ->> 'client_id', ''), ''));
 
 -- =============================================================================
--- B) DISABLED intentionally — internal / PostGIS / retention pipeline
+-- B) DISABLED intentionally — internal retention pipeline + dispatch mutex
 -- =============================================================================
 
-COMMENT ON TABLE public.spatial_ref_sys IS
-  'PostGIS reference data. RLS intentionally disabled — not application data.';
+-- spatial_ref_sys is a PostGIS-owned reference table.
+-- We do not own it and cannot apply RLS decisions or COMMENT to it.
+-- RLS state and ownership are managed by the postgis extension.
+-- Removed from Step 4 scope. See audit note §1.6 (updated) and §8.
 
 COMMENT ON TABLE public.guard_ops_replay_safety_checks IS
   'Guard-ops retention pipeline internal. RLS intentionally disabled — operator-managed, no client scope.';

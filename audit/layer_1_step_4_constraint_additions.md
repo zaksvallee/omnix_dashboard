@@ -156,7 +156,7 @@ Skipped from Step 2 §4.3: `site_vehicle_presence_*` (renamed target), `telegram
 | 80 | `client_conversation_acknowledgements` (22) | **4a ENABLE + policy** | client_id present |
 | 81 | `client_conversation_push_queue` (11) | **4a ENABLE + policy** | client_id present |
 | 82 | `client_conversation_push_sync_state` (2) | **4a ENABLE + policy** | client_id present |
-| 83 | `spatial_ref_sys` | **4a DISABLED (internal comment)** | PostGIS reference data |
+| 83 | ~~`spatial_ref_sys`~~ | **EXCLUDED (platform-managed)** | ~~PostGIS reference data~~ — removed post-Phase-F: PostGIS owns the table; migration role cannot COMMENT or ALTER it. See §8.8. |
 | 84 | `guard_ops_replay_safety_checks` | **4a DISABLED (internal)** | retention pipeline |
 | 85 | `guard_ops_retention_runs` | **4a DISABLED (internal)** | retention pipeline |
 | 86 | `guard_projection_retention_runs` | **4a DISABLED (internal)** | retention pipeline |
@@ -193,10 +193,10 @@ Skipped from Step 2 §4.3: `site_vehicle_presence_*` (renamed target), `telegram
 | UNIQUE | 3 | 3 |
 | Indexes | 10 | 0 |
 | RLS enable + policy | 5 | — |
-| RLS DISABLED internal comment | 5 | — |
+| RLS DISABLED internal comment | 4 | — |
 | RLS DISABLED safety comment | 19 | — |
 | Ambiguous → Layer 6 | 38 | — |
-| **Totals in Step 4 scope** | **81** | **24** |
+| **Totals in Step 4 scope** | **80** | **24** |
 
 4a : 4b ratio on constraint additions (excluding deferred) = 77% : 23%.
 
@@ -213,7 +213,7 @@ One file per constraint category, timestamped after the baseline:
 | `supabase/migrations/20260421000103_add_check_constraints_clean_enums.sql` | CHECK on 11 enum-like cols | 11 |
 | `supabase/migrations/20260421000104_add_unique_constraints.sql` | UNIQUE on 3 cols | 3 |
 | `supabase/migrations/20260421000105_add_indexes.sql` | CREATE INDEX IF NOT EXISTS for 10 indexes | 10 |
-| `supabase/migrations/20260421000106_rls_decisions.sql` | 5 ENABLE + 5 internal-disable COMMENTs + 19 safety-disable COMMENTs | 29 statements |
+| `supabase/migrations/20260421000106_rls_decisions.sql` | 5 ENABLE + 4 internal-disable COMMENTs + 19 safety-disable COMMENTs (spatial_ref_sys removed post-Phase-F — platform-managed) | 28 statements |
 
 Each file has a header comment block stating (a) what it does, (b) the phase 4 finding it addresses, (c) 4a classification rationale, and (d) what's been moved to 4b.
 
@@ -249,7 +249,15 @@ The 4a RLS policy on `client_evidence_ledger` (`authenticated read by client_id 
 
 ## 4. Scratch verification results
 
-*To be appended after Phase D.*
+**Phase D (2026-04-21) — full scratch apply of baseline + 4a:** all six 4a migrations applied cleanly against a fresh scratch Postgres. Object-count deltas matched expectations exactly (14 FKs, 11 CHECKs, 3 UNIQUEs, 13 indexes including 3 backing UNIQUE indexes, 5 RLS-enables, 10 policies). See separate Phase D report log at `/tmp/layer1_step4/phase_d.log` for verbatim output.
+
+### 4.1 Scratch-vs-live role identity gap (surfaced at Phase F)
+
+Scratch Postgres runs as the local OS user (`postgres` superuser in the initdb default), who owns every object in the cluster — including extension-created objects like PostGIS's `spatial_ref_sys`. The migration role on live (`cli_login_postgres.mnbloeoiiwenlywnnoxe` → `postgres` via `SET ROLE`) is **not** the same as Supabase's internal PostGIS-owning role. On live, `spatial_ref_sys` is owned by a platform-managed role; the migration role has SELECT access but not ownership, so `COMMENT ON TABLE` / `ALTER TABLE` on it fail with `SQLSTATE 42501 must be owner`.
+
+Phase D did not catch this because scratch superuser owns all objects. Phase F caught it on the first live push attempt (migration `000106` statement 16).
+
+Fix: `000106` was amended to remove the `spatial_ref_sys` COMMENT entirely — the table is platform-managed and out of Step 4 scope. See §1.6 #83 (crossed out) and §8.8.
 
 ---
 
@@ -364,6 +372,18 @@ Phase 4 §10 flagged `site_api_tokens` as HIGH-risk (auth tokens without RLS). T
 ### 8.7 Layer 2 data cleanup scope
 
 Every 4b file's header enumerates the Layer 2 cleanup prerequisites that must run before the file applies. Step 4 does not implement or validate those cleanup steps — Layer 2 owns them. If Layer 2's implementation diverges from the prerequisites listed in a 4b file header, the file may fail at cutover. Flagged as a cross-layer coordination obligation.
+
+### 8.8 Scratch permission model diverges from live for extension-owned objects
+
+**The gap:** scratch Postgres uses an initdb-created superuser who owns every object in the cluster, including objects created by `CREATE EXTENSION postgis` (notably `spatial_ref_sys`, `geography_columns`, `geometry_columns`, plus ~744 PostGIS functions). On live Supabase, PostGIS is installed under a platform-managed owning role. The migration role (`postgres` via `SET ROLE`) has usage but not ownership of extension-created objects. `COMMENT ON TABLE`, `ALTER TABLE`, `ENABLE ROW LEVEL SECURITY`, and similar owner-required operations on extension-owned objects fail on live with `SQLSTATE 42501 must be owner`.
+
+**Where it surfaced:** Phase F statement 16 of `000106_rls_decisions.sql` (`COMMENT ON TABLE public.spatial_ref_sys`). Scratch verification (Phase D) did not flag it because scratch's single-user model made ownership a non-issue.
+
+**Resolution for this step:** `spatial_ref_sys` removed from `000106` — it's platform-managed, out of Step 4 scope.
+
+**Flagged for Layer 2 pre-flight:** any migration that touches extension-owned objects on live will fail regardless of what scratch shows. Scratch is a reproducibility check for application-owned DDL, not for cross-role permission semantics. Layer 2 should pre-flight any such migration against live with a `--dry-run`-equivalent or a role-probe check.
+
+**Potentially affected extension-owned objects (Supabase managed):** PostGIS's `spatial_ref_sys` / `geography_columns` / `geometry_columns`; pg_cron's `job` / `job_run_details`; supabase_vault's encrypted-secrets tables; anything in the `graphql` / `extensions` / `vault` / `auth` / `storage` schemas. None of these should be touched by application-layer migrations.
 
 ---
 
