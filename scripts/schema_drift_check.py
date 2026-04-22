@@ -153,13 +153,19 @@ SELF_TEST_EXPECTED = {
     # After Step 2's quarantine-to-historical/ pattern, the active chain is
     # the baseline alone — so live vs scratch drift is expected to be zero
     # across every category (Option A branch).
+    # Ghost (in live, not in chain) — out-of-band additions to live
     "ghost_tables": 0,
     "ghost_columns": 0,
+    "missing_policies": 0,       # policies in live not in chain (named "missing"
+    "missing_fks": 0,            # because the chain is "missing" them — legacy
+    "missing_views": 0,          # naming retained to avoid breaking callers)
+    # Orphaned (in chain, not in live) — migrations declared but not applied
     "orphaned_tables": 0,
     "orphaned_columns": 0,
-    "missing_policies": 0,
-    "missing_fks": 0,
-    "missing_views": 0,
+    "orphaned_foreign_keys": 0,
+    "orphaned_policies": 0,
+    "orphaned_views": 0,
+    "orphaned_rls_enabled": 0,
 }
 
 
@@ -819,21 +825,33 @@ def self_test_assertions(live, scratch, diff):
                     f"(live has changed since Step 1, or Step 1 miscounted)"
                 )
 
-    # Ghost/orphaned counts (Option A — should be zero across the board).
-    ghost_counts = {
+    # Asserted drift counts — both directions. `ghost_*` / `missing_*` =
+    # things in live but not in the active chain (out-of-band additions,
+    # the original ghost-schema problem). `orphaned_*` = things declared
+    # by the active chain but not present in live (migrations not yet
+    # applied, or reverted out of band). Both are drift; both should be
+    # zero after Step 2 reconciliation and after any new migrations have
+    # been applied to live.
+    asserted_drift_counts = {
+        # ghost direction (live → chain)
         "ghost_tables": len(diff["ghost"]["tables"]),
         "ghost_columns": sum(len(e["columns"]) for e in diff["ghost"]["columns"]),
         "missing_views": len(diff["ghost"]["views"]),
         "missing_policies": len(diff["ghost"]["policies"]),
         "missing_fks": len(diff["ghost"]["foreign_keys"]),
+        # orphaned direction (chain → live)
         "orphaned_tables": len(diff["orphaned"]["tables"]),
         "orphaned_columns": sum(len(e["columns"]) for e in diff["orphaned"]["columns"]),
+        "orphaned_foreign_keys": len(diff["orphaned"]["foreign_keys"]),
+        "orphaned_policies": len(diff["orphaned"]["policies"]),
+        "orphaned_views": len(diff["orphaned"]["views"]),
+        "orphaned_rls_enabled": len(diff["orphaned"]["rls_enabled"]),
     }
     for k, expected in exp.items():
-        if k in ghost_counts:
-            if ghost_counts[k] != expected:
+        if k in asserted_drift_counts:
+            if asserted_drift_counts[k] != expected:
                 failures.append(
-                    f"{k}: expected {expected}, got {ghost_counts[k]}"
+                    f"{k}: expected {expected}, got {asserted_drift_counts[k]}"
                 )
     return failures
 
@@ -901,10 +919,10 @@ def main():
             print("--- full drift report follows for diagnosis ---")
             print(render_text_report(live_env, None, live_counts, scratch_counts, diff, True))
             sys.exit(1)
-        print("SELF-TEST PASSED — live + scratch match Step 1/Step 2 documented state.")
+        print("SELF-TEST PASSED — live matches expected; zero ghost (live→chain)")
+        print("and zero orphaned (chain→live) across all asserted object types.")
         print(f"  live:    {live_counts}")
         print(f"  scratch: {scratch_counts}")
-        print(f"  zero ghost, zero orphaned, zero column drift.")
         sys.exit(0)
 
     # Step 5: render report.
