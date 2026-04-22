@@ -255,7 +255,15 @@ The 4a RLS policy on `client_evidence_ledger` (`authenticated read by client_id 
 
 ## 5. Drift detector assertion update
 
-*To be appended after Phase E.*
+Post-Phase-F, update `SELF_TEST_EXPECTED` in `scripts/schema_drift_check.py`:
+
+- `policies`: 157 → 167 (+10 from Step 4a RLS policy creations on 5 tables × 2 policies)
+- `rls_enabled`: 63 → 68 (+5 from Step 4a RLS ENABLE on 5 tables)
+- `foreign_keys`: 57 → 71 (+14 from Step 4a FK promotions)
+
+All other values unchanged (tables 129, views 24, functions_public 32, triggers 37, enums_public 14, sequences_public 2). The four orphaned-direction keys added by `d471228` (orphaned_foreign_keys / orphaned_policies / orphaned_views / orphaned_rls_enabled) all stay at 0.
+
+[Remainder of Section 5 to be filled post-Phase-F with actual before/after self-test outputs.]
 
 ---
 
