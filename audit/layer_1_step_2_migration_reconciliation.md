@@ -466,3 +466,60 @@ None of the above invalidates the §6 gate. The reconciled chain produces the co
 ---
 
 *End of Step 2 reconciliation. Step 3 (process lock) will add tooling / CI enforcement around the forward-chain rules in §1.3. Step 4 (constraints) will act on the §4 drift catalogue to add NOT NULL / CHECK / hard FK where phase 4 flagged them as desirable.*
+
+---
+
+## 8. Amendment — tracking-table reconciliation for Pattern 2 quarantine (added 2026-04-22)
+
+### 8.1 The gap
+
+Step 2's Pattern 2 reorganisation moved all 54 historical migration files into `historical/` subdirectories (44 under `supabase/migrations/historical/`, 10 under `deploy/supabase_migrations/historical/`) so the Supabase CLI's migration discovery would stop walking them. This was sufficient to pass the §6 reproducibility gate (scratch apply produces the correct object counts from baseline-only).
+
+**What Step 2 did NOT do:** reconcile the `supabase_migrations.schema_migrations` tracking table on live. That table is the Supabase CLI's internal bookkeeping of "which migration IDs have been applied to this remote." Moving a file on disk does not update the tracking table — entries remain keyed on the migration's ID (the numeric prefix of the filename), not the file's path.
+
+Step 2 §1.3 rule-2 ("Live in `supabase/migrations/` directly, not in `historical/`") implicitly assumed the CLI would be happy with just the active-chain baseline file going forward. That turned out to be incomplete: the CLI's `supabase db push --linked` pre-flight cross-checks remote's `schema_migrations` table against the local `supabase/migrations/` directory and refuses to proceed if any remote-tracked ID lacks a local file.
+
+### 8.2 How it surfaced
+
+At **Layer 1 Step 4 Phase F** (2026-04-22), the first attempt to run `supabase db push --linked` against live to apply the 4a constraint migrations aborted with:
+
+```
+Remote migration versions not found in local migrations directory.
+```
+
+followed by a list of 27 IDs and a suggested remediation — `supabase migration repair --status reverted <27 IDs>`. The push did not proceed past the pre-flight; zero DDL was issued against live.
+
+### 8.3 27 of 54 — why only half need repair
+
+The CLI only flags migrations that are recorded in remote's `supabase_migrations.schema_migrations` table. Of the 54 quarantined historical files:
+
+- **27** were originally applied via `supabase db push` / `supabase migration up` — recorded in `schema_migrations`. These are the IDs the CLI flags and the ones that need `migration repair`.
+- **27** were applied through other channels (Studio SQL editor, direct `psql`, the separate `deploy/` script set, or ad-hoc ops) — never recorded in `schema_migrations`, so the CLI doesn't know about them and doesn't complain.
+
+This split is consistent with phase 1a §3.2 (deploy-side migrations applied via a non-CLI channel) and phase 4 §2.3 (ghost tables applied out of band). It's a useful data point for Layer 2: any cleanup that alters migration tracking should focus on the 27 CLI-tracked IDs; the other 27 have no tracking-table footprint to maintain.
+
+The 27 IDs requiring repair (from the CLI error message at Phase F):
+
+```
+20260304 202603050001 202603050002 202603050003 202603050004
+202603050005 202603050006 202603050007 202603050008 202603050009
+202603050010 202603090001 202603120001 202603120002 202603120003
+202603120004 202603120005 202603120006 202603120007 202603120008
+202603150001 202604070001 202604070002 202604070003 20260409
+202604170001 202604170002
+```
+
+**Note on ID `20260409`:** three historical files share this timestamp prefix (`20260409_create_site_alarm_events.sql`, `20260409_create_telegram_inbound_updates.sql`, `20260409_site_awareness_anon_read.sql`). The CLI tracks by the timestamp prefix extracted from each filename, so all three files collapse to the single ID `20260409` in `schema_migrations`. One `migration repair` entry covers all three.
+
+### 8.4 Resolution
+
+`supabase migration repair --status reverted <27 IDs>` marks each of those migration IDs as `reverted` in live's `schema_migrations`. This is a **metadata-only write** on live — it does not alter schema, drop objects, or touch data. After repair, the CLI's pre-flight check passes because no remote-tracked ID is "missing" from local (they're all marked reverted, which means "not currently considered applied").
+
+The historical `.sql` files themselves are untouched by the repair. They remain quarantined in `historical/` for audit trail. Step 2's Pattern 2 decision stands; what changes is the CLI's internal bookkeeping catching up with the Pattern 2 reality.
+
+### 8.5 This is a Step 2 limitation, resolved at Phase F time
+
+The tracking-table reconciliation is properly part of Step 2's Pattern 2 execution but was surfaced only at Phase F because `supabase db push --linked` is the first CLI operation to invoke the pre-flight check. Step 2's §6 gate used a local scratch Postgres, which has no `schema_migrations` awareness — the gap couldn't surface there.
+
+Amendment rule for future Pattern-2-style quarantines: any time historical migration files are moved out of the active discovery path, the corresponding `supabase_migrations.schema_migrations` entries on **every** Supabase environment those migrations were pushed to must be reconciled via `migration repair --status reverted` in the same change window. This should be documented in Step 3's process lock / operating doc as a rule for future baseline-regeneration cycles.
+
