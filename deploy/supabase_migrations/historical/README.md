@@ -4,7 +4,7 @@ This directory contains the 10 migration files from the parallel `deploy/supabas
 
 ## Why they are here and not in the active chain
 
-See `/Users/zaks/omnix_dashboard/supabase/migrations/historical/README.md` for the full rationale. The short version: applying these in timestamp order does not reproduce the live schema. The reverse-engineered baseline at `supabase/migrations/2026_04_21_000000_reverse_engineered_baseline.sql` is the sole active-chain migration going forward.
+See `/Users/zaks/omnix_dashboard/supabase/migrations/historical/README.md` for the full rationale. The short version: applying these in timestamp order does not reproduce the live schema. The reverse-engineered baseline at `supabase/migrations/20260421000000_reverse_engineered_baseline.sql` is the sole active-chain migration going forward.
 
 ## Cross-directory overlap
 

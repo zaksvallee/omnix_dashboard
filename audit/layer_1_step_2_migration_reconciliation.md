@@ -11,7 +11,7 @@
 | Check | Result |
 |---|---|
 | Step 1 inventory (`audit/layer_1_step_1_schema_baseline_inventory.md`) readable | yes — at commit `1887166` |
-| Step 1 baseline SQL (`supabase/migrations/2026_04_21_000000_reverse_engineered_baseline.sql`) readable | yes — at commit `cb5cc4d` |
+| Step 1 baseline SQL (`supabase/migrations/20260421000000_reverse_engineered_baseline.sql`) readable | yes — at commit `cb5cc4d` |
 | Phase 5 synthesis (`audit/phase_5_synthesis.md`) on main | **no** — still absent at this HEAD (flagged in Step 1 §0.1). Step 2 proceeded using Step 1 inventory + phase 4 as the authoritative references, per the brief. |
 | `supabase/migrations/` writable | yes |
 | `deploy/supabase_migrations/` writable | yes |
@@ -59,7 +59,7 @@ In Pattern 1, every one of these tables would come out of `supabase db reset` mi
 
 Going forward, every new migration applied to this project **must**:
 
-1. Have a filename timestamp prefix **strictly greater than** `2026_04_21_000000_` (i.e. `2026_04_21_000001_*.sql` or later).
+1. Have a filename timestamp prefix **strictly greater than** `20260421000000` (i.e. `20260421000001_*.sql` or later). Note the no-underscore form — Supabase CLI's `migration repair` glob requires canonical `YYYYMMDDHHMMSS_*.sql` format.
 2. Live in `supabase/migrations/` directly (not in `historical/`).
 3. Apply cleanly on top of the baseline to a fresh scratch Postgres. The operator adding the migration verifies this locally before commit. (Layer 1 Step 3 — process lock — will formalise this.)
 4. If the migration touches anything documented in §4 (drift catalogue) of this file, update §4 in the same commit.
@@ -272,7 +272,7 @@ Only `table:incidents` is touched by both directories. The `deploy/` migration e
 
 ```
 supabase/migrations/
-├── 2026_04_21_000000_reverse_engineered_baseline.sql    ← ACTIVE CHAIN (sole migration)
+├── 20260421000000_reverse_engineered_baseline.sql    ← ACTIVE CHAIN (sole migration)
 └── historical/
     ├── README.md
     ├── 20260304_create_client_conversation_tables.sql
@@ -289,7 +289,7 @@ deploy/supabase_migrations/
     └── 202604140006_client_trust.sql
 ```
 
-- **Active chain:** `supabase/migrations/2026_04_21_000000_reverse_engineered_baseline.sql` only (1 file).
+- **Active chain:** `supabase/migrations/20260421000000_reverse_engineered_baseline.sql` only (1 file).
 - **Historical record (supabase side):** `supabase/migrations/historical/` — 44 files + README.
 - **Historical record (deploy side):** `deploy/supabase_migrations/historical/` — 10 files + README.
 - **Supabase CLI discovery:** only scans the directory immediately under `supabase/migrations/`, so the 44 historical files are not in its applicative chain. `supabase db reset` will apply only the baseline.
@@ -298,7 +298,7 @@ deploy/supabase_migrations/
 
 New migrations authored from 2026-04-21 onward must:
 
-1. Timestamp **strictly after** `2026_04_21_000000_` (baseline).
+1. Timestamp **strictly after** `20260421000000` (baseline) in no-underscore form.
 2. Live in `supabase/migrations/` (not `historical/`).
 3. Apply cleanly on top of the baseline to a fresh scratch Postgres.
 4. If touching anything in §4, update §4 in the same commit.
@@ -319,7 +319,7 @@ Layer 1 Step 3 (process lock) will formalise these rules in tooling (pre-commit 
 
 ### 6.2 Active chain applied
 
-**Per Pattern 2, the active chain is exactly one file: the baseline.** No historical migrations are applied. The verification therefore applies `2026_04_21_000000_reverse_engineered_baseline.sql` only.
+**Per Pattern 2, the active chain is exactly one file: the baseline.** No historical migrations are applied. The verification therefore applies `20260421000000_reverse_engineered_baseline.sql` only.
 
 ### 6.3 Object counts — Step 1 scratch vs Step 2 scratch
 

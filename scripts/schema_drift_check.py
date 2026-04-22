@@ -13,7 +13,7 @@
 # Context:
 #   Layer 1 Step 3 of the audit remediation. Steps 1 (baseline) and 2
 #   (reconciliation) established a single-active-migration chain —
-#   supabase/migrations/2026_04_21_000000_reverse_engineered_baseline.sql is
+#   supabase/migrations/20260421000000_reverse_engineered_baseline.sql is
 #   the sole active-chain file; 44 historical migrations are quarantined in
 #   supabase/migrations/historical/ and 10 in deploy/supabase_migrations/
 #   historical/. This script is manual-run: no CI, no hooks, no enforcement.
@@ -222,7 +222,7 @@ def preflight():
             "Supabase CLI not on PATH. `brew install supabase/tap/supabase` and `supabase login` + `supabase link --project-ref <ref>`."
         )
     # Migration dir + baseline present?
-    baseline = os.path.join(MIGRATIONS_DIR, "2026_04_21_000000_reverse_engineered_baseline.sql")
+    baseline = os.path.join(MIGRATIONS_DIR, "20260421000000_reverse_engineered_baseline.sql")
     if not os.path.isfile(baseline):
         problems.append(f"Active-chain baseline not found at {baseline} (Layer 1 Step 1 output).")
     # PostGIS extension control file?

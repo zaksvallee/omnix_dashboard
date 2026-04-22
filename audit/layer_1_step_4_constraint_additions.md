@@ -208,12 +208,12 @@ One file per constraint category, timestamped after the baseline:
 
 | File | Adds | Count |
 |---|---|---:|
-| `supabase/migrations/2026_04_21_000101_add_fk_promotions.sql` | FK CONSTRAINT on 14 cols → sites/clients | 14 |
-| `supabase/migrations/2026_04_21_000102_add_not_null_clean_columns.sql` | SET NOT NULL on 14 cols | 14 |
-| `supabase/migrations/2026_04_21_000103_add_check_constraints_clean_enums.sql` | CHECK on 11 enum-like cols | 11 |
-| `supabase/migrations/2026_04_21_000104_add_unique_constraints.sql` | UNIQUE on 3 cols | 3 |
-| `supabase/migrations/2026_04_21_000105_add_indexes.sql` | CREATE INDEX IF NOT EXISTS for 10 indexes | 10 |
-| `supabase/migrations/2026_04_21_000106_rls_decisions.sql` | 5 ENABLE + 5 internal-disable COMMENTs + 19 safety-disable COMMENTs | 29 statements |
+| `supabase/migrations/20260421000101_add_fk_promotions.sql` | FK CONSTRAINT on 14 cols → sites/clients | 14 |
+| `supabase/migrations/20260421000102_add_not_null_clean_columns.sql` | SET NOT NULL on 14 cols | 14 |
+| `supabase/migrations/20260421000103_add_check_constraints_clean_enums.sql` | CHECK on 11 enum-like cols | 11 |
+| `supabase/migrations/20260421000104_add_unique_constraints.sql` | UNIQUE on 3 cols | 3 |
+| `supabase/migrations/20260421000105_add_indexes.sql` | CREATE INDEX IF NOT EXISTS for 10 indexes | 10 |
+| `supabase/migrations/20260421000106_rls_decisions.sql` | 5 ENABLE + 5 internal-disable COMMENTs + 19 safety-disable COMMENTs | 29 statements |
 
 Each file has a header comment block stating (a) what it does, (b) the phase 4 finding it addresses, (c) 4a classification rationale, and (d) what's been moved to 4b.
 

@@ -1,6 +1,6 @@
 # Historical Migrations (pre-baseline)
 
-This directory contains the 44 migration files that predate the reverse-engineered baseline at `../2026_04_21_000000_reverse_engineered_baseline.sql`.
+This directory contains the 44 migration files that predate the reverse-engineered baseline at `../20260421000000_reverse_engineered_baseline.sql`.
 
 ## Why they are here and not in the active chain
 
@@ -16,7 +16,7 @@ Moving these files into this `historical/` subdirectory removes them from the Su
 
 ## Do not run these
 
-Do not `psql -f` any of these files against a live or scratch database. The baseline supersedes them. If reconstructing from scratch, apply only `../2026_04_21_000000_reverse_engineered_baseline.sql`.
+Do not `psql -f` any of these files against a live or scratch database. The baseline supersedes them. If reconstructing from scratch, apply only `../20260421000000_reverse_engineered_baseline.sql`.
 
 ## Orphaned entries
 

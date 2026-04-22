@@ -378,4 +378,4 @@ The Supabase CLI `pg_dump` invocation uses topological ordering (default). I obs
 
 ---
 
-*End of inventory. See `supabase/migrations/2026_04_21_000000_reverse_engineered_baseline.sql` for the accompanying DDL snapshot.*
+*End of inventory. See `supabase/migrations/20260421000000_reverse_engineered_baseline.sql` for the accompanying DDL snapshot.*
