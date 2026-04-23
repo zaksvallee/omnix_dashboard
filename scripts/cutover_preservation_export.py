@@ -316,9 +316,9 @@ def main() -> None:
     _log(SCRIPT_NAME, f"mode={mode} target host={host} db={db}")
     _log("manifest", f"path={manifest_path} schema_version={manifest['schema_version']} preservation_entries={len(preservation)}")
 
-    if not args.dry_run and run_dir.exists():
+    if not args.dry_run and (out_subdir.exists() or index_path.exists()):
         conn.close()
-        _refuse(60, f"Subdirectory {run_dir} already exists; choose a new --run-timestamp.")
+        _refuse(60, f"Preservation output already exists under {run_dir}; choose a new --run-timestamp.")
 
     plans: list[tuple[str, str, int, str]] = []
     for i, entry in enumerate(preservation):
@@ -351,7 +351,7 @@ def main() -> None:
         out_subdir.mkdir(parents=True, exist_ok=False)
     except FileExistsError:
         conn.close()
-        _refuse(60, f"Subdirectory {run_dir} already exists; choose a new --run-timestamp.")
+        _refuse(60, f"Preservation output already exists under {run_dir}; choose a new --run-timestamp.")
     except OSError as e:
         conn.close()
         _refuse(61, f"mkdir failed for {out_subdir}: {e}.")
