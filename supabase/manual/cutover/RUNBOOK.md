@@ -130,6 +130,8 @@ Expected dry-run shape:
 - Row count is live-data dependent; do not rely on the earlier Phase B2 total
   after Amendment 3 added `public.client_conversation_push_sync_state` to the
   wipe set.
+- Latest prep validation on 2026-04-23 with `AS_OF=2026-04-23T00:00:00+00:00`
+  observed 28,382 planned rows.
 
 If the dry-run refuses, abort and resolve the refusal before continuing.
 
