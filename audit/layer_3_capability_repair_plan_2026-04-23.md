@@ -31,7 +31,6 @@ decision, rather than leaving it in a half-alive state.
 Not in scope for Layer 3
 
 - Dummy site/client cleanup and `clients_name_unique`
-- `client_evidence_ledger.dispatch_id` schema redesign
 - v1 Flutter decommission strategy
 - broad Layer 6 RLS / tenancy / schema-shape decisions
 - new product surface area
@@ -64,6 +63,13 @@ Why second:
 - Phase 2b showed `client_evidence_ledger` writes stopped on 2026-04-17.
 - Ledger continuity is a high-impact trust surface and feeds multiple UIs.
 
+Prerequisite:
+- `client_evidence_ledger.dispatch_id` (text) vs
+  `dispatch_intents.dispatch_id` (uuid) FK type mismatch must be
+  resolved OR Workstream 2 exit criterion must be relaxed to
+  "ledger appends with dispatch_id unconstrained until FK
+  reconciled." See Amendment 4 for deferral rationale.
+
 Repair targets:
 - `client_evidence_ledger` write path
 - any coupling between alert/incident generation and ledger append
@@ -71,7 +77,9 @@ Repair targets:
 - chain-integrity behavior on newly-created rows
 
 Exit criteria:
-- a fresh operational event appends new ledger rows
+- a fresh operational event appends new ledger rows (`dispatch_id` linkage may
+  be null/unconstrained pending FK reconciliation; track FK work as separate
+  item)
 - hash/previous-hash continuity is preserved on the new segment
 - evidence certificate generation resumes for fresh events
 - `/ledger` and related evidence surfaces are no longer frozen at pre-cutover
@@ -89,6 +97,9 @@ Repair targets:
 - Pi -> Mac `/detect` handoff configuration and actual POST delivery
 - decision: keep the Mac enhancement tier or retire it for the test-site path
 - camera-worker reconnect behavior and file-descriptor stability
+- complete Pi-side FD runtime profiling per `audit/fd_leak_diagnosis.md`
+  before deciding on code fix (runtime profile artifact expected at
+  `audit/fd_leak_runtime_profile_2026-04-24.md`)
 - any watchdog/telemetry needed so the next failure is diagnosable quickly
 
 Exit criteria:
@@ -100,44 +111,37 @@ Exit criteria:
 
 Workstream 4 — Guard / patrol / workforce data-path triage
 
-Why fourth:
-- Phase 2a/2b showed the guard and patrol-related tables were largely zero-row
-  or dormant, which makes several workforce screens decorative rather than real.
+MS Vallee has no guards on patrol. Guard/patrol capabilities are
+dormant-by-design at this deployment. Workstream 4 output is a
+documented dormancy decision record; no write-path repair work
+performed. Surface cleanup (dashboard screens showing dormant tables)
+deferred to Layer 4.
 
-Repair targets:
+Tables confirmed dormant at MS Vallee:
 - `guard_location_heartbeats`
 - `guard_assignments`
 - `guard_panic_signals`
 - `guard_incident_captures`
 - patrol-related writes that are supposed to power the workforce surfaces
 
-Decision rule:
-- if the capability is meant to be active for MS Vallee, prove it end-to-end
-- if it is not meant to be active in the current deployment, mark the surfaces
-  as dormant-by-design and hand UI cleanup to Layer 4
-
 Exit criteria:
-- at least one real or controlled workforce flow produces live rows in the
-  intended tables, or
-- a documented de-scope decision is recorded for the test site
+- dormancy decision committed as audit artifact
 
 Workstream 5 — Zara / advanced-assist capability triage
 
-Why fifth:
-- `zara_action_log`, `zara_scenarios`, `onyx_awareness_latency`, and
-  `onyx_alert_outcomes` were zero-row or dormant, which blocks advanced
-  surfaces across v1 and v2.
+Zara / advanced-assist capabilities are not operational at MS Vallee.
+Workstream 5 output is a documented deferral decision record. If/when
+Zara becomes operational scope (Layer 5 commercial site or later), a
+fresh capability-restoration workstream is scoped at that time.
 
 Repair targets:
-- determine whether Zara-side tables are supposed to be operational now or are
-  aspirational / dormant product scaffolding
-- if operational, restore one minimally-real end-to-end write path
-- if not operational, record a clear defer/retire decision so Layer 4 can clean
-  the UI honestly
+- `zara_action_log`
+- `zara_scenarios`
+- `onyx_awareness_latency`
+- `onyx_alert_outcomes`
 
 Exit criteria:
-- either fresh rows appear from a controlled flow, or a documented defer/retire
-  decision exists for the affected surfaces
+- deferral decision committed as audit artifact
 
 Suggested sequence
 
@@ -146,6 +150,11 @@ Suggested sequence
 2. Workstream 1: incident + dispatch truth
 3. Workstream 2: evidence + ledger continuity
 4. Workstream 3: enhancement path + camera-worker stability
+   Note: Workstream 3's 24h stability verification runs in parallel
+   with Workstreams 4+5 (both of which reduce to decision records, not
+   active work), not serially. Total Layer 3 calendar time is bounded
+   by the longer of Workstream 3's 24h window or Workstreams 1+2
+   combined.
 5. Workstream 4: guard / patrol triage
 6. Workstream 5: Zara / advanced-assist triage
 7. Re-run the targeted parts of phase 2a and phase 2b against the repaired
@@ -169,6 +178,9 @@ Immediate backlog seeded by Layer 2
 - verify whether `site_alarm_events` is flowing into `incidents` again
 - verify whether dispatch actions now emit `dispatch_transitions`
 - verify whether new evidence-chain rows appear after a fresh alert
+- resolve FK type mismatch on `client_evidence_ledger.dispatch_id`
+  before Workstream 2 exit criteria can be met with constrained schema
+  (see Amendment 4)
 - verify whether the Pi -> Mac enhancement handoff is still desired
 - verify whether the camera-worker disconnect loop still appears after the
   cutover-era runtime hardening
