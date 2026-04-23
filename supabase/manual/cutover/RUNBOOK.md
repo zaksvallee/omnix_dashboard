@@ -33,6 +33,7 @@ set +x
 export DATABASE_URL="$(
   PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'
 import re
+import shlex
 import subprocess
 import sys
 import urllib.parse
@@ -50,9 +51,17 @@ if result.returncode != 0:
 
 env = {}
 for line in result.stdout.splitlines():
-    m = re.match(r'^export\s+(PG(?:HOST|PORT|USER|PASSWORD|DATABASE))="(.+)"\s*$', line)
-    if m:
-        env[m.group(1)] = m.group(2)
+    try:
+        parts = shlex.split(line, posix=True)
+    except ValueError:
+        continue
+    if len(parts) != 2 or parts[0] != "export":
+        continue
+    if "=" not in parts[1]:
+        continue
+    key, value = parts[1].split("=", 1)
+    if re.fullmatch(r"PG(?:HOST|PORT|USER|PASSWORD|DATABASE)", key):
+        env[key] = value
 
 required = ("PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE")
 missing = [key for key in required if key not in env]
@@ -168,9 +177,9 @@ python3 scripts/cutover_preservation_export.py \
   --run-timestamp "$RUN_TS"
 ```
 
-Expected dry-run result from Phase B2 validation:
+Expected dry-run shape:
 - 18 concrete preservation tables planned.
-- 61 planned rows at validation time.
+- Latest prep validation on 2026-04-23 observed 61 planned rows.
 - `auth.*` logged as preserved by non-action, not exportable by this script.
 
 Run the real local export only after the dry-run is clean:
