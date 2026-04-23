@@ -1,7 +1,7 @@
 # Layer 1 Step 4 — Constraint Additions
 
 **Date:** 2026-04-21
-**Task:** Final step of Layer 1 of the audit remediation. Add constraint migrations that bring the schema up to integrity standard per phase 4's findings, split into two groups — **4a applicable now** (in the active migration chain) and **4b staged for post-cutover** (out-of-chain, applied manually at Layer 2.3 step 5).
+**Task:** Final step of Layer 1 of the audit remediation. Add constraint migrations that bring the schema up to integrity standard per phase 4's findings, split into two groups — **4a applicable now** (in the active migration chain) and **4b staged for post-cutover** (out-of-chain, applied manually at Layer 2 runbook step 7 / phase 5 §3.4 step 7).
 **Out of scope:** data cleanup, data migrations, ghost-table removals, Layer 6 multi-tenant RLS design, 4b application, policy-logic review, new tables, new columns, enum-type conversions.
 
 ---
@@ -188,9 +188,9 @@ Skipped from Step 2 §4.3: `site_vehicle_presence_*` (renamed target), `telegram
 | Category | 4a | 4b |
 |---|---:|---:|
 | FK promotions (populated only) | 14 | 10 |
-| NOT NULL | 14 | 7 (face_match_id removed — §3) |
+| NOT NULL | 14 | 6 (face_match_id removed — §3; current staged file has 6 ALTER COLUMN operations) |
 | CHECK | 11 | 4 |
-| UNIQUE | 3 | 3 |
+| UNIQUE | 3 | 4 |
 | Indexes | 10 | 0 |
 | RLS enable + policy | 5 | — |
 | RLS DISABLED internal comment | 4 | — |
@@ -227,11 +227,11 @@ Placed at `supabase/manual/post_cutover_constraints/` — **outside `supabase/mi
 |---|---|---:|---|
 | `README.md` | directory purpose, rule, apply order (non-numeric per dependency — see user adjustment) | — | — |
 | `01_add_fk_promotions_dirty.sql` | 10 FK CONSTRAINTs | 10 | orphan rows: 10 + 16,388 + 20 + 22 + 10 + 1 + 3 + 4 + paired-null for 2 more |
-| `02_add_not_null_dirty_columns.sql` | SET NOT NULL on 7 cols | 7 | null rows: 238 + 282 + 5 + 5 + 5 + 2 |
-| `03_add_check_constraints_dirty_enums.sql` | CHECK on 4 cols | 4 | non-canonical values: 19 case-variant statuses + 97 touched by priority remap + 27 NULL risk_levels + 3 grade formats |
-| `04_add_unique_constraints_dirty.sql` | UNIQUE on 3 cols | 3 | dupe groups: 1 + 3 + 5 |
+| `02_add_not_null_dirty_columns.sql` | SET NOT NULL on 6 cols | 6 | null rows: 238 + 282 + 5 + 5 + 5 + 2 |
+| `03_add_check_constraints_dirty_enums.sql` | CHECK on 4 cols | 4 | non-canonical values: 19 case-variant statuses + 111 touched by priority remap + 27 NULL risk_levels + 3 grade formats |
+| `04_add_unique_constraints_dirty.sql` | UNIQUE on 4 cols | 4 | dupe groups: 1 + 3 + 5; plus `guards(guard_id)` FK prerequisite |
 
-**Cutover step:** Layer 2.3 step 5 per phase 5 synthesis. Operator runs files **in dependency order, not filename order** — see README and §8.
+**Cutover step:** Layer 2 runbook step 7 / phase 5 §3.4 step 7. Operator runs files **in dependency order, not filename order** — see README and §8.
 
 ### 3.1 Post-review design decisions (2026-04-21)
 
@@ -432,7 +432,7 @@ Layer 6's input: above 38-row list. Layer 6 decides for each: ENABLE + policy (i
 
 ### 8.3 `guard_ops_events.guard_id` FK prerequisite
 
-The FK in 4b #01 references `guards(guard_id)` but `guards` currently has no single-column UNIQUE on `guard_id` (only `guards_pkey` on `id UUID` + the `employees/guards_client_*` composite patterns). Layer 2 cleanup must add `guards_guard_id_unique UNIQUE (guard_id)` before running `01_add_fk_promotions_dirty.sql`, or `04_add_unique_constraints_dirty.sql` must be extended to include it. Flagged in the 4b #01 file header.
+The FK in 4b #01 references `guards(guard_id)` but `guards` currently has no single-column UNIQUE on `guard_id` (only `guards_pkey` on `id UUID` + the `employees/guards_client_*` composite patterns). `04_add_unique_constraints_dirty.sql` now includes `guards_guard_id_unique UNIQUE (guard_id)` and must run before `01_add_fk_promotions_dirty.sql`.
 
 ### 8.4 `incidents.id` is text, not UUID
 

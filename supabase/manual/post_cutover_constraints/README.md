@@ -6,7 +6,11 @@ These SQL files are **constraint additions that would be rejected by current liv
 
 **These files are NEVER applied by `supabase db push`. They run manually at cutover only.**
 
-The specific cutover step is **Layer 2.3 step 5** per phase 5 synthesis. Operator runs each file directly against live via `psql -h <pooler-host> -U postgres -f <file>` in order, after Layer 2 cleanup has normalised the affected data.
+The specific cutover step is **Layer 2 runbook step 7** / phase 5 §3.4 step 7. Operator runs each file directly against live via `psql "$DATABASE_URL" -f <file>` in dependency order, after the wipe and preservation verification have completed.
+
+Before applying these files, run `scripts/cutover_4b_readiness_check.py`
+against live. It is read-only and reports any residual rows or duplicate groups
+that would make the staged constraints fail.
 
 ## Why
 
@@ -16,8 +20,8 @@ Each constraint below has **known violators in live right now**. If applied toda
 
 There is a hard inter-file dependency: `01` requires UNIQUE constraints that `04` creates. Filename-numeric order would apply `01` first and fail. The correct apply order is:
 
-1. **`04_add_unique_constraints_dirty.sql`** — creates the UNIQUE constraints that some FKs require as parent-column targets.
-2. **`01_add_fk_promotions_dirty.sql`** — FK promotions; some FKs in this file reference parent columns made UNIQUE by `04` (notably `guards(guard_id)` which `guard_ops_events.guard_id` FK targets — Layer 2 cleanup adds `guards_guard_id_unique` before running `04`, or `04` is extended to include it).
+1. **`04_add_unique_constraints_dirty.sql`** — creates the UNIQUE constraints that some FKs require as parent-column targets, including `guards(guard_id)` for the later `guard_ops_events.guard_id` FK.
+2. **`01_add_fk_promotions_dirty.sql`** — FK promotions; some FKs in this file reference parent columns made UNIQUE by `04`.
 3. **`02_add_not_null_dirty_columns.sql`** — independent of `01` / `04`. Can run any time after Layer 2 cleanup backfills NULLs.
 4. **`03_add_check_constraints_dirty_enums.sql`** — independent of `01` / `04` / `02`. Can run any time after Layer 2 cleanup normalises enum values.
 
@@ -28,7 +32,7 @@ Files `02` and `03` commute (either order works) once Layer 2 cleanup has run. F
 - `01_add_fk_promotions_dirty.sql` — FK promotions where child rows reference non-existent parents (cleanup resolves orphans first).
 - `02_add_not_null_dirty_columns.sql` — NOT NULL on columns with NULL rows (cleanup backfills first).
 - `03_add_check_constraints_dirty_enums.sql` — CHECK constraints on columns with non-canonical values (cleanup normalises first).
-- `04_add_unique_constraints_dirty.sql` — UNIQUE on columns with duplicate groups (cleanup deduplicates first).
+- `04_add_unique_constraints_dirty.sql` — UNIQUE on columns with duplicate groups plus the `guards(guard_id)` FK prerequisite (cleanup/wipe makes these compliant first).
 
 Each file has a header comment stating (a) what it does, (b) the phase 4 finding it addresses, (c) why it's staged (specific counts of violators), and (d) the cutover step that applies it.
 

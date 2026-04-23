@@ -1,6 +1,6 @@
 -- Layer 1 Step 4b — NOT NULL (staged — current data has NULL rows).
 --
--- What: SET NOT NULL on 8 business-critical columns that currently have NULL
+-- What: SET NOT NULL on 6 business-critical columns that currently have NULL
 --       rows in live. Each would be rejected by PostgreSQL if applied now.
 --
 -- Phase 4 finding: §7 flagged columns where code assumes non-null but schema
@@ -22,7 +22,8 @@
 --   this column 4b; post-review decision (2026-04-21): do not add NOT NULL.
 --   See audit note §3.
 --
--- Cutover step: Layer 2.3 step 5 applies this file AFTER Layer 2 cleanup has:
+-- Cutover step: Layer 2 runbook step 7 / phase 5 §3.4 step 7 applies this
+-- file AFTER the wipe and preservation verification have completed:
 --   (a) backfilled incidents.site_id (same mechanism as FK #01 cleanup (d)),
 --   (b) backfilled onyx_evidence_certificates.incident_id from
 --       cert.event_id → incidents.event_uid lookup (also FK #01 (e)),

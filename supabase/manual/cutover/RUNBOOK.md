@@ -274,12 +274,36 @@ reviewed transaction.
 
 Apply these only after post-wipe preservation verification passes.
 
+Run the read-only readiness check first:
+
 ```sh
-for file in supabase/manual/post_cutover_constraints/*.sql; do
+python3 scripts/cutover_4b_readiness_check.py \
+  --confirm-live \
+  --db-role "$CUTOVER_DB_ROLE"
+```
+
+Abort if the readiness check reports any blocker. In the pre-cutover live
+probe, the known preservation-side blocker is `public.clients.name = 'test'`
+with three rows; because `public.clients` is preserved, the wipe will not clear
+that duplicate group. Resolve it through reviewed preservation cleanup or defer
+`clients_name_unique` before applying 4b constraints.
+
+```sh
+for file in \
+  supabase/manual/post_cutover_constraints/04_add_unique_constraints_dirty.sql \
+  supabase/manual/post_cutover_constraints/01_add_fk_promotions_dirty.sql \
+  supabase/manual/post_cutover_constraints/02_add_not_null_dirty_columns.sql \
+  supabase/manual/post_cutover_constraints/03_add_check_constraints_dirty_enums.sql
+do
   if [ -n "$CUTOVER_DB_ROLE" ]; then
-    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SET ROLE $CUTOVER_DB_ROLE" -f "$file"
+    psql "$DATABASE_URL" \
+      -v ON_ERROR_STOP=1 \
+      -c "SET ROLE $CUTOVER_DB_ROLE" \
+      -f "$file"
   else
-    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$file"
+    psql "$DATABASE_URL" \
+      -v ON_ERROR_STOP=1 \
+      -f "$file"
   fi
 done
 ```

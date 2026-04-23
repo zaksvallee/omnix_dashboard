@@ -1,10 +1,12 @@
 -- Layer 1 Step 4b — UNIQUE (staged — current data has duplicate groups).
 --
--- What: add 3 UNIQUE constraints on columns that currently have duplicate
---       groups. Each would be rejected by PostgreSQL if applied now.
+-- What: add 4 UNIQUE constraints. Three currently have duplicate groups; one
+--       (`guards(guard_id)`) is the parent-key prerequisite for the
+--       guard_ops_events.guard_id FK promoted in 01.
 --
 -- Phase 4 finding: §8 enumerated duplicate-detection results. This file
---       covers the 3 columns with actual duplicate groups.
+--       covers the 3 columns with actual duplicate groups, plus the
+--       guards(guard_id) FK prerequisite identified during Step 4 review.
 --
 -- Why staged: duplicate-group probes (P6.*):
 --   - clients(name): 1 dupe group — `test` × 3 rows      (P6.1)
@@ -12,8 +14,11 @@
 --     Thabo Mokoena × 2, Sipho Ndlovu × 2                 (P6.3)
 --   - onyx_evidence_certificates(event_id): 5 dupe groups — EVT-...5-VMD × 3,
 --     4 other pairs                                        (P6.5)
+--   - guards(guard_id): no dirty duplicate probe; included because PostgreSQL
+--     requires a referenced FK target to be UNIQUE or PRIMARY KEY.
 --
--- Cutover step: Layer 2.3 step 5 applies this file AFTER Layer 2 cleanup has:
+-- Cutover step: Layer 2 runbook step 7 / phase 5 §3.4 step 7 applies this
+-- file AFTER the wipe and preservation verification have completed:
 --   (a) removed or merged the 3 `test` client rows (either delete, or rename
 --       with unique suffix like `test-legacy-2026-04`),
 --   (b) merged the 3 duplicate-name guard pairs (old `GRD-NNN` inactive + new
@@ -38,6 +43,10 @@ ALTER TABLE public.clients
 -- UNIQUE under standard semantics; dupe rows must be resolved).
 ALTER TABLE public.guards
   ADD CONSTRAINT guards_full_name_unique UNIQUE (full_name);
+
+-- guards(guard_id): prerequisite for 01_add_fk_promotions_dirty.sql.
+ALTER TABLE public.guards
+  ADD CONSTRAINT guards_guard_id_unique UNIQUE (guard_id);
 
 -- onyx_evidence_certificates(event_id): 5 dupe groups
 ALTER TABLE public.onyx_evidence_certificates

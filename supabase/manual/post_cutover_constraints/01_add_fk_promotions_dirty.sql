@@ -25,7 +25,8 @@
 --     kept with its NOT NULL as 4b (user adjustment 2)
 --   - incident_aar_scores.incident_id → incidents: 4 orphans (P3.25)
 --
--- Cutover step: Layer 2.3 step 5 applies this file AFTER Layer 2 cleanup has:
+-- Cutover step: Layer 2 runbook step 7 / phase 5 §3.4 step 7 applies this
+-- file AFTER the wipe, preservation verification, and 04 UNIQUE constraints:
 --   (a) resolved orphan `CLIENT-001` references (migrate to real client_id or delete),
 --   (b) resolved orphan dispatch_id values in client_evidence_ledger (the
 --       polymorphic-reference problem — `DSP-*`/`INTEL-*` values need canonical
@@ -67,10 +68,9 @@ ALTER TABLE public.client_conversation_push_sync_state
   FOREIGN KEY (client_id) REFERENCES public.clients (client_id) ON DELETE CASCADE;
 
 -- guard_ops_events: 3 orphan guard_id (all `guard_actor_contract` test pollution).
--- Note: guards(guard_id) needs a single-column UNIQUE index before this FK can
--- apply. That UNIQUE addition is a cleanup prerequisite — Layer 2 must add it
--- in the same step before running this file, or this file should include it
--- here. Current plan: Layer 2 cleanup adds `guards_guard_id_unique` first.
+-- Note: guards(guard_id) needs a single-column UNIQUE constraint before this
+-- FK can apply. 04_add_unique_constraints_dirty.sql creates
+-- `guards_guard_id_unique` and must run before this file.
 ALTER TABLE public.guard_ops_events
   ADD CONSTRAINT guard_ops_events_guard_id_fkey
   FOREIGN KEY (guard_id) REFERENCES public.guards (guard_id) ON DELETE RESTRICT;

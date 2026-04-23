@@ -59,14 +59,15 @@
 --
 --   - (onyx_evidence_certificates(event_id) duplicates are in #04 UNIQUE, not here)
 --
--- Cutover step: Layer 2.3 step 5 applies this file AFTER Layer 2 cleanup has:
+-- Cutover step: Layer 2 runbook step 7 / phase 5 §3.4 step 7 applies this
+-- file AFTER the wipe and preservation verification have completed:
 --   (a) normalised incidents.status via the legacy→canonical map above
 --       (UPDATE SET status = lower(status) for case variants; reject any
 --       non-canonical value for manual review — 19 rows minimum),
 --   (b) normalised incidents.priority via the legacy→canonical map above
---       (97 rows touched: 21 CRITICAL+7 HIGH+12 MEDIUM+2 LOW case; 73 critical
---       + 19 high + 38 medium already lowercase; 1+1+67 p1/p2/p3 need mapping
---       to critical/high/medium),
+--       (111 rows touched: 21 CRITICAL+7 HIGH+12 MEDIUM+2 LOW case variants;
+--       1+1+67 p1/p2/p3 legacy values need mapping to critical/high/medium;
+--       73 critical + 19 high + 38 medium are already canonical lowercase),
 --   (c) backfilled incidents.risk_level NULLs (27 rows) — risk_level stays
 --       UPPERCASE per existing CHECK pattern on dispatch_intents,
 --   (d) normalised guards.grade format (3 rows).
