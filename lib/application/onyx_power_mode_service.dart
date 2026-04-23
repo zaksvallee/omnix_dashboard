@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:supabase/supabase.dart';
 
@@ -65,9 +66,9 @@ class OnyxPowerModeService {
 
   Future<void> start() async {
     await stop();
-    await evaluateNow();
+    await _evaluateNowSafely('startup');
     _timer = Timer.periodic(pollInterval, (_) {
-      unawaited(evaluateNow());
+      unawaited(_evaluateNowSafely('poll'));
     });
   }
 
@@ -114,6 +115,20 @@ class OnyxPowerModeService {
       reason: 'Automatic recovery',
       persistChange: true,
     );
+  }
+
+  Future<void> _evaluateNowSafely(String context) async {
+    try {
+      await evaluateNow();
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to evaluate power mode during $context.',
+        name: 'OnyxPowerModeService',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
   }
 
   Future<void> recordManualOverride({

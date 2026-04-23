@@ -2392,7 +2392,20 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   Uri get _systemStatusUri =>
       Uri(scheme: 'http', host: host, port: port, path: '/ISAPI/System/status');
 
-  Uri get _resolvedAlertStreamUri => alertStreamUriOverride ?? _alertStreamUri;
+  Uri get _resolvedAlertStreamUri {
+    final override = alertStreamUriOverride;
+    if (override == null) {
+      return _alertStreamUri;
+    }
+    if (_isBufferedRelayAlertStreamPath(override)) {
+      return override.replace(
+        path: '/ISAPI/Event/notification/alertStream',
+        query: null,
+        fragment: null,
+      );
+    }
+    return override;
+  }
 
   Uri get _resolvedKeepaliveUri {
     final override = alertStreamUriOverride;
@@ -2400,13 +2413,17 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return _systemStatusUri;
     }
     final normalizedPath = override.path.trim();
+    if (_isBufferedRelayAlertStreamPath(override)) {
+      return override.replace(
+        path: '/ISAPI/System/status',
+        query: null,
+        fragment: null,
+      );
+    }
     final isIsapiAlertStreamPath =
         normalizedPath == '/ISAPI/Event/notification/alertStream';
     if (!isIsapiAlertStreamPath) {
       return override;
-    }
-    if (_shouldUseRelayHealthEndpoint(override)) {
-      return override.resolve('/health');
     }
     return override.replace(
       path: '/ISAPI/System/status',
@@ -2415,15 +2432,22 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     );
   }
 
-  bool _shouldUseRelayHealthEndpoint(Uri uri) {
+  bool _isBufferedRelayAlertStreamPath(Uri uri) {
+    if (!_isLoopbackHost(uri.host)) {
+      return false;
+    }
+    return uri.path.trim() == '/alertStream';
+  }
+
+  bool _isLoopbackHost(String host) {
     if (_streamAuth.mode != DvrHttpAuthMode.none) {
       return false;
     }
-    final host = uri.host.trim().toLowerCase();
-    return host == '127.0.0.1' ||
-        host == 'localhost' ||
-        host == '::1' ||
-        host == '[::1]';
+    final normalizedHost = host.trim().toLowerCase();
+    return normalizedHost == '127.0.0.1' ||
+        normalizedHost == 'localhost' ||
+        normalizedHost == '::1' ||
+        normalizedHost == '[::1]';
   }
 
   Uri _snapshotUriForChannel(String channelId) {

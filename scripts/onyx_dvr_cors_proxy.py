@@ -88,14 +88,21 @@ def _load_proxy_config(args: argparse.Namespace) -> _ProxyConfig:
     if not config_path.exists():
         raise FileNotFoundError(f"Missing config: {config_path}")
     config = json.loads(config_path.read_text(encoding="utf-8"))
+    upstream_url = str(config.get("ONYX_DVR_PROXY_UPSTREAM_URL", "")).strip()
+    username = str(config.get("ONYX_DVR_PROXY_UPSTREAM_USERNAME", "")).strip()
+    password = str(config.get("ONYX_DVR_PROXY_UPSTREAM_PASSWORD", ""))
     raw_scopes = config.get("ONYX_DVR_SCOPE_CONFIGS_JSON", "")
     scopes = json.loads(raw_scopes) if raw_scopes else []
-    if not scopes:
-        raise RuntimeError("ONYX_DVR_SCOPE_CONFIGS_JSON is missing or empty.")
-    scope = scopes[0]
-    upstream_url = str(scope.get("events_url", "")).strip()
-    username = str(scope.get("username", "")).strip()
-    password = str(scope.get("password", ""))
+    if not upstream_url:
+        if not scopes:
+            raise RuntimeError(
+                "Missing DVR upstream configuration. Set ONYX_DVR_PROXY_UPSTREAM_URL "
+                "or provide a non-empty ONYX_DVR_SCOPE_CONFIGS_JSON scope."
+            )
+        scope = scopes[0]
+        upstream_url = str(scope.get("events_url", "")).strip()
+        username = username or str(scope.get("username", "")).strip()
+        password = password or str(scope.get("password", ""))
     if not upstream_url:
         raise RuntimeError("Configured DVR events_url is empty.")
     return _ProxyConfig(
