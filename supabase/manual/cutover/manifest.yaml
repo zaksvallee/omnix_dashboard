@@ -464,7 +464,29 @@ knock_on_fks:
     child_wipe_table: public.employees
     column: public.vehicles.assigned_employee_id
     live_constraint: "ON DELETE SET NULL"
-    concern: "TRUNCATE does not honor ON DELETE SET NULL. TRUNCATE employees CASCADE would also truncate vehicles (preservation violation). Pre-wipe runbook step: UPDATE public.vehicles SET assigned_employee_id = NULL WHERE assigned_employee_id IS NOT NULL; THEN TRUNCATE public.employees."
+    concern: "TRUNCATE does not honor ON DELETE SET NULL. TRUNCATE employees CASCADE would also truncate vehicles (preservation violation). Wipe SQL must UPDATE public.vehicles SET assigned_employee_id = NULL WHERE assigned_employee_id IS NOT NULL; then DELETE public.employees after wipe children are empty."
+
+# External FKs from untouched-empty tables → wipe tables. These untouched
+# tables are not wiped, but PostgreSQL TRUNCATE still refuses when any table
+# outside the TRUNCATE set references a target table, even if the referencing
+# table is empty. Wipe SQL must therefore DELETE the target wipe table after
+# asserting the untouched source table remains empty.
+external_empty_untouched_fks:
+  - source_untouched_table: public.deployments
+    target_wipe_table: public.guards
+    column: public.deployments.guard_id
+    live_constraint: "NO ACTION"
+    concern: "deployments is untouched-empty; TRUNCATE guards would require truncating deployments. Wipe SQL asserts deployments row count = 0, then DELETEs guards."
+  - source_untouched_table: public.checkins
+    target_wipe_table: public.patrol_triggers
+    column: public.checkins.patrol_trigger_id
+    live_constraint: "NO ACTION"
+    concern: "checkins is untouched-empty; TRUNCATE patrol_triggers would require truncating checkins. Wipe SQL asserts checkins row count = 0, then DELETEs patrol_triggers."
+  - source_untouched_table: public.checkins
+    target_wipe_table: public.posts
+    column: public.checkins.post_id
+    live_constraint: "NO ACTION"
+    concern: "checkins is untouched-empty; TRUNCATE posts would require truncating checkins. Wipe SQL asserts checkins row count = 0, then DELETEs posts."
 
 
 # ==============================================================================

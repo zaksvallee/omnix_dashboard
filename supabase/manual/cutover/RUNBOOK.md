@@ -195,11 +195,24 @@ true:
 - Steps 1-4 completed in the same operator session.
 - Both export indexes are parseable.
 - The operator has copied or otherwise protected the local export directory.
-- A reviewed wipe SQL/tool exists for this exact manifest revision.
-- The reviewed wipe SQL/tool explicitly handles the `public.vehicles` to
+- `supabase/manual/cutover/wipe.sql` has been generated from this exact
+  manifest revision and reviewed.
+- The generated wipe SQL explicitly handles the `public.vehicles` to
   `public.employees` FK without truncating `public.vehicles`.
-- The reviewed wipe SQL/tool never touches preservation, untouched, `auth.*`,
-  storage, realtime, vault, or Supabase migration schemas.
+- The generated wipe SQL never touches preservation, untouched, `auth.*`,
+  storage, realtime, vault, or Supabase migration schemas except for the
+  deliberate `public.vehicles.assigned_employee_id` nulling required before
+  `public.employees` is wiped.
+
+Validate that the checked-in wipe SQL still matches the manifest:
+
+```sh
+python3 scripts/cutover_generate_wipe_sql.py --check
+```
+
+The wipe SQL preflight also refuses if live FK assumptions drift, if
+`public.checkins` or `public.deployments` are no longer empty, or if an
+unexpected external FK references a wipe target.
 
 Required chat confirmation immediately before execution:
 
@@ -214,13 +227,30 @@ preservation-to-wipe FK:
 public.vehicles.assigned_employee_id -> public.employees
 ```
 
-The wipe implementation must be reviewed before it runs. If a reviewed wipe
-command is not available, stop here. That is a successful abort, not a failure.
+If the `--check` command fails, stop here. That is a successful abort, not a
+failure.
+
+Run the reviewed wipe SQL only after the chat confirmation above:
+
+```sh
+if [ -n "$CUTOVER_DB_ROLE" ]; then
+  psql "$DATABASE_URL" \
+    -v ON_ERROR_STOP=1 \
+    -c "SET ROLE $CUTOVER_DB_ROLE" \
+    -f supabase/manual/cutover/wipe.sql
+else
+  psql "$DATABASE_URL" \
+    -v ON_ERROR_STOP=1 \
+    -f supabase/manual/cutover/wipe.sql
+fi
+```
 
 ## 6. Post-Wipe Verification
 
 Immediately after the reviewed wipe command completes, verify preservation row
-counts before applying 4b constraints:
+counts before applying 4b constraints. The known content change is
+`public.vehicles.assigned_employee_id`, which is intentionally nulled at the
+wipe gate because it points at wiped dummy employee rows.
 
 ```sh
 python3 scripts/cutover_preservation_export.py \
