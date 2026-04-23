@@ -12,6 +12,7 @@ Ground truth:
     audit/phase_5_section_3_cutover_policy.md
     audit/phase_5_section_3_amendment_1.md
     audit/phase_5_section_3_amendment_2.md
+    audit/phase_5_section_3_amendment_3.md
     supabase/manual/cutover/manifest.yaml
 
 Contract source: Phase B2 prompt §0 (B1 contract inlined in chat history).

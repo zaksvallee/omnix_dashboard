@@ -1,15 +1,15 @@
 -- Layer 1 Step 4b — UNIQUE (staged — current data has duplicate groups).
 --
--- What: add 4 UNIQUE constraints. Three currently have duplicate groups; one
+-- What: add 3 UNIQUE constraints. Two currently have duplicate groups; one
 --       (`guards(guard_id)`) is the parent-key prerequisite for the
 --       guard_ops_events.guard_id FK promoted in 01.
 --
 -- Phase 4 finding: §8 enumerated duplicate-detection results. This file
---       covers the 3 columns with actual duplicate groups, plus the
---       guards(guard_id) FK prerequisite identified during Step 4 review.
+--       covers the wipe-set duplicate groups plus the guards(guard_id) FK
+--       prerequisite identified during Step 4 review. clients(name) is
+--       deferred to Layer 4 because public.clients is a preservation table.
 --
 -- Why staged: duplicate-group probes (P6.*):
---   - clients(name): 1 dupe group — `test` × 3 rows      (P6.1)
 --   - guards(full_name): 3 dupe groups + 5 NULL — Lerato Moletsane × 2,
 --     Thabo Mokoena × 2, Sipho Ndlovu × 2                 (P6.3)
 --   - onyx_evidence_certificates(event_id): 5 dupe groups — EVT-...5-VMD × 3,
@@ -19,13 +19,11 @@
 --
 -- Cutover step: Layer 2 runbook step 7 / phase 5 §3.4 step 7 applies this
 -- file AFTER the wipe and preservation verification have completed:
---   (a) removed or merged the 3 `test` client rows (either delete, or rename
---       with unique suffix like `test-legacy-2026-04`),
---   (b) merged the 3 duplicate-name guard pairs (old `GRD-NNN` inactive + new
+--   (a) merged the 3 duplicate-name guard pairs (old `GRD-NNN` inactive + new
 --       `GRD-<UUID>` active — likely keep the active one, archive the
 --       inactive; also removes the 5 placeholder rows which interact with
 --       #02 cleanup),
---   (c) de-duplicated the 5 onyx_evidence_certificates event_id groups (keep
+--   (b) de-duplicated the 5 onyx_evidence_certificates event_id groups (keep
 --       one cert per event, archive or delete the duplicates — chain_position
 --       sequence must remain 1..N after dedup).
 --
@@ -34,10 +32,6 @@
 --        -d postgres -f 04_add_unique_constraints_dirty.sql
 
 BEGIN;
-
--- clients(name): 1 dupe group `test` × 3
-ALTER TABLE public.clients
-  ADD CONSTRAINT clients_name_unique UNIQUE (name);
 
 -- guards(full_name): 3 dupe groups of 2 each + 5 NULLs (NULLs don't violate
 -- UNIQUE under standard semantics; dupe rows must be resolved).

@@ -64,6 +64,7 @@ BEGIN
         ('public.client_conversation_acknowledgements', '"public"."client_conversation_acknowledgements"'),
         ('public.client_conversation_messages', '"public"."client_conversation_messages"'),
         ('public.client_conversation_push_queue', '"public"."client_conversation_push_queue"'),
+        ('public.client_conversation_push_sync_state', '"public"."client_conversation_push_sync_state"'),
         ('public.client_evidence_ledger', '"public"."client_evidence_ledger"'),
         ('public.command_events', '"public"."command_events"'),
         ('public.command_summaries', '"public"."command_summaries"'),
@@ -174,6 +175,7 @@ BEGIN
         ('public.client_conversation_acknowledgements', '"public"."client_conversation_acknowledgements"'),
         ('public.client_conversation_messages', '"public"."client_conversation_messages"'),
         ('public.client_conversation_push_queue', '"public"."client_conversation_push_queue"'),
+        ('public.client_conversation_push_sync_state', '"public"."client_conversation_push_sync_state"'),
         ('public.client_evidence_ledger', '"public"."client_evidence_ledger"'),
         ('public.command_events', '"public"."command_events"'),
         ('public.command_summaries', '"public"."command_summaries"'),
@@ -301,6 +303,7 @@ BEGIN
         ('public.client_conversation_acknowledgements', '"public"."client_conversation_acknowledgements"'),
         ('public.client_conversation_messages', '"public"."client_conversation_messages"'),
         ('public.client_conversation_push_queue', '"public"."client_conversation_push_queue"'),
+        ('public.client_conversation_push_sync_state', '"public"."client_conversation_push_sync_state"'),
         ('public.client_evidence_ledger', '"public"."client_evidence_ledger"'),
         ('public.command_events', '"public"."command_events"'),
         ('public.command_summaries', '"public"."command_summaries"'),
@@ -452,7 +455,7 @@ WITH updated AS (
 )
 SELECT 'public.vehicles.assigned_employee_id nulled' AS action, count(*) AS rows FROM updated;
 
--- Truncate 97 wipe tables. No CASCADE: external FK preflight above must pass first.
+-- Truncate 98 wipe tables. No CASCADE: external FK preflight above must pass first.
 TRUNCATE TABLE
     "public"."actions_log",
     "public"."incident_intelligence",
@@ -490,6 +493,7 @@ TRUNCATE TABLE
     "public"."client_conversation_acknowledgements",
     "public"."client_conversation_messages",
     "public"."client_conversation_push_queue",
+    "public"."client_conversation_push_sync_state",
     "public"."client_evidence_ledger",
     "public"."command_events",
     "public"."command_summaries",

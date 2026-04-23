@@ -92,7 +92,6 @@ def _constraint_name_collisions(cur: psycopg.Cursor) -> list[str]:
         "incidents_priority_check",
         "incidents_risk_level_check",
         "guards_grade_check",
-        "clients_name_unique",
         "guards_full_name_unique",
         "guards_guard_id_unique",
         "onyx_evidence_certificates_event_id_unique",
@@ -283,7 +282,6 @@ CHECKS: list[tuple[str, str]] = [
 ]
 
 DUPLICATE_CHECKS = [
-    ("unique clients.name", "public.clients", "name"),
     ("unique guards.full_name", "public.guards", "full_name"),
     ("unique guards.guard_id", "public.guards", "guard_id"),
     ("unique onyx_evidence_certificates.event_id", "public.onyx_evidence_certificates", "event_id"),

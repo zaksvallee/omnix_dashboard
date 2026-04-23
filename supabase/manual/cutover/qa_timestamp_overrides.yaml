@@ -14,6 +14,7 @@ tables:
   public.incidents: null
   public.client_conversation_messages: null
   public.client_conversation_push_queue: null
+  public.client_conversation_push_sync_state: null
   public.guard_sync_operations: null
   public.onyx_alert_outcomes: null
 

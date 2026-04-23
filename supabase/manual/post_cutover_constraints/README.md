@@ -32,7 +32,7 @@ Files `02` and `03` commute (either order works) once Layer 2 cleanup has run. F
 - `01_add_fk_promotions_dirty.sql` — FK promotions where child rows reference non-existent parents (cleanup resolves orphans first).
 - `02_add_not_null_dirty_columns.sql` — NOT NULL on columns with NULL rows (cleanup backfills first).
 - `03_add_check_constraints_dirty_enums.sql` — CHECK constraints on columns with non-canonical values (cleanup normalises first).
-- `04_add_unique_constraints_dirty.sql` — UNIQUE on columns with duplicate groups plus the `guards(guard_id)` FK prerequisite (cleanup/wipe makes these compliant first).
+- `04_add_unique_constraints_dirty.sql` — UNIQUE on wipe-set columns with duplicate groups plus the `guards(guard_id)` FK prerequisite (cleanup/wipe makes these compliant first). `clients(name)` is deferred to Layer 4 because `public.clients` is preserved in Layer 2.
 
 Each file has a header comment stating (a) what it does, (b) the phase 4 finding it addresses, (c) why it's staged (specific counts of violators), and (d) the cutover step that applies it.
 

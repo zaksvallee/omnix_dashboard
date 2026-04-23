@@ -117,11 +117,12 @@ preservation:
 
 
 # ==============================================================================
-# WIPE — 102 tables (event corpus per §3.2 + 25 test-grade additions per
+# WIPE — 103 tables (event corpus per §3.2 + 25 test-grade additions per
 #        §3.2.1 Amendment 1 [personnel cluster = 9 tables, total §3.2.1
 #        pre-duty_states = 25] + operational_nodes per §3.1.7 diagnostic
 #        resolution + duty_states per §3.2.1 Amendment 2;
-#        §3.2.1 additions including duty_states = 26 tables)
+#        §3.2.1 additions including duty_states = 26 tables;
+#        client_conversation_push_sync_state per Amendment 3)
 #
 # TRUNCATE ordering: execution tooling derives a topological order from the
 # fk_dependencies field. `fk_dependencies` lists only wipe-set parents; FKs to
@@ -261,6 +262,9 @@ wipe:
   - table: public.client_conversation_push_queue
     fk_dependencies: []
     rationale: "§3.2 push delivery queue"
+  - table: public.client_conversation_push_sync_state
+    fk_dependencies: []
+    rationale: "§3.3.1 Amendment 3 — auto-regenerating push sync state with orphan client_id; wiped so 4b FK promotion can apply"
   - table: public.client_evidence_ledger
     fk_dependencies: []
     rationale: "§3.2 hash-chained audit log (16,388 rows; test-grade)"
@@ -490,7 +494,8 @@ external_empty_untouched_fks:
 
 
 # ==============================================================================
-# UNTOUCHED — 9 tables (per §3.3.1 explicit enumeration)
+# UNTOUCHED — 8 tables (per §3.3.1 explicit enumeration; Amendment 3 moves
+# client_conversation_push_sync_state to wipe)
 # ==============================================================================
 untouched:
 
@@ -508,13 +513,11 @@ untouched:
   - table: public.checkins
     rationale: "§3.3.1 empty (0 rows); resolves patrol_triggers CASCADE concern from Phase A"
 
-  # --- §3.3 bullet 2: auto-regenerating (3) ---
+  # --- §3.3 bullet 2: auto-regenerating (2) ---
   - table: public.demo_state
     rationale: "§3.3.1 regenerates on next demo event (1 live row)"
   - table: public.watch_current_state
     rationale: "§3.3.1 regenerates on next watch event (1 live row)"
-  - table: public.client_conversation_push_sync_state
-    rationale: "§3.3.1 regenerates on next push sync per operator (2 live rows)"
 
 
 # ==============================================================================

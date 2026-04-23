@@ -124,7 +124,7 @@ Dead-enum columns skipped (CHECK adds no value): `incidents.scope` (AREA/241), `
 | # | Uniqueness expectation | Probe | Result | 4a/4b |
 |---|---|---|---|---|
 | 62 | `sites(name)` | `SELECT name, count(*) FROM sites GROUP BY name HAVING count(*) > 1` | 0 dupe groups | **4a** |
-| 63 | `clients(name)` | same | **1 dupe group** (`test` × 3) | **4b** |
+| 63 | `clients(name)` | same | **1 dupe group** (`test` × 3) | **Layer 4 deferred** (public.clients is preservation in Layer 2) |
 | 64 | `guards(full_name)` | same | **3 dupe groups** + 5 NULL (Lerato Moletsane × 2, Thabo Mokoena × 2, Sipho Ndlovu × 2) | **4b** |
 | 65 | `onyx_evidence_certificates(event_id)` | same | **5 dupe groups** (EVT-…5-VMD × 3 + 4 pairs) | **4b** |
 | 66 | `incidents(event_uid)` | same | 0 dupe groups | **4a** |
@@ -190,15 +190,15 @@ Skipped from Step 2 §4.3: `site_vehicle_presence_*` (renamed target), `telegram
 | FK promotions (populated only) | 14 | 10 |
 | NOT NULL | 14 | 6 (face_match_id removed — §3; current staged file has 6 ALTER COLUMN operations) |
 | CHECK | 11 | 4 |
-| UNIQUE | 3 | 4 |
+| UNIQUE | 3 | 3 (clients_name_unique deferred to Layer 4) |
 | Indexes | 10 | 0 |
 | RLS enable + policy | 5 | — |
 | RLS DISABLED internal comment | 4 | — |
 | RLS DISABLED safety comment | 19 | — |
 | Ambiguous → Layer 6 | 38 | — |
-| **Totals in Step 4 scope** | **80** | **24** |
+| **Totals in Step 4 scope** | **80** | **23** |
 
-4a : 4b ratio on constraint additions (excluding deferred) = 77% : 23%.
+4a : 4b ratio on constraint additions (excluding deferred) = 78% : 22%.
 
 ---
 
@@ -229,7 +229,7 @@ Placed at `supabase/manual/post_cutover_constraints/` — **outside `supabase/mi
 | `01_add_fk_promotions_dirty.sql` | 10 FK CONSTRAINTs | 10 | orphan rows: 10 + 16,388 + 20 + 22 + 10 + 1 + 3 + 4 + paired-null for 2 more |
 | `02_add_not_null_dirty_columns.sql` | SET NOT NULL on 6 cols | 6 | null rows: 238 + 282 + 5 + 5 + 5 + 2 |
 | `03_add_check_constraints_dirty_enums.sql` | CHECK on 4 cols | 4 | non-canonical values: 19 case-variant statuses + 111 touched by priority remap + 27 NULL risk_levels + 3 grade formats |
-| `04_add_unique_constraints_dirty.sql` | UNIQUE on 4 cols | 4 | dupe groups: 1 + 3 + 5; plus `guards(guard_id)` FK prerequisite |
+| `04_add_unique_constraints_dirty.sql` | UNIQUE on 3 cols | 3 | dupe groups: 3 + 5; plus `guards(guard_id)` FK prerequisite; `clients(name)` deferred to Layer 4 |
 
 **Cutover step:** Layer 2 runbook step 7 / phase 5 §3.4 step 7. Operator runs files **in dependency order, not filename order** — see README and §8.
 
@@ -240,6 +240,11 @@ Two decisions made during Phase B/C review that change the 4b set:
 1. **`onyx_evidence_certificates.face_match_id` stays NULLABLE by design.** Originally classified 4b at #28 (282/282 NULL → SET NOT NULL). Decision: evidence certificates are linked via one of several provenance paths (FR match, LPR match, or manual event). FR-link is optional, not required. The column stays NULL where no FR match exists. Removed from `02_add_not_null_dirty_columns.sql` with a comment in-file explaining the decision.
 
 2. **Priority vocabulary locked: `critical | high | medium | low` (lowercase).** See §8 for full convention.
+
+3. **`clients_name_unique` deferred to Layer 4.** Layer 2 preserves
+`public.clients` bit-for-bit; live has three preserved rows named `test`.
+Applying client-name uniqueness in Layer 2 would require configuration cleanup,
+which belongs in Layer 4 site/client cleanup rather than the event-corpus wipe.
 
 ### 3.2 client_evidence_ledger RLS — orphan-row visibility
 
@@ -434,7 +439,11 @@ Layer 6's input: above 38-row list. Layer 6 decides for each: ENABLE + policy (i
 
 The FK in 4b #01 references `guards(guard_id)` but `guards` currently has no single-column UNIQUE on `guard_id` (only `guards_pkey` on `id UUID` + the `employees/guards_client_*` composite patterns). `04_add_unique_constraints_dirty.sql` now includes `guards_guard_id_unique UNIQUE (guard_id)` and must run before `01_add_fk_promotions_dirty.sql`.
 
-### 8.4 `incidents.id` is text, not UUID
+### 8.4 `clients(name)` uniqueness deferred
+
+`public.clients` is in the Layer 2 preservation set. Live contains three rows named `test`, so `clients_name_unique` cannot be applied without mutating preserved configuration. Per Phase 5 §3 Amendment 3, this constraint is deferred to Layer 4 site/client configuration cleanup.
+
+### 8.5 `incidents.id` is text, not UUID
 
 Phase 4 implied UUID throughout. Step 4 probe confirmed both `incidents.id` and `incidents.event_uid` are text. This is actually helpful — `onyx_evidence_certificates.incident_id text → incidents.id text` is type-compatible without a column migration. But Layer 6 may want to converge on UUID across identity tables for consistency; a column-type migration on `incidents.id` would be Layer 6+ refactor, not Step 4.
 

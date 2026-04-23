@@ -8,6 +8,7 @@ Ground truth:
 - `audit/phase_5_section_3_cutover_policy.md`
 - `audit/phase_5_section_3_amendment_1.md`
 - `audit/phase_5_section_3_amendment_2.md`
+- `audit/phase_5_section_3_amendment_3.md`
 - `supabase/manual/cutover/manifest.yaml`
 
 Do not run destructive steps from automation. Steps 1-4 are read-only or local
@@ -123,10 +124,12 @@ python3 scripts/cutover_qa_corpus_freeze.py \
   --timestamp-overrides supabase/manual/cutover/qa_timestamp_overrides.yaml
 ```
 
-Expected dry-run result from Phase B2 validation:
-- 102 wipe tables planned.
+Expected dry-run shape:
+- 103 wipe tables planned.
 - 0 exclusions.
-- 28,384 planned rows at validation time.
+- Row count is live-data dependent; do not rely on the earlier Phase B2 total
+  after Amendment 3 added `public.client_conversation_push_sync_state` to the
+  wipe set.
 
 If the dry-run refuses, abort and resolve the refusal before continuing.
 
@@ -282,11 +285,10 @@ python3 scripts/cutover_4b_readiness_check.py \
   --db-role "$CUTOVER_DB_ROLE"
 ```
 
-Abort if the readiness check reports any blocker. In the pre-cutover live
-probe, the known preservation-side blocker is `public.clients.name = 'test'`
-with three rows; because `public.clients` is preserved, the wipe will not clear
-that duplicate group. Resolve it through reviewed preservation cleanup or defer
-`clients_name_unique` before applying 4b constraints.
+Abort if the readiness check reports any blocker. `clients_name_unique` is
+intentionally deferred to Layer 4 because `public.clients` is preserved in
+Layer 2; the readiness check should therefore only cover constraints expected
+to become valid after the wipe.
 
 ```sh
 for file in \
