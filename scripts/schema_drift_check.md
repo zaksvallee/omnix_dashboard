@@ -26,6 +26,9 @@ python3 scripts/schema_drift_check.py --json
 
 # assert expected baseline state (for post-migration verification)
 python3 scripts/schema_drift_check.py --self-test
+
+# fail faster while testing connectivity or operator UX
+python3 scripts/schema_drift_check.py --self-test --live-dump-timeout 60
 ```
 
 **Exit codes:**
@@ -33,7 +36,7 @@ python3 scripts/schema_drift_check.py --self-test
 - `1` — drift detected (report lists findings)
 - `2` — error (preflight or provision failure; no comparison attempted)
 
-**Runtime:** ~15 minutes. The live `pg_dump` over the Supabase pooler dominates (~8 min for a 129-table schema). Scratch provisioning + baseline apply + scratch dump + diff adds ~2–3 min.
+**Runtime:** ~15 minutes. The live `pg_dump` over the Supabase pooler dominates (~8 min for a 129-table schema). Scratch provisioning + baseline apply + scratch dump + diff adds ~2–3 min. The script prints a `[live] starting pg_dump --schema-only` progress line before the long live dump; use a positive `--live-dump-timeout <seconds>` only when intentionally shortening or extending that wait.
 
 ## Output interpretation
 

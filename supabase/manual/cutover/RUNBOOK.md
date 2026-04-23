@@ -107,7 +107,9 @@ Command:
 python3 scripts/schema_drift_check.py --self-test
 ```
 
-Abort if the drift detector fails.
+Expect a `[live] starting pg_dump --schema-only` progress line before the
+longest step. The live dump can run for several minutes without additional
+output. Abort if the drift detector fails.
 
 ## 2. Operator Confirmation Gate
 
@@ -330,7 +332,8 @@ diagnosed and either fixed or explicitly rolled back.
 python3 scripts/schema_drift_check.py --self-test
 ```
 
-Cutover is not complete unless this returns green.
+Expect the same live `pg_dump` wait as pre-flight. Cutover is not complete
+unless this returns green.
 
 ## 9. Forward Discipline
 

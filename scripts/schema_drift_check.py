@@ -102,6 +102,7 @@ import atexit
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import socket
@@ -283,9 +284,15 @@ def discover_live_credentials():
 
     env = {}
     for line in result.stdout.splitlines():
-        m = re.match(r'^export\s+(PG(?:HOST|PORT|USER|PASSWORD|DATABASE))="(.+)"\s*$', line)
-        if m:
-            env[m.group(1)] = m.group(2)
+        try:
+            parts = shlex.split(line)
+        except ValueError:
+            continue
+        if len(parts) != 2 or parts[0] != "export" or "=" not in parts[1]:
+            continue
+        key, value = parts[1].split("=", 1)
+        if key in {"PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE"}:
+            env[key] = value
     if not all(k in env for k in ("PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE")):
         print("ERROR: Could not extract all PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE from supabase CLI output.", file=sys.stderr)
         print("Is the project linked? Try `supabase link --project-ref <ref>`.", file=sys.stderr)
@@ -297,7 +304,7 @@ def discover_live_credentials():
 # Live schema dump
 # -----------------------------------------------------------------------------
 
-def dump_live_schema(live_env, out_path, verbose=False):
+def dump_live_schema(live_env, out_path, verbose=False, timeout=900):
     """Dump live production schema via pg_dump. Read-only."""
     if verbose:
         # Redact password for logging
@@ -313,16 +320,22 @@ def dump_live_schema(live_env, out_path, verbose=False):
         "--exclude-schema", EXCLUDE_SCHEMA,
     ]
     env = {**os.environ, **live_env}
-    # 900s: remote pg_dump over the Supabase pooler is catalog-read-heavy. Direct
+    # Default 900s: remote pg_dump over the Supabase pooler is catalog-read-heavy. Direct
     # timing on 2026-04-21 measured ~8m10s (490s) wall clock for the current
     # 129-table schema; 900s gives ~1.8× margin for transient pooler slowness.
+    print(
+        f"[live] starting pg_dump --schema-only; this can take ~8-15 minutes "
+        f"(timeout {timeout}s).",
+        file=sys.stderr,
+    )
     try:
-        result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=900)
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        print("ERROR: pg_dump of live timed out after 900s.", file=sys.stderr)
+        print(f"ERROR: pg_dump of live timed out after {timeout}s.", file=sys.stderr)
         print("Check network connectivity to Supabase and retry. If this is", file=sys.stderr)
         print("recurrent, the schema may have grown past what a single pg_dump", file=sys.stderr)
-        print("call can complete in 15 minutes — consider raising the timeout.", file=sys.stderr)
+        print("call can complete in the configured window — consider raising", file=sys.stderr)
+        print("--live-dump-timeout.", file=sys.stderr)
         sys.exit(2)
     if result.returncode != 0:
         print(f"ERROR: pg_dump of live failed: {result.stderr[:500]}", file=sys.stderr)
@@ -872,7 +885,12 @@ def main():
                         help="Emit JSON with the same hierarchy as the text report")
     parser.add_argument("--self-test", action="store_true",
                         help="Assert expected object counts match Step 1/2 findings")
+    parser.add_argument("--live-dump-timeout", type=int, default=900,
+                        help="Positive seconds to wait for live pg_dump before failing (default: 900)")
     args = parser.parse_args()
+    if args.live_dump_timeout <= 0:
+        print("ERROR: --live-dump-timeout must be a positive integer.", file=sys.stderr)
+        sys.exit(2)
 
     preflight()
 
@@ -883,7 +901,12 @@ def main():
     work_dir = tempfile.mkdtemp(prefix="onyx_drift_work_")
     _register_cleanup(lambda: shutil.rmtree(work_dir, ignore_errors=True))
     live_dump_path = os.path.join(work_dir, "live.sql")
-    dump_live_schema(live_env, live_dump_path, verbose=args.verbose)
+    dump_live_schema(
+        live_env,
+        live_dump_path,
+        verbose=args.verbose,
+        timeout=args.live_dump_timeout,
+    )
     with open(live_dump_path) as f:
         live_sql = f.read()
 
