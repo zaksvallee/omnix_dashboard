@@ -46,6 +46,11 @@ yolov8n.pt
 *.pt
 tool/model_cache/
 
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
 # Face-gallery images are PII (household members). Keep the folder
 # structure, .gitkeep files, and README.md tracked so the layout ships,
 # but the images themselves must never be committed. Canonical store
