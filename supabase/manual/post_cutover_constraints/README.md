@@ -29,7 +29,7 @@ Files `02` and `03` commute (either order works) once Layer 2 cleanup has run. F
 
 ### Each file's role
 
-- `01_add_fk_promotions_dirty.sql` — FK promotions where child rows reference non-existent parents (cleanup resolves orphans first).
+- `01_add_fk_promotions_dirty.sql` — FK promotions where child rows reference non-existent parents (cleanup resolves orphans first). The `client_evidence_ledger.dispatch_id` FK is deferred because the child column is `text` while the parent `dispatch_intents.dispatch_id` column is `uuid`.
 - `02_add_not_null_dirty_columns.sql` — NOT NULL on columns with NULL rows (cleanup backfills first).
 - `03_add_check_constraints_dirty_enums.sql` — CHECK constraints on columns with non-canonical values (cleanup normalises first).
 - `04_add_unique_constraints_dirty.sql` — UNIQUE on wipe-set columns with duplicate groups plus the `guards(guard_id)` FK prerequisite (cleanup/wipe makes these compliant first). `clients(name)` is deferred to Layer 4 because `public.clients` is preserved in Layer 2.
@@ -38,8 +38,18 @@ Each file has a header comment stating (a) what it does, (b) the phase 4 finding
 
 ## What if a file fails
 
-If a 4b file fails during cutover application, it means Layer 2 cleanup did not fully normalise the affected data. **Do not bypass or modify the file.** Stop, re-query the live table to see residual violators, fix the cleanup, then re-run the file.
+If a 4b file fails during cutover application, it means Layer 2 cleanup did not
+fully normalise the affected data, or the staged constraint is structurally
+invalid. **Do not bypass the file ad hoc.** Stop, re-query the live table and
+schema, document the decision in a phase §3 amendment, update the staged file,
+then resume from the failed file.
 
 ## Not supposed to be here forever
 
-Once all four files have been applied at cutover, the constraints they add will be part of live. At that point a subsequent `supabase db pull` + reverse-engineered baseline regeneration will absorb these constraints into the active-chain baseline, and this directory can be deleted or renamed (`applied_YYYYMMDD/`) for audit trail.
+Once the staged files have been applied at cutover, the constraints they add
+will be part of live but still absent from the active migration chain. Follow
+immediately with a normal migration-chain capture (reviewed migration under
+`supabase/migrations/` plus `supabase migration repair --status applied <id>`
+on the cut-over environment) before re-running the drift detector. After that
+capture is committed, this directory can be deleted or renamed
+(`applied_YYYYMMDD/`) for audit trail.

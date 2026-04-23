@@ -76,10 +76,9 @@ def _duplicate_rows(cur: psycopg.Cursor, table: str, column: str) -> list[tuple[
     return [(row[0], int(row[1])) for row in cur.fetchall()]
 
 
-def _constraint_name_collisions(cur: psycopg.Cursor) -> list[str]:
+def _staged_constraints_present(cur: psycopg.Cursor) -> list[str]:
     names = [
         "client_evidence_ledger_client_id_fkey",
-        "client_evidence_ledger_dispatch_id_fkey",
         "client_conversation_messages_client_id_fkey",
         "client_conversation_acknowledgements_client_id_fkey",
         "client_conversation_push_queue_client_id_fkey",
@@ -110,6 +109,59 @@ def _constraint_name_collisions(cur: psycopg.Cursor) -> list[str]:
     return [row[0] for row in cur.fetchall()]
 
 
+FK_TYPE_CHECKS: list[tuple[str, str, str]] = [
+    (
+        "client_evidence_ledger.client_id -> clients.client_id",
+        "public.client_evidence_ledger.client_id",
+        "public.clients.client_id",
+    ),
+    (
+        "client_conversation_messages.client_id -> clients.client_id",
+        "public.client_conversation_messages.client_id",
+        "public.clients.client_id",
+    ),
+    (
+        "client_conversation_acknowledgements.client_id -> clients.client_id",
+        "public.client_conversation_acknowledgements.client_id",
+        "public.clients.client_id",
+    ),
+    (
+        "client_conversation_push_queue.client_id -> clients.client_id",
+        "public.client_conversation_push_queue.client_id",
+        "public.clients.client_id",
+    ),
+    (
+        "client_conversation_push_sync_state.client_id -> clients.client_id",
+        "public.client_conversation_push_sync_state.client_id",
+        "public.clients.client_id",
+    ),
+    (
+        "guard_ops_events.guard_id -> guards.guard_id",
+        "public.guard_ops_events.guard_id",
+        "public.guards.guard_id",
+    ),
+    ("incidents.site_id -> sites.site_id", "public.incidents.site_id", "public.sites.site_id"),
+    (
+        "onyx_evidence_certificates.incident_id -> incidents.id",
+        "public.onyx_evidence_certificates.incident_id",
+        "public.incidents.id",
+    ),
+    (
+        "incident_aar_scores.incident_id -> incidents.id",
+        "public.incident_aar_scores.incident_id",
+        "public.incidents.id",
+    ),
+]
+
+
+DEFERRED_FKS: list[tuple[str, str]] = [
+    (
+        "client_evidence_ledger.dispatch_id -> dispatch_intents.dispatch_id",
+        "deferred: child column is text, parent column is uuid; requires schema redesign",
+    ),
+]
+
+
 CHECKS: list[tuple[str, str]] = [
     (
         "fk client_evidence_ledger.client_id -> clients.client_id",
@@ -120,18 +172,6 @@ CHECKS: list[tuple[str, str]] = [
           AND NOT EXISTS (
             SELECT 1 FROM public.clients parent
             WHERE parent.client_id::text = child.client_id::text
-          )
-        """,
-    ),
-    (
-        "fk client_evidence_ledger.dispatch_id -> dispatch_intents.dispatch_id",
-        """
-        SELECT count(*)
-        FROM public.client_evidence_ledger child
-        WHERE child.dispatch_id IS NOT NULL
-          AND NOT EXISTS (
-            SELECT 1 FROM public.dispatch_intents parent
-            WHERE parent.dispatch_id::text = child.dispatch_id::text
           )
         """,
     ),
@@ -299,6 +339,30 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _column_type(cur: psycopg.Cursor, schema: str, table: str, column: str) -> str | None:
+    cur.execute(
+        """
+        SELECT a.atttypid::regtype::text
+        FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = %s
+          AND c.relname = %s
+          AND a.attname = %s
+          AND a.attnum > 0
+          AND NOT a.attisdropped
+        """,
+        (schema, table, column),
+    )
+    row = cur.fetchone()
+    return str(row[0]) if row else None
+
+
+def _split_qualified_column(name: str) -> tuple[str, str, str]:
+    schema, table, column = name.split(".", 2)
+    return schema, table, column
+
+
 def main() -> None:
     args = _build_parser().parse_args()
     db_url = args.db_url or os.environ.get("DATABASE_URL", "")
@@ -316,12 +380,28 @@ def main() -> None:
         with conn.cursor() as cur:
             cur.execute("BEGIN READ ONLY;")
 
-            collisions = _constraint_name_collisions(cur)
-            if collisions:
-                blockers += len(collisions)
-                _log("blocker", "constraint names already exist: " + ", ".join(collisions))
+            present_constraints = _staged_constraints_present(cur)
+            if present_constraints:
+                _log("ok", "staged constraints already present: " + ", ".join(present_constraints))
             else:
-                _log("ok", "no staged constraint-name collisions")
+                _log("ok", "no staged constraints already present")
+
+            for label, reason in DEFERRED_FKS:
+                _log("deferred", f"fk {label}: {reason}")
+
+            for label, child_ref, parent_ref in FK_TYPE_CHECKS:
+                child_schema, child_table, child_column = _split_qualified_column(child_ref)
+                parent_schema, parent_table, parent_column = _split_qualified_column(parent_ref)
+                child_type = _column_type(cur, child_schema, child_table, child_column)
+                parent_type = _column_type(cur, parent_schema, parent_table, parent_column)
+                if child_type is None or parent_type is None:
+                    blockers += 1
+                    _log("blocker", f"fk {label}: missing column child={child_type} parent={parent_type}")
+                elif child_type != parent_type:
+                    blockers += 1
+                    _log("blocker", f"fk {label}: type mismatch child={child_type} parent={parent_type}")
+                else:
+                    _log("ok", f"fk {label} type={child_type}")
 
             for label, query in CHECKS:
                 count = _scalar(cur, query)

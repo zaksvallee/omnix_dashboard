@@ -328,6 +328,19 @@ diagnosed and either fixed or explicitly rolled back.
 
 ## 8. Drift Detector Re-Run
 
+Because step 7 applies staged SQL outside `supabase/migrations/`, first absorb
+those reviewed live changes back into the active chain:
+
+1. Add an equivalent reviewed migration under `supabase/migrations/` covering
+   the 4b constraints actually applied, preserving any documented deferrals.
+2. Mark that migration version applied on the linked environment:
+
+```sh
+supabase migration repair --status applied <new_migration_version>
+```
+
+3. Then run the drift detector:
+
 ```sh
 python3 scripts/schema_drift_check.py --self-test
 ```

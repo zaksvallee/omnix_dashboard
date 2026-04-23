@@ -1,6 +1,6 @@
 -- Layer 1 Step 4b — FK promotions (staged — current data has orphans).
 --
--- What: promote 10 soft-FK columns to hard FK CONSTRAINTs. Each has known
+-- What: promote 9 soft-FK columns to hard FK CONSTRAINTs. Each has known
 --       live-data orphan rows today and would be rejected by PostgreSQL if
 --       applied now.
 --
@@ -13,6 +13,10 @@
 --
 --   - client_evidence_ledger.client_id → clients: 10 orphans (probe P3.1)
 --   - client_evidence_ledger.dispatch_id → dispatch_intents: 16,388 orphans (100%) (P3.2)
+--     DEFERRED OUT OF LAYER 2: the child column is text while the parent
+--     dispatch_intents.dispatch_id column is uuid, so PostgreSQL cannot
+--     implement this FK even after the wipe removes row-level orphans.
+--     This needs schema redesign rather than cutover-time coercion.
 --   - client_conversation_messages.client_id → clients: 20 orphans (100%) (P3.3)
 --   - client_conversation_acknowledgements.client_id → clients: 22 orphans (100%) (P3.4)
 --   - client_conversation_push_queue.client_id → clients: 10 orphans (P3.5)
@@ -28,9 +32,8 @@
 -- Cutover step: Layer 2 runbook step 7 / phase 5 §3.4 step 7 applies this
 -- file AFTER the wipe, preservation verification, and 04 UNIQUE constraints:
 --   (a) resolved orphan `CLIENT-001` references (migrate to real client_id or delete),
---   (b) resolved orphan dispatch_id values in client_evidence_ledger (the
---       polymorphic-reference problem — `DSP-*`/`INTEL-*` values need canonical
---       dispatch rows OR the column split into type-specific references),
+--   (b) deferred client_evidence_ledger.dispatch_id FK promotion because the
+--       child/parent column types are incompatible (text → uuid),
 --   (c) cleaned test-harness pollution in guard_ops_events (literal
 --       `guard_actor_contract` guard_id),
 --   (d) backfilled incidents.site_id from signal_received_at + alarm-event
@@ -45,13 +48,12 @@
 
 BEGIN;
 
--- client_evidence_ledger: 10 orphan client_id, 16,388 orphan dispatch_id
+-- client_evidence_ledger: 10 orphan client_id. The dispatch_id FK is deferred:
+-- child column public.client_evidence_ledger.dispatch_id is text; parent column
+-- public.dispatch_intents.dispatch_id is uuid.
 ALTER TABLE public.client_evidence_ledger
   ADD CONSTRAINT client_evidence_ledger_client_id_fkey
   FOREIGN KEY (client_id) REFERENCES public.clients (client_id) ON DELETE RESTRICT;
-ALTER TABLE public.client_evidence_ledger
-  ADD CONSTRAINT client_evidence_ledger_dispatch_id_fkey
-  FOREIGN KEY (dispatch_id) REFERENCES public.dispatch_intents (dispatch_id) ON DELETE RESTRICT;
 
 -- client_conversation_*: 20+22+10+1 orphan client_id
 ALTER TABLE public.client_conversation_messages

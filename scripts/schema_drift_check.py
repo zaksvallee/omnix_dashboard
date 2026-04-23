@@ -138,10 +138,13 @@ EXCLUDE_SCHEMA = (
 
 # Self-test expected state — Post-Layer-1-Step-4 target.
 # After Step 4a applied to live via `supabase db push --linked` on 2026-04-22
-# (commits 9af9309 + a0953fb), live has +14 FKs, +11 CHECKs, +3 UNIQUE,
+# (commits 9af9309 + a0953fb), live had +14 FKs, +11 CHECKs, +3 UNIQUE,
 # +13 indexes (10 new + 3 backing), +5 RLS-enabled tables, +10 policies.
-# These numbers are the current expected state. If live changes out of band,
-# these numbers change and the assertion fails.
+# After Layer 2 cutover step 7 on 2026-04-23, live additionally has the
+# post-cutover 4b capture migration's +9 FK promotions. CHECK / UNIQUE /
+# NOT NULL additions also landed, but this detector currently tracks only FK
+# counts among table constraints. If live changes out of band, these numbers
+# change and the assertion fails.
 SELF_TEST_EXPECTED = {
     "tables": 129,        # Step 4a adds no tables
     "views": 24,          # no new views
@@ -151,7 +154,7 @@ SELF_TEST_EXPECTED = {
     "enums_public": 14,
     "sequences_public": 2,
     "rls_enabled": 68,    # 63 + 5 Step 4a ENABLE
-    "foreign_keys": 71,   # 57 + 14 Step 4a FK promotions
+    "foreign_keys": 80,   # 57 + 14 Step 4a FK promotions + 9 Layer 2 post-cutover FKs
     # After Step 2's quarantine-to-historical/ pattern, the active chain is
     # the baseline alone — so live vs scratch drift is expected to be zero
     # across every category (Option A branch).
