@@ -1,0 +1,504 @@
+# supabase/manual/cutover/manifest.yaml
+#
+# Layer 2 cutover manifest — single source of truth for preservation / wipe / untouched
+# sets and TRUNCATE dependency order.
+#
+# Ground truth:
+#   audit/phase_5_section_3_cutover_policy.md
+#   audit/phase_5_section_3_amendment_1.md
+#   audit/phase_5_section_3_amendment_2.md
+# Schema baseline:
+#   - supabase/migrations/20260421000000_reverse_engineered_baseline.sql (129 public tables)
+#
+# Authored: Phase A (2026-04-23). Do not execute cutover against this manifest
+# without Phase C runbook review and operator confirmation gate per §3.4.
+#
+# Scope: public schema of the Supabase project `omnix-core` (mnbloeoiiwenlywnnoxe).
+# Supabase-managed schemas (storage.*, realtime.*, vault.*, supabase_migrations.*,
+# extensions.*, graphql.*, cron.*) are implicitly untouched per §3.3 bullet 3;
+# auth.* is explicitly preserved-by-not-touching per §3.1.8 (entry below).
+
+# ==============================================================================
+# PRESERVATION — 18 public tables + auth.* special case
+# ==============================================================================
+preservation:
+
+  # --- §3.1.1 Face gallery cluster (1) ---
+  - table: public.fr_person_registry
+    cluster: "§3.1.1"
+    rationale: "Face-recognition person registry (5 live rows; matches §3.1.1 'five enrolled as of 2026-04')"
+
+  # --- §3.1.2 Vehicle registry cluster (1) ---
+  - table: public.site_vehicle_registry
+    cluster: "§3.1.2"
+    rationale: "Site vehicle registry (4 live rows; matches §3.1.2 'four as of 2026-04')"
+
+  # --- §3.1.3 Zone definitions cluster (2) ---
+  - table: public.site_zones
+    cluster: "§3.1.3"
+    rationale: "Zone records defining site topology"
+  - table: public.site_camera_zones
+    cluster: "§3.1.3"
+    rationale: "Zone-to-camera mappings (confirmed present in live schema)"
+
+  # --- §3.1.4 Site configuration cluster (9) ---
+  # Path A spot-check deferral (per Amendment 2 §3.4.1): the site_id FK
+  # distribution audit across preservation tables could not complete during
+  # Phase A due to the sandbox blocking credential refresh. Layer 4 inherits
+  # ownership of the site_id FK distribution audit; it must complete before
+  # any site-row cleanup in that layer. No Layer 2 action required.
+  - table: public.sites
+    cluster: "§3.1.4"
+    rationale: "Site record (8 rows; Path A per §3.4.1 preserves all — MS Vallee + 7 dummies, cleanup deferred to Layer 4)"
+  - table: public.clients
+    cluster: "§3.1.4"
+    rationale: "Client/tenant record"
+  - table: public.client_contacts
+    cluster: "§3.1.4"
+    rationale: "Contact roster (§3.1.4 explicit)"
+  - table: public.client_messaging_endpoints
+    cluster: "§3.1.4"
+    rationale: "Client messaging endpoints (site-level messaging config)"
+  - table: public.client_contact_endpoint_subscriptions
+    cluster: "§3.1.4"
+    rationale: "Contact-endpoint subscription config"
+  - table: public.onyx_settings
+    cluster: "§3.1.4"
+    rationale: "Platform/site-level settings and feature flags"
+  - table: public.site_occupancy_config
+    cluster: "§3.1.4"
+    rationale: "Site-level occupancy configuration"
+  - table: public.site_alert_config
+    cluster: "§3.1.4"
+    rationale: "Site-level alert configuration"
+  - table: public.site_api_tokens
+    cluster: "§3.1.4"
+    rationale: "Site API tokens (site-scoped credentials)"
+
+  # --- §3.1.5 Camera inventory cluster — 0 tables ---
+  # Confirmed empty per Amendment 1 §3.1.5: RTSP/ISAPI credentials live on the
+  # Pi filesystem via ONYX_HIK_PASSWORD / ONYX_DVR_PASSWORD environment vars.
+  # No Supabase table holds camera credentials.
+
+  # --- §3.1.6 Telegram bridge configuration (1) ---
+  - table: public.telegram_identity_intake
+    cluster: "§3.1.6"
+    rationale: "Operator-Telegram identity intake (chat-ID ↔ operator pairing)"
+
+  # --- §3.1.7 Edge device registration — 0 tables ---
+  # Per Amendment 1 §3.1.7 and Phase A diagnostic SELECT * FROM operational_nodes:
+  # the 3 rows are regional-ops dummies (Johannesburg HQ, Cape Town Ops,
+  # London Liaison) with no Pi reference (no 192.168.0.67, no onyx-pi-msvallee).
+  # operational_nodes is therefore NOT §3.1.7 preservation; it falls to wipe
+  # per §3.2.1 test-grade-dummy policy (see wipe section).
+
+  # --- §3.1.8 auth.* — special case ---
+  - table: "auth.*"
+    cluster: "§3.1.8"
+    rationale: "Supabase-managed; preservation mechanism is 'do not touch' (not export/restore). Not enumerated in baseline; excluded from all wipe and export operations by omission."
+
+  # --- §3.1.9 Site-scoped intel and geography (3, amendment) ---
+  - table: public.site_expected_visitors
+    cluster: "§3.1.9"
+    rationale: "Expected-visitor entries tied to MS Vallee (2 live rows) — amendment addition, 'can't cheaply reconstruct' principle"
+  - table: public.site_intelligence_profiles
+    cluster: "§3.1.9"
+    rationale: "Site-scoped intel configuration (1 live row) — amendment addition"
+  - table: public.area_sites
+    cluster: "§3.1.9"
+    rationale: "Area-to-site geography mapping (2 live rows) — amendment addition"
+
+  # --- §3.1.10 Vehicle registry parallel (1, amendment) ---
+  - table: public.vehicles
+    cluster: "§3.1.10"
+    rationale: "Parallel vehicle registry (3 live rows) alongside site_vehicle_registry (4). Purpose distinction deferred; preserved to avoid data loss."
+
+
+# ==============================================================================
+# WIPE — 102 tables (event corpus per §3.2 + 25 test-grade additions per
+#        §3.2.1 Amendment 1 [personnel cluster = 9 tables, total §3.2.1
+#        pre-duty_states = 25] + operational_nodes per §3.1.7 diagnostic
+#        resolution + duty_states per §3.2.1 Amendment 2;
+#        §3.2.1 additions including duty_states = 26 tables)
+#
+# TRUNCATE ordering: execution tooling derives a topological order from the
+# fk_dependencies field. `fk_dependencies` lists only wipe-set parents; FKs to
+# preservation/untouched tables do not constrain ordering within the wipe
+# operation but may require pre-wipe handling (see knock_on_fks section below).
+#
+# Children are listed before their parents in this manifest for human
+# readability; tooling does not depend on list order.
+# ==============================================================================
+wipe:
+
+  # --- Child tables with wipe-set parents (declare fk_dependencies) ---
+
+  - table: public.actions_log
+    fk_dependencies: [public.incidents]
+    rationale: "§3.2 generic actions log (FK → incidents)"
+  - table: public.incident_intelligence
+    fk_dependencies: [public.incidents]
+    rationale: "§3.2 incident intel link"
+  - table: public.incident_outcomes
+    fk_dependencies: [public.incidents]
+    rationale: "§3.2 incident outcome"
+  - table: public.incident_snapshots
+    fk_dependencies: [public.incidents]
+    rationale: "§3.2 incident snapshot"
+  - table: public.dispatch_transitions
+    fk_dependencies: [public.dispatch_intents]
+    rationale: "§3.2 dispatch state-transition log"
+  - table: public.evidence_bundles
+    fk_dependencies: [public.dispatch_intents]
+    rationale: "§3.2 evidence bundle (dispatch child)"
+  - table: public.execution_locks
+    fk_dependencies: [public.dispatch_intents]
+    rationale: "§3.2 execution mutex (dispatch child)"
+  - table: public.guard_ops_media
+    fk_dependencies: [public.guard_ops_events]
+    rationale: "§3.2 guard ops media attachment"
+  - table: public.guard_ops_retention_runs
+    fk_dependencies: [public.guard_projection_retention_runs, public.guard_ops_replay_safety_checks]
+    rationale: "§3.2 retention-run audit"
+  - table: public.patrol_violations
+    fk_dependencies: [public.patrol_triggers]
+    rationale: "§3.2 patrol violation log"
+  - table: public.patrol_triggers
+    fk_dependencies: [public.patrols]
+    rationale: "§3.2 patrol trigger events (parent patrols now wipe per §3.2.1)"
+  - table: public.patrol_scans
+    fk_dependencies: [public.patrol_checkpoints]
+    rationale: "§3.2 patrol scan events"
+  - table: public.patrol_checkpoints
+    fk_dependencies: [public.patrol_routes]
+    rationale: "§3.2.1 patrol config"
+  - table: public.logs
+    fk_dependencies: [public.users]
+    rationale: "§3.2 generic log stream (FK → users, which is §3.2.1 wipe)"
+  - table: public.users
+    fk_dependencies: [public.roles]
+    rationale: "§3.2.1 public.users dummy (FK → roles)"
+  - table: public.zara_action_log
+    fk_dependencies: [public.zara_scenarios]
+    rationale: "§3.2 Zara action log (FK → zara_scenarios, now §3.2.1 wipe)"
+  - table: public.ThreatMatrix
+    fk_dependencies: [public.ThreatLevels, public.ThreatCategories]
+    rationale: "§3.2.1 threat rule engine (matrix references levels + categories)"
+  - table: public.employee_site_assignments
+    fk_dependencies: [public.employees]
+    rationale: "§3.2.1 personnel (FK → employees)"
+  - table: public.guard_documents
+    fk_dependencies: [public.guards]
+    rationale: "§3.2.1 personnel"
+  - table: public.guard_profiles
+    fk_dependencies: [public.guards]
+    rationale: "§3.2.1 personnel"
+  - table: public.guard_sites
+    fk_dependencies: [public.guards]
+    rationale: "§3.2.1 personnel"
+
+  # --- Wipe-set parents of the above children ---
+
+  - table: public.incidents
+    fk_dependencies: []
+    rationale: "§3.2 incidents corpus"
+  - table: public.dispatch_intents
+    fk_dependencies: []
+    rationale: "§3.2 dispatch decision inputs"
+  - table: public.guard_ops_events
+    fk_dependencies: []
+    rationale: "§3.2 guard ops event stream"
+  - table: public.guard_projection_retention_runs
+    fk_dependencies: []
+    rationale: "§3.2 projection retention run"
+  - table: public.guard_ops_replay_safety_checks
+    fk_dependencies: []
+    rationale: "§3.2 replay safety check"
+  - table: public.patrols
+    fk_dependencies: []
+    rationale: "§3.2.1 patrol config (no real patrol routes at MS Vallee)"
+  - table: public.patrol_routes
+    fk_dependencies: []
+    rationale: "§3.2.1 patrol config"
+  - table: public.roles
+    fk_dependencies: []
+    rationale: "§3.2.1 reference catalogue dummy"
+  - table: public.ThreatLevels
+    fk_dependencies: []
+    rationale: "§3.2.1 threat levels"
+  - table: public.ThreatCategories
+    fk_dependencies: []
+    rationale: "§3.2.1 threat categories"
+  - table: public.zara_scenarios
+    fk_dependencies: []
+    rationale: "§3.2.1 scenario scaffolding"
+  - table: public.employees
+    fk_dependencies: []
+    rationale: "§3.2.1 personnel (self-FK reporting_to_employee_id ON DELETE SET NULL; vacuous under TRUNCATE)"
+  - table: public.guards
+    fk_dependencies: []
+    rationale: "§3.2.1 personnel"
+
+  # --- Independent wipe tables (no wipe-set FK either direction) ---
+
+  - table: public.abort_logs
+    fk_dependencies: []
+    rationale: "§3.2 dispatch abort audit"
+  - table: public.alert_events
+    fk_dependencies: []
+    rationale: "§3.2 alert event stream (FK → alert_rules which is §3.2.1 wipe; CASCADE-safe)"
+  - table: public.civic_events
+    fk_dependencies: []
+    rationale: "§3.2 civic-event ingest"
+  - table: public.client_conversation_acknowledgements
+    fk_dependencies: []
+    rationale: "§3.2 operator-client ack trail"
+  - table: public.client_conversation_messages
+    fk_dependencies: []
+    rationale: "§3.2 operator-client message history"
+  - table: public.client_conversation_push_queue
+    fk_dependencies: []
+    rationale: "§3.2 push delivery queue"
+  - table: public.client_evidence_ledger
+    fk_dependencies: []
+    rationale: "§3.2 hash-chained audit log (16,388 rows; test-grade)"
+  - table: public.command_events
+    fk_dependencies: []
+    rationale: "§3.2 command-centre event log"
+  - table: public.command_summaries
+    fk_dependencies: []
+    rationale: "§3.2 command summary rollup"
+  - table: public.decision_audit_log
+    fk_dependencies: []
+    rationale: "§3.2 Zara decision audit"
+  - table: public.decision_traces
+    fk_dependencies: []
+    rationale: "§3.2 decision trace detail"
+  - table: public.escalation_events
+    fk_dependencies: []
+    rationale: "§3.2 escalation event log"
+  - table: public.external_signals
+    fk_dependencies: []
+    rationale: "§3.2 external-signal ingest"
+  - table: public.global_clusters
+    fk_dependencies: []
+    rationale: "§3.2 global-event clustering output"
+  - table: public.global_events
+    fk_dependencies: []
+    rationale: "§3.2 news/event ingest"
+  - table: public.guard_checkpoint_scans
+    fk_dependencies: []
+    rationale: "§3.2 guard checkpoint scan events"
+  - table: public.guard_incident_captures
+    fk_dependencies: []
+    rationale: "§3.2 guard-side incident capture"
+  - table: public.guard_location_heartbeats
+    fk_dependencies: []
+    rationale: "§3.2 guard location heartbeat telemetry"
+  - table: public.guard_logs
+    fk_dependencies: []
+    rationale: "§3.2 guard log stream (FK → sites which is preserved; no ordering impact)"
+  - table: public.guard_panic_signals
+    fk_dependencies: []
+    rationale: "§3.2 guard panic signal events"
+  - table: public.guard_sync_operations
+    fk_dependencies: []
+    rationale: "§3.2 guard sync operation log"
+  - table: public.hourly_throughput
+    fk_dependencies: []
+    rationale: "§3.2 hourly rollup of events"
+  - table: public.incident_actions
+    fk_dependencies: []
+    rationale: "§3.2 incident-action event (no FK)"
+  - table: public.incident_aar_scores
+    fk_dependencies: []
+    rationale: "§3.2 incident AAR score"
+  - table: public.incident_replay_events
+    fk_dependencies: []
+    rationale: "§3.2 incident replay event stream"
+  - table: public.incident_replays
+    fk_dependencies: []
+    rationale: "§3.2 incident replay session"
+  - table: public.intel_events
+    fk_dependencies: []
+    rationale: "§3.2 intel event log"
+  - table: public.intel_patrol_links
+    fk_dependencies: []
+    rationale: "§3.2 intel↔patrol linkage"
+  - table: public.intelligence_snapshots
+    fk_dependencies: []
+    rationale: "§3.2 intel snapshot capture"
+  - table: public.keyword_escalations
+    fk_dependencies: []
+    rationale: "§3.2 keyword-triggered escalation"
+  - table: public.omnix_logs
+    fk_dependencies: []
+    rationale: "§3.2 omnix-app logs"
+  - table: public.onyx_alert_outcomes
+    fk_dependencies: []
+    rationale: "§3.2 alert outcome events"
+  - table: public.onyx_awareness_latency
+    fk_dependencies: []
+    rationale: "§3.2 awareness-latency telemetry"
+  - table: public.onyx_client_trust_snapshots
+    fk_dependencies: []
+    rationale: "§3.2 client-trust snapshot telemetry"
+  - table: public.onyx_event_store
+    fk_dependencies: []
+    rationale: "§3.2 onyx event store"
+  - table: public.onyx_evidence_certificates
+    fk_dependencies: []
+    rationale: "§3.2 evidence certificate event artifact"
+  - table: public.onyx_operator_scores
+    fk_dependencies: []
+    rationale: "§3.2 operator-score telemetry"
+  - table: public.onyx_operator_simulations
+    fk_dependencies: []
+    rationale: "§3.2 operator simulation events"
+  - table: public.onyx_power_mode_events
+    fk_dependencies: []
+    rationale: "§3.2 power-mode event log"
+  - table: public.ops_orders
+    fk_dependencies: []
+    rationale: "§3.2 operational orders (ops events)"
+  - table: public.patrol_checkpoint_scans
+    fk_dependencies: []
+    rationale: "§3.2 patrol checkpoint scan events"
+  - table: public.patrol_compliance
+    fk_dependencies: []
+    rationale: "§3.2 patrol compliance log"
+  - table: public.patrol_route_cooldowns
+    fk_dependencies: []
+    rationale: "§3.2 patrol-route cooldown state"
+  - table: public.patrol_route_recommendations
+    fk_dependencies: []
+    rationale: "§3.2 patrol recommendation output"
+  - table: public.regional_risk_snapshots
+    fk_dependencies: []
+    rationale: "§3.2 regional risk snapshot"
+  - table: public.site_alarm_events
+    fk_dependencies: []
+    rationale: "§3.2 site alarm event stream"
+  - table: public.site_awareness_snapshots
+    fk_dependencies: []
+    rationale: "§3.2 site awareness snapshot"
+  - table: public.site_occupancy_sessions
+    fk_dependencies: []
+    rationale: "§3.2 site occupancy sessions (observed)"
+  - table: public.telegram_inbound_updates
+    fk_dependencies: []
+    rationale: "§3.2 Telegram inbound update history (explicitly called out in §3.1.6)"
+  - table: public.threats
+    fk_dependencies: []
+    rationale: "§3.2 threat scoring record (event output)"
+  - table: public.threat_scores
+    fk_dependencies: []
+    rationale: "§3.2 threat scoring output"
+  - table: public.vehicle_logs
+    fk_dependencies: []
+    rationale: "§3.2 vehicle activity log"
+  - table: public.vehicle_visits
+    fk_dependencies: []
+    rationale: "§3.2 vehicle visit events"
+  - table: public.violations
+    fk_dependencies: []
+    rationale: "§3.2 generic violations log"
+  - table: public.watch_archive
+    fk_dependencies: []
+    rationale: "§3.2 watch archive"
+  - table: public.watch_events
+    fk_dependencies: []
+    rationale: "§3.2 watch event stream"
+
+  # --- §3.2.1 amendment additions (no wipe-FK parents except those above) ---
+
+  - table: public.threat_decay_profiles
+    fk_dependencies: []
+    rationale: "§3.2.1 threat rule engine (dummy decay profiles)"
+  - table: public.alert_rules
+    fk_dependencies: []
+    rationale: "§3.2.1 alert rule scaffolding"
+  - table: public.dispatch_actions
+    fk_dependencies: []
+    rationale: "§3.2.1 dispatch catalogue scaffolding"
+  - table: public.mo_library
+    fk_dependencies: []
+    rationale: "§3.2.1 MO reference library (dummy)"
+  - table: public.intel_source_weights
+    fk_dependencies: []
+    rationale: "§3.2.1 intel source weights (dummy)"
+  - table: public.global_patterns
+    fk_dependencies: []
+    rationale: "§3.2.1 global patterns (dummy)"
+  - table: public.posts
+    fk_dependencies: []
+    rationale: "§3.2.1 patrol post scaffolding"
+  - table: public.staff
+    fk_dependencies: []
+    rationale: "§3.2.1 personnel (dummy)"
+  - table: public.controllers
+    fk_dependencies: []
+    rationale: "§3.2.1 personnel (dummy)"
+  - table: public.guard_assignments
+    fk_dependencies: []
+    rationale: "§3.2.1 personnel (no FK in baseline)"
+
+  # --- §3.1.7 diagnostic resolution ---
+
+  - table: public.operational_nodes
+    fk_dependencies: []
+    rationale: "§3.1.7 diagnostic result (2026-04-23): 3 rows are regional HQ/ops dummies (Johannesburg HQ, Cape Town Ops, London Liaison); no Pi reference in contents; cluster §3.1.7 remains empty; table classified wipe per §3.2.1 test-grade-dummy policy"
+
+  # --- §3.2.1 Amendment 2 addition ---
+
+  - table: public.duty_states
+    fk_dependencies: []
+    rationale: "§3.2.1 Amendment 2 — derived patrol state, subsystem reset"
+
+
+# Knock-on FKs from preservation → wipe (pre-wipe handling required in Phase C runbook):
+knock_on_fks:
+  - parent_preservation_table: public.vehicles
+    child_wipe_table: public.employees
+    column: public.vehicles.assigned_employee_id
+    live_constraint: "ON DELETE SET NULL"
+    concern: "TRUNCATE does not honor ON DELETE SET NULL. TRUNCATE employees CASCADE would also truncate vehicles (preservation violation). Pre-wipe runbook step: UPDATE public.vehicles SET assigned_employee_id = NULL WHERE assigned_employee_id IS NOT NULL; THEN TRUNCATE public.employees."
+
+
+# ==============================================================================
+# UNTOUCHED — 9 tables (per §3.3.1 explicit enumeration)
+# ==============================================================================
+untouched:
+
+  # --- §3.3 bullet 1: empty at cutover (6) ---
+  - table: public.site_identity_profiles
+    rationale: "§3.3.1 empty (0 rows); face-gallery adjacency decidable on emptiness"
+  - table: public.site_identity_approval_decisions
+    rationale: "§3.3.1 empty (0 rows)"
+  - table: public.site_zone_rules
+    rationale: "§3.3.1 empty (0 rows) per §3.1.3 clarification in Amendment 1"
+  - table: public.alarm_accounts
+    rationale: "§3.3.1 empty (0 rows); armed-response-linkage candidate, vacuously empty"
+  - table: public.deployments
+    rationale: "§3.3.1 empty (0 rows)"
+  - table: public.checkins
+    rationale: "§3.3.1 empty (0 rows); resolves patrol_triggers CASCADE concern from Phase A"
+
+  # --- §3.3 bullet 2: auto-regenerating (3) ---
+  - table: public.demo_state
+    rationale: "§3.3.1 regenerates on next demo event (1 live row)"
+  - table: public.watch_current_state
+    rationale: "§3.3.1 regenerates on next watch event (1 live row)"
+  - table: public.client_conversation_push_sync_state
+    rationale: "§3.3.1 regenerates on next push sync per operator (2 live rows)"
+
+
+# ==============================================================================
+# COUNT INVARIANTS
+# ==============================================================================
+# preservation public tables:  18
+# wipe:                       102
+# untouched:                    9
+# ---------------------------------
+# total public tables classified: 18 + 102 + 9 = 129  (matches baseline Step 1 §1)
+# Plus auth.* preserved as schema-level special case (not counted in the 129)
