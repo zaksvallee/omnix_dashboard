@@ -172,3 +172,21 @@ Immediate backlog seeded by Layer 2
 - verify whether the Pi -> Mac enhancement handoff is still desired
 - verify whether the camera-worker disconnect loop still appears after the
   cutover-era runtime hardening
+
+## Open Items From Review (2026-04-23)
+
+- Deferred FK `client_evidence_ledger.dispatch_id` (text) vs
+  `dispatch_intents.dispatch_id` (uuid) — elevate from "not in scope"
+  to named blocker. Workstream 2 exit criteria cannot be met with
+  constrained schema until FK reconciled. See Amendment 4 for
+  deferral rationale.
+
+- FD leak diagnosis incomplete. Static hypothesis committed at
+  `audit/fd_leak_diagnosis.md`; Pi-side runtime profiling was deferred
+  during Layer 2 execution. Belongs under Workstream 3 as unfinished
+  verification work, not closed.
+
+- Workstream 4 and 5 decision rules are likely pre-determined for
+  MS Vallee (no guards, no Zara in live use). Consider collapsing
+  both to dormancy-decision records rather than triage workstreams
+  in the next plan revision.
