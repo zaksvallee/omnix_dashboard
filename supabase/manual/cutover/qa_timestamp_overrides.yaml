@@ -1,0 +1,64 @@
+# Layer 2 QA corpus freeze timestamp overrides.
+#
+# Context: MS Vallee is the only live Layer 2 site, and it is still an
+# owner-operated test site. For wipe-set tables whose timestamp semantics are
+# missing or ambiguous under the strict script resolver, include all rows in the
+# local gitignored QA archive rather than risk omitting useful test corpus rows.
+#
+# Format consumed by scripts/cutover_qa_corpus_freeze.py:
+#   table name -> timestamp column, or null for "include all rows".
+
+tables:
+  # Ambiguous under the strict resolver; include all test rows.
+  public.patrol_violations: null
+  public.incidents: null
+  public.client_conversation_messages: null
+  public.client_conversation_push_queue: null
+  public.guard_sync_operations: null
+  public.onyx_alert_outcomes: null
+
+  # No accepted created_at/inserted_at/occurred_at/event_at/timestamp column.
+  public.incident_outcomes: null
+  public.incident_snapshots: null
+  public.execution_locks: null
+  public.guard_ops_retention_runs: null
+  public.patrol_triggers: null
+  public.patrol_scans: null
+  public.zara_action_log: null
+  public.ThreatMatrix: null
+  public.guard_documents: null
+  public.guard_sites: null
+  public.guard_projection_retention_runs: null
+  public.guard_ops_replay_safety_checks: null
+  public.patrols: null
+  public.ThreatLevels: null
+  public.ThreatCategories: null
+  public.alert_events: null
+  public.command_summaries: null
+  public.decision_audit_log: null
+  public.escalation_events: null
+  public.incident_replays: null
+  public.intel_events: null
+  public.intel_patrol_links: null
+  public.keyword_escalations: null
+  public.onyx_client_trust_snapshots: null
+  public.onyx_evidence_certificates: null
+  public.onyx_operator_scores: null
+  public.onyx_operator_simulations: null
+  public.ops_orders: null
+  public.patrol_checkpoint_scans: null
+  public.patrol_compliance: null
+  public.patrol_route_cooldowns: null
+  public.patrol_route_recommendations: null
+  public.regional_risk_snapshots: null
+  public.site_occupancy_sessions: null
+  public.telegram_inbound_updates: null
+  public.threat_scores: null
+  public.violations: null
+  public.watch_archive: null
+  public.threat_decay_profiles: null
+  public.alert_rules: null
+  public.intel_source_weights: null
+  public.global_patterns: null
+  public.posts: null
+  public.duty_states: null

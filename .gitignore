@@ -67,3 +67,9 @@ tool/face_gallery/**/*.PNG
 
 # Auto-generated session state (written by post-commit hook)
 SESSION_STATE.md
+
+# Cutover script output payloads (operational data; potentially sensitive).
+# Keep .gitkeep + README tracked so the layout ships without the JSON files.
+supabase/manual/cutover/exports/*
+!supabase/manual/cutover/exports/.gitkeep
+!supabase/manual/cutover/exports/README.md

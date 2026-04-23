@@ -18,6 +18,8 @@
 # extensions.*, graphql.*, cron.*) are implicitly untouched per §3.3 bullet 3;
 # auth.* is explicitly preserved-by-not-touching per §3.1.8 (entry below).
 
+schema_version: 1
+
 # ==============================================================================
 # PRESERVATION — 18 public tables + auth.* special case
 # ==============================================================================

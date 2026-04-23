@@ -1,0 +1,4 @@
+# Cutover tooling deps — used only by scripts/cutover_*.py.
+# Do not extend with unrelated packages; introduce a separate file if needed.
+psycopg[binary]>=3.2,<4
+PyYAML>=6
