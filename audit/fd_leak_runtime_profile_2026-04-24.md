@@ -315,3 +315,75 @@ It is now latent because the proxy holds the stream open, but it can still
 re-manifest on any legitimate reconnect event (for example an actual upstream
 drop or operator restart). That follow-up remains tracked as the separate §6
 worker-side fix identified during the proxy-fix review.
+
+## Resolution note — worker-side FD release (2026-04-24)
+
+### Status
+
+The worker-side FD-release follow-up identified above is now **RESOLVED**.
+This closes the two-part FD-leak investigation: the proxy stream-forwarding
+fix (commit `1612f0d`) eliminated the reconnect churn that was driving the
+leak rate, and this fix eliminates the per-reconnect FD leak itself so the
+worker is safe under any legitimate future reconnect event (DVR reboot,
+proxy restart, network blip).
+
+### Root cause
+
+The `_streamSubscription` field in `OnyxHikIsapiStreamAwarenessService` was
+declared but **never assigned**. It was only ever nulled in `stop()` and in
+the `_consumeAlertStream` `finally` block. Because it was never assigned to
+the active response stream, `stop()` and generation-change paths had nothing
+to actually cancel — they could only drop a reference. When the alert-stream
+response was abandoned on reconnect, the underlying `http.StreamedResponse`
+socket FD was not reliably released, so each reconnect iteration of
+`_runConnectionLoop()` stranded one FD.
+
+### Fix applied
+
+Worker fix commit: `0249acf`
+
+Commit message:
+`fix(worker): cancel alert-stream subscription on reconnect`
+
+The fix wires the active subscription via a `_TrackedSubscriptionStream`
+wrapper so `stop()` and generation changes now hold a handle they can
+actually cancel. Applied to both the runtime copy
+(`bin/onyx_camera_worker.dart`) and the library copy
+(`lib/application/site_awareness/onyx_hik_isapi_stream_awareness_service.dart`).
+The duplicated implementation between those two is a known code-hygiene
+issue; consolidation is deferred to a separate future pass.
+
+### Post-deploy verification (Phase C)
+
+| Check | Result |
+|-------|--------|
+| V1 — downstream topology | Worker → proxy on `127.0.0.1:11635`; no direct DVR connections |
+| V2 — `"Alert stream closed unexpectedly"` messages post-deploy | `0` |
+| V3 — FD count after deploy | `18` (healthy Dart baseline) |
+| V4 — FD deltas across 3 induced reconnects | `-2 / +6 / +4` (bounded noise, no accumulation) |
+| V5 — 5-minute quiet window | FD count settled to `21` |
+| Confirmation sample | 4th induced reconnect, `+3` delta stable across 60 s |
+
+Total FD count stayed bounded in the range `[16, 24]` across four induced
+reconnects plus an extended quiet window. No accumulation. The per-reconnect
+leak is eliminated.
+
+### Test-suite status
+
+Two pre-existing test failures are present on clean `HEAD` at `0eba3eb`:
+
+- `publishes immediately on humanDetected`
+- `records occupancy tracking for human detections only`
+
+Both pre-date this fix and are **not regressions** from it. They are tracked
+as a separate open item.
+
+### Investigation artifacts
+
+Phase A / Phase B investigation artifacts for the worker FD-release fix are
+kept under `audit/` as review-first working notes:
+
+- `audit/worker_fd_release_bug_phase_a_2026-04-24.md`
+- `audit/cc_prompt_worker_fd_fix_phase_b_2026-04-24.md`
+
+These files are intentionally untracked at the time of this commit.
