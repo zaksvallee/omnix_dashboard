@@ -258,3 +258,60 @@ Raw lsof output preserved under
 - `fds_t0_20260424T052107Z.txt` — 39,518 lines
 - `fds_t30_20260424T055129Z.txt` — 39,883 lines
 - `fds_t60_20260424T062153Z.txt` — 40,245 lines
+
+## Resolution note (2026-04-24)
+
+### Root cause
+
+The production FD blow-up was ultimately caused by an integration-contract
+mismatch, not by the originally suspected 60-second keepalive path.
+
+The DVR itself serves `multipart/mixed` alert-stream responses correctly, and
+the worker is written to consume a long-lived multipart stream. The local Dart
+proxy, however, was implemented as long-poll-with-buffer: it returned a single
+`application/xml` document, closed the downstream response, and expected the
+consumer to reconnect for the next batch. That caused the worker to see
+`"Alert stream closed unexpectedly"` every few seconds, re-enter its reconnect
+loop, and accumulate unreleased `http.StreamedResponse` FDs under sustained
+churn.
+
+### Fix applied
+
+Proxy fix commit: `1612f0d`
+
+Commit message:
+`fix(dvr_proxy): forward multipart/mixed alertStream as streaming response`
+
+The fix replaces the proxy's one-shot XML handoff with streaming fan-out of the
+upstream `multipart/mixed` body, while retaining a bounded catch-up buffer for
+late downstream subscribers.
+
+### Post-fix observations (Phase C)
+
+Deployment verification on the Pi passed:
+
+- Exactly one upstream proxy connection to `192.168.0.117:80`
+- `TIME-WAIT` count for `192.168.0.117:80`: `0`
+- No true post-deploy `"Alert stream closed unexpectedly"` lines in the worker
+  log during the first 60 seconds after restart (the initial count required an
+  off-by-one correction to exclude the last pre-deploy log line)
+- Worker FD count: `19 -> 15` across two 5-minute samples
+- Proxy FD count: `16 -> 16` across two 5-minute samples
+
+This confirms the reconnect churn stopped and the high-rate FD growth observed
+earlier in the runtime profile is no longer present under normal operation.
+
+### Pi-side hotfix status
+
+The pre-existing Pi-only hotfix (30-minute `idleTimeout` plus
+`_bufferedAlertEvents.clear()` on each poll) was superseded by the new
+streaming architecture and was not preserved as a separate change.
+
+### Remaining follow-up
+
+The worker's own `_runConnectionLoop()` FD-release bug remains open.
+
+It is now latent because the proxy holds the stream open, but it can still
+re-manifest on any legitimate reconnect event (for example an actual upstream
+drop or operator restart). That follow-up remains tracked as the separate §6
+worker-side fix identified during the proxy-fix review.
