@@ -39,6 +39,74 @@ Those stay with the already-documented Layer 4 / Layer 6 deferrals.
 
 Workstream 1 — Restore incident and dispatch truth
 
+Build the alarm-to-incident promotion and operator-action write
+paths. Phase A1 (2026-04-24, commit e7dceb7) proved no promotion
+path exists anywhere in production (hypothesis (d) locked), and
+that the three Telegram button handlers in the live AI processor
+attempt writes to pre-cutover schema (`dispatches`, `events`)
+that do not exist — writes throw, try/catch swallows silently.
+This workstream is therefore a BUILD, not a repair.
+
+### Phase A1 findings (2026-04-24)
+
+Report: `audit/workstream_1_phase_a1_discovery_2026-04-24.md` (commit e7dceb7)
+
+- No automated promotion path exists. Code search, 6 deployed edge
+  function audit, DB trigger introspection, pg_cron live query, and
+  Hetzner/Pi service enumeration all independently confirmed this.
+- Telegram button handlers (Dispatch / Acknowledge / False alarm)
+  in `bin/onyx_telegram_ai_processor.dart` on Hetzner fire on
+  operator tap, but write to stale schema:
+    - Dispatch → `supabase.from('dispatches').insert(...)` —
+      table does not exist
+    - Acknowledge → `_updateEventRow` → `supabase.from('events').update(...)` —
+      table does not exist
+    - False alarm → same `_updateEventRow` path — same stale table
+  Exceptions are swallowed by try/catch; operator sees a toast
+  ("Dispatch could not be logged right now.", etc.); no DB state
+  changes.
+- View camera button works correctly (read-only side effect via
+  snapshot fan-out) — used as the known-working control to confirm
+  the callback_query delivery chain is alive for all four buttons.
+- v1 Flutter code (`lib/main.dart:17280+`) has mirrored handlers
+  with the same bug, but v1 is not running in production (phase 2b
+  §4.1) — latent duplicate, blast radius decision at Phase A3.
+
+### Phase A3 design inputs
+
+Phase A2 (synthetic test) is SKIPPED per A1's conclusion strength.
+Proceed directly to Phase A3 design work. Six open questions from
+the A1 report must be resolved before Phase B implementation:
+
+1. **Dispatch target model.** Write to `public.dispatch_intents`
+   (gets `auto_decided_transition` trigger-seeded
+   `dispatch_transitions` for free) vs. write to `public.incidents`
+   directly (simpler UI wiring, command-center reads from there).
+   Which matches the intended data model?
+2. **Acknowledge / False alarm target model.** Update
+   `incidents.status`. If no incidents row exists yet for the
+   given alert (because Dispatch wasn't tapped first), does
+   Ack/False alarm create the incident row as a side-effect, or
+   require incident-first?
+3. **Incident creation point.** Is incident creation triggered by
+   operator button tap (manual), by automated promotion from
+   `site_alarm_events` (background service / edge function /
+   pg_cron), or both (manual path creates immediately; automated
+   path catches un-acted alerts after N minutes)?
+4. **Ledger coupling.** Does `client_evidence_ledger` receive
+   writes directly from the button handlers, or from a downstream
+   service (e.g., `OnyxEvidenceCertificateService`) that reads
+   from `incidents`/`dispatch_intents`? Note Amendment 4's FK
+   deferral allows `dispatch_id` unconstrained.
+5. **v1 Flutter blast radius.** When the fix lands in the AI
+   processor, do we also patch the dead v1 handler in
+   `lib/main.dart` for hygiene, or leave it and consolidate as
+   part of a broader v1→v2 cutover later?
+6. **Pre-cutover incident origin** (historical context, not
+   blocking). The last new incident row was 2026-03-11. If those
+   238 pre-cutover rows came from a retired service, that source
+   might merit tracing. Left open.
+
 Why first:
 - Phase 2a found `incidents` had zero new inserts in the 7-day window.
 - `dispatch_transitions` was 53 days stale.
@@ -185,6 +253,9 @@ Immediate backlog seeded by Layer 2
 - resolve FK type mismatch on `client_evidence_ledger.dispatch_id`
   before Workstream 2 exit criteria can be met with constrained schema
   (see Amendment 4)
+- Workstream 1 Phase A3 design decisions (6 open questions; see
+  Workstream 1 Phase A3 design inputs) must resolve before Phase B
+  implementation begins
 - verify whether the Pi -> Mac enhancement handoff is still desired
 - verify whether the camera-worker disconnect loop still appears after the
   cutover-era runtime hardening
