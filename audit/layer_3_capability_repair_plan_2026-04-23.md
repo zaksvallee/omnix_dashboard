@@ -97,9 +97,13 @@ Repair targets:
 - Pi -> Mac `/detect` handoff configuration and actual POST delivery
 - decision: keep the Mac enhancement tier or retire it for the test-site path
 - camera-worker reconnect behavior and file-descriptor stability
-- complete Pi-side FD runtime profiling per `audit/fd_leak_diagnosis.md`
-  before deciding on code fix (runtime profile artifact expected at
-  `audit/fd_leak_runtime_profile_2026-04-24.md`)
+- FD runtime profile completed 2026-04-24 (see
+  `audit/fd_leak_runtime_profile_2026-04-24.md`, commits `04d73b2`
+  and `9bfc726`). Static hypothesis contradicted; real root cause
+  was in the proxy (fixed in `1612f0d`). Worker-side FD release
+  bug in `bin/onyx_camera_worker.dart:2889-3007` `_runConnectionLoop()`
+  is latent post-proxy-fix but not resolved; tracked as this
+  workstream's next code-change item.
 - any watchdog/telemetry needed so the next failure is diagnosable quickly
 
 Exit criteria:
