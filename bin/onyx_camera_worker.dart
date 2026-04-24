@@ -2241,6 +2241,30 @@ http.Client _buildIsapiHttpClient() {
   return IOClient(client);
 }
 
+class _TrackedSubscriptionStream<T> extends Stream<T> {
+  _TrackedSubscriptionStream(this._delegate, this._onListen);
+
+  final Stream<T> _delegate;
+  final void Function(StreamSubscription<T>) _onListen;
+
+  @override
+  StreamSubscription<T> listen(
+    void Function(T event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    final subscription = _delegate.listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+    _onListen(subscription);
+    return subscription;
+  }
+}
+
 class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   static const Duration _yoloStartupGracePeriod = Duration(seconds: 30);
   static const Duration _yoloHealthRetryDelay = Duration(seconds: 10);
@@ -3011,8 +3035,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     int generation,
   ) async {
     var buffer = '';
+    StreamSubscription<List<int>>? subscription;
     try {
-      await for (final chunk in stream) {
+      await for (final chunk in _TrackedSubscriptionStream<List<int>>(
+        stream,
+        (activeSubscription) {
+          subscription = activeSubscription;
+          _streamSubscription = activeSubscription;
+        },
+      )) {
         if (!_running || generation != _generation) {
           break;
         }
@@ -3050,7 +3081,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           errorLabel: 'Failed to parse trailing Hikvision alert payload.',
         );
       }
-      if (generation == _generation) {
+      await subscription?.cancel();
+      if (identical(_streamSubscription, subscription)) {
         _streamSubscription = null;
       }
     }

@@ -273,12 +273,16 @@ void main() {
 
     test('retries on connection loss', () async {
       final now = DateTime.utc(2026, 4, 8, 12, 2, 30);
-      final controller = StreamController<List<int>>();
+      var firstCanceled = false;
+      final firstController = StreamController<List<int>>(
+        onCancel: () => firstCanceled = true,
+      );
+      final secondController = StreamController<List<int>>();
       final client = _FakeStreamClient((attempt, _) async {
         if (attempt == 0) {
-          return http.StreamedResponse(Stream<List<int>>.empty(), 503);
+          return http.StreamedResponse(firstController.stream, 200);
         }
-        return http.StreamedResponse(controller.stream, 200);
+        return http.StreamedResponse(secondController.stream, 200);
       });
       final service = OnyxHikIsapiStreamAwarenessService(
         host: '192.168.0.117',
@@ -293,14 +297,16 @@ void main() {
       );
       addTearDown(() async {
         await service.stop();
-        await controller.close();
+        await firstController.close();
+        await secondController.close();
       });
 
       await service.start(siteId: 'SITE-1', clientId: 'CLIENT-1');
-      await _waitFor(() => client.requestCount >= 2 && service.isConnected);
-
-      expect(client.requestCount, greaterThanOrEqualTo(2));
-      expect(service.isConnected, isTrue);
+      await _waitFor(() => client.requestCount >= 1 && service.isConnected);
+      firstController.addError(StateError('stream dropped'));
+      await _waitFor(
+        () => client.requestCount >= 2 && service.isConnected && firstCanceled,
+      );
     });
 
     test('known fault channels are flagged but not alarmed', () async {
