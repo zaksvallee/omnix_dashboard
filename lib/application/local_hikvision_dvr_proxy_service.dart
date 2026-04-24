@@ -65,6 +65,10 @@ class LocalHikvisionDvrProxyService {
       <_BufferedAlertEvent>[];
   String _upstreamAlertStreamStatus = _upstreamStreamStatusDisconnected;
   bool _upstreamAlertLoopRunning = false;
+  String? _upstreamAlertContentType;
+  String? _upstreamAlertBoundary;
+  StreamController<List<int>>? _alertStreamHub;
+  StreamSubscription<List<int>>? _alertStreamSubscription;
 
   LocalHikvisionDvrProxyService({
     required this.upstreamAlertStreamUri,
@@ -109,6 +113,7 @@ class LocalHikvisionDvrProxyService {
     // — legitimate closes happen via server.close() in the close() method.
     server.idleTimeout = const Duration(minutes: 30);
     _server = server;
+    _alertStreamHub = StreamController<List<int>>.broadcast();
     _subscription = server.listen((request) {
       unawaited(_handleRequest(request));
     });
@@ -120,6 +125,10 @@ class LocalHikvisionDvrProxyService {
     _subscription = null;
     final server = _server;
     _server = null;
+    await _alertStreamSubscription?.cancel();
+    _alertStreamSubscription = null;
+    await _alertStreamHub?.close();
+    _alertStreamHub = null;
     if (server != null) {
       await server.close(force: true);
     }
@@ -159,7 +168,7 @@ class LocalHikvisionDvrProxyService {
         return;
       }
       if (_isAlertStreamRequest(request.uri)) {
-        await _relayAlertStreamBatch(request);
+        await _relayAlertStreamMultipart(request);
         return;
       }
       final relayStreamId = _relayStreamIdFor(request.uri);
@@ -296,101 +305,146 @@ class LocalHikvisionDvrProxyService {
     return 'idle';
   }
 
-  Future<void> _relayAlertStreamBatch(HttpRequest request) async {
-    final bufferedPayload = _bufferedAlertPayload();
-    if (bufferedPayload.isNotEmpty) {
-      _lastSuccessAtUtc = DateTime.now().toUtc();
-      _lastError = '';
-      final response = request.response;
-      response.statusCode = HttpStatus.ok;
-      _writeCorsHeaders(response.headers);
-      response.headers.set(
-        HttpHeaders.contentTypeHeader,
-        'application/xml; charset=utf-8',
+  Future<void> _relayAlertStreamMultipart(HttpRequest request) async {
+    final hub = _alertStreamHub;
+    final contentType = _upstreamAlertContentType;
+    final boundary = _upstreamAlertBoundary;
+    if (hub == null || hub.isClosed || contentType == null) {
+      await _writeJsonResponse(
+        request,
+        HttpStatus.serviceUnavailable,
+        <String, Object?>{
+          'ok': false,
+          'detail':
+              'Local Hikvision proxy is waiting for the upstream alert stream.',
+          'upstream_stream_status': _upstreamAlertStreamStatus,
+        },
       );
-      response.write(bufferedPayload);
+      return;
+    }
+    final response = request.response;
+    response.statusCode = HttpStatus.ok;
+    response.bufferOutput = false;
+    _writeCorsHeaders(response.headers);
+    response.headers.set(HttpHeaders.contentTypeHeader, contentType);
+    response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+    if (request.method == 'HEAD') {
       await response.close();
-      return;
-    }
-    final upstreamUri = _resolveUpstreamUri(request.uri);
-    final upstream = await upstreamAuth
-        .send(
-          client,
-          'GET',
-          upstreamUri,
-          headers: const <String, String>{
-            'Accept': 'multipart/x-mixed-replace, application/xml, text/xml',
-          },
-        )
-        .timeout(upstreamRequestTimeout);
-    if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
-      _lastError = 'Upstream alert stream HTTP ${upstream.statusCode}';
-      await _writeUpstreamFailure(request, upstream.statusCode);
-      await upstream.stream.drain<void>();
-      return;
-    }
-    final payload = await _captureAlertPayload(
-      upstream.stream,
-    ).timeout(upstreamRequestTimeout + alertStreamIdleWindow);
-    if (payload.trim().isEmpty) {
-      _lastSuccessAtUtc = DateTime.now().toUtc();
-      _lastError = '';
-      await _writeEmptyResponse(request, HttpStatus.noContent);
       return;
     }
     _lastSuccessAtUtc = DateTime.now().toUtc();
     _lastError = '';
-    final response = request.response;
-    response.statusCode = HttpStatus.ok;
-    _writeCorsHeaders(response.headers);
-    response.headers.set(
-      HttpHeaders.contentTypeHeader,
-      'application/xml; charset=utf-8',
-    );
-    response.write(payload);
-    await response.close();
-  }
-
-  Future<String> _captureAlertPayload(Stream<List<int>> stream) {
-    final completer = Completer<String>();
-    final buffer = StringBuffer();
-    StreamSubscription<List<int>>? subscription;
-    Timer? idleTimer;
-
-    void finish([String payload = '']) {
-      idleTimer?.cancel();
-      if (!completer.isCompleted) {
-        completer.complete(payload);
-      }
-      unawaited(subscription?.cancel());
-    }
-
-    void armIdleTimer() {
-      idleTimer?.cancel();
-      idleTimer = Timer(alertStreamIdleWindow, () {
-        finish(_extractAlertPayload(buffer.toString()));
-      });
-    }
-
-    subscription = stream.listen(
-      (chunk) {
-        buffer.write(utf8.decode(chunk, allowMalformed: true));
-        final payload = _extractAlertPayload(buffer.toString());
-        if (payload.isNotEmpty) {
-          finish(payload);
+    if (boundary != null) {
+      final catchup = _drainCatchupMultipart(boundary);
+      if (catchup.isNotEmpty) {
+        try {
+          response.add(utf8.encode(catchup));
+          await response.flush();
+        } catch (_) {
+          try {
+            await response.close();
+          } catch (_) {}
           return;
         }
-        armIdleTimer();
+      }
+    }
+    final done = Completer<void>();
+    void complete() {
+      if (!done.isCompleted) done.complete();
+    }
+    final subscription = hub.stream.listen(
+      (chunk) {
+        try {
+          response.add(chunk);
+        } catch (_) {
+          complete();
+        }
+      },
+      onDone: complete,
+      onError: (Object _, StackTrace _) => complete(),
+      cancelOnError: false,
+    );
+    unawaited(response.done.whenComplete(complete).catchError((_) {}));
+    await done.future;
+    await subscription.cancel();
+    try {
+      await response.close();
+    } catch (_) {}
+  }
+
+  Future<void> _pumpUpstreamAlertStream(Stream<List<int>> stream) {
+    final completer = Completer<void>();
+    var buffer = '';
+    _alertStreamSubscription = stream.listen(
+      (chunk) {
+        _alertStreamHub?.add(chunk);
+        buffer += utf8.decode(chunk, allowMalformed: true);
+        final extraction = _extractAlertXmlWithRemainder(buffer);
+        buffer = extraction.remainder;
+        for (final payload in extraction.payloads) {
+          _bufferAlertPayload(payload);
+        }
       },
       onError: (Object error, StackTrace stackTrace) {
         if (!completer.isCompleted) {
           completer.completeError(error, stackTrace);
         }
       },
-      onDone: () => finish(_extractAlertPayload(buffer.toString())),
+      onDone: () {
+        if (!completer.isCompleted) completer.complete();
+      },
       cancelOnError: true,
     );
     return completer.future;
+  }
+
+  ({List<String> payloads, String remainder}) _extractAlertXmlWithRemainder(
+    String raw,
+  ) {
+    final matches = RegExp(
+      r'<EventNotificationAlert\b[^>]*>[\s\S]*?</EventNotificationAlert>',
+    ).allMatches(raw).toList(growable: false);
+    if (matches.isEmpty) {
+      return (
+        payloads: const <String>[],
+        remainder: raw.length > 16384
+            ? raw.substring(raw.length - 8192)
+            : raw,
+      );
+    }
+    final payloads = matches
+        .map((match) => match.group(0)?.trim() ?? '')
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: false);
+    return (payloads: payloads, remainder: raw.substring(matches.last.end));
+  }
+
+  String? _parseAlertStreamBoundary(String? contentType) {
+    if (contentType == null) return null;
+    final match = RegExp(
+      r'boundary\s*=\s*"?([^";\s]+)',
+      caseSensitive: false,
+    ).firstMatch(contentType);
+    return match?.group(1);
+  }
+
+  String _drainCatchupMultipart(String boundary) {
+    _pruneBufferedAlerts();
+    if (_bufferedAlertEvents.isEmpty) return '';
+    final out = StringBuffer();
+    for (final event in _bufferedAlertEvents) {
+      out
+        ..write('--')
+        ..write(boundary)
+        ..write('\r\nContent-Type: application/xml; charset=utf-8\r\n')
+        ..write('Content-Length: ')
+        ..write(event.payload.length)
+        ..write('\r\n\r\n')
+        ..write(event.payload)
+        ..write('\r\n');
+    }
+    _bufferedAlertEvents.clear();
+    return out.toString();
   }
 
   Future<void> _ensureUpstreamAlertSubscription() async {
@@ -420,17 +474,19 @@ class LocalHikvisionDvrProxyService {
             _upstreamAlertStreamStatus = _upstreamStreamStatusConnected;
             _lastError = '';
             _lastSuccessAtUtc = DateTime.now().toUtc();
-            final payload = await _captureAlertPayload(
-              upstream.stream,
-            ).timeout(upstreamRequestTimeout + alertStreamIdleWindow);
-            if (payload.trim().isNotEmpty) {
-              _bufferAlertPayload(payload);
-            }
+            _upstreamAlertContentType =
+                upstream.headers[HttpHeaders.contentTypeHeader];
+            _upstreamAlertBoundary = _parseAlertStreamBoundary(
+              _upstreamAlertContentType,
+            );
+            await _pumpUpstreamAlertStream(upstream.stream);
           }
         } catch (error) {
           _upstreamAlertStreamStatus = _upstreamStreamStatusDisconnected;
           _lastError = error.toString();
         }
+        await _alertStreamSubscription?.cancel();
+        _alertStreamSubscription = null;
         if (_server == null) {
           _upstreamAlertStreamStatus = _upstreamStreamStatusDisconnected;
           break;
@@ -441,6 +497,8 @@ class LocalHikvisionDvrProxyService {
     } finally {
       _upstreamAlertLoopRunning = false;
       _upstreamAlertStreamStatus = _upstreamStreamStatusDisconnected;
+      _upstreamAlertContentType = null;
+      _upstreamAlertBoundary = null;
     }
   }
 
@@ -463,19 +521,6 @@ class LocalHikvisionDvrProxyService {
     _pruneBufferedAlerts();
   }
 
-  // Returns the current buffer as a single payload and clears the buffer.
-  // Long-polling handoff to the camera worker: one HTTP response delivers
-  // all buffered events since last drain, then the buffer resets so the
-  // next connection receives only new events. Without clearing here,
-  // the worker re-receives the same events for 3 min (retention window),
-  // dedup swallows them, and no alerts reach Telegram.
-  String _bufferedAlertPayload() {
-    _pruneBufferedAlerts();
-    final payload = _bufferedAlertEvents.map((event) => event.payload).join('\n');
-    _bufferedAlertEvents.clear();
-    return payload;
-  }
-
   void _pruneBufferedAlerts() {
     final nowUtc = DateTime.now().toUtc();
     _bufferedAlertEvents.removeWhere(
@@ -490,16 +535,6 @@ class LocalHikvisionDvrProxyService {
       0,
       _bufferedAlertEvents.length - maxBufferedAlertCount,
     );
-  }
-
-  String _extractAlertPayload(String raw) {
-    final matches = RegExp(
-      r'<EventNotificationAlert\b[^>]*>[\s\S]*?</EventNotificationAlert>',
-    ).allMatches(raw);
-    return matches
-        .map((match) => match.group(0)?.trim() ?? '')
-        .where((entry) => entry.isNotEmpty)
-        .join('\n');
   }
 
   Future<void> _relayPassthrough(HttpRequest request) async {

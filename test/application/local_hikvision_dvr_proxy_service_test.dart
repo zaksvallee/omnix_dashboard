@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,69 +8,101 @@ import 'package:omnix_dashboard/application/dvr_http_auth.dart';
 import 'package:omnix_dashboard/application/local_hikvision_dvr_proxy_service.dart';
 
 void main() {
-  test('local Hikvision DVR proxy relays alert stream XML with CORS', () async {
-    final upstream = await HttpServer.bind('127.0.0.1', 0);
-    upstream.listen((request) async {
-      expect(request.uri.path, '/ISAPI/Event/notification/alertStream');
-      request.response.statusCode = HttpStatus.ok;
-      request.response.headers.set(
-        HttpHeaders.contentTypeHeader,
-        'multipart/x-mixed-replace; boundary=boundary',
+  test(
+    'local Hikvision DVR proxy relays alert stream as multipart/mixed with '
+    'upstream boundary',
+    () async {
+      final upstream = await HttpServer.bind('127.0.0.1', 0);
+      upstream.listen((request) async {
+        expect(request.uri.path, '/ISAPI/Event/notification/alertStream');
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.set(
+          HttpHeaders.contentTypeHeader,
+          'multipart/mixed; boundary=boundary',
+        );
+        request.response.write(
+          '--boundary\r\n'
+          'Content-Type: application/xml\r\n\r\n'
+          '<EventNotificationAlert version="2.0">'
+          '<channelID>16</channelID>'
+          '<dateTime>2026-04-03T15:11:00Z</dateTime>'
+          '<eventType>VMD</eventType>'
+          '<eventState>active</eventState>'
+          '<eventDescription>Motion alarm</eventDescription>'
+          '</EventNotificationAlert>\r\n',
+        );
+        await request.response.flush();
+        // Hold the upstream connection open briefly so the downstream response
+        // is demonstrably held open as well (streaming semantics, not a
+        // single-document response).
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await request.response.close();
+      });
+
+      final proxy = LocalHikvisionDvrProxyService(
+        upstreamAlertStreamUri: Uri.parse(
+          'http://127.0.0.1:${upstream.port}/ISAPI/Event/notification/alertStream',
+        ),
+        upstreamAuth: const DvrHttpAuthConfig(mode: DvrHttpAuthMode.none),
+        host: '127.0.0.1',
+        port: 0,
+        client: http.Client(),
+        upstreamReconnectDelay: const Duration(milliseconds: 25),
+        upstreamRequestTimeout: const Duration(seconds: 2),
       );
-      request.response.write('''
---boundary
-Content-Type: application/xml
+      await proxy.start();
+      addTearDown(() async {
+        await proxy.close();
+        await upstream.close(force: true);
+      });
 
-<EventNotificationAlert version="2.0">
-  <channelID>16</channelID>
-  <dateTime>2026-04-03T15:11:00Z</dateTime>
-  <eventType>VMD</eventType>
-  <eventState>active</eventState>
-  <eventDescription>Motion alarm</eventDescription>
-</EventNotificationAlert>
-''');
-      await request.response.close();
-    });
+      final endpoint = proxy.endpoint!;
+      await _waitForBufferedAlertCount(endpoint, atLeast: 1);
 
-    final proxy = LocalHikvisionDvrProxyService(
-      upstreamAlertStreamUri: Uri.parse(
-        'http://127.0.0.1:${upstream.port}/ISAPI/Event/notification/alertStream',
-      ),
-      upstreamAuth: const DvrHttpAuthConfig(mode: DvrHttpAuthMode.none),
-      host: '127.0.0.1',
-      port: 0,
-      client: http.Client(),
-      alertStreamIdleWindow: const Duration(milliseconds: 50),
-      upstreamRequestTimeout: const Duration(seconds: 2),
-    );
-    await proxy.start();
-    addTearDown(() async {
-      await proxy.close();
-      await upstream.close(force: true);
-    });
+      final httpClient = http.Client();
+      addTearDown(httpClient.close);
+      final streamed = await httpClient.send(
+        http.Request(
+          'GET',
+          endpoint.resolve('/ISAPI/Event/notification/alertStream'),
+        ),
+      );
+      expect(streamed.statusCode, HttpStatus.ok);
+      expect(
+        streamed.headers[HttpHeaders.contentTypeHeader],
+        contains('multipart/mixed'),
+      );
+      expect(
+        streamed.headers[HttpHeaders.contentTypeHeader],
+        contains('boundary=boundary'),
+      );
+      expect(
+        streamed.headers[HttpHeaders.accessControlAllowOriginHeader],
+        equals('*'),
+      );
+      expect(
+        streamed.headers[HttpHeaders.contentLengthHeader],
+        isNull,
+        reason:
+            'Streaming alertStream must not carry a Content-Length header; '
+            'Content-Length indicates a finite single-document response.',
+      );
 
-    final endpoint = proxy.endpoint!;
-    final response = await http.get(
-      endpoint.resolve('/ISAPI/Event/notification/alertStream'),
-    );
+      final body = await _readStreamedBodyUntil(streamed, minBytes: 150);
+      expect(body, contains('--boundary'));
+      expect(body, contains('<EventNotificationAlert'));
+      expect(body, contains('<eventType>VMD</eventType>'));
 
-    expect(response.statusCode, HttpStatus.ok);
-    expect(
-      response.headers[HttpHeaders.accessControlAllowOriginHeader],
-      equals('*'),
-    );
-    expect(response.body, contains('<EventNotificationAlert'));
-    expect(response.body, contains('<eventType>VMD</eventType>'));
-
-    final health = await http.get(endpoint.resolve('/health'));
-    expect(health.statusCode, HttpStatus.ok);
-    final payload = jsonDecode(health.body) as Map<String, Object?>;
-    expect(payload['running'], isTrue);
-    expect(
-      (payload['upstream_alert_stream'] ?? '').toString(),
-      contains('${upstream.port}'),
-    );
-  });
+      final health = await http.get(endpoint.resolve('/health'));
+      expect(health.statusCode, HttpStatus.ok);
+      final payload = jsonDecode(health.body) as Map<String, Object?>;
+      expect(payload['running'], isTrue);
+      expect(
+        (payload['upstream_alert_stream'] ?? '').toString(),
+        contains('${upstream.port}'),
+      );
+    },
+  );
 
   test(
     'local Hikvision DVR proxy relays snapshot HEAD and GET requests',
@@ -302,7 +335,8 @@ Content-Type: application/xml
   );
 
   test(
-    'local Hikvision DVR proxy buffers upstream alerts between poll requests',
+    'local Hikvision DVR proxy prepends buffered alerts as catch-up when a '
+    'downstream subscriber connects',
     () async {
       final upstream = await HttpServer.bind('127.0.0.1', 0);
       var connectionCount = 0;
@@ -312,24 +346,25 @@ Content-Type: application/xml
         request.response.statusCode = HttpStatus.ok;
         request.response.headers.set(
           HttpHeaders.contentTypeHeader,
-          'multipart/x-mixed-replace; boundary=boundary',
+          'multipart/mixed; boundary=boundary',
         );
         if (connectionCount == 1) {
-          request.response.write('''
---boundary
-Content-Type: application/xml
-
-<EventNotificationAlert version="2.0">
-  <channelID>11</channelID>
-  <dateTime>2026-04-04T18:02:00Z</dateTime>
-  <eventType>VMD</eventType>
-  <eventState>active</eventState>
-  <eventDescription>Motion alarm</eventDescription>
-</EventNotificationAlert>
-''');
+          request.response.write(
+            '--boundary\r\n'
+            'Content-Type: application/xml\r\n\r\n'
+            '<EventNotificationAlert version="2.0">'
+            '<channelID>11</channelID>'
+            '<dateTime>2026-04-04T18:02:00Z</dateTime>'
+            '<eventType>VMD</eventType>'
+            '<eventState>active</eventState>'
+            '<eventDescription>Motion alarm</eventDescription>'
+            '</EventNotificationAlert>\r\n',
+          );
           await request.response.flush();
-          await Future<void>.delayed(const Duration(milliseconds: 60));
         }
+        // Hold the upstream open briefly on each connect; downstream subscriber
+        // connects between event emission and upstream close.
+        await Future<void>.delayed(const Duration(milliseconds: 60));
         await request.response.close();
       });
 
@@ -341,7 +376,6 @@ Content-Type: application/xml
         host: '127.0.0.1',
         port: 0,
         client: http.Client(),
-        alertStreamIdleWindow: const Duration(milliseconds: 40),
         upstreamReconnectDelay: const Duration(milliseconds: 25),
         bufferedAlertRetentionWindow: const Duration(seconds: 30),
         upstreamRequestTimeout: const Duration(seconds: 2),
@@ -352,41 +386,30 @@ Content-Type: application/xml
         await upstream.close(force: true);
       });
 
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-
       final endpoint = proxy.endpoint!;
-      var healthPayload = <String, Object?>{};
-      for (var attempt = 0; attempt < 8; attempt += 1) {
-        final health = await http.get(endpoint.resolve('/health'));
-        healthPayload = jsonDecode(health.body) as Map<String, Object?>;
-        final bufferedCount =
-            int.tryParse(
-              (healthPayload['buffered_alert_count'] ?? '0').toString(),
-            ) ??
-            0;
-        if (bufferedCount > 0) {
-          break;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 40));
-      }
-      final response = await http.get(
-        endpoint.resolve('/ISAPI/Event/notification/alertStream'),
+      await _waitForBufferedAlertCount(endpoint, atLeast: 1);
+
+      final httpClient = http.Client();
+      addTearDown(httpClient.close);
+      final streamed = await httpClient.send(
+        http.Request(
+          'GET',
+          endpoint.resolve('/ISAPI/Event/notification/alertStream'),
+        ),
+      );
+      expect(streamed.statusCode, HttpStatus.ok);
+      expect(
+        streamed.headers[HttpHeaders.contentTypeHeader],
+        contains('multipart/mixed'),
       );
 
-      expect(
-        int.tryParse(
-              (healthPayload['buffered_alert_count'] ?? '0').toString(),
-            ) ??
-            0,
-        greaterThanOrEqualTo(1),
-      );
-      expect(response.statusCode, HttpStatus.ok);
-      expect(response.body, contains('<EventNotificationAlert'));
-      expect(response.body, contains('<channelID>11</channelID>'));
+      final body = await _readStreamedBodyUntil(streamed, minBytes: 150);
+      expect(body, contains('--boundary'));
+      expect(body, contains('<EventNotificationAlert'));
+      expect(body, contains('<channelID>11</channelID>'));
 
       final health = await http.get(endpoint.resolve('/health'));
       final payload = jsonDecode(health.body) as Map<String, Object?>;
-      expect(payload['buffered_alert_count'], greaterThanOrEqualTo(1));
       expect((payload['last_alert_at_utc'] ?? '').toString(), isNotEmpty);
     },
   );
@@ -454,6 +477,54 @@ Content-Type: application/xml
       expect(payload['buffered_alert_count'], greaterThanOrEqualTo(1));
     },
   );
+}
+
+Future<void> _waitForBufferedAlertCount(
+  Uri endpoint, {
+  required int atLeast,
+  int attempts = 40,
+  Duration pollInterval = const Duration(milliseconds: 25),
+}) async {
+  for (var attempt = 0; attempt < attempts; attempt += 1) {
+    await Future<void>.delayed(pollInterval);
+    final response = await http.get(endpoint.resolve('/health'));
+    if (response.statusCode != HttpStatus.ok) continue;
+    final payload = jsonDecode(response.body) as Map<String, Object?>;
+    final count =
+        int.tryParse((payload['buffered_alert_count'] ?? '0').toString()) ?? 0;
+    if (count >= atLeast) return;
+  }
+}
+
+Future<String> _readStreamedBodyUntil(
+  http.StreamedResponse streamed, {
+  required int minBytes,
+  Duration timeout = const Duration(seconds: 3),
+}) async {
+  final bytes = <int>[];
+  final done = Completer<void>();
+  final subscription = streamed.stream.listen(
+    (chunk) {
+      bytes.addAll(chunk);
+      if (bytes.length >= minBytes && !done.isCompleted) {
+        done.complete();
+      }
+    },
+    onDone: () {
+      if (!done.isCompleted) done.complete();
+    },
+    onError: (_) {
+      if (!done.isCompleted) done.complete();
+    },
+    cancelOnError: false,
+  );
+  final giveUp = Timer(timeout, () {
+    if (!done.isCompleted) done.complete();
+  });
+  await done.future;
+  giveUp.cancel();
+  await subscription.cancel();
+  return utf8.decode(bytes, allowMalformed: true);
 }
 
 bool _containsBytes(List<int> haystack, List<int> needle) {
