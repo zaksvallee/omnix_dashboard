@@ -537,3 +537,35 @@ Next session plan:
 2. CC writes the migration SQL + rewritten handlers + tests.
 3. Codex deploys (migration first, then Hetzner restart of `onyx-telegram-ai-processor.service`).
 4. Operator verifies by tapping buttons and observing DB writes.
+
+## Phase B/C resolution note (appended 2026-04-25)
+
+Phase B/C completed at commit `548c254` (`feat(telegram): rewire action buttons to canonical post-cutover schema`).
+
+Live deployment summary:
+- Migration `20260424180000_expand_site_alarm_events_event_type_for_telegram.sql` applied to Supabase on 2026-04-25 at approximately 05:25 UTC and verified live via `pg_get_constraintdef`.
+- Hetzner deployment completed after pre-flight backup, source SHA verification, binary swap, and clean service restart validation.
+
+Three live-verification hotfixes landed during Phase C:
+1. `_failActionToast` now calls `_logError(...)` before `developer.log(...)` so callback failures surface to journald in the compiled binary.
+2. `_upsertIncidentRow` now populates `incidents.client_id` from `target.clientId`; this cleared the live `NOT NULL` violation on `public.incidents.client_id`.
+3. `_dispatchActiveForIncident` now queries `dispatch_intents` for `decision_trace.incident_id` and then `dispatch_current_state` for current state by `dispatch_id`; this replaced the broken direct filter on a nonexistent `dispatch_current_state.decision_trace` column.
+
+Live verification outcomes:
+- `Dispatch` verified end to end: `incidents`, `dispatch_intents`, `dispatch_transitions`, and `site_alarm_events` all returned the expected rows for the tapped alert.
+- `Acknowledge` verified end to end: `incidents.status='acknowledged'`, `acknowledged_at`, `client_id`, and the matching `telegram_acknowledged` `site_alarm_events` row all landed as expected.
+- `False alarm` verified end to end: `incidents.status='false_alarm'`, `resolution_time`, canonical `controller_notes`, `client_id`, and the matching `telegram_false_alarm` `site_alarm_events` row all landed as expected.
+- `View camera` remained operational throughout and the latent audit-log failure on its `site_alarm_events` side effect was fixed as a direct side effect of the CHECK-constraint migration.
+
+## Small follow-up noted during verification
+
+`telegram_acknowledged` rows in `site_alarm_events.raw_payload` currently carry `incident_id = NULL` even though the corresponding `incidents` row exists. `telegram_dispatch_requested` rows do propagate `incident_id`. This is a minor consistency gap, not a blocker for Workstream 1 button functionality, and should be tracked as a small follow-up.
+
+## Scope closure
+
+Workstream 1 button-fix scope is closed. Telegram action buttons are now functional in production against the canonical post-cutover schema.
+
+Deferred follow-ups remain open:
+- Automated promotion from alert telemetry into incidents remains a separate deferred Workstream 1 follow-up.
+- Test infrastructure for Telegram handler database interactions remains backlog; this session relied on live verification rather than a substantial Supabase fake fixture build-out.
+- The misleading `_pollOnce` log line (`Sending row ... to AI/reply builder...`) still names the callback path imprecisely; cosmetic cleanup only.
