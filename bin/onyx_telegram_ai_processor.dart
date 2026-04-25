@@ -816,52 +816,70 @@ class _OnyxTelegramAiProcessor {
         ? target.siteId
         : callback.siteId.trim();
     try {
-      await supabase.from('dispatches').insert(<String, Object?>{
-        'site_id': siteId,
-        'event_id': callback.alertId,
-        'triggered_by': 'telegram_button',
-        'status': 'active',
-        'created_at': nowUtc.toUtc().toIso8601String(),
-      });
-      await _markSnapshotAlertHandled(
+      final alertContext = await _lookupActiveAlert(
         siteId: siteId,
         alertId: callback.alertId,
-        removeAlert: false,
       );
-      await _recordAlertActionEvent(
+      final incidentId = await _upsertIncidentRow(
+        alertId: callback.alertId,
         siteId: siteId,
-        channelId: callback.channelId,
-        zoneName: null,
-        eventType: 'telegram_dispatch_requested',
-        occurredAtUtc: nowUtc,
-        rawPayload: <String, Object?>{
-          'source': 'telegram_inline_button',
-          'alert_id': callback.alertId,
-          'operator_id': _telegramOperatorLabel(update),
-          'chat_id': update.chatId,
-          'message_id': update.messageId,
-        },
-      );
-      await _answerCallbackQuerySafe(
-        callbackQueryId: update.callbackQueryId,
-        text: '🚨 Dispatch logged for $siteId. Guard notified.',
-      );
-      await _editAlertMessageForAction(
+        clientId: target.clientId,
+        status: 'dispatched',
+        actionTimestampColumn: 'dispatch_time',
+        nowUtc: nowUtc,
+        alertContext: alertContext,
         update: update,
-        actionLine:
+        actionLabel: 'dispatch',
+      );
+      if (!await _dispatchActiveForIncident(incidentId)) {
+        final priority =
+            (alertContext?['priority'] ?? '').toString().trim().toLowerCase();
+        final nowIso = nowUtc.toUtc().toIso8601String();
+        await supabase.from('dispatch_intents').insert(<String, Object?>{
+          'action_type': 'armed_response',
+          'risk_level': switch (priority) {
+            'critical' || 'high' => 'HIGH',
+            'low' => 'LOW',
+            _ => 'MEDIUM',
+          },
+          'risk_score': 0.5,
+          'confidence': 1.0,
+          'decision_trace': <String, Object?>{
+            'incident_id': incidentId,
+            'alert_id': callback.alertId,
+            'source': 'telegram_button',
+            'operator': _telegramOperatorLabel(update),
+          },
+          'geo_scope': const <String, Object?>{},
+          'dcw_seconds': 0,
+          'decided_at': nowIso,
+          'execute_after': nowIso,
+          'ati_snapshot': <String, Object?>{
+            'site_id': siteId,
+            'incident_id': incidentId,
+          },
+        });
+      }
+      await _finalizeAlertButtonAction(
+        update: update,
+        callback: callback,
+        alertContext: alertContext,
+        siteId: siteId,
+        nowUtc: nowUtc,
+        eventType: 'telegram_dispatch_requested',
+        removeSnapshotAlert: false,
+        callbackReplyText: '🚨 Dispatch logged for $siteId. Guard notified.',
+        editActionLine:
             '🚨 Dispatch logged by operator — ${_formatLocalTime(nowUtc)}',
-        removeInlineKeyboard: true,
+        incidentId: incidentId,
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Telegram dispatch callback failed.',
-        name: 'OnyxTelegramAiProcessor',
+      await _failActionToast(
+        update: update,
+        logMessage: 'Telegram dispatch callback failed.',
+        failureToast: 'Dispatch could not be logged right now.',
         error: error,
         stackTrace: stackTrace,
-      );
-      await _answerCallbackQuerySafe(
-        callbackQueryId: update.callbackQueryId,
-        text: 'Dispatch could not be logged right now.',
       );
     }
     return '';
@@ -873,54 +891,42 @@ class _OnyxTelegramAiProcessor {
     required _OnyxAlertCallback callback,
     required DateTime nowUtc,
   }) async {
+    final siteId = target.siteId;
     try {
-      await _updateEventRow(
+      final alertContext = await _lookupActiveAlert(
+        siteId: siteId,
         alertId: callback.alertId,
-        values: <String, Object?>{
-          'status': 'acknowledged',
-          'acknowledged_at': nowUtc.toUtc().toIso8601String(),
-          'acknowledged_by': 'telegram',
-        },
       );
-      await _markSnapshotAlertHandled(
-        siteId: target.siteId,
+      await _upsertIncidentRow(
         alertId: callback.alertId,
-        removeAlert: false,
-      );
-      await _recordAlertActionEvent(
-        siteId: target.siteId,
-        channelId: callback.channelId,
-        zoneName: null,
-        eventType: 'telegram_acknowledged',
-        occurredAtUtc: nowUtc,
-        rawPayload: <String, Object?>{
-          'source': 'telegram_inline_button',
-          'alert_id': callback.alertId,
-          'operator_id': _telegramOperatorLabel(update),
-          'chat_id': update.chatId,
-          'message_id': update.messageId,
-        },
-      );
-      await _answerCallbackQuerySafe(
-        callbackQueryId: update.callbackQueryId,
-        text: '✅ Acknowledged.',
-      );
-      await _editAlertMessageForAction(
+        siteId: siteId,
+        clientId: target.clientId,
+        status: 'acknowledged',
+        actionTimestampColumn: 'acknowledged_at',
+        nowUtc: nowUtc,
+        alertContext: alertContext,
         update: update,
-        actionLine:
+        actionLabel: 'acknowledge',
+      );
+      await _finalizeAlertButtonAction(
+        update: update,
+        callback: callback,
+        alertContext: alertContext,
+        siteId: siteId,
+        nowUtc: nowUtc,
+        eventType: 'telegram_acknowledged',
+        removeSnapshotAlert: false,
+        callbackReplyText: '✅ Acknowledged.',
+        editActionLine:
             '✅ Acknowledged by operator — ${_formatLocalTime(nowUtc)}',
-        removeInlineKeyboard: true,
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Telegram acknowledge callback failed.',
-        name: 'OnyxTelegramAiProcessor',
+      await _failActionToast(
+        update: update,
+        logMessage: 'Telegram acknowledge callback failed.',
+        failureToast: 'Acknowledgement could not be saved right now.',
         error: error,
         stackTrace: stackTrace,
-      );
-      await _answerCallbackQuerySafe(
-        callbackQueryId: update.callbackQueryId,
-        text: 'Acknowledgement could not be saved right now.',
       );
     }
     return '';
@@ -932,53 +938,44 @@ class _OnyxTelegramAiProcessor {
     required _OnyxAlertCallback callback,
     required DateTime nowUtc,
   }) async {
+    final siteId = target.siteId;
     try {
-      await _updateEventRow(
+      final alertContext = await _lookupActiveAlert(
+        siteId: siteId,
         alertId: callback.alertId,
-        values: <String, Object?>{
-          'status': 'false_alarm',
-          'resolved_at': nowUtc.toUtc().toIso8601String(),
-        },
       );
-      await _markSnapshotAlertHandled(
-        siteId: target.siteId,
+      await _upsertIncidentRow(
         alertId: callback.alertId,
-        removeAlert: true,
-      );
-      await _recordAlertActionEvent(
-        siteId: target.siteId,
-        channelId: callback.channelId,
-        zoneName: null,
-        eventType: 'telegram_false_alarm',
-        occurredAtUtc: nowUtc,
-        rawPayload: <String, Object?>{
-          'source': 'telegram_inline_button',
-          'alert_id': callback.alertId,
-          'operator_id': _telegramOperatorLabel(update),
-          'chat_id': update.chatId,
-          'message_id': update.messageId,
-        },
-      );
-      await _answerCallbackQuerySafe(
-        callbackQueryId: update.callbackQueryId,
-        text: '🔕 Marked as false alarm.',
-      );
-      await _editAlertMessageForAction(
+        siteId: siteId,
+        clientId: target.clientId,
+        status: 'false_alarm',
+        actionTimestampColumn: 'resolution_time',
+        nowUtc: nowUtc,
+        alertContext: alertContext,
         update: update,
-        actionLine:
+        actionLabel: 'false_alarm',
+        controllerNotes:
+            'Marked as false alarm via Telegram operator action',
+      );
+      await _finalizeAlertButtonAction(
+        update: update,
+        callback: callback,
+        alertContext: alertContext,
+        siteId: siteId,
+        nowUtc: nowUtc,
+        eventType: 'telegram_false_alarm',
+        removeSnapshotAlert: true,
+        callbackReplyText: '🔕 Marked as false alarm.',
+        editActionLine:
             '🔕 Marked as false alarm — ${_formatLocalTime(nowUtc)}',
-        removeInlineKeyboard: true,
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Telegram false-alarm callback failed.',
-        name: 'OnyxTelegramAiProcessor',
+      await _failActionToast(
+        update: update,
+        logMessage: 'Telegram false-alarm callback failed.',
+        failureToast: 'False alarm could not be saved right now.',
         error: error,
         stackTrace: stackTrace,
-      );
-      await _answerCallbackQuerySafe(
-        callbackQueryId: update.callbackQueryId,
-        text: 'False alarm could not be saved right now.',
       );
     }
     return '';
@@ -1174,37 +1171,190 @@ class _OnyxTelegramAiProcessor {
     }
   }
 
-  Future<void> _updateEventRow({
+  Future<Map<String, Object?>?> _lookupActiveAlert({
+    required String siteId,
     required String alertId,
-    required Map<String, Object?> values,
   }) async {
-    var updated = false;
-    Object? lastError;
-    try {
-      final byEventId = await supabase
-          .from('events')
-          .update(values)
-          .eq('event_id', alertId.trim())
-          .select('event_id');
-      updated = byEventId.isNotEmpty;
-    } catch (error) {
-      lastError = error;
-    }
-    if (!updated) {
-      try {
-        final byId = await supabase
-            .from('events')
-            .update(values)
-            .eq('id', alertId.trim())
-            .select('id');
-        updated = byId.isNotEmpty;
-      } catch (error) {
-        lastError = error;
+    final rows = await supabase
+        .from('site_awareness_snapshots')
+        .select('active_alerts')
+        .eq('site_id', siteId.trim())
+        .limit(1);
+    if (rows.isEmpty) return null;
+    final raw = (rows.first as Map)['active_alerts'];
+    if (raw is! List) return null;
+    final needle = alertId.trim();
+    for (final entry in raw) {
+      if (entry is! Map) continue;
+      final entryAlertId =
+          (entry['alert_id'] ?? '').toString().trim();
+      if (entryAlertId == needle) {
+        return Map<String, Object?>.from(entry.cast<Object?, Object?>());
       }
     }
-    if (!updated) {
-      throw lastError ?? StateError('No matching event row found for $alertId.');
-    }
+    return null;
+  }
+
+  Future<String> _upsertIncidentRow({
+    required String alertId,
+    required String siteId,
+    required String clientId,
+    required String status,
+    required String actionTimestampColumn,
+    required DateTime nowUtc,
+    required Map<String, Object?>? alertContext,
+    required TelegramBridgeInboundMessage update,
+    required String actionLabel,
+    String? controllerNotes,
+  }) async {
+    final nowIso = nowUtc.toUtc().toIso8601String();
+    final detectedAtIso = DateTime.tryParse(
+          (alertContext?['detected_at'] ?? '').toString().trim(),
+        )?.toUtc().toIso8601String() ??
+        nowIso;
+    final zoneName = _contextZone(alertContext);
+    final channel = _contextChannel(alertContext, '');
+    final priorityRaw =
+        (alertContext?['priority'] ?? '').toString().trim().toLowerCase();
+    final priority =
+        const {'critical', 'high', 'medium', 'low'}.contains(priorityRaw)
+            ? priorityRaw
+            : 'medium';
+    final values = <String, Object?>{
+      'event_uid': alertId,
+      'site_id': siteId,
+      'client_id': clientId,
+      'status': status,
+      'incident_type': 'breach',
+      'source': 'ops',
+      'scope': 'AREA',
+      'priority': priority,
+      'signal_received_at': detectedAtIso,
+      'occurred_at': detectedAtIso,
+      'description':
+          'Telegram $actionLabel: ${zoneName ?? 'alert $alertId'}',
+      'zone_name': ?zoneName,
+      if (channel.isNotEmpty) 'channel': channel,
+      actionTimestampColumn: nowIso,
+      'controller_notes': ?controllerNotes,
+      'metadata': <String, Object?>{
+        'telegram': <String, Object?>{
+          'operator': _telegramOperatorLabel(update),
+          'chat_id': update.chatId,
+          'message_id': update.messageId,
+          'action': actionLabel,
+          'action_at': nowIso,
+        },
+      },
+    };
+    final row = await supabase
+        .from('incidents')
+        .upsert(values, onConflict: 'event_uid')
+        .select('id')
+        .single();
+    return (row['id'] ?? '').toString();
+  }
+
+  Future<bool> _dispatchActiveForIncident(String incidentId) async {
+    final trimmed = incidentId.trim();
+    if (trimmed.isEmpty) return false;
+    final intents = await supabase
+        .from('dispatch_intents')
+        .select('dispatch_id')
+        .contains('decision_trace', <String, Object?>{'incident_id': trimmed})
+        .limit(10);
+    if (intents.isEmpty) return false;
+    final dispatchIds = intents
+        .map((row) => (row['dispatch_id'] ?? '').toString().trim())
+        .where((id) => id.isNotEmpty)
+        .toList();
+    if (dispatchIds.isEmpty) return false;
+    final states = await supabase
+        .from('dispatch_current_state')
+        .select('current_state')
+        .inFilter('dispatch_id', dispatchIds)
+        .limit(10);
+    const terminal = {'EXECUTED', 'ABORTED', 'OVERRIDDEN', 'FAILED'};
+    return states.any((entry) {
+      final state = (entry['current_state'] ?? '').toString().trim();
+      return state.isNotEmpty && !terminal.contains(state);
+    });
+  }
+
+  Future<void> _failActionToast({
+    required TelegramBridgeInboundMessage update,
+    required String logMessage,
+    required String failureToast,
+    required Object error,
+    required StackTrace stackTrace,
+  }) async {
+    _logError(logMessage, error: error, stackTrace: stackTrace);
+    developer.log(
+      logMessage,
+      name: 'OnyxTelegramAiProcessor',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    await _answerCallbackQuerySafe(
+      callbackQueryId: update.callbackQueryId,
+      text: failureToast,
+    );
+  }
+
+  String? _contextZone(Map<String, Object?>? context) {
+    final raw = (context?['zone_name'] ?? '').toString().trim();
+    return raw.isEmpty ? null : raw;
+  }
+
+  String _contextChannel(
+    Map<String, Object?>? context,
+    String fallbackChannelId,
+  ) {
+    final raw = (context?['channel_id'] ?? '').toString().trim();
+    return raw.isNotEmpty ? raw : fallbackChannelId.trim();
+  }
+
+  Future<void> _finalizeAlertButtonAction({
+    required TelegramBridgeInboundMessage update,
+    required _OnyxAlertCallback callback,
+    required Map<String, Object?>? alertContext,
+    required String siteId,
+    required DateTime nowUtc,
+    required String eventType,
+    required bool removeSnapshotAlert,
+    required String callbackReplyText,
+    required String editActionLine,
+    String? incidentId,
+  }) async {
+    await _markSnapshotAlertHandled(
+      siteId: siteId,
+      alertId: callback.alertId,
+      removeAlert: removeSnapshotAlert,
+    );
+    await _recordAlertActionEvent(
+      siteId: siteId,
+      channelId: _contextChannel(alertContext, callback.channelId),
+      zoneName: _contextZone(alertContext),
+      eventType: eventType,
+      occurredAtUtc: nowUtc,
+      rawPayload: <String, Object?>{
+        'source': 'telegram_inline_button',
+        'alert_id': callback.alertId,
+        'operator_id': _telegramOperatorLabel(update),
+        'chat_id': update.chatId,
+        'message_id': update.messageId,
+        'incident_id': ?incidentId,
+      },
+    );
+    await _answerCallbackQuerySafe(
+      callbackQueryId: update.callbackQueryId,
+      text: callbackReplyText,
+    );
+    await _editAlertMessageForAction(
+      update: update,
+      actionLine: editActionLine,
+      removeInlineKeyboard: true,
+    );
   }
 
   Future<void> _markSnapshotAlertHandled({
