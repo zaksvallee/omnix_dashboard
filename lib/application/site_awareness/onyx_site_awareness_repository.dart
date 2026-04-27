@@ -776,6 +776,36 @@ class OnyxSiteAwarenessRepository {
     }
   }
 
+  Future<void> recordTelegramSendDegraded({
+    required String siteId,
+    required String chatId,
+    required int consecutiveFailures,
+    required String errorClass,
+    required String sampleError,
+  }) async {
+    try {
+      await _client.from('site_alarm_events').insert(<String, Object?>{
+        'site_id': siteId.trim(),
+        'event_type': 'telegram_send_degraded',
+        'occurred_at': DateTime.now().toUtc().toIso8601String(),
+        'raw_payload': <String, Object?>{
+          'chat_id': chatId,
+          'consecutive_failures': consecutiveFailures,
+          'error_class': errorClass,
+          'sample_error': sampleError,
+        },
+      });
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to record telegram send degraded event for $siteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
+  }
+
   Future<OnyxSiteOccupancySession?> _readOccupancySession({
     required String siteId,
     required String sessionDate,

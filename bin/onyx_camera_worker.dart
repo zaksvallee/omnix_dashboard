@@ -2056,6 +2056,43 @@ class OnyxSiteAwarenessRepository {
     }
   }
 
+  // Duplicated from lib/application/site_awareness/onyx_site_awareness_repository.dart.
+  // Keep in sync with lib/. Best-effort: swallows errors (stderr + admin-TG are
+  // primary alarm channels; the DB row is tier-2).
+  Future<void> recordTelegramSendDegraded({
+    required String siteId,
+    required String chatId,
+    required int consecutiveFailures,
+    required String errorClass,
+    required String sampleError,
+  }) async {
+    try {
+      await _runWriteWithReconnect(
+        operationLabel: 'record telegram send degraded event for $siteId',
+        action: (client) =>
+            client.from('site_alarm_events').insert(<String, Object?>{
+              'site_id': siteId.trim(),
+              'event_type': 'telegram_send_degraded',
+              'occurred_at': DateTime.now().toUtc().toIso8601String(),
+              'raw_payload': <String, Object?>{
+                'chat_id': chatId,
+                'consecutive_failures': consecutiveFailures,
+                'error_class': errorClass,
+                'sample_error': sampleError,
+              },
+            }),
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to record telegram send degraded event for $siteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
+  }
+
   Future<OnyxSiteOccupancySession?> _readOccupancySession({
     required String siteId,
     required String sessionDate,
@@ -2310,6 +2347,16 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final SupabaseClient? _telegramRelayClient;
   final TelegramBridgeService? _telegramBridgeService;
   final bool _telegramRelayEnabled;
+
+  // Telegram outbound health: track per-chat consecutive failures so retries
+  // can backoff, alarms fire on sustained degradation, and self-heal exit
+  // triggers when both >= 10 fails AND >= 5 min elapsed since first failure.
+  final Map<String, int> _telegramConsecutiveFailures = <String, int>{};
+  final Map<String, DateTime> _telegramFirstFailureAt = <String, DateTime>{};
+  final Set<String> _telegramAlarmedChats = <String>{};
+  static const int _telegramAlarmThreshold = 5;
+  static const int _telegramSelfHealThreshold = 10;
+  static const Duration _telegramSelfHealMinElapsed = Duration(minutes: 5);
 
   final StreamController<OnyxSiteAwarenessSnapshot> _snapshotController =
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
@@ -3593,47 +3640,258 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       );
     }
 
+    // GATE SEMANTICS: the gate-check above committed to attempting this send.
+    // Retries inside _sendTelegramWithRetry are pure HTTP retries — no re-gating.
+    // If suppression state changes mid-window (e.g., bridge becomes unconfigured),
+    // the first attempt's commit-to-send still holds.
     try {
-      final result = await bridgeService.sendMessages(messages: outbound);
-      if (result.sent.isEmpty) {
-        final reasons = result.failureReasonsByMessageKey.values
-            .map((value) => value.trim())
-            .where((value) => value.isNotEmpty)
-            .toSet()
-            .join(' | ');
-        developer.log(
-          '[ONYX-TELEGRAM] Failed: CH${decision.channelId} '
-          '${reasons.isEmpty ? 'No Telegram messages were accepted.' : reasons}',
-          name: 'OnyxHikIsapiStream',
-          level: 1000,
-        );
-        return;
-      }
-      developer.log(
-        '[ONYX-TELEGRAM] Sent OK for CH${decision.channelId} '
-        '(${result.sent.length}/${outbound.length} target(s)).',
-        name: 'OnyxHikIsapiStream',
+      final result = await _sendTelegramWithRetry(
+        bridgeService: bridgeService,
+        initialMessages: outbound,
+        alertId: alertId,
+        channelId: '${decision.channelId}',
       );
-      if (result.failed.isNotEmpty) {
-        final reasons = result.failureReasonsByMessageKey.values
-            .map((value) => value.trim())
-            .where((value) => value.isNotEmpty)
-            .toSet()
-            .join(' | ');
-        developer.log(
-          '[ONYX-TELEGRAM] Failed: partial delivery for CH${decision.channelId}: '
-          '${reasons.isEmpty ? '${result.failed.length} target(s) failed.' : reasons}',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
-        );
-      }
+      _trackTelegramOutcome(
+        alertId: alertId,
+        channelId: '${decision.channelId}',
+        outboundCount: outbound.length,
+        result: result,
+      );
     } catch (error, stackTrace) {
-      developer.log(
-        '[ONYX-TELEGRAM] Failed: exception while sending for CH${decision.channelId}.',
-        name: 'OnyxHikIsapiStream',
-        level: 1000,
-        error: error,
-        stackTrace: stackTrace,
+      stderr.writeln(
+        '[ONYX-TG-SEND] Send failed: alert_id=$alertId channel=${decision.channelId} '
+        'exception=$error\n$stackTrace',
+      );
+    }
+  }
+
+  String _classifyTelegramFailure(int? httpStatus, String reason) {
+    if (httpStatus == 429) return 'rate_limit';
+    if (httpStatus != null && httpStatus >= 500 && httpStatus < 600) {
+      return 'server_5xx';
+    }
+    if (httpStatus == 401 || httpStatus == 403 || httpStatus == 400) {
+      return 'permanent_4xx';
+    }
+    if (httpStatus != null) return 'http_$httpStatus';
+    if (reason.contains('SocketException') ||
+        reason.contains('TimeoutException') ||
+        reason.contains('ClientException') ||
+        reason.contains('HandshakeException')) {
+      return 'network';
+    }
+    return 'unknown';
+  }
+
+  bool _isRetryableTelegramFailure(String errorClass) {
+    return errorClass == 'rate_limit' ||
+        errorClass == 'server_5xx' ||
+        errorClass == 'network';
+  }
+
+  Future<TelegramBridgeSendResult> _sendTelegramWithRetry({
+    required TelegramBridgeService bridgeService,
+    required List<TelegramBridgeMessage> initialMessages,
+    required String alertId,
+    required String channelId,
+  }) async {
+    var pending = initialMessages;
+    final aggregatedSent = <TelegramBridgeMessage>[];
+    final aggregatedFailed = <TelegramBridgeMessage>[];
+    final aggregatedReasons = <String, String>{};
+    final aggregatedStatuses = <String, int>{};
+    final aggregatedMessageIds = <String, int>{};
+    final aggregatedRetryAfter = <String, int>{};
+    for (var attempt = 1; attempt <= 3 && pending.isNotEmpty; attempt++) {
+      final result = await bridgeService.sendMessages(messages: pending);
+      aggregatedSent.addAll(result.sent);
+      result.telegramMessageIdsByMessageKey.forEach(
+        (k, v) => aggregatedMessageIds[k] = v,
+      );
+      final stillPending = <TelegramBridgeMessage>[];
+      for (final msg in result.failed) {
+        final reason = result.failureReasonsByMessageKey[msg.messageKey] ?? '';
+        final status = result.httpStatusCodesByMessageKey[msg.messageKey];
+        final retryAfter =
+            result.retryAfterSecondsByMessageKey[msg.messageKey];
+        final errClass = _classifyTelegramFailure(status, reason);
+        aggregatedReasons[msg.messageKey] = reason;
+        if (status != null) aggregatedStatuses[msg.messageKey] = status;
+        if (retryAfter != null) {
+          aggregatedRetryAfter[msg.messageKey] = retryAfter;
+        }
+        if (attempt < 3 && _isRetryableTelegramFailure(errClass)) {
+          stillPending.add(msg);
+        } else {
+          aggregatedFailed.add(msg);
+        }
+      }
+      pending = stillPending;
+      if (pending.isNotEmpty) {
+        var sleepSeconds = attempt * 2; // exponential: 2s, 4s
+        for (final msg in pending) {
+          final ra = result.retryAfterSecondsByMessageKey[msg.messageKey];
+          if (ra != null) {
+            sleepSeconds = math.max(sleepSeconds, math.min(ra, 30));
+          }
+        }
+        stderr.writeln(
+          '[ONYX-TG-SEND] Retry: alert_id=$alertId channel=$channelId '
+          'attempt=$attempt/3 pending=${pending.length} '
+          'backoff=${sleepSeconds}s',
+        );
+        await Future<void>.delayed(Duration(seconds: sleepSeconds));
+      }
+    }
+    return TelegramBridgeSendResult(
+      sent: aggregatedSent,
+      failed: aggregatedFailed,
+      failureReasonsByMessageKey: aggregatedReasons,
+      telegramMessageIdsByMessageKey: aggregatedMessageIds,
+      httpStatusCodesByMessageKey: aggregatedStatuses,
+      retryAfterSecondsByMessageKey: aggregatedRetryAfter,
+    );
+  }
+
+  void _trackTelegramOutcome({
+    required String alertId,
+    required String channelId,
+    required int outboundCount,
+    required TelegramBridgeSendResult result,
+  }) {
+    final successChats = <String>{
+      for (final m in result.sent) m.chatId.trim(),
+    };
+    for (final chatId in successChats) {
+      _telegramConsecutiveFailures.remove(chatId);
+      _telegramFirstFailureAt.remove(chatId);
+      _telegramAlarmedChats.remove(chatId);
+    }
+
+    if (result.sent.isNotEmpty && result.failed.isEmpty) {
+      stderr.writeln(
+        '[ONYX-TG-SEND] Send ok: alert_id=$alertId channel=$channelId '
+        'sent=${result.sent.length}/$outboundCount '
+        'message_ids=${result.telegramMessageIdsByMessageKey}',
+      );
+      return;
+    }
+
+    final reasonsJoined = result.failureReasonsByMessageKey.values
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .join(' | ');
+    final statusesJoined = result.httpStatusCodesByMessageKey.values.toSet();
+
+    if (result.sent.isEmpty) {
+      stderr.writeln(
+        '[ONYX-TG-SEND] Send failed: alert_id=$alertId channel=$channelId '
+        'targets=$outboundCount statuses=$statusesJoined '
+        'reasons=${reasonsJoined.isEmpty ? "no-targets-accepted" : reasonsJoined}',
+      );
+    } else {
+      stderr.writeln(
+        '[ONYX-TG-SEND] Send partial: alert_id=$alertId channel=$channelId '
+        'sent=${result.sent.length}/$outboundCount '
+        'failed=${result.failed.length}/$outboundCount '
+        'statuses=$statusesJoined '
+        'reasons=${reasonsJoined.isEmpty ? "unknown" : reasonsJoined}',
+      );
+    }
+
+    for (final msg in result.failed) {
+      final chatId = msg.chatId.trim();
+      if (chatId.isEmpty) continue;
+      final reason = result.failureReasonsByMessageKey[msg.messageKey] ?? '';
+      final status = result.httpStatusCodesByMessageKey[msg.messageKey];
+      final errClass = _classifyTelegramFailure(status, reason);
+      final newCount = (_telegramConsecutiveFailures[chatId] ?? 0) + 1;
+      _telegramConsecutiveFailures[chatId] = newCount;
+      _telegramFirstFailureAt.putIfAbsent(chatId, () => DateTime.now());
+      if (newCount >= _telegramAlarmThreshold &&
+          !_telegramAlarmedChats.contains(chatId)) {
+        _telegramAlarmedChats.add(chatId);
+        unawaited(_emitTelegramAlarm(
+          chatId: chatId,
+          consecutiveFailures: newCount,
+          errorClass: errClass,
+          sampleError: reason,
+        ));
+      }
+      final firstAt = _telegramFirstFailureAt[chatId];
+      if (newCount >= _telegramSelfHealThreshold &&
+          firstAt != null &&
+          DateTime.now().difference(firstAt) >= _telegramSelfHealMinElapsed) {
+        stderr.writeln(
+          '[ONYX-TG-ALARM] CRITICAL self-heal: chat_id=$chatId '
+          'consecutive_failures=$newCount '
+          'elapsed=${DateTime.now().difference(firstAt).inSeconds}s '
+          'exiting for systemd to restart fresh client/dns/pool.',
+        );
+        exit(0);
+      }
+    }
+  }
+
+  Future<void> _emitTelegramAlarm({
+    required String chatId,
+    required int consecutiveFailures,
+    required String errorClass,
+    required String sampleError,
+  }) async {
+    stderr.writeln(
+      '[ONYX-TG-ALARM] CRITICAL: chat_id=$chatId '
+      'consecutive_failures=$consecutiveFailures error_class=$errorClass '
+      'sample_error=$sampleError',
+    );
+    try {
+      await _repository?.recordTelegramSendDegraded(
+        siteId: _siteId,
+        chatId: chatId,
+        consecutiveFailures: consecutiveFailures,
+        errorClass: errorClass,
+        sampleError: sampleError,
+      );
+    } catch (_) {
+      // best-effort; stderr already emitted above
+    }
+    await _sendTelegramAdminAlarmDirect(
+      chatId: chatId,
+      consecutiveFailures: consecutiveFailures,
+      errorClass: errorClass,
+      sampleError: sampleError,
+    );
+  }
+
+  Future<void> _sendTelegramAdminAlarmDirect({
+    required String chatId,
+    required int consecutiveFailures,
+    required String errorClass,
+    required String sampleError,
+  }) async {
+    final botToken = Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
+    final adminChatId =
+        Platform.environment['ONYX_TELEGRAM_ADMIN_CHAT_ID'] ?? '';
+    if (botToken.isEmpty || adminChatId.isEmpty) return;
+    final uri = Uri.https('api.telegram.org', '/bot$botToken/sendMessage');
+    final body = <String, String>{
+      'chat_id': adminChatId,
+      'text':
+          '⚠️ ONYX Telegram outbound degraded for $_siteId.\n'
+          'chat_id=$chatId consecutive_failures=$consecutiveFailures '
+          'error_class=$errorClass\n'
+          'sample: $sampleError',
+      'disable_notification': 'false',
+    };
+    final adminThreadId =
+        (Platform.environment['ONYX_TELEGRAM_ADMIN_THREAD_ID'] ?? '').trim();
+    if (adminThreadId.isNotEmpty) body['message_thread_id'] = adminThreadId;
+    try {
+      await http.post(uri, body: body).timeout(const Duration(seconds: 10));
+    } catch (error) {
+      stderr.writeln(
+        '[ONYX-TG-ALARM] Admin direct alarm failed: $error',
       );
     }
   }

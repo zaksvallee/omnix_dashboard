@@ -106,12 +106,16 @@ class TelegramBridgeSendResult {
   final List<TelegramBridgeMessage> failed;
   final Map<String, String> failureReasonsByMessageKey;
   final Map<String, int> telegramMessageIdsByMessageKey;
+  final Map<String, int> httpStatusCodesByMessageKey;
+  final Map<String, int> retryAfterSecondsByMessageKey;
 
   const TelegramBridgeSendResult({
     required this.sent,
     required this.failed,
     this.failureReasonsByMessageKey = const <String, String>{},
     this.telegramMessageIdsByMessageKey = const <String, int>{},
+    this.httpStatusCodesByMessageKey = const <String, int>{},
+    this.retryAfterSecondsByMessageKey = const <String, int>{},
   });
 
   int get sentCount => sent.length;
@@ -270,6 +274,8 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     final failed = <TelegramBridgeMessage>[];
     final failureReasons = <String, String>{};
     final telegramMessageIds = <String, int>{};
+    final httpStatusCodes = <String, int>{};
+    final retryAfterSeconds = <String, int>{};
     for (final message in messages) {
       final chatId = message.chatId.trim();
       if (chatId.isEmpty) {
@@ -308,11 +314,16 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
                     }),
                   )
                   .timeout(requestTimeout);
+        httpStatusCodes[message.messageKey] = response.statusCode;
         if (response.statusCode < 200 || response.statusCode >= 300) {
           failed.add(message);
           failureReasons[message.messageKey] =
               _extractTelegramErrorDescription(response.body) ??
               'HTTP ${response.statusCode}';
+          final retryAfter = _extractTelegramRetryAfterSeconds(response.body);
+          if (retryAfter != null) {
+            retryAfterSeconds[message.messageKey] = retryAfter;
+          }
           continue;
         }
         final decoded = jsonDecode(response.body);
@@ -341,6 +352,8 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       failed: failed,
       failureReasonsByMessageKey: failureReasons,
       telegramMessageIdsByMessageKey: telegramMessageIds,
+      httpStatusCodesByMessageKey: httpStatusCodes,
+      retryAfterSecondsByMessageKey: retryAfterSeconds,
     );
   }
 
@@ -748,6 +761,23 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       }
     } catch (_) {
       // Ignore decode errors and fall back to generic labels.
+    }
+    return null;
+  }
+
+  int? _extractTelegramRetryAfterSeconds(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map) {
+        final params = decoded['parameters'];
+        if (params is Map) {
+          final raw = params['retry_after'];
+          if (raw is num) return raw.toInt();
+          if (raw is String) return int.tryParse(raw);
+        }
+      }
+    } catch (_) {
+      // Ignore decode errors.
     }
     return null;
   }
