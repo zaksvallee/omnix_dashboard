@@ -4077,27 +4077,34 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     OnyxSiteAwarenessEvent event,
   ) async {
     if (!_requiresEvidenceCertificate(event)) {
+      stderr.writeln(
+        '[ONYX-EVIDENCE] Skipped (gate): eventId=${event.eventId} '
+        'eventType=${event.eventType} faceMatchId=${event.faceMatchId} '
+        'siteId=${event.siteId} clientId=${event.clientId} cameraId=${event.cameraId}',
+      );
       return event;
     }
     final service = _evidenceCertificateService;
     if (service == null) {
+      stderr.writeln(
+        '[ONYX-EVIDENCE] Skipped (service null): eventId=${event.eventId}',
+      );
       return event;
     }
     try {
       final certificate = await service.generateCertificate(
         _toSharedAwarenessEvent(event),
       );
+      stderr.writeln(
+        '[ONYX-EVIDENCE] Certificate generated for ${event.eventId} chain_position=${certificate.chainPosition}',
+      );
       return event.copyWith(
         certificateId: certificate.certificateId,
         incidentId: certificate.incidentId,
       );
     } catch (error, stackTrace) {
-      developer.log(
-        '[ONYX] Evidence certificate generation failed for ${event.eventId}: $error',
-        name: 'OnyxHikIsapiStream',
-        level: 1000,
-        error: error,
-        stackTrace: stackTrace,
+      stderr.writeln(
+        '[ONYX-EVIDENCE] Certificate generation failed for ${event.eventId}: $error\n$stackTrace',
       );
       return event;
     }
