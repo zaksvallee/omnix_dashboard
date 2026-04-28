@@ -154,6 +154,8 @@ deploy_camera_worker() {
   log "=== target: camera-worker ==="
   rsync_pair bin/onyx_camera_worker.dart \
              "${ONYX_REMOTE_ROOT}/bin/onyx_camera_worker.dart"
+  rsync_pair bin/_logging.dart \
+             "${ONYX_REMOTE_ROOT}/bin/_logging.dart"
   # Camera worker doesn't depend on any lib/ files we've changed this
   # session beyond what the dart-run resolves at start. Add more
   # rsync_pair lines here if that changes.

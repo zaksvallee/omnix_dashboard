@@ -69,6 +69,7 @@ PY
 
 echo "[ONYX] Copying standalone processor source + minimal pubspec..."
 scp bin/onyx_telegram_ai_processor.dart "$REMOTE_HOST:$REMOTE_BUILD_DIR/bin/"
+scp bin/_logging.dart "$REMOTE_HOST:$REMOTE_BUILD_DIR/bin/"
 scp pubspec_ai_processor.yaml "$REMOTE_HOST:$REMOTE_BUILD_DIR/pubspec.yaml"
 scp deploy/$SERVICE_NAME "$REMOTE_HOST:/etc/systemd/system/$SERVICE_NAME"
 scp "$TEMP_ENV_FILE" "$REMOTE_HOST:$REMOTE_BUILD_DIR/worker.env.ai"
