@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 
+import '_logging.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart';
 
@@ -96,14 +96,8 @@ class _OnyxTelegramAiProcessor {
       try {
         processedCount = await _pollOnce();
       } catch (error, stackTrace) {
-        _logError(
+        logError(
           'Telegram AI processor poll failed.',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        developer.log(
-          'Telegram AI processor poll failed.',
-          name: 'OnyxTelegramAiProcessor',
           error: error,
           stackTrace: stackTrace,
         );
@@ -125,7 +119,7 @@ class _OnyxTelegramAiProcessor {
       return 0;
     }
 
-    _logInfo('Fetched ${rows.length} unprocessed inbound Telegram row(s).');
+    logInfo('Fetched ${rows.length} unprocessed inbound Telegram row(s).');
     var processedCount = 0;
     for (final rawRow in rows) {
       final row = Map<String, dynamic>.from(rawRow as Map);
@@ -134,24 +128,24 @@ class _OnyxTelegramAiProcessor {
         continue;
       }
       final rowChatId = (row['chat_id'] ?? '').toString().trim();
-      _logInfo(
+      logInfo(
         'Processing row $rowId from ${rowChatId.isEmpty ? 'unknown-chat' : rowChatId}',
       );
       try {
         final update = _parseInboundMessage(row);
         if (update == null) {
-          _logInfo('Row $rowId has no usable Telegram message payload.');
+          logInfo('Row $rowId has no usable Telegram message payload.');
           await _markProcessed(rowId);
-          _logInfo('Row $rowId marked processed.');
+          logInfo('Row $rowId marked processed.');
           processedCount++;
           continue;
         }
         if (update.fromIsBot || update.text.trim().isEmpty) {
-          _logInfo(
+          logInfo(
             'Row $rowId ignored (from bot=${update.fromIsBot}, emptyText=${update.text.trim().isEmpty}).',
           );
           await _markProcessed(rowId);
-          _logInfo('Row $rowId marked processed.');
+          logInfo('Row $rowId marked processed.');
           processedCount++;
           continue;
         }
@@ -163,7 +157,7 @@ class _OnyxTelegramAiProcessor {
             callbackQueryId: update.callbackQueryId!.trim(),
           );
           if (!answered) {
-            _logError(
+            logError(
               'Failed to answer Telegram callback query for row $rowId.',
             );
           }
@@ -176,28 +170,27 @@ class _OnyxTelegramAiProcessor {
         if (target == null) {
           final message =
               'Skipping inbound Telegram update ${update.updateId} — no active client endpoint binding.';
-          _logInfo(message);
-          developer.log(message, name: 'OnyxTelegramAiProcessor');
+          logInfo(message);
           await _markProcessed(rowId);
-          _logInfo('Row $rowId marked processed.');
+          logInfo('Row $rowId marked processed.');
           processedCount++;
           continue;
         }
 
-        _logInfo('Sending row $rowId to AI/reply builder...');
+        logInfo('Sending row $rowId to AI/reply builder...');
         final reply = isOnyxAlertCallback
             ? await _handleOnyxAlertCallback(update: update, target: target)
             : await _buildReply(update: update, target: target);
-        _logInfo('AI response for row $rowId: ${_preview(reply)}');
+        logInfo('AI response for row $rowId: ${_preview(reply)}');
         if (reply.trim().isEmpty) {
-          _logInfo('Row $rowId produced an empty reply.');
+          logInfo('Row $rowId produced an empty reply.');
           await _markProcessed(rowId);
-          _logInfo('Row $rowId marked processed.');
+          logInfo('Row $rowId marked processed.');
           processedCount++;
           continue;
         }
 
-        _logInfo('Sending Telegram reply for row $rowId...');
+        logInfo('Sending Telegram reply for row $rowId...');
         final sendResult = await telegramBridge.sendMessages(
           messages: <TelegramBridgeMessage>[
             TelegramBridgeMessage(
@@ -213,37 +206,27 @@ class _OnyxTelegramAiProcessor {
               sendResult
                   .failureReasonsByMessageKey['telegram-ai-${update.updateId}'] ??
               'unknown send failure';
-          _logError('Telegram AI send failed for row $rowId: $failure');
-          developer.log(
-            'Telegram AI send failed for update ${update.updateId}: $failure',
-            name: 'OnyxTelegramAiProcessor',
-          );
+          logError('Telegram AI send failed for row $rowId: $failure');
           await _markProcessed(rowId);
-          _logInfo('Row $rowId marked processed after send failure.');
+          logInfo('Row $rowId marked processed after send failure.');
           processedCount++;
           continue;
         }
 
         await _markProcessed(rowId);
-        _logInfo('Row $rowId marked processed.');
+        logInfo('Row $rowId marked processed.');
         processedCount++;
       } catch (error, stackTrace) {
-        _logError(
+        logError(
           'ERROR processing row $rowId: $error',
-          stackTrace: stackTrace,
-        );
-        developer.log(
-          'Telegram AI row processing failed for $rowId.',
-          name: 'OnyxTelegramAiProcessor',
-          error: error,
           stackTrace: stackTrace,
         );
         try {
           await _markProcessed(rowId);
-          _logInfo('Row $rowId marked processed after failure.');
+          logInfo('Row $rowId marked processed after failure.');
           processedCount++;
         } catch (markError, markStackTrace) {
-          _logError(
+          logError(
             'Failed to mark row $rowId processed after error: $markError',
             stackTrace: markStackTrace,
           );
@@ -1106,9 +1089,8 @@ class _OnyxTelegramAiProcessor {
         text: text,
       );
     } catch (error, stackTrace) {
-      developer.log(
+      logError(
         'Failed to answer Telegram callback query.',
-        name: 'OnyxTelegramAiProcessor',
         error: error,
         stackTrace: stackTrace,
       );
@@ -1288,13 +1270,7 @@ class _OnyxTelegramAiProcessor {
     required Object error,
     required StackTrace stackTrace,
   }) async {
-    _logError(logMessage, error: error, stackTrace: stackTrace);
-    developer.log(
-      logMessage,
-      name: 'OnyxTelegramAiProcessor',
-      error: error,
-      stackTrace: stackTrace,
-    );
+    logError(logMessage, error: error, stackTrace: stackTrace);
     await _answerCallbackQuerySafe(
       callbackQueryId: update.callbackQueryId,
       text: failureToast,
@@ -2370,20 +2346,6 @@ DateTime _visitorEndTime({
     return defaultEnd;
   }
   return DateTime(nowLocal.year, nowLocal.month, nowLocal.day, 23, 59);
-}
-
-void _logInfo(String message) {
-  stdout.writeln('[ONYX] $message');
-}
-
-void _logError(String message, {Object? error, StackTrace? stackTrace}) {
-  stderr.writeln('[ONYX] $message');
-  if (error != null) {
-    stderr.writeln('[ONYX]   error: $error');
-  }
-  if (stackTrace != null) {
-    stderr.writeln('[ONYX]   stack: $stackTrace');
-  }
 }
 
 String _preview(String value, {int maxLength = 220}) {
