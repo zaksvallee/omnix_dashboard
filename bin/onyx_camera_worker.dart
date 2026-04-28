@@ -25,6 +25,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '_logging.dart';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -1424,12 +1425,10 @@ class OnyxSiteAwarenessRepository {
       completer.complete();
     } catch (error, stackTrace) {
       completer.completeError(error, stackTrace);
-      developer.log(
-        'Failed to reconnect Supabase client.',
-        name: 'OnyxSiteAwarenessRepository',
+      logError(
+        '[OnyxSiteAwarenessRepository] Failed to reconnect Supabase client.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       rethrow;
     } finally {
@@ -1438,12 +1437,10 @@ class OnyxSiteAwarenessRepository {
     try {
       await previousClient.dispose();
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to dispose stale Supabase client after reconnect.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to dispose stale Supabase client after reconnect.',
         error: error,
         stackTrace: stackTrace,
-        level: 900,
       );
     }
   }
@@ -1478,18 +1475,16 @@ class OnyxSiteAwarenessRepository {
       final failedAtUtc = DateTime.now().toUtc();
       _firstSnapshotPersistFailureAtUtc ??= failedAtUtc;
       _consecutiveSnapshotPersistFailures += 1;
-      developer.log(
-        'Failed to upsert site awareness snapshot for ${snapshot.siteId} at '
+      logError(
+        '[OnyxSiteAwarenessRepository] Failed to upsert site awareness snapshot for ${snapshot.siteId} at '
         '${snapshot.snapshotAt.toUtc().toIso8601String()}. '
         'Consecutive snapshot persist failures: '
         '$_consecutiveSnapshotPersistFailures. Last successful snapshot '
         'write: '
         '${_lastSuccessfulSnapshotPersistAtUtc?.toIso8601String() ?? 'never'}. '
         'Supabase error: ${_supabaseErrorSummary(error)}',
-        name: 'OnyxSiteAwarenessRepository',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       rethrow;
     }
@@ -1503,13 +1498,11 @@ class OnyxSiteAwarenessRepository {
       await action(_client).timeout(requestTimeout);
       return;
     } catch (error, stackTrace) {
-      developer.log(
-        '[ONYX] Supabase write failed during $operationLabel. '
+      logWarn(
+        '[OnyxSiteAwarenessRepository] [ONYX] Supabase write failed during $operationLabel. '
         '${_supabaseErrorSummary(error)}',
-        name: 'OnyxSiteAwarenessRepository',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       await reconnect(reason: '$operationLabel failed');
       try {
@@ -1521,13 +1514,11 @@ class OnyxSiteAwarenessRepository {
           level: 900,
         );
       } catch (retryError, retryStackTrace) {
-        developer.log(
-          '[ONYX] Supabase write retry failed during $operationLabel after '
+        logError(
+          '[OnyxSiteAwarenessRepository] [ONYX] Supabase write retry failed during $operationLabel after '
           'reconnect. ${_supabaseErrorSummary(retryError)}',
-          name: 'OnyxSiteAwarenessRepository',
           error: retryError,
           stackTrace: retryStackTrace,
-          level: 1000,
         );
         rethrow;
       }
@@ -1579,12 +1570,10 @@ class OnyxSiteAwarenessRepository {
       _occupancyConfigCache[normalizedSiteId] = config;
       return config;
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to read occupancy config for $normalizedSiteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to read occupancy config for $normalizedSiteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return null;
     }
@@ -1620,12 +1609,10 @@ class OnyxSiteAwarenessRepository {
       _cameraZonesCache[normalizedSiteId] = frozen;
       return frozen;
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to read camera zones for $normalizedSiteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to read camera zones for $normalizedSiteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return const <String, OnyxCameraZone>{};
     }
@@ -1660,12 +1647,10 @@ class OnyxSiteAwarenessRepository {
       _alertConfigCache[normalizedSiteId] = config;
       return config;
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to read alert config for $normalizedSiteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to read alert config for $normalizedSiteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return null;
     }
@@ -1689,12 +1674,10 @@ class OnyxSiteAwarenessRepository {
       }
       return Map<String, dynamic>.from(rows.first as Map);
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to read site intelligence profile row for $normalizedSiteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to read site intelligence profile row for $normalizedSiteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return null;
     }
@@ -1716,12 +1699,10 @@ class OnyxSiteAwarenessRepository {
           .map((row) => Map<String, dynamic>.from(row as Map))
           .toList(growable: false);
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to read site zone rules for $normalizedSiteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to read site zone rules for $normalizedSiteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return const <Map<String, dynamic>>[];
     }
@@ -1748,12 +1729,10 @@ class OnyxSiteAwarenessRepository {
           .map((row) => Map<String, dynamic>.from(row as Map))
           .toList(growable: false);
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to read expected visitors for $normalizedSiteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to read expected visitors for $normalizedSiteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return const <Map<String, dynamic>>[];
     }
@@ -1790,12 +1769,10 @@ class OnyxSiteAwarenessRepository {
           List<OnyxSiteVehicleRegistryEntry>.unmodifiable(vehicles);
       return _vehicleRegistryCache[normalizedSiteId]!;
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to read vehicle registry for $normalizedSiteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to read vehicle registry for $normalizedSiteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return const <OnyxSiteVehicleRegistryEntry>[];
     }
@@ -1846,12 +1823,10 @@ class OnyxSiteAwarenessRepository {
           List<OnyxFrPersonRegistryEntry>.unmodifiable(people);
       return _frRegistryCache[normalizedSiteId]!;
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to read FR registry for $normalizedSiteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logWarn(
+        '[OnyxSiteAwarenessRepository] Failed to read FR registry for $normalizedSiteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return const <OnyxFrPersonRegistryEntry>[];
     }
@@ -1935,12 +1910,10 @@ class OnyxSiteAwarenessRepository {
             }, onConflict: 'site_id,session_date'),
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to record occupancy signal for $normalizedSiteId channel $normalizedChannelId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logError(
+        '[OnyxSiteAwarenessRepository] Failed to record occupancy signal for $normalizedSiteId channel $normalizedChannelId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       rethrow;
     }
@@ -2007,12 +1980,10 @@ class OnyxSiteAwarenessRepository {
         name: 'OnyxSiteAwarenessRepository',
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to record vehicle detection for $normalizedSiteId plate ${plateNumber.trim()}.',
-        name: 'OnyxSiteAwarenessRepository',
+      logError(
+        '[OnyxSiteAwarenessRepository] Failed to record vehicle detection for $normalizedSiteId plate ${plateNumber.trim()}.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       rethrow;
     }
@@ -2045,12 +2016,10 @@ class OnyxSiteAwarenessRepository {
             }),
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to record camera worker offline event for $siteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logError(
+        '[OnyxSiteAwarenessRepository] Failed to record camera worker offline event for $siteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       rethrow;
     }
@@ -2083,12 +2052,10 @@ class OnyxSiteAwarenessRepository {
             }),
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to record telegram send degraded event for $siteId.',
-        name: 'OnyxSiteAwarenessRepository',
+      logError(
+        '[OnyxSiteAwarenessRepository] Failed to record telegram send degraded event for $siteId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     }
   }
@@ -2630,12 +2597,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       try {
         await subscription.cancel();
       } catch (error, stackTrace) {
-        developer.log(
-          'Failed to cancel Hikvision alert stream subscription cleanly.',
-          name: 'OnyxHikIsapiStream',
+        logWarn(
+          '[OnyxHikIsapiStream] Failed to cancel Hikvision alert stream subscription cleanly.',
           error: error,
           stackTrace: stackTrace,
-          level: 1000,
         );
       }
     }
@@ -2643,12 +2608,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       try {
         await proactiveAlertSubscription.cancel();
       } catch (error, stackTrace) {
-        developer.log(
-          'Failed to cancel proactive alert subscription cleanly.',
-          name: 'OnyxHikIsapiStream',
+        logWarn(
+          '[OnyxHikIsapiStream] Failed to cancel proactive alert subscription cleanly.',
           error: error,
           stackTrace: stackTrace,
-          level: 1000,
         );
       }
     }
@@ -2937,21 +2900,17 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           )
           .timeout(requestTimeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        developer.log(
-          'Snapshot request returned HTTP ${response.statusCode} for channel $channelId.',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
+        logWarn(
+          '[OnyxHikIsapiStream] Snapshot request returned HTTP ${response.statusCode} for channel $channelId.',
         );
         return null;
       }
       return response.bodyBytes;
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to fetch on-demand channel snapshot for $channelId.',
-        name: 'OnyxHikIsapiStream',
+      logWarn(
+        '[OnyxHikIsapiStream] Failed to fetch on-demand channel snapshot for $channelId.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
       return null;
     }
@@ -3046,12 +3005,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           await onReconnectFailure!(_siteId, nextAttempt, delay);
           _disconnectAlertSent = true;
         } catch (error, stackTrace) {
-          developer.log(
-            'Failed to dispatch camera reconnect alert.',
-            name: 'OnyxHikIsapiStream',
+          logError(
+            '[OnyxHikIsapiStream] Failed to dispatch camera reconnect alert.',
             error: error,
             stackTrace: stackTrace,
-            level: 1000,
           );
         }
       }
@@ -3110,12 +3067,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
     } catch (error, stackTrace) {
       _isConnected = false;
-      developer.log(
-        'Alert stream subscription reported an error.',
-        name: 'OnyxHikIsapiStream',
+      logError(
+        '[OnyxHikIsapiStream] Alert stream subscription reported an error.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     } finally {
       _isConnected = false;
@@ -3157,19 +3112,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         _lastStreamEventAtUtc = _clock().toUtc();
       } else {
-        developer.log(
-          'ISAPI keepalive heartbeat returned HTTP ${response.statusCode}.',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
+        logWarn(
+          '[OnyxHikIsapiStream] ISAPI keepalive heartbeat returned HTTP ${response.statusCode}.',
         );
       }
     } catch (error, stackTrace) {
-      developer.log(
-        'ISAPI keepalive heartbeat failed.',
-        name: 'OnyxHikIsapiStream',
+      logWarn(
+        '[OnyxHikIsapiStream] ISAPI keepalive heartbeat failed.',
         error: error,
         stackTrace: stackTrace,
-        level: 900,
       );
     }
   }
@@ -3184,12 +3135,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       );
       socket.setOption(SocketOption.tcpNoDelay, true);
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to prime TCP socket before ISAPI request.',
-        name: 'OnyxHikIsapiStream',
+      logWarn(
+        '[OnyxHikIsapiStream] Failed to prime TCP socket before ISAPI request.',
         error: error,
         stackTrace: stackTrace,
-        level: 900,
       );
     } finally {
       await socket?.close();
@@ -3259,12 +3208,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       await _ingestEvent(event);
     } catch (error, stackTrace) {
-      developer.log(
-        errorLabel,
-        name: 'OnyxHikIsapiStream',
+      logError(
+        '[OnyxHikIsapiStream] $errorLabel',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     }
   }
@@ -4069,10 +4016,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         '[ONYX-DEBUG] Snapshot result: ${snapshotBytes?.length ?? 0} bytes',
       );
       if (snapshotBytes == null || snapshotBytes.isEmpty) {
-        developer.log(
-          '[ONYX] FR snapshot capture failed for CH$snapshotChannelId.',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
+        logWarn(
+          '[OnyxHikIsapiStream] [ONYX] FR snapshot capture failed for CH$snapshotChannelId.',
         );
         if (_isThreatMode) {
           return event.copyWith(
@@ -4127,12 +4072,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           zone?.zoneName ?? '',
         );
       } catch (error, stackTrace) {
-        developer.log(
-          '[ONYX] Adaptive threshold lookup failed on CH$channelId — using '
+        logWarn(
+          '[OnyxHikIsapiStream] [ONYX] Adaptive threshold lookup failed on CH$channelId — using '
           'fallback threshold so alert delivery is not blocked by '
           'observability data.',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
           error: error,
           stackTrace: stackTrace,
         );
@@ -4202,10 +4145,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         return event.copyWith(eventType: OnyxEventType.animalDetected);
       }
       if ((result.error ?? '').trim().isNotEmpty) {
-        developer.log(
-          'YOLO snapshot detect returned an error for CH$channelId: ${result.error}',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
+        logWarn(
+          '[OnyxHikIsapiStream] YOLO snapshot detect returned an error for CH$channelId: ${result.error}',
         );
       }
       final faceMatchId = (result.faceMatchId ?? '').trim().toUpperCase();
@@ -4302,10 +4243,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     } catch (error, stackTrace) {
       // ignore: avoid_print
       print('[ONYX-DEBUG] FR pipeline error on CH$channelId: $error');
-      developer.log(
-        '[ONYX] FR pipeline error on CH$channelId: $error',
-        name: 'OnyxHikIsapiStream',
-        level: 1000,
+      logError(
+        '[OnyxHikIsapiStream] [ONYX] FR pipeline error on CH$channelId: $error',
         error: error,
         stackTrace: stackTrace,
       );
@@ -4652,11 +4591,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (yoloAtUtc != null) {
       latencyRecord = _withYoloLatency(latencyRecord, yoloAtUtc);
     }
-    developer.log(
-      '[ONYX-TELEGRAM] YOLO unavailable on CH$channelId '
+    logWarn(
+      '[OnyxHikIsapiStream] [ONYX-TELEGRAM] YOLO unavailable on CH$channelId '
       '($reason) — sending raw snapshot fallback.',
-      name: 'OnyxHikIsapiStream',
-      level: 900,
     );
     return event.copyWith(
       siteId: _siteId,
@@ -4707,10 +4644,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     );
     final snapshotBytes = await fetchSnapshotBytes(channelId);
     if (snapshotBytes == null || snapshotBytes.isEmpty) {
-      developer.log(
-        '[ONYX] LPR snapshot capture failed for CH$snapshotChannelId.',
-        name: 'OnyxHikIsapiStream',
-        level: 900,
+      logWarn(
+        '[OnyxHikIsapiStream] [ONYX] LPR snapshot capture failed for CH$snapshotChannelId.',
       );
       return event;
     }
@@ -4731,10 +4666,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return event;
     }
     if ((result.error ?? '').trim().isNotEmpty) {
-      developer.log(
-        'YOLO vehicle snapshot detect returned an error for CH$channelId: ${result.error}',
-        name: 'OnyxHikIsapiStream',
-        level: 900,
+      logWarn(
+        '[OnyxHikIsapiStream] YOLO vehicle snapshot detect returned an error for CH$channelId: ${result.error}',
       );
     }
     final detectedPlate = _normalizeVehiclePlate(
@@ -4771,12 +4704,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       final snapshot = projector.snapshot();
       _emitSnapshot(snapshot);
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to publish site awareness snapshot.',
-        name: 'OnyxHikIsapiStream',
+      logError(
+        '[OnyxHikIsapiStream] Failed to publish site awareness snapshot.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     }
   }
@@ -4799,15 +4730,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     try {
       await repository.upsertSnapshot(snapshot);
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to persist site awareness snapshot for ${snapshot.siteId} at '
+      logError(
+        '[OnyxHikIsapiStream] Failed to persist site awareness snapshot for ${snapshot.siteId} at '
         '${snapshot.snapshotAt.toUtc().toIso8601String()}. Last successful '
         'Supabase snapshot write: '
         '${repository.lastSuccessfulSnapshotPersistAtUtc?.toIso8601String() ?? 'never'}.',
-        name: 'OnyxHikIsapiStream',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     }
   }
@@ -4881,10 +4810,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       final targets = await _readTelegramRelayTargets(relayClient);
       if (targets.isEmpty) {
-        developer.log(
-          '[ONYX] Passive Telegram relay skipped — no active Telegram endpoints for $_clientId/$_siteId.',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
+        logWarn(
+          '[OnyxHikIsapiStream] [ONYX] Passive Telegram relay skipped — no active Telegram endpoints for $_clientId/$_siteId.',
         );
         return;
       }
@@ -4917,10 +4844,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             .where((value) => value.isNotEmpty)
             .toSet()
             .join(' | ');
-        developer.log(
-          '[ONYX] Passive Telegram relay failed for ${alerts.length} alert(s). ${reasons.isEmpty ? 'No Telegram messages were accepted.' : reasons}',
-          name: 'OnyxHikIsapiStream',
-          level: 1000,
+        logError(
+          '[OnyxHikIsapiStream] [ONYX] Passive Telegram relay failed for ${alerts.length} alert(s). ${reasons.isEmpty ? 'No Telegram messages were accepted.' : reasons}',
         );
         return;
       }
@@ -4938,12 +4863,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         name: 'OnyxHikIsapiStream',
       );
     } catch (error, stackTrace) {
-      developer.log(
-        '[ONYX] Passive Telegram relay failed.',
-        name: 'OnyxHikIsapiStream',
+      logError(
+        '[OnyxHikIsapiStream] [ONYX] Passive Telegram relay failed.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     } finally {
       _telegramRelayPollInFlight = false;
@@ -5137,16 +5060,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         nowUtc.difference(lastReconnectAtUtc) < const Duration(minutes: 1)) {
       return;
     }
-    developer.log(
-      '[ONYX] Supabase snapshot persistence is stale while the camera stream '
+    logWarn(
+      '[OnyxHikIsapiStream] [ONYX] Supabase snapshot persistence is stale while the camera stream '
       'is connected. Last success: '
       '${repository.lastSuccessfulSnapshotPersistAtUtc?.toIso8601String() ?? 'never'}, '
       'last attempt: '
       '${repository.lastSnapshotPersistAttemptAtUtc?.toIso8601String() ?? 'never'}, '
       'consecutive failures: ${repository.consecutiveSnapshotPersistFailures}. '
       'Reconnecting Supabase client.',
-      name: 'OnyxHikIsapiStream',
-      level: 900,
     );
     try {
       await repository.reconnect(
@@ -5158,12 +5079,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         await _persistSnapshot(repository, latestSnapshot);
       }
     } catch (error, stackTrace) {
-      developer.log(
-        'Supabase watchdog reconnect failed.',
-        name: 'OnyxHikIsapiStream',
+      logError(
+        '[OnyxHikIsapiStream] Supabase watchdog reconnect failed.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     }
   }
@@ -5179,12 +5098,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         detectedAt: event.detectedAt,
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to persist site occupancy session.',
-        name: 'OnyxHikIsapiStream',
+      logError(
+        '[OnyxHikIsapiStream] Failed to persist site occupancy session.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     }
   }
@@ -5212,12 +5129,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         detectedAt: event.detectedAt,
       );
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to persist vehicle presence event.',
-        name: 'OnyxHikIsapiStream',
+      logError(
+        '[OnyxHikIsapiStream] Failed to persist vehicle presence event.',
         error: error,
         stackTrace: stackTrace,
-        level: 1000,
       );
     }
   }
@@ -5335,10 +5250,8 @@ Future<void> _sendCameraWorkerReconnectAlert({
       !criticalPushEnabled ||
       botToken.isEmpty ||
       chatId.isEmpty) {
-    developer.log(
-      'Camera reconnect alert skipped because admin Telegram push is not configured.',
-      name: 'OnyxHikIsapiStream',
-      level: 900,
+    logWarn(
+      '[OnyxHikIsapiStream] Camera reconnect alert skipped because admin Telegram push is not configured.',
     );
     return;
   }
@@ -5362,11 +5275,9 @@ Future<void> _sendCameraWorkerReconnectAlert({
         .post(uri, body: body)
         .timeout(const Duration(seconds: 10));
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      developer.log(
-        'Camera reconnect alert failed with HTTP ${response.statusCode}.',
-        name: 'OnyxHikIsapiStream',
+      logError(
+        '[OnyxHikIsapiStream] Camera reconnect alert failed with HTTP ${response.statusCode}.',
         error: response.body,
-        level: 1000,
       );
       return;
     }
@@ -5375,12 +5286,10 @@ Future<void> _sendCameraWorkerReconnectAlert({
       name: 'OnyxHikIsapiStream',
     );
   } catch (error, stackTrace) {
-    developer.log(
-      'Camera reconnect alert failed to send.',
-      name: 'OnyxHikIsapiStream',
+    logError(
+      '[OnyxHikIsapiStream] Camera reconnect alert failed to send.',
       error: error,
       stackTrace: stackTrace,
-      level: 1000,
     );
   }
 }
