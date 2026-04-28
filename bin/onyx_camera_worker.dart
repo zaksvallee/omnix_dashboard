@@ -1415,11 +1415,7 @@ class OnyxSiteAwarenessRepository {
     _reconnectCompleter = completer;
     final previousClient = _client;
     try {
-      developer.log(
-        '[ONYX] Reconnecting Supabase client. Reason: $reason',
-        name: 'OnyxSiteAwarenessRepository',
-        level: 900,
-      );
+      logInfo('Reconnecting Supabase client. Reason: $reason');
       _client = SupabaseClient(_supabaseUrl, _supabaseKey);
       _lastReconnectAtUtc = DateTime.now().toUtc();
       completer.complete();
@@ -1507,11 +1503,8 @@ class OnyxSiteAwarenessRepository {
       await reconnect(reason: '$operationLabel failed');
       try {
         await action(_client).timeout(requestTimeout);
-        developer.log(
-          '[ONYX] Supabase write recovered after reconnect during '
-          '$operationLabel.',
-          name: 'OnyxSiteAwarenessRepository',
-          level: 900,
+        logInfo(
+          'Supabase write recovered after reconnect during $operationLabel.',
         );
       } catch (retryError, retryStackTrace) {
         logError(
@@ -2759,30 +2752,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _schedulePublishTimer();
     switch (change.mode) {
       case OnyxPowerMode.normal:
-        developer.log(
-          '[ONYX] Power mode: NORMAL — standard monitoring active',
-          name: 'OnyxHikIsapiStream',
-        );
+        logInfo('Power mode: NORMAL — standard monitoring active');
         break;
       case OnyxPowerMode.degraded:
-        developer.log(
-          '[ONYX] Power mode: DEGRADED — priority monitoring active',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
-        );
+        logInfo('Power mode: DEGRADED — priority monitoring active');
         break;
       case OnyxPowerMode.threat:
-        developer.log(
-          '[ONYX] Power mode: THREAT — aggressive monitoring active',
-          name: 'OnyxHikIsapiStream',
-          level: 1000,
-        );
+        logInfo('Power mode: THREAT — aggressive monitoring active');
         if (_envBool('ONYX_SYNTHETIC_GUARD_AUTO_ENABLE', fallback: false)) {
-          developer.log(
-            '[ONYX] Synthetic Guard auto-enabled for threat mode.',
-            name: 'OnyxHikIsapiStream',
-            level: 900,
-          );
+          logInfo('Synthetic Guard auto-enabled for threat mode.');
         }
         await _sendCameraWorkerThreatModeAlert(siteId: _siteId);
         break;
@@ -2817,18 +2795,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         if (ready) {
           if (!_isYoloHealthy) {
             _isYoloHealthy = true;
-            developer.log(
-              '[ONYX] YOLO recovered — resuming enrichment',
-              name: 'OnyxHikIsapiStream',
-            );
+            logInfo('YOLO recovered — resuming enrichment');
           }
           return;
         }
         if (attempt < _yoloHealthFailureThreshold) {
-          developer.log(
-            '[ONYX] YOLO unhealthy check $attempt/3 — waiting before marking dead',
-            name: 'OnyxHikIsapiStream',
-            level: 900,
+          logInfo(
+            'YOLO unhealthy check $attempt/3 — waiting before marking dead',
           );
           await _sleep(_yoloHealthRetryDelay);
         }
@@ -2921,8 +2894,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     while (_running && generation == _generation) {
       String? disconnectReason;
       Object? disconnectError;
-      StackTrace? disconnectStackTrace;
-      var disconnectLogLevel = 1000;
       try {
         await _primeSocketConnection();
         final response = await _streamAuth
@@ -2948,7 +2919,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
               'Alert stream returned HTTP ${errorResponse.statusCode} from '
               '$_resolvedAlertStreamUri'
               '${responseBody.isEmpty ? '.' : ' — $responseBody'}';
-          disconnectLogLevel = 900;
         } else {
           final resumedAfterFailures = retryAttempt > 0 || _disconnectAlertSent;
           _isConnected = true;
@@ -2956,10 +2926,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           retryAttempt = 0;
           _disconnectAlertSent = false;
           if (resumedAfterFailures) {
-            developer.log(
-              '[ONYX] Camera stream reconnected.',
-              name: 'OnyxHikIsapiStream',
-            );
+            logInfo('Camera stream reconnected.');
           }
           final projector = _projector;
           if (projector != null) {
@@ -2971,11 +2938,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             disconnectReason = 'Alert stream closed unexpectedly.';
           }
         }
-      } catch (error, stackTrace) {
+      } catch (error) {
         _isConnected = false;
         disconnectReason = 'Site awareness stream connection failed.';
         disconnectError = error;
-        disconnectStackTrace = stackTrace;
       }
       if (!_running || generation != _generation) {
         break;
@@ -2985,14 +2951,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       final nextAttempt = retryAttempt + 1;
       final delay = _retryDelayFor(retryAttempt);
-      developer.log(
-        '[ONYX] ⚠️ Camera stream disconnected from $host:$port — reconnecting in '
-        '${delay.inSeconds}s (attempt $nextAttempt). $disconnectReason',
-        name: 'OnyxHikIsapiStream',
-        error: disconnectError,
-        stackTrace: disconnectStackTrace,
-        level: disconnectLogLevel,
-      );
       stderr.writeln(
         '[ONYX] ⚠️ Camera stream disconnected from $host:$port — '
         'reconnecting in ${delay.inSeconds}s (attempt $nextAttempt). '
@@ -3013,11 +2971,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         }
       }
       if (nextAttempt >= 3) {
-        developer.log(
-          '[ONYX] Camera worker terminating after 3 failures',
-          name: 'OnyxHikIsapiStream',
-          level: 1000,
-        );
         stderr.writeln(
           '[ONYX] Camera worker terminating after 3 failures. '
           'Last disconnect reason: $disconnectReason. '
@@ -3169,11 +3122,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         ),
       );
       if (event.channelId.trim() == '0') {
-        developer.log(
-          '[ONYX] Ignoring ghost CH0 event from Hikvision alert stream.',
-          name: 'OnyxHikIsapiStream',
-          level: 800,
-        );
+        logInfo('Ignoring ghost CH0 event from Hikvision alert stream.');
         return;
       }
       if (event.eventType == OnyxEventType.humanDetected) {
@@ -3252,11 +3201,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       if (event.eventType == OnyxEventType.humanDetected &&
           (event.faceMatchId ?? '').trim().isNotEmpty &&
           !_isThreatMode) {
-        developer.log(
-          '[ONYX-TELEGRAM] Gate check: suppressed=known face match '
-          '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
-          name: 'OnyxHikIsapiStream',
-        );
         stderr.writeln(
           '[ONYX-TELEGRAM] Gate check: suppressed=known face match '
           '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
@@ -3265,12 +3209,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         if (_currentPowerMode == OnyxPowerMode.degraded &&
             !(zone?.isPerimeter ?? false) &&
             !((zone?.zoneType ?? '').toLowerCase().contains('perimeter'))) {
-          developer.log(
-            '[ONYX-TELEGRAM] Gate check: suppressed=degraded non-priority '
-            'channel ${event.channelId}.',
-            name: 'OnyxHikIsapiStream',
-            level: 800,
-          );
           stderr.writeln(
             '[ONYX-TELEGRAM] Gate check: suppressed=degraded non-priority '
             'channel ${event.channelId}.',
@@ -3278,12 +3216,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         } else {
           final channelId = int.tryParse(event.channelId.trim()) ?? 0;
           if (channelId <= 0) {
-            developer.log(
-              '[ONYX-TELEGRAM] Gate check: suppressed=invalid channel '
-              '${event.channelId}.',
-              name: 'OnyxHikIsapiStream',
-              level: 800,
-            );
             stderr.writeln(
               '[ONYX-TELEGRAM] Gate check: suppressed=invalid channel '
               '${event.channelId}.',
@@ -3298,14 +3230,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             );
             if (confidence < minimumConfidence) {
               _resetHumanAlertGateForZone(humanAlertZoneKey);
-              developer.log(
-                '[ONYX-TELEGRAM] Gate check: suppressed=confidence '
-                'channel=${event.channelId} zone=$zoneName '
-                'confidence=${confidence.toStringAsFixed(2)} '
-                'required=${minimumConfidence.toStringAsFixed(2)}',
-                name: 'OnyxHikIsapiStream',
-                level: 800,
-              );
               stderr.writeln(
                 '[ONYX-TELEGRAM] Gate check: suppressed=confidence '
                 'channel=${event.channelId} zone=$zoneName '
@@ -3319,15 +3243,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
               detectedAtUtc,
             );
             if (consecutiveDetections < _requiredConsecutiveHumanDetections) {
-              developer.log(
-                '[ONYX-TELEGRAM] Gate check: suppressed=awaiting consecutive '
-                'human detection channel=${event.channelId} zone=$zoneName '
-                'count=$consecutiveDetections/'
-                '$_requiredConsecutiveHumanDetections '
-                'confidence=${confidence.toStringAsFixed(2)}',
-                name: 'OnyxHikIsapiStream',
-                level: 800,
-              );
               stderr.writeln(
                 '[ONYX-TELEGRAM] Gate check: suppressed=awaiting consecutive '
                 'human detection channel=${event.channelId} zone=$zoneName '
@@ -3344,14 +3259,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             )) {
               final lastTriggeredAt =
                   _humanAlertLastTriggeredAtByZone[humanAlertZoneKey];
-              developer.log(
-                '[ONYX-TELEGRAM] Gate check: suppressed=zone cooldown '
-                'channel=${event.channelId} zone=$zoneName '
-                'confidence=${confidence.toStringAsFixed(2)} '
-                'last_alert=${lastTriggeredAt?.toIso8601String() ?? 'unknown'}',
-                name: 'OnyxHikIsapiStream',
-                level: 800,
-              );
               stderr.writeln(
                 '[ONYX-TELEGRAM] Gate check: suppressed=zone cooldown '
                 'channel=${event.channelId} zone=$zoneName '
@@ -3361,13 +3268,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
               return;
             }
           }
-          developer.log(
-            '[ONYX-TELEGRAM] Gate check: proceeding to proactive evaluation '
-            'channel=${event.channelId} zone=$zoneName '
-            'unknown_human=${event.unknownPerson} '
-            'face=${(event.faceMatchId ?? '').trim().isEmpty ? 'null' : event.faceMatchId}',
-            name: 'OnyxHikIsapiStream',
-          );
           stderr.writeln(
             '[ONYX-TELEGRAM] Gate check: proceeding to proactive evaluation '
             'channel=${event.channelId} zone=$zoneName '
@@ -3404,12 +3304,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     OnyxProactiveAlertDecision decision,
   ) async {
     if (decision.siteId.trim() != _siteId.trim()) {
-      developer.log(
-        '[ONYX-TELEGRAM] Gate check: suppressed=decision site ${decision.siteId} '
-        'does not match active site $_siteId.',
-        name: 'OnyxHikIsapiStream',
-        level: 800,
-      );
       stderr.writeln(
         '[ONYX-TELEGRAM] Gate check: suppressed=decision site ${decision.siteId} '
         'does not match active site $_siteId.',
@@ -3418,12 +3312,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     final projector = _projector;
     if (projector == null) {
-      developer.log(
-        '[ONYX-TELEGRAM] Gate check: suppressed=projector not ready '
-        'for CH${decision.channelId}.',
-        name: 'OnyxHikIsapiStream',
-        level: 900,
-      );
       stderr.writeln(
         '[ONYX-TELEGRAM] Gate check: suppressed=projector not ready '
         'for CH${decision.channelId}.',
@@ -3474,12 +3362,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       );
     }
     _emitSnapshot(snapshot);
-    developer.log(
-      '[ONYX-TELEGRAM] Gate check: proceeding to send '
-      'channel=${decision.channelId} alert_id=$alertId '
-      'snapshot=${snapshotBytes != null && snapshotBytes.isNotEmpty}',
-      name: 'OnyxHikIsapiStream',
-    );
     stderr.writeln(
       '[ONYX-TELEGRAM] Gate check: proceeding to send '
       'channel=${decision.channelId} alert_id=$alertId '
@@ -3500,11 +3382,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     String? telegramCaptionNote,
   }) async {
     if (!_envBool('ONYX_TELEGRAM_BRIDGE_ENABLED', fallback: true)) {
-      developer.log(
-        '[ONYX-TELEGRAM] Gate check: suppressed=ONYX_TELEGRAM_BRIDGE_ENABLED false.',
-        name: 'OnyxHikIsapiStream',
-        level: 900,
-      );
       stderr.writeln(
         '[ONYX-TELEGRAM] Gate check: suppressed=ONYX_TELEGRAM_BRIDGE_ENABLED false.',
       );
@@ -3512,11 +3389,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     final bridgeService = _telegramBridgeService;
     if (bridgeService == null || !bridgeService.isConfigured) {
-      developer.log(
-        '[ONYX-TELEGRAM] Gate check: suppressed=bridge service not configured.',
-        name: 'OnyxHikIsapiStream',
-        level: 900,
-      );
       stderr.writeln(
         '[ONYX-TELEGRAM] Gate check: suppressed=bridge service not configured.',
       );
@@ -3527,12 +3399,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       telegramCaptionNote: telegramCaptionNote,
     );
     if (message.isEmpty) {
-      developer.log(
-        '[ONYX-TELEGRAM] Gate check: suppressed=empty message '
-        'for CH${decision.channelId}.',
-        name: 'OnyxHikIsapiStream',
-        level: 900,
-      );
       stderr.writeln(
         '[ONYX-TELEGRAM] Gate check: suppressed=empty message '
         'for CH${decision.channelId}.',
@@ -3542,12 +3408,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
 
     final targets = await _resolveTelegramAlertTargets();
     if (targets.isEmpty) {
-      developer.log(
-        '[ONYX-TELEGRAM] Gate check: suppressed=no Telegram targets for '
-        '$_clientId/$_siteId.',
-        name: 'OnyxHikIsapiStream',
-        level: 900,
-      );
       stderr.writeln(
         '[ONYX-TELEGRAM] Gate check: suppressed=no Telegram targets for '
         '$_clientId/$_siteId.',
@@ -3563,11 +3423,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     );
     final outbound = <TelegramBridgeMessage>[];
     for (final target in targets) {
-      developer.log(
+      logInfo(
         '[ONYX-TELEGRAM] Sending alert to ${target.chatId} '
         'for CH${decision.channelId} '
         '${hasSnapshot ? 'with snapshot.' : 'without snapshot.'}',
-        name: 'OnyxHikIsapiStream',
       );
       outbound.add(
         TelegramBridgeMessage(
@@ -3866,15 +3725,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (relayClient != null) {
       try {
         addTargets(await _readTelegramRelayTargets(relayClient));
-      } catch (error, stackTrace) {
-        developer.log(
-          '[ONYX-TELEGRAM] Gate check: managed target lookup failed for $_clientId/$_siteId. '
-          'Falling back to environment targets.',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
-          error: error,
-          stackTrace: stackTrace,
-        );
+      } catch (error) {
         stderr.writeln(
           '[ONYX-TELEGRAM] Gate check: managed target lookup failed for $_clientId/$_siteId. '
           'Falling back to environment targets. Error: $error',
@@ -3929,11 +3780,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       '${liveSnapshotYoloService?.isConfigured}',
     );
     if (channelId.isEmpty || channelId == 'unknown') {
-      developer.log(
-        '[ONYX] FR snapshot skipped: human detection has no usable channel ID.',
-        name: 'OnyxHikIsapiStream',
-        level: 800,
-      );
+      logInfo('FR snapshot skipped: human detection has no usable channel ID.');
       return event;
     }
     if (liveSnapshotYoloService == null ||
@@ -3968,10 +3815,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         );
       }
       if (_isThreatMode) {
-        developer.log(
-          '[ONYX] Threat mode active — bypassing YOLO health suppression on CH${event.channelId}.',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
+        logInfo(
+          'Threat mode active — bypassing YOLO health suppression on CH${event.channelId}.',
         );
         return event.copyWith(
           siteId: _siteId,
@@ -3981,10 +3826,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         );
       }
       if (_shouldAllowUnverifiedHumanAlert(liveSnapshotYoloService)) {
-        developer.log(
-          '[ONYX] Human detected (unverified) on CH${event.channelId} during YOLO startup grace.',
-          name: 'OnyxHikIsapiStream',
-          level: 800,
+        logInfo(
+          'Human detected (unverified) on CH${event.channelId} during YOLO startup grace.',
         );
         return event;
       }
@@ -4786,10 +4629,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       if (!_telegramRelayOwnershipNoticeLogged) {
         _telegramRelayOwnershipNoticeLogged = true;
-        developer.log(
-          '[ONYX] Local alert stream is idle; passive Telegram relay is active. Another edge likely owns the Hikvision alert stream.',
-          name: 'OnyxHikIsapiStream',
-          level: 900,
+        logInfo(
+          'Local alert stream is idle; passive Telegram relay is active. Another edge likely owns the Hikvision alert stream.',
         );
       }
       final bootCutoffUtc = _telegramRelayBootCutoffUtc ?? _clock().toUtc();
@@ -4858,9 +4699,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           _relayedAlertIds.add(alert.alertId);
         }
       }
-      developer.log(
-        '[ONYX] Passive Telegram relay delivered ${result.sentCount} message(s) for ${alerts.where((alert) => _relayedAlertIds.contains(alert.alertId)).length} alert(s).',
-        name: 'OnyxHikIsapiStream',
+      logInfo(
+        'Passive Telegram relay delivered ${result.sentCount} message(s) for ${alerts.where((alert) => _relayedAlertIds.contains(alert.alertId)).length} alert(s).',
       );
     } catch (error, stackTrace) {
       logError(
@@ -5113,10 +4953,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     try {
       final channelId = int.tryParse(event.channelId.trim()) ?? 0;
       if (channelId <= 0) {
-        developer.log(
-          '[ONYX] Skipping vehicle presence persistence for invalid channel ${event.channelId}.',
-          name: 'OnyxHikIsapiStream',
-          level: 800,
+        logInfo(
+          'Skipping vehicle presence persistence for invalid channel ${event.channelId}.',
         );
         return;
       }
@@ -5281,10 +5119,7 @@ Future<void> _sendCameraWorkerReconnectAlert({
       );
       return;
     }
-    developer.log(
-      'Camera reconnect alert sent to Telegram admin chat.',
-      name: 'OnyxHikIsapiStream',
-    );
+    logInfo('Camera reconnect alert sent to Telegram admin chat.');
   } catch (error, stackTrace) {
     logError(
       '[OnyxHikIsapiStream] Camera reconnect alert failed to send.',
