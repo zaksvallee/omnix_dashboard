@@ -1,4 +1,4 @@
-name: onyx_telegram_ai_processor
+name: omnix_dashboard
 description: Minimal plain-Dart ONYX Telegram AI processor for server deployment.
 publish_to: none
 

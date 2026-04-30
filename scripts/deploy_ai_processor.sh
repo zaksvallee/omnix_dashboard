@@ -18,7 +18,7 @@ trap cleanup EXIT
 cd "$ROOT_DIR"
 
 echo "[ONYX] Preparing remote build directory on $REMOTE_HOST..."
-ssh "$REMOTE_HOST" "rm -rf $REMOTE_BUILD_DIR && mkdir -p $REMOTE_BUILD_DIR/bin $REMOTE_APP_DIR/bin $(dirname "$REMOTE_ENV_FILE")"
+ssh "$REMOTE_HOST" "rm -rf $REMOTE_BUILD_DIR && mkdir -p $REMOTE_BUILD_DIR/bin $REMOTE_BUILD_DIR/lib/application $REMOTE_APP_DIR/bin $(dirname "$REMOTE_ENV_FILE")"
 
 echo "[ONYX] Building managed env sync block from $LOCAL_CONFIG_FILE..."
 python3 - "$LOCAL_CONFIG_FILE" > "$TEMP_ENV_FILE" <<'PY'
@@ -70,6 +70,7 @@ PY
 echo "[ONYX] Copying standalone processor source + minimal pubspec..."
 scp bin/onyx_telegram_ai_processor.dart "$REMOTE_HOST:$REMOTE_BUILD_DIR/bin/"
 scp bin/_logging.dart "$REMOTE_HOST:$REMOTE_BUILD_DIR/bin/"
+scp -r lib/application/zara "$REMOTE_HOST:$REMOTE_BUILD_DIR/lib/application/"
 scp pubspec_ai_processor.yaml "$REMOTE_HOST:$REMOTE_BUILD_DIR/pubspec.yaml"
 scp deploy/$SERVICE_NAME "$REMOTE_HOST:/etc/systemd/system/$SERVICE_NAME"
 scp "$TEMP_ENV_FILE" "$REMOTE_HOST:$REMOTE_BUILD_DIR/worker.env.ai"
