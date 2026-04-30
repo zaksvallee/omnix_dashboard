@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/ai/ollama_service.dart';
-import 'package:omnix_dashboard/application/zara_theatre/zara_action.dart';
-import 'package:omnix_dashboard/application/zara_theatre/zara_intent_parser.dart';
-import 'package:omnix_dashboard/application/zara_theatre/zara_scenario.dart';
+import 'package:omnix_dashboard/application/zara/theatre/zara_action.dart';
+import 'package:omnix_dashboard/application/zara/theatre/zara_intent_parser.dart';
+import 'package:omnix_dashboard/application/zara/theatre/zara_scenario.dart';
 
 void main() {
   group('ZaraIntentParser', () {

@@ -11,11 +11,11 @@ import '../application/event_sourcing_service.dart';
 import '../application/onyx_agent_cloud_boost_service.dart';
 import '../application/runtime_config.dart';
 import '../application/supabase/supabase_service.dart';
-import '../application/zara_theatre/zara_action.dart';
-import '../application/zara_theatre/zara_action_executor.dart';
-import '../application/zara_theatre/zara_intent_parser.dart';
-import '../application/zara_theatre/zara_scenario.dart';
-import '../application/zara_theatre/zara_theatre_orchestrator.dart';
+import '../application/zara/theatre/zara_action.dart';
+import '../application/zara/theatre/zara_action_executor.dart';
+import '../application/zara/theatre/zara_intent_parser.dart';
+import '../application/zara/theatre/zara_scenario.dart';
+import '../application/zara/theatre/zara_theatre_orchestrator.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/listener_alarm_advisory_recorded.dart';
 import '../ui/app_shell.dart';
@@ -133,8 +133,7 @@ class _ZaraTheatreSmokeAppState extends State<_ZaraTheatreSmokeApp> {
         intelTickerItems: const <OnyxIntelTickerItem>[],
         incidentLifecycleSnapshot: snapshot.lifecycle,
         eventSourcingSnapshot: snapshot,
-        demoAutopilotStatusLabel:
-            widget.launch.reusedExistingScenario
+        demoAutopilotStatusLabel: widget.launch.reusedExistingScenario
             ? 'Smoke scenario reused from the latest seeded run.'
             : 'Fresh Zara Theatre smoke scenario seeded.',
         child: _buildSmokeChild(),
@@ -178,7 +177,8 @@ class _ZaraTheatreSmokeAppState extends State<_ZaraTheatreSmokeApp> {
       initialScopeClientId: _smokeClientId,
       initialScopeSiteId: _smokeSiteId,
       focusIncidentReference: widget.launch.alarmId,
-      previousTomorrowUrgencySummary: 'Smoke harness running against live Supabase.',
+      previousTomorrowUrgencySummary:
+          'Smoke harness running against live Supabase.',
       theatrePanel: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
         child: ZaraTheatrePanel(orchestrator: _orchestrator),
@@ -471,9 +471,10 @@ ZaraScenario _scenarioFromStoredRows({
   required List<Map<String, Object?>> actionLogRows,
 }) {
   final scenarioId = (scenarioRow['id'] ?? '').toString().trim();
-  final createdAt = DateTime.tryParse(
-    (scenarioRow['created_at'] ?? '').toString(),
-  )?.toUtc() ??
+  final createdAt =
+      DateTime.tryParse(
+        (scenarioRow['created_at'] ?? '').toString(),
+      )?.toUtc() ??
       DateTime.now().toUtc();
   final actionStateByKind = <ZaraActionKind, ZaraActionState>{
     ZaraActionKind.checkFootage: ZaraActionState.completed,
@@ -555,7 +556,8 @@ ZaraScenario _buildScenarioTemplate({
         confirmRequired: false,
         payload: const ZaraMonitoringPayload(
           siteId: _smokeSiteId,
-          detail: 'Smoke weather review shows high wind near the perimeter beam.',
+          detail:
+              'Smoke weather review shows high wind near the perimeter beam.',
         ),
         state:
             actionStateByKind[ZaraActionKind.checkWeather] ??
@@ -632,7 +634,8 @@ ZaraScenario _buildScenarioTemplate({
         confirmRequired: true,
         payload: const ZaraMonitoringPayload(
           siteId: _smokeSiteId,
-          detail: 'Keep Zara monitoring the smoke test property after decision.',
+          detail:
+              'Keep Zara monitoring the smoke test property after decision.',
         ),
         state:
             actionStateByKind[ZaraActionKind.continueMonitoring] ??

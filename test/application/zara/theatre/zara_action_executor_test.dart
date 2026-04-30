@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:omnix_dashboard/application/zara_theatre/zara_action.dart';
-import 'package:omnix_dashboard/application/zara_theatre/zara_action_executor.dart';
-import 'package:omnix_dashboard/application/zara_theatre/zara_scenario.dart';
+import 'package:omnix_dashboard/application/zara/theatre/zara_action.dart';
+import 'package:omnix_dashboard/application/zara/theatre/zara_action_executor.dart';
+import 'package:omnix_dashboard/application/zara/theatre/zara_scenario.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/incident_closed.dart';
 import 'package:omnix_dashboard/domain/store/event_store.dart';

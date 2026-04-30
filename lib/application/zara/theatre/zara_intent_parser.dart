@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import '../ai/ollama_service.dart';
-import '../onyx_agent_cloud_boost_service.dart';
+import '../../ai/ollama_service.dart';
+import '../../onyx_agent_cloud_boost_service.dart';
 import 'zara_action.dart';
 import 'zara_scenario.dart';
 

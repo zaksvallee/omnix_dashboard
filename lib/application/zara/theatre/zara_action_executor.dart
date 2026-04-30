@@ -1,8 +1,8 @@
-import '../client_messaging_bridge_repository.dart';
-import '../dispatch_application_service.dart';
-import '../telegram_bridge_service.dart';
-import '../../domain/events/incident_closed.dart';
-import '../../domain/store/event_store.dart';
+import '../../client_messaging_bridge_repository.dart';
+import '../../dispatch_application_service.dart';
+import '../../telegram_bridge_service.dart';
+import '../../../domain/events/incident_closed.dart';
+import '../../../domain/store/event_store.dart';
 import 'zara_action.dart';
 import 'zara_scenario.dart';
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
@@ -8,11 +7,10 @@ import '../domain/crm/reporting/client_narrative_result.dart';
 import '../domain/crm/reporting/report_audience.dart';
 import '../domain/crm/reporting/report_bundle.dart';
 import 'onyx_claude_report_config.dart';
+import 'zara/anthropic_llm_provider.dart';
+import 'zara/llm_provider.dart';
 
 class ReportsWorkspaceAgent {
-  static const String _endpoint = 'https://api.anthropic.com/v1/messages';
-  static const String _anthropicVersion = '2023-06-01';
-
   final OnyxClaudeReportConfig config;
   final http.Client? httpClient;
 
@@ -32,63 +30,31 @@ class ReportsWorkspaceAgent {
     }
 
     final client = httpClient ?? http.Client();
+    final provider = AnthropicLlmProvider(
+      client: client,
+      config: AnthropicLlmProviderConfig(
+        apiKey: config.apiKey,
+        primaryModel: config.model,
+        escalatedModel: config.model,
+        defaultMaxOutputTokens: config.maxTokens,
+        requestTimeout: Duration(seconds: config.timeoutSeconds),
+      ),
+    );
     final generatedAt = DateTime.now().toUtc();
     try {
-      final response = await client
-          .post(
-            Uri.parse(_endpoint),
-            headers: <String, String>{
-              'content-type': 'application/json',
-              'x-api-key': config.apiKey,
-              'anthropic-version': _anthropicVersion,
-            },
-            body: jsonEncode(<String, Object?>{
-              'model': config.model,
-              'max_tokens': config.maxTokens,
-              'system': _buildSystemPrompt(audience),
-              'messages': <Map<String, Object?>>[
-                <String, Object?>{
-                  'role': 'user',
-                  'content': _buildUserPrompt(bundle),
-                },
-              ],
-            }),
-          )
-          .timeout(Duration(seconds: config.timeoutSeconds));
-      if (response.statusCode != 200) {
-        developer.log(
-          'ReportsWorkspaceAgent fallback: Anthropic returned HTTP ${response.statusCode}.',
-          name: 'ReportsWorkspaceAgent',
-          error: response.body,
-        );
+      final response = await provider.complete(
+        messages: <LlmMessage>[
+          LlmMessage(role: LlmMessageRole.user, text: _buildUserPrompt(bundle)),
+        ],
+        systemPrompt: _buildSystemPrompt(audience),
+        maxOutputTokens: config.maxTokens,
+      );
+      if (response.usedFallback || !response.hasText) {
         return fallback;
       }
 
-      final responseBody = stringKeyedMap(jsonDecode(response.body));
-      if (responseBody == null) {
-        developer.log(
-          'ReportsWorkspaceAgent fallback: response body was not a string-keyed JSON object.',
-          name: 'ReportsWorkspaceAgent',
-        );
-        return fallback;
-      }
-
-      final usage = stringKeyedMap(responseBody['usage']);
-      final narrativeText = _extractTextBlock(responseBody['content']);
-      if (narrativeText.isEmpty) {
-        developer.log(
-          'ReportsWorkspaceAgent fallback: Anthropic response did not include a text content block.',
-          name: 'ReportsWorkspaceAgent',
-        );
-        return fallback;
-      }
-
-      final narrativeJson = stringKeyedMap(jsonDecode(narrativeText));
+      final narrativeJson = stringKeyedMap(jsonDecode(response.text));
       if (narrativeJson == null) {
-        developer.log(
-          'ReportsWorkspaceAgent fallback: narrative payload was not a string-keyed JSON object.',
-          name: 'ReportsWorkspaceAgent',
-        );
         return fallback;
       }
 
@@ -97,19 +63,13 @@ class ReportsWorkspaceAgent {
             clientId: bundle.clientSnapshot.clientId,
             month: bundle.clientSnapshot.reportingPeriod,
             audience: audience,
-            modelId: config.model,
+            modelId: response.modelId,
             generatedAt: generatedAt,
-            inputTokens: _intFromValue(usage?['input_tokens']),
-            outputTokens: _intFromValue(usage?['output_tokens']),
+            inputTokens: response.inputTokens,
+            outputTokens: response.outputTokens,
           ) ??
           fallback;
-    } catch (e, st) {
-      developer.log(
-        'ReportsWorkspaceAgent fallback: request or parsing failed.',
-        name: 'ReportsWorkspaceAgent',
-        error: e,
-        stackTrace: st,
-      );
+    } catch (_) {
       return fallback;
     } finally {
       if (httpClient == null) {
@@ -217,28 +177,5 @@ $incidentLines
 
 Generate the four narrative sections as JSON only.
 ''';
-  }
-
-  String _extractTextBlock(Object? contentValue) {
-    if (contentValue is! List) {
-      return '';
-    }
-    for (final block in contentValue) {
-      final map = stringKeyedMap(block);
-      if (map == null) {
-        continue;
-      }
-      if ((map['type'] ?? '').toString() == 'text') {
-        return (map['text'] ?? '').toString();
-      }
-    }
-    return '';
-  }
-
-  int _intFromValue(Object? value) {
-    if (value is int) {
-      return value;
-    }
-    return int.tryParse((value ?? '').toString()) ?? 0;
   }
 }

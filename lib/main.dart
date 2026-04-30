@@ -127,7 +127,7 @@ import 'application/runtime_config.dart';
 import 'application/site_activity_intelligence_service.dart';
 import 'application/site_activity_telegram_formatter.dart';
 import 'application/sms_delivery_service.dart';
-import 'application/zara_theatre/zara_action_executor.dart';
+import 'application/zara/theatre/zara_action_executor.dart';
 import 'application/telegram_admin_command_formatter.dart';
 import 'application/telegram_ai_assistant_service.dart';
 import 'application/telegram_ai_starter_examples.dart';
@@ -1726,8 +1726,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   /// The active controller-mode route, derived from the GoRouter's
   /// current configuration. Falls back to dashboard when the URL is
   /// outside the OnyxRoute enum (e.g. `/` for Zara Home).
-  OnyxRoute _activeRoute() =>
-      _routeFromCurrentRouter() ?? OnyxRoute.dashboard;
+  OnyxRoute _activeRoute() => _routeFromCurrentRouter() ?? OnyxRoute.dashboard;
 
   // _route field retired in Stage 3.7. The router's current URL is the
   // single source of truth — read via `_activeRoute()`. Tests and deep-
@@ -2032,7 +2031,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   // propagate into the router-mounted page widgets. Permanent
   // architecture; retiring requires a larger refactor to consume state
   // via Provider/InheritedWidget.
-  final _RouterRefreshNotifier _routerRefreshNotifier = _RouterRefreshNotifier();
+  final _RouterRefreshNotifier _routerRefreshNotifier =
+      _RouterRefreshNotifier();
   OnyxAgentCameraBridgeHealthSnapshot? _onyxAgentCameraBridgeHealthSnapshot;
   Map<String, List<TelegramAiLearnedReplyExample>>
   _telegramAiApprovedRewriteExamplesByScope = const {};
@@ -35310,8 +35310,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (scopedIds.isEmpty) return;
     final selected = (selectedEventId ?? '').trim();
     final trimmedOriginLabel = originLabel.trim();
-    final resolvedSelected =
-        selected.isNotEmpty && scopedIds.contains(selected)
+    final resolvedSelected = selected.isNotEmpty && scopedIds.contains(selected)
         ? selected
         : scopedIds.first;
     _cancelDemoAutopilot();

@@ -1,8 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../zara_theatre/zara_action.dart';
-import '../zara_theatre/zara_action_executor.dart';
-import '../zara_theatre/zara_scenario.dart';
+import '../zara/theatre/zara_action.dart';
+import '../zara/theatre/zara_action_executor.dart';
+import '../zara/theatre/zara_scenario.dart';
 
 class SupabaseService {
   final SupabaseClient client;

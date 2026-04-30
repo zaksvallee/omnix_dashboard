@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../application/zara_theatre/zara_action.dart';
-import '../application/zara_theatre/zara_scenario.dart';
-import '../application/zara_theatre/zara_theatre_orchestrator.dart';
+import '../application/zara/theatre/zara_action.dart';
+import '../application/zara/theatre/zara_scenario.dart';
+import '../application/zara/theatre/zara_theatre_orchestrator.dart';
 import 'theme/onyx_design_tokens.dart';
 
 class ZaraTheatrePanel extends StatefulWidget {
