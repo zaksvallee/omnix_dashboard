@@ -5,6 +5,10 @@ import 'dart:math' as math;
 
 import '_logging.dart';
 import 'package:http/http.dart' as http;
+import 'package:omnix_dashboard/application/zara/capability_registry.dart';
+import 'package:omnix_dashboard/application/zara/llm_provider.dart';
+import 'package:omnix_dashboard/application/zara/openai_responses_llm_provider.dart';
+import 'package:omnix_dashboard/application/zara/zara_service.dart';
 import 'package:supabase/supabase.dart';
 
 const Duration _defaultPollInterval = Duration(seconds: 2);
@@ -46,13 +50,31 @@ Future<void> main() async {
     genericBaseUrl: Platform.environment['OPENAI_BASE_URL'] ?? '',
   );
 
-  final aiAssistant = aiConfig.isConfigured
-      ? OpenAiTelegramAiAssistantService(
+  // Construct LlmProvider for Zara. Reuses existing OpenAI Responses provider
+  // from lib/application/zara. Anthropic provider is available in the
+  // foundation but is not selected by default in this runtime.
+  //
+  // TODO(zara): extract runtime provider selection into a small factory when
+  // there is a second runtime caller beyond Telegram.
+  final LlmProvider llmProvider =
+      aiConfig.isConfigured && aiConfig.endpoint != null
+      ? OpenAiResponsesLlmProvider(
           client: httpClient,
-          apiKey: aiConfig.apiKey,
-          model: aiConfig.model,
-          endpoint: aiConfig.endpoint,
+          config: OpenAiResponsesLlmProviderConfig(
+            apiKey: aiConfig.apiKey,
+            primaryModel: aiConfig.model,
+            escalatedModel: aiConfig.model,
+            endpoint: aiConfig.endpoint!,
+          ),
         )
+      : const UnconfiguredLlmProvider();
+
+  final ZaraService zara = llmProvider.isConfigured
+      ? ProviderBackedZaraService(llmProvider: llmProvider)
+      : const UnconfiguredZaraService();
+
+  final aiAssistant = zara.isConfigured
+      ? ZaraTelegramAiAssistantService(zara: zara)
       : const UnconfiguredTelegramAiAssistantService();
 
   final processor = _OnyxTelegramAiProcessor(
@@ -2519,6 +2541,77 @@ class UnconfiguredTelegramAiAssistantService
       text: text,
       usedFallback: true,
       providerLabel: 'fallback',
+    );
+  }
+}
+
+class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
+  final ZaraService zara;
+
+  const ZaraTelegramAiAssistantService({required this.zara});
+
+  @override
+  bool get isConfigured => zara.isConfigured;
+
+  @override
+  Future<TelegramAiDraftReply> draftReply({
+    required TelegramAiAudience audience,
+    required String messageText,
+    String? clientId,
+    String? siteId,
+    TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
+  }) async {
+    // Option B v1: hardcoded tier and data sources.
+    // TODO(zara): replace with real client-tier lookup when clients.tier
+    // lands. Data-source resolution follows in the same session.
+    const ZaraCapabilityTier hardcodedTier = ZaraCapabilityTier.standard;
+    const Set<String> hardcodedDataSources = <String>{};
+
+    final result = await zara.handleTurn(
+      ZaraTurnRequest(
+        userMessage: messageText,
+        audience: _audienceFrom(audience),
+        clientId: clientId,
+        siteId: siteId,
+        activeTier: hardcodedTier,
+        activeDataSources: hardcodedDataSources,
+        siteContext: _siteContextFrom(siteAwarenessSummary),
+      ),
+    );
+
+    return TelegramAiDraftReply(
+      text: result.text,
+      usedFallback: result.usedFallback,
+      providerLabel: result.providerLabel,
+    );
+  }
+
+  static ZaraAudience _audienceFrom(TelegramAiAudience audience) {
+    switch (audience) {
+      case TelegramAiAudience.admin:
+        return ZaraAudience.admin;
+      case TelegramAiAudience.client:
+        return ZaraAudience.client;
+    }
+  }
+
+  static ZaraSiteContext? _siteContextFrom(
+    TelegramAiSiteAwarenessSummary? summary,
+  ) {
+    if (summary == null) {
+      return null;
+    }
+    return ZaraSiteContext(
+      observedAtUtc: summary.observedAtUtc,
+      perimeterClear: summary.perimeterClear,
+      humanCount: summary.humanCount,
+      vehicleCount: summary.vehicleCount,
+      animalCount: summary.animalCount,
+      motionCount: summary.motionCount,
+      activeAlertCount: summary.activeAlertCount,
+      knownFaultChannels: summary.knownFaultChannels,
+      contextSummary: summary.contextSummary,
     );
   }
 }
