@@ -127,11 +127,19 @@ class ProviderBackedZaraService implements ZaraService {
   @override
   Future<ZaraTurnResult> handleTurn(ZaraTurnRequest request) async {
     if (!isConfigured) {
+      developer.log(
+        'provider not configured; returning deterministic fallback.',
+        name: 'zara',
+      );
       return _fallback(internalReason: 'llm provider not configured');
     }
 
     final capability = _classifyCapability(request.userMessage);
     if (capability == null) {
+      developer.log(
+        'no capability matched for inbound message; returning deterministic fallback.',
+        name: 'zara',
+      );
       return _fallback(internalReason: 'no capability matched');
     }
 
@@ -140,6 +148,10 @@ class ProviderBackedZaraService implements ZaraService {
       capability: capability,
     );
     if (!tierOk) {
+      developer.log(
+        'tier gate blocked capability ${capability.capabilityKey}: active=${request.activeTier.name}, required=${capability.minTier.name}.',
+        name: 'zara',
+      );
       return ZaraTurnResult(
         text: zaraCapabilityUpsellMessage(
           capability: capability,
@@ -158,6 +170,10 @@ class ProviderBackedZaraService implements ZaraService {
       activeDataSources: request.activeDataSources,
     );
     if (!dataSourceOk) {
+      developer.log(
+        'data-source gate blocked capability ${capability.capabilityKey}: required=${capability.requiresDataSource}.',
+        name: 'zara',
+      );
       return ZaraTurnResult(
         text: zaraCapabilityDataSourceMessage(capability: capability),
         decision: ZaraDecision.refusedDataSource,

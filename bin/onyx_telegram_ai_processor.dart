@@ -1537,6 +1537,9 @@ class _OnyxTelegramAiProcessor {
       deliveryMode: TelegramAiDeliveryMode.telegramLive,
       siteAwarenessSummary: summary,
     );
+    logInfo(
+      'AI draft provider=${draft.providerLabel} fallback=${draft.usedFallback}: ${_preview(draft.text)}',
+    );
     return draft.text.trim().isEmpty
         ? 'Message received. Monitoring continues.'
         : draft.text.trim();
