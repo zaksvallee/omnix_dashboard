@@ -175,6 +175,17 @@ String zaraCapabilityUpsellMessage({
   return '${capability.upsellBlurb} Active tier: ${zaraTierLabel(activeTier)}. Required tier: ${zaraTierLabel(capability.minTier)}.';
 }
 
+String zaraCapabilityDataSourceMessage({
+  required ZaraCapabilityDefinition capability,
+}) {
+  final dataSource = capability.requiresDataSource?.trim();
+  if (dataSource == null || dataSource.isEmpty) {
+    return '${capability.displayName} is not currently available for this site.';
+  }
+  return '${capability.displayName} needs $dataSource to be active for this '
+      'site. I can flag it for activation if helpful.';
+}
+
 String zaraTierLabel(ZaraCapabilityTier tier) {
   return switch (tier) {
     ZaraCapabilityTier.standard => 'Standard',
