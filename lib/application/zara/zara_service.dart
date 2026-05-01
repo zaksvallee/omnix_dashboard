@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'capability_registry.dart';
 import 'llm_provider.dart';
 import 'system_prompt.dart';
+import 'tools/zara_tool.dart';
+import 'tools/zara_tool_registry.dart';
 
 /// Caller-neutral site context. Adapter-side code (e.g. Telegram) maps its
 /// own context type into this at the boundary so ZaraService doesn't depend
@@ -172,8 +175,14 @@ ZaraCapabilityDefinition? classifyZaraCapability(String userMessage) {
 ///   future prompt-builder expansion.
 class ProviderBackedZaraService implements ZaraService {
   final LlmProvider llmProvider;
+  final ZaraToolRegistry toolRegistry;
 
-  const ProviderBackedZaraService({required this.llmProvider});
+  static const int _maxToolIterations = 5;
+
+  const ProviderBackedZaraService({
+    required this.llmProvider,
+    this.toolRegistry = emptyZaraToolRegistry,
+  });
 
   @override
   bool get isConfigured => llmProvider.isConfigured;
@@ -220,48 +229,136 @@ class ProviderBackedZaraService implements ZaraService {
       capability: capability,
       activeAllowanceTier: request.allowanceTier,
       activeDataSources: request.activeDataSources,
+      boundSiteId: request.siteId,
+      siteContextSummary: request.siteContext?.contextSummary,
+      siteContextObservedAtUtc: request.siteContext?.observedAtUtc,
     );
 
-    try {
-      final response = await llmProvider.complete(
-        messages: <LlmMessage>[
-          LlmMessage(role: LlmMessageRole.user, text: request.userMessage),
-        ],
-        systemPrompt: systemPrompt,
-        serviceLevel: LlmServiceLevel.primary,
-        maxOutputTokens: 220,
-      );
+    final tools = toolRegistry.definitionsForCapability(
+      capability.capabilityKey,
+    );
+    final messages = <LlmMessage>[
+      LlmMessage(role: LlmMessageRole.user, text: request.userMessage),
+    ];
+    final toolContext = ZaraToolContext(
+      clientId: request.clientId,
+      siteId: request.siteId,
+    );
 
-      final text = response.text.trim();
-      if (text.isEmpty) {
+    LlmResponse? lastResponse;
+    for (var iteration = 0; iteration < _maxToolIterations; iteration++) {
+      try {
+        final response = await llmProvider.complete(
+          messages: messages,
+          systemPrompt: systemPrompt,
+          tools: tools,
+          serviceLevel: LlmServiceLevel.primary,
+          maxOutputTokens: 220,
+        );
+        lastResponse = response;
+
+        if (!response.hasToolCalls) {
+          final text = response.text.trim();
+          if (text.isEmpty) {
+            developer.log(
+              'provider returned empty text for ${capability.capabilityKey} '
+              'on iteration $iteration',
+              name: 'zara',
+            );
+            return _fallback(
+              capabilityKey: capability.capabilityKey,
+              internalReason:
+                  'provider returned empty text on iteration $iteration',
+            );
+          }
+
+          return ZaraTurnResult(
+            text: text,
+            decision: ZaraDecision.delegated,
+            providerLabel: response.providerLabel,
+            capabilityKey: capability.capabilityKey,
+          );
+        }
+
+        messages.add(
+          LlmMessage(
+            role: LlmMessageRole.assistant,
+            text: response.text,
+            toolCalls: response.toolCalls,
+          ),
+        );
+
+        for (final call in response.toolCalls) {
+          final tool = toolRegistry.toolByName(call.toolName);
+          ZaraToolExecutionResult result;
+          if (tool == null) {
+            developer.log(
+              'tool ${call.toolName} not registered for '
+              '${capability.capabilityKey}',
+              name: 'zara',
+            );
+            result = ZaraToolExecutionResult.error(
+              'tool ${call.toolName} not registered',
+            );
+          } else {
+            try {
+              result = await tool.execute(call.input, toolContext);
+            } catch (error, stackTrace) {
+              developer.log(
+                'tool ${call.toolName} threw',
+                name: 'zara',
+                error: error,
+                stackTrace: stackTrace,
+              );
+              result = ZaraToolExecutionResult.error(
+                'tool execution failed: $error',
+              );
+            }
+          }
+
+          messages.add(
+            LlmMessage(
+              role: LlmMessageRole.tool,
+              toolName: call.toolName,
+              toolUseId: call.id,
+              text: jsonEncode(result.output),
+              isError: result.isError,
+            ),
+          );
+        }
+      } catch (error, stackTrace) {
         developer.log(
-          'provider returned empty text for ${capability.capabilityKey}',
+          'provider call failed for ${capability.capabilityKey} '
+          'on iteration $iteration',
           name: 'zara',
+          error: error,
+          stackTrace: stackTrace,
         );
         return _fallback(
           capabilityKey: capability.capabilityKey,
-          internalReason: 'provider returned empty text',
+          internalReason: 'provider error: $error',
         );
       }
+    }
 
+    developer.log(
+      'tool loop iteration cap ($_maxToolIterations) hit for '
+      '${capability.capabilityKey}',
+      name: 'zara',
+    );
+    final fallbackText = lastResponse?.text.trim() ?? '';
+    if (fallbackText.isNotEmpty && lastResponse != null) {
       return ZaraTurnResult(
-        text: text,
+        text: fallbackText,
         decision: ZaraDecision.delegated,
-        providerLabel: response.providerLabel,
+        providerLabel: lastResponse.providerLabel,
         capabilityKey: capability.capabilityKey,
-      );
-    } catch (error, stackTrace) {
-      developer.log(
-        'provider call failed for ${capability.capabilityKey}',
-        name: 'zara',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return _fallback(
-        capabilityKey: capability.capabilityKey,
-        internalReason: 'provider error: $error',
       );
     }
+    return _fallback(
+      capabilityKey: capability.capabilityKey,
+      internalReason: 'tool loop iteration cap hit without terminal text',
+    );
   }
 
   ZaraTurnResult _fallback({String? capabilityKey, String? internalReason}) {

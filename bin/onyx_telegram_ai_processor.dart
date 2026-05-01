@@ -5,8 +5,12 @@ import 'dart:math' as math;
 
 import '_logging.dart';
 import 'package:http/http.dart' as http;
+import 'package:omnix_dashboard/application/zara/allowance_metering.dart';
 import 'package:omnix_dashboard/application/zara/llm_provider.dart';
 import 'package:omnix_dashboard/application/zara/openai_responses_llm_provider.dart';
+import 'package:omnix_dashboard/application/zara/tools/fetch_footfall_count_tool.dart';
+import 'package:omnix_dashboard/application/zara/tools/zara_tool.dart';
+import 'package:omnix_dashboard/application/zara/tools/zara_tool_registry.dart';
 import 'package:omnix_dashboard/application/zara/zara_runtime_scope_resolver.dart';
 import 'package:omnix_dashboard/application/zara/zara_service.dart';
 import 'package:supabase/supabase.dart';
@@ -69,8 +73,20 @@ Future<void> main() async {
         )
       : const UnconfiguredLlmProvider();
 
+  final toolRegistry = ZaraToolRegistry(
+    toolsByName: <String, ZaraTool>{
+      'fetch_footfall_count': FetchFootfallCountTool(supabase: supabase),
+    },
+    capabilityToToolNames: <String, List<String>>{
+      'footfall_count': <String>['fetch_footfall_count'],
+    },
+  );
+
   final ZaraService zara = llmProvider.isConfigured
-      ? ProviderBackedZaraService(llmProvider: llmProvider)
+      ? ProviderBackedZaraService(
+          llmProvider: llmProvider,
+          toolRegistry: toolRegistry,
+        )
       : const UnconfiguredZaraService();
   final zaraScopeResolver = ZaraRuntimeScopeResolver(
     dataSource: SupabaseZaraRuntimeScopeDataSource(supabase: supabase),
@@ -245,10 +261,7 @@ class _OnyxTelegramAiProcessor {
         logInfo('Row $rowId marked processed.');
         processedCount++;
       } catch (error, stackTrace) {
-        logError(
-          'ERROR processing row $rowId: $error',
-          stackTrace: stackTrace,
-        );
+        logError('ERROR processing row $rowId: $error', stackTrace: stackTrace);
         try {
           await _markProcessed(rowId);
           logInfo('Row $rowId marked processed after failure.');
@@ -851,8 +864,10 @@ class _OnyxTelegramAiProcessor {
         actionLabel: 'dispatch',
       );
       if (!await _dispatchActiveForIncident(incidentId)) {
-        final priority =
-            (alertContext?['priority'] ?? '').toString().trim().toLowerCase();
+        final priority = (alertContext?['priority'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
         final nowIso = nowUtc.toUtc().toIso8601String();
         await supabase.from('dispatch_intents').insert(<String, Object?>{
           'action_type': 'armed_response',
@@ -973,8 +988,7 @@ class _OnyxTelegramAiProcessor {
         alertContext: alertContext,
         update: update,
         actionLabel: 'false_alarm',
-        controllerNotes:
-            'Marked as false alarm via Telegram operator action',
+        controllerNotes: 'Marked as false alarm via Telegram operator action',
       );
       await _finalizeAlertButtonAction(
         update: update,
@@ -1153,7 +1167,9 @@ class _OnyxTelegramAiProcessor {
           ? null
           : 'onyx-camera-${channelId.trim().isEmpty ? '0' : channelId.trim()}.jpg',
     );
-    await telegramBridge.sendMessages(messages: <TelegramBridgeMessage>[message]);
+    await telegramBridge.sendMessages(
+      messages: <TelegramBridgeMessage>[message],
+    );
   }
 
   Future<List<int>?> _fetchLatestSnapshotBytes(String channelId) async {
@@ -1204,8 +1220,7 @@ class _OnyxTelegramAiProcessor {
     final needle = alertId.trim();
     for (final entry in raw) {
       if (entry is! Map) continue;
-      final entryAlertId =
-          (entry['alert_id'] ?? '').toString().trim();
+      final entryAlertId = (entry['alert_id'] ?? '').toString().trim();
       if (entryAlertId == needle) {
         return Map<String, Object?>.from(entry.cast<Object?, Object?>());
       }
@@ -1226,18 +1241,21 @@ class _OnyxTelegramAiProcessor {
     String? controllerNotes,
   }) async {
     final nowIso = nowUtc.toUtc().toIso8601String();
-    final detectedAtIso = DateTime.tryParse(
+    final detectedAtIso =
+        DateTime.tryParse(
           (alertContext?['detected_at'] ?? '').toString().trim(),
         )?.toUtc().toIso8601String() ??
         nowIso;
     final zoneName = _contextZone(alertContext);
     final channel = _contextChannel(alertContext, '');
-    final priorityRaw =
-        (alertContext?['priority'] ?? '').toString().trim().toLowerCase();
+    final priorityRaw = (alertContext?['priority'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
     final priority =
         const {'critical', 'high', 'medium', 'low'}.contains(priorityRaw)
-            ? priorityRaw
-            : 'medium';
+        ? priorityRaw
+        : 'medium';
     final values = <String, Object?>{
       'event_uid': alertId,
       'site_id': siteId,
@@ -1249,8 +1267,7 @@ class _OnyxTelegramAiProcessor {
       'priority': priority,
       'signal_received_at': detectedAtIso,
       'occurred_at': detectedAtIso,
-      'description':
-          'Telegram $actionLabel: ${zoneName ?? 'alert $alertId'}',
+      'description': 'Telegram $actionLabel: ${zoneName ?? 'alert $alertId'}',
       'zone_name': ?zoneName,
       if (channel.isNotEmpty) 'channel': channel,
       actionTimestampColumn: nowIso,
@@ -1393,7 +1410,9 @@ class _OnyxTelegramAiProcessor {
         updatedAlerts.add(entry);
         continue;
       }
-      final alertMap = Map<String, Object?>.from(entry.cast<Object?, Object?>());
+      final alertMap = Map<String, Object?>.from(
+        entry.cast<Object?, Object?>(),
+      );
       final entryAlertId = (alertMap['alert_id'] ?? '').toString().trim();
       if (entryAlertId != alertId.trim()) {
         updatedAlerts.add(alertMap);
@@ -2583,7 +2602,9 @@ class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
     TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
-    final allowanceTier = await scopeResolver.resolveAllowanceTier(clientId);
+    final allowanceContext = await scopeResolver.resolveAllowanceContext(
+      clientId,
+    );
     final activeDataSources = await scopeResolver.resolveActiveDataSources(
       clientId,
       siteId,
@@ -2595,14 +2616,77 @@ class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
         audience: _audienceFrom(audience),
         clientId: clientId,
         siteId: siteId,
-        allowanceTier: allowanceTier,
+        allowanceTier: allowanceContext.plan.tier,
         activeDataSources: activeDataSources,
         siteContext: _siteContextFrom(siteAwarenessSummary),
       ),
     );
 
+    var replyText = result.text;
+    final normalizedClientId = clientId?.trim() ?? '';
+    if (normalizedClientId.isNotEmpty) {
+      final isEmergency = zaraMessageLooksEmergency(messageText);
+      final billableUnits = zaraBillableUnitsForTurn(
+        decisionLabel: result.decision.name,
+        usedFallback: result.usedFallback,
+        capabilityKey: result.capabilityKey,
+      );
+      final createdAtUtc = DateTime.now().toUtc();
+      try {
+        await scopeResolver.recordUsageEntry(
+          ZaraUsageLedgerEntry(
+            clientId: normalizedClientId,
+            siteId: siteId,
+            audienceLabel: audience.name,
+            deliveryModeLabel: deliveryMode.name,
+            allowanceTier: allowanceContext.plan.tier,
+            capabilityKey: result.capabilityKey,
+            decisionLabel: result.decision.name,
+            providerLabel: result.providerLabel,
+            usedFallback: result.usedFallback,
+            isEmergency: isEmergency,
+            billableUnits: billableUnits,
+            createdAtUtc: createdAtUtc,
+            metadata: <String, Object?>{
+              'site_context_available': siteAwarenessSummary != null,
+            },
+          ),
+        );
+        if (billableUnits > 0) {
+          final afterUsage = await scopeResolver.resolveMonthlyUsage(
+            normalizedClientId,
+            nowUtc: createdAtUtc,
+            allowancePlan: allowanceContext.plan,
+          );
+          final warningEvent = zaraAllowanceWarningEventForTransition(
+            beforeUsage: allowanceContext.usage,
+            afterUsage: afterUsage,
+          );
+          final warningText = buildZaraAllowanceWarningText(
+            event: warningEvent,
+            usage: afterUsage,
+            isEmergency: isEmergency,
+          );
+          if (warningText != null) {
+            logInfo(
+              'Zara allowance warning ${warningEvent.name} for '
+              '$normalizedClientId used=${afterUsage.usedUnits}/'
+              '${afterUsage.includedUnits} emergency=$isEmergency',
+            );
+            replyText = _appendAllowanceNotice(replyText, warningText);
+          }
+        }
+      } catch (error, stackTrace) {
+        logError(
+          'Failed to meter Zara allowance usage for $normalizedClientId.',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
+
     return TelegramAiDraftReply(
-      text: result.text,
+      text: replyText,
       usedFallback: result.usedFallback,
       providerLabel: result.providerLabel,
     );
@@ -2635,6 +2719,18 @@ class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
       contextSummary: summary.contextSummary,
     );
   }
+}
+
+String _appendAllowanceNotice(String replyText, String warningText) {
+  final normalizedReply = replyText.trim();
+  final normalizedWarning = warningText.trim();
+  if (normalizedWarning.isEmpty) {
+    return normalizedReply;
+  }
+  if (normalizedReply.isEmpty) {
+    return normalizedWarning;
+  }
+  return '$normalizedReply\n\n$normalizedWarning';
 }
 
 class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
@@ -3104,8 +3200,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       'chat_id': chatId.trim(),
       'message_id': messageId,
       bodyKey: normalizedBody,
-      if ((parseMode ?? '').trim().isNotEmpty)
-        'parse_mode': parseMode!.trim(),
+      if ((parseMode ?? '').trim().isNotEmpty) 'parse_mode': parseMode!.trim(),
     };
     if (replyMarkup != null) {
       payload['reply_markup'] = replyMarkup;
