@@ -146,6 +146,16 @@ ZaraCapabilityDefinition? zaraCapabilityByKey(String capabilityKey) {
   return null;
 }
 
+ZaraCapabilityTier? parseZaraCapabilityTier(Object? rawTier) {
+  final normalized = rawTier?.toString().trim().toLowerCase() ?? '';
+  return switch (normalized) {
+    'standard' => ZaraCapabilityTier.standard,
+    'premium' => ZaraCapabilityTier.premium,
+    'tactical' => ZaraCapabilityTier.tactical,
+    _ => null,
+  };
+}
+
 bool zaraTierAllowsCapability({
   required ZaraCapabilityTier activeTier,
   required ZaraCapabilityDefinition capability,
