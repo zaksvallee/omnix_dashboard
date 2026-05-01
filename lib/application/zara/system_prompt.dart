@@ -30,6 +30,9 @@ String buildZaraSystemPrompt({
   ZaraCapabilityDefinition? capability,
   ZaraAllowanceTier activeAllowanceTier = ZaraAllowanceTier.standard,
   Iterable<String> activeDataSources = const <String>[],
+  String? boundSiteId,
+  String? siteContextSummary,
+  DateTime? siteContextObservedAtUtc,
 }) {
   final buffer = StringBuffer(zaraSystemPromptV1.trim());
   if (capability == null) {
@@ -44,6 +47,8 @@ String buildZaraSystemPrompt({
       .map((entry) => entry.trim())
       .where((entry) => entry.isNotEmpty)
       .join(', ');
+  final normalizedBoundSiteId = boundSiteId?.trim() ?? '';
+  final normalizedSiteContextSummary = siteContextSummary?.trim() ?? '';
 
   buffer
     ..write('\n\nCapability context:\n')
@@ -61,6 +66,34 @@ String buildZaraSystemPrompt({
       '- Available data sources: ${availableDataSources.isEmpty ? 'none declared' : availableDataSources}\n',
     )
     ..write('\nCapability execution rules:\n');
+
+  if (normalizedBoundSiteId.isNotEmpty ||
+      normalizedSiteContextSummary.isNotEmpty) {
+    buffer
+      ..write('\nRuntime context:\n')
+      ..write(
+        '- Bound site scope: ${normalizedBoundSiteId.isEmpty ? 'not provided' : normalizedBoundSiteId}\n',
+      );
+    if (siteContextObservedAtUtc != null) {
+      buffer.write(
+        '- Latest site context observed at (UTC): ${siteContextObservedAtUtc.toUtc().toIso8601String()}\n',
+      );
+    }
+    if (normalizedSiteContextSummary.isNotEmpty) {
+      buffer.write('- Latest site context: $normalizedSiteContextSummary\n');
+    }
+    buffer
+      ..write('\nRuntime scope rules:\n')
+      ..write(
+        '- The inbound transport has already bound this request to the site above.\n',
+      )
+      ..write(
+        '- Do not ask the user to restate the site scope unless they explicitly ask to compare sites or switch sites.\n',
+      )
+      ..write(
+        '- If the user asks a site-level question, answer for the bound site by default.\n',
+      );
+  }
 
   if (hasDataSource) {
     buffer.write(
