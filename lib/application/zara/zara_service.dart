@@ -104,6 +104,58 @@ const String _fallbackText = 'Message received. Monitoring continues.';
 const String _fallbackProviderLabel = 'fallback';
 const String _gatedProviderLabel = 'gated';
 
+/// Shared v1 classifier for Zara-first Telegram phrasing.
+///
+/// This is intentionally narrow. It exists so transport layers can give Zara
+/// first shot at the phrases we explicitly seeded, without duplicating the
+/// phrase buckets in multiple places.
+ZaraCapabilityDefinition? classifyZaraCapability(String userMessage) {
+  final normalised = userMessage.trim().toLowerCase();
+  if (normalised.isEmpty) return null;
+
+  const footfallPhrases = <String>[
+    'footfall',
+    'foot traffic',
+    'how many people',
+    'how many came',
+    'how many visitors',
+    'visitor count',
+    'people count',
+  ];
+  if (footfallPhrases.any(normalised.contains)) {
+    return zaraCapabilityByKey('footfall_count');
+  }
+
+  const incidentPhrases = <String>[
+    'summarise the incident',
+    'summarize the incident',
+    'incident summary',
+    'what happened with',
+    'what happened at',
+    'tell me about the incident',
+    'walk me through the incident',
+  ];
+  if (incidentPhrases.any(normalised.contains)) {
+    return zaraCapabilityByKey('incident_summary_reply');
+  }
+
+  const statusPhrases = <String>[
+    'all clear',
+    'all good',
+    'site status',
+    'status check',
+    'anything to report',
+    "what's happening",
+    'whats happening',
+    'how are things',
+  ];
+  if (statusPhrases.any(normalised.contains)) {
+    return zaraCapabilityByKey('monitoring_status_brief');
+  }
+
+  return null;
+}
+
 /// Concrete ZaraService backed by an injected LlmProvider.
 ///
 /// Provider-agnostic by design: this class does not name Anthropic, OpenAI,
@@ -134,7 +186,7 @@ class ProviderBackedZaraService implements ZaraService {
       return _fallback(internalReason: 'llm provider not configured');
     }
 
-    final capability = _classifyCapability(request.userMessage);
+    final capability = classifyZaraCapability(request.userMessage);
     if (capability == null) {
       developer.log(
         'no capability matched for inbound message; returning deterministic fallback.',
@@ -241,55 +293,5 @@ class ProviderBackedZaraService implements ZaraService {
       internalReason: internalReason,
       usedFallback: true,
     );
-  }
-
-  /// v1 classifier. Phrase-level matching against three seeded capabilities.
-  /// Priority order: footfall (most specific), incident, monitoring (most generic).
-  /// Returns null if no capability matches — caller hits ZaraDecision.fallback.
-  ZaraCapabilityDefinition? _classifyCapability(String userMessage) {
-    final normalised = userMessage.trim().toLowerCase();
-    if (normalised.isEmpty) return null;
-
-    const footfallPhrases = <String>[
-      'footfall',
-      'foot traffic',
-      'how many people',
-      'how many came',
-      'how many visitors',
-      'visitor count',
-      'people count',
-    ];
-    if (footfallPhrases.any(normalised.contains)) {
-      return zaraCapabilityByKey('footfall_count');
-    }
-
-    const incidentPhrases = <String>[
-      'summarise the incident',
-      'summarize the incident',
-      'incident summary',
-      'what happened with',
-      'what happened at',
-      'tell me about the incident',
-      'walk me through the incident',
-    ];
-    if (incidentPhrases.any(normalised.contains)) {
-      return zaraCapabilityByKey('incident_summary_reply');
-    }
-
-    const statusPhrases = <String>[
-      'all clear',
-      'all good',
-      'site status',
-      'status check',
-      'anything to report',
-      "what's happening",
-      'whats happening',
-      'how are things',
-    ];
-    if (statusPhrases.any(normalised.contains)) {
-      return zaraCapabilityByKey('monitoring_status_brief');
-    }
-
-    return null;
   }
 }

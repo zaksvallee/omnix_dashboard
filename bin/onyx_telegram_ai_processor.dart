@@ -322,6 +322,14 @@ class _OnyxTelegramAiProcessor {
     required TelegramBridgeInboundMessage update,
     required _ProcessorTarget target,
   }) async {
+    final zaraCapability = classifyZaraCapability(update.text);
+    if (zaraCapability != null) {
+      logInfo(
+        'Zara capability ${zaraCapability.capabilityKey} took precedence over legacy command router.',
+      );
+      return _buildAiFallbackReply(update: update, target: target);
+    }
+
     final commandType = router.classify(update.text);
     return switch (commandType) {
       OnyxTelegramCommandType.liveStatus => _buildLiveStatusReply(

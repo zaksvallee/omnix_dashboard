@@ -42,6 +42,24 @@ class _FakeLlmProvider implements LlmProvider {
 }
 
 void main() {
+  group('classifyZaraCapability', () {
+    test('matches the seeded live-smoke phrases', () {
+      expect(
+        classifyZaraCapability('all clear at the gate')?.capabilityKey,
+        'monitoring_status_brief',
+      );
+      expect(
+        classifyZaraCapability('Summarise the incident')?.capabilityKey,
+        'incident_summary_reply',
+      );
+      expect(
+        classifyZaraCapability('how many people came today')?.capabilityKey,
+        'footfall_count',
+      );
+      expect(classifyZaraCapability('Hello'), isNull);
+    });
+  });
+
   group('ProviderBackedZaraService.handleTurn', () {
     test('delegated path returns provider text for monitoring brief', () async {
       final provider = _FakeLlmProvider(
