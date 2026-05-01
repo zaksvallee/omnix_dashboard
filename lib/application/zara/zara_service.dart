@@ -42,7 +42,7 @@ class ZaraTurnRequest {
   final ZaraAudience audience;
   final String? clientId;
   final String? siteId;
-  final ZaraCapabilityTier activeTier;
+  final ZaraAllowanceTier allowanceTier;
   final Iterable<String> activeDataSources;
   final ZaraSiteContext? siteContext;
 
@@ -51,14 +51,14 @@ class ZaraTurnRequest {
     required this.audience,
     this.clientId,
     this.siteId,
-    required this.activeTier,
+    required this.allowanceTier,
     this.activeDataSources = const <String>[],
     this.siteContext,
   });
 }
 
-/// Outcome shape, with the four code paths explicit.
-enum ZaraDecision { delegated, refusedTier, refusedDataSource, fallback }
+/// Outcome shape for the current Zara transport contract.
+enum ZaraDecision { delegated, refusedDataSource, fallback }
 
 class ZaraTurnResult {
   final String text;
@@ -162,8 +162,10 @@ ZaraCapabilityDefinition? classifyZaraCapability(String userMessage) {
 /// or Ollama. The injected LlmProvider is the only seam to the model layer.
 ///
 /// v1 scope:
-/// - Classifier recognises three capability keys (see _classifyCapability).
+/// - Classifier recognises three capability keys (see classifyZaraCapability).
 ///   Unmatched messages return ZaraDecision.fallback.
+/// - Capability access is infrastructure-gated only. Commercial allowance
+///   tiers are carried through for future quota handling, not for access.
 /// - LlmServiceLevel.primary only. No escalation routing.
 /// - On provider failure, returns deterministic fallback. Does not improvise.
 /// - request.audience and request.siteContext are unused in v1; reserved for
@@ -195,28 +197,6 @@ class ProviderBackedZaraService implements ZaraService {
       return _fallback(internalReason: 'no capability matched');
     }
 
-    final tierOk = zaraTierAllowsCapability(
-      activeTier: request.activeTier,
-      capability: capability,
-    );
-    if (!tierOk) {
-      developer.log(
-        'tier gate blocked capability ${capability.capabilityKey}: active=${request.activeTier.name}, required=${capability.minTier.name}.',
-        name: 'zara',
-      );
-      return ZaraTurnResult(
-        text: zaraCapabilityUpsellMessage(
-          capability: capability,
-          activeTier: request.activeTier,
-        ),
-        decision: ZaraDecision.refusedTier,
-        providerLabel: _gatedProviderLabel,
-        capabilityKey: capability.capabilityKey,
-        internalReason:
-            'tier ${request.activeTier.name} below required ${capability.minTier.name}',
-      );
-    }
-
     final dataSourceOk = zaraCapabilityHasDataSource(
       capability: capability,
       activeDataSources: request.activeDataSources,
@@ -238,7 +218,7 @@ class ProviderBackedZaraService implements ZaraService {
 
     final systemPrompt = buildZaraSystemPrompt(
       capability: capability,
-      activeTier: request.activeTier,
+      activeAllowanceTier: request.allowanceTier,
       activeDataSources: request.activeDataSources,
     );
 

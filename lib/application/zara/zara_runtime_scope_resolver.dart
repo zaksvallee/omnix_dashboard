@@ -43,7 +43,7 @@ class SupabaseZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
     try {
       final row = await supabase
           .from('clients')
-          .select('client_id, zara_tier, metadata')
+          .select('client_id, zara_allowance_tier, metadata')
           .eq('client_id', normalizedClientId)
           .maybeSingle();
       if (row != null) {
@@ -181,18 +181,19 @@ class ZaraRuntimeScopeResolver {
 
   const ZaraRuntimeScopeResolver({required this.dataSource});
 
-  Future<ZaraCapabilityTier> resolveTier(String? clientId) async {
+  Future<ZaraAllowanceTier> resolveAllowanceTier(String? clientId) async {
     final normalizedClientId = clientId?.trim() ?? '';
     if (normalizedClientId.isEmpty) {
-      return ZaraCapabilityTier.standard;
+      return ZaraAllowanceTier.standard;
     }
 
     final row = await dataSource.fetchClientScope(normalizedClientId);
     final metadata = (row?['metadata'] as Map?)?.cast<String, dynamic>();
     final parsedTier =
-        parseZaraCapabilityTier(row?['zara_tier']) ??
-        parseZaraCapabilityTier(metadata?['zara_tier']);
-    return parsedTier ?? ZaraCapabilityTier.standard;
+        parseZaraAllowanceTier(row?['zara_allowance_tier']) ??
+        parseZaraAllowanceTier(metadata?['zara_allowance_tier']) ??
+        parseZaraAllowanceTier(metadata?['zara_tier']);
+    return parsedTier ?? ZaraAllowanceTier.standard;
   }
 
   Future<Set<String>> resolveActiveDataSources(

@@ -1,10 +1,9 @@
-enum ZaraCapabilityTier { standard, premium, tactical }
+enum ZaraAllowanceTier { standard, premium, tactical }
 
 enum ZaraCapabilityCategory { conversational, analytics, intelligence }
 
 class ZaraCapabilityDefinition {
   final String capabilityKey;
-  final ZaraCapabilityTier minTier;
   final String displayName;
   final ZaraCapabilityCategory category;
   final String upsellBlurb;
@@ -13,7 +12,6 @@ class ZaraCapabilityDefinition {
 
   const ZaraCapabilityDefinition({
     required this.capabilityKey,
-    required this.minTier,
     required this.displayName,
     required this.category,
     required this.upsellBlurb,
@@ -24,7 +22,6 @@ class ZaraCapabilityDefinition {
   Map<String, Object?> toRow() {
     return <String, Object?>{
       'capability_key': capabilityKey,
-      'min_tier': minTier.name,
       'display_name': displayName,
       'category': category.name,
       'upsell_blurb': upsellBlurb,
@@ -38,100 +35,90 @@ const List<ZaraCapabilityDefinition>
 zaraCapabilityRegistry = <ZaraCapabilityDefinition>[
   ZaraCapabilityDefinition(
     capabilityKey: 'monitoring_status_brief',
-    minTier: ZaraCapabilityTier.standard,
     displayName: 'Monitoring Status Brief',
     category: ZaraCapabilityCategory.conversational,
     upsellBlurb:
-        'I can keep the monitoring brief in the Standard lane. No upgrade needed here.',
+        'Monitoring status briefs are already available on ONYX live-monitoring sites.',
     upsellCta: 'feature_sheet',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'incident_summary_reply',
-    minTier: ZaraCapabilityTier.standard,
     displayName: 'Incident Summary Reply',
     category: ZaraCapabilityCategory.conversational,
     upsellBlurb:
-        'I can draft the incident summary in the Standard lane. No upgrade needed here.',
+        'Incident summary replies are already available when the incident context is in lane.',
     upsellCta: 'feature_sheet',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'report_narrative_draft',
-    minTier: ZaraCapabilityTier.standard,
     displayName: 'Report Narrative Draft',
     category: ZaraCapabilityCategory.intelligence,
     upsellBlurb:
-        'I can draft the report narrative in the Standard lane. No upgrade needed here.',
-    upsellCta: 'feature_sheet',
+        'Report narrative drafts need the report bundle activated for this site. I can flag that through your account manager if helpful.',
+    upsellCta: 'account_manager',
     requiresDataSource: 'report_bundle',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'dispatch_triage',
-    minTier: ZaraCapabilityTier.premium,
     displayName: 'Dispatch Triage',
     category: ZaraCapabilityCategory.intelligence,
     upsellBlurb:
-        'I can take dispatch triage further once Premium intelligence is switched on for this site.',
-    upsellCta: 'sales_call',
+        'Dispatch triage needs dispatch event history activated for this site. I can flag that through your account manager if helpful.',
+    upsellCta: 'account_manager',
     requiresDataSource: 'dispatch_events',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'incident_notes',
-    minTier: ZaraCapabilityTier.premium,
     displayName: 'Incident Notes Timeline',
     category: ZaraCapabilityCategory.conversational,
     upsellBlurb:
-        'I can work the incident-note timeline properly once Premium intelligence is active for this site.',
-    upsellCta: 'feature_sheet',
+        'Incident-note timelines need incident notes activated for this site. I can flag that through your account manager if helpful.',
+    upsellCta: 'account_manager',
     requiresDataSource: 'incident_notes',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'guard_shift_roster_brief',
-    minTier: ZaraCapabilityTier.premium,
     displayName: 'Guard Shift Roster Brief',
     category: ZaraCapabilityCategory.analytics,
     upsellBlurb:
-        'I can brief against the live roster once Premium intelligence is enabled for the guard workflow.',
-    upsellCta: 'feature_sheet',
+        'Guard shift roster briefs need shift coverage activated for this site. I can flag that through your account manager if helpful.',
+    upsellCta: 'account_manager',
     requiresDataSource: 'shift_instances',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'footfall_count',
-    minTier: ZaraCapabilityTier.tactical,
     displayName: 'Footfall Count',
     category: ZaraCapabilityCategory.analytics,
     upsellBlurb:
-        'Footfall analytics sit in Tactical. I can help there once Tactical is enabled for this site.',
-    upsellCta: 'sales_call',
+        'Footfall queries need the CV pipeline footfall feed activated for this site. I can flag that through your account manager if helpful.',
+    upsellCta: 'account_manager',
     requiresDataSource: 'cv_pipeline_footfall',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'face_registry_lookup',
-    minTier: ZaraCapabilityTier.tactical,
     displayName: 'Face Registry Lookup',
     category: ZaraCapabilityCategory.intelligence,
     upsellBlurb:
-        'Face-registry lookups sit in Tactical. I can handle that once Tactical is enabled for this site.',
-    upsellCta: 'sales_call',
+        'Face-registry lookups need face-registry matching activated for this site. I can flag that through your account manager if helpful.',
+    upsellCta: 'account_manager',
     requiresDataSource: 'fr_person_registry',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'vehicle_pattern_analysis',
-    minTier: ZaraCapabilityTier.tactical,
     displayName: 'Vehicle Pattern Analysis',
     category: ZaraCapabilityCategory.analytics,
     upsellBlurb:
-        'Vehicle-pattern analysis sits in Tactical. I can handle that once Tactical is enabled for this site.',
-    upsellCta: 'sales_call',
+        'Vehicle pattern analysis needs vehicle analytics activated for this site. I can flag that through your account manager if helpful.',
+    upsellCta: 'account_manager',
     requiresDataSource: 'bi_vehicle_persistence',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'theatre_action_orchestration',
-    minTier: ZaraCapabilityTier.tactical,
     displayName: 'Theatre Action Orchestration',
     category: ZaraCapabilityCategory.intelligence,
     upsellBlurb:
-        'Multi-step theatre orchestration sits in Tactical. I can take that on once Tactical is enabled for this site.',
-    upsellCta: 'sales_call',
+        'Theatre action orchestration needs Zara scenarios activated for this site. I can flag that through your account manager if helpful.',
+    upsellCta: 'account_manager',
     requiresDataSource: 'zara_scenarios',
   ),
 ];
@@ -146,21 +133,14 @@ ZaraCapabilityDefinition? zaraCapabilityByKey(String capabilityKey) {
   return null;
 }
 
-ZaraCapabilityTier? parseZaraCapabilityTier(Object? rawTier) {
+ZaraAllowanceTier? parseZaraAllowanceTier(Object? rawTier) {
   final normalized = rawTier?.toString().trim().toLowerCase() ?? '';
   return switch (normalized) {
-    'standard' => ZaraCapabilityTier.standard,
-    'premium' => ZaraCapabilityTier.premium,
-    'tactical' => ZaraCapabilityTier.tactical,
+    'standard' => ZaraAllowanceTier.standard,
+    'premium' => ZaraAllowanceTier.premium,
+    'tactical' => ZaraAllowanceTier.tactical,
     _ => null,
   };
-}
-
-bool zaraTierAllowsCapability({
-  required ZaraCapabilityTier activeTier,
-  required ZaraCapabilityDefinition capability,
-}) {
-  return _tierRank(activeTier) >= _tierRank(capability.minTier);
 }
 
 bool zaraCapabilityHasDataSource({
@@ -180,9 +160,8 @@ bool zaraCapabilityHasDataSource({
 
 String zaraCapabilityUpsellMessage({
   required ZaraCapabilityDefinition capability,
-  required ZaraCapabilityTier activeTier,
 }) {
-  return '${capability.upsellBlurb} Active tier: ${zaraTierLabel(activeTier)}. Required tier: ${zaraTierLabel(capability.minTier)}.';
+  return capability.upsellBlurb;
 }
 
 String zaraCapabilityDataSourceMessage({
@@ -190,24 +169,15 @@ String zaraCapabilityDataSourceMessage({
 }) {
   final dataSource = capability.requiresDataSource?.trim();
   if (dataSource == null || dataSource.isEmpty) {
-    return '${capability.displayName} is not currently available for this site.';
+    return capability.upsellBlurb;
   }
-  return '${capability.displayName} needs $dataSource to be active for this '
-      'site. I can flag it for activation if helpful.';
+  return capability.upsellBlurb;
 }
 
-String zaraTierLabel(ZaraCapabilityTier tier) {
+String zaraAllowanceTierLabel(ZaraAllowanceTier tier) {
   return switch (tier) {
-    ZaraCapabilityTier.standard => 'Standard',
-    ZaraCapabilityTier.premium => 'Premium',
-    ZaraCapabilityTier.tactical => 'Tactical',
-  };
-}
-
-int _tierRank(ZaraCapabilityTier tier) {
-  return switch (tier) {
-    ZaraCapabilityTier.standard => 1,
-    ZaraCapabilityTier.premium => 2,
-    ZaraCapabilityTier.tactical => 3,
+    ZaraAllowanceTier.standard => 'Standard',
+    ZaraAllowanceTier.premium => 'Premium',
+    ZaraAllowanceTier.tactical => 'Tactical',
   };
 }

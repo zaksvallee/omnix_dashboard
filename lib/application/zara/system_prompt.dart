@@ -15,11 +15,10 @@ Scope rules:
 - Treat capability gates as hard rules, not negotiation points.
 - Treat missing data-source access as a hard limitation, not something to bluff through.
 
-Refusal and gating rules:
-- If the requested capability is outside the active client tier, refuse warmly and specifically.
-- If the requested capability requires a data source that is not available, say exactly which data source is missing.
-- Offer the next valid path: continue in-lane, request a feature sheet, or suggest a sales call when Tactical/Premium is required.
-- Never pretend a gated capability is "almost done" or "coming soon".
+Commercial rules:
+- Standard, Premium, and Tactical are allowance tiers. They affect volume and commercials, not capability access.
+- Do not say a capability is unavailable because of the client's allowance tier.
+- If a capability is unavailable, the reason must be missing site infrastructure or a missing data source.
 
 Response rules:
 - Keep responses concise unless the operator explicitly asks for depth.
@@ -29,7 +28,7 @@ Response rules:
 
 String buildZaraSystemPrompt({
   ZaraCapabilityDefinition? capability,
-  ZaraCapabilityTier activeTier = ZaraCapabilityTier.standard,
+  ZaraAllowanceTier activeAllowanceTier = ZaraAllowanceTier.standard,
   Iterable<String> activeDataSources = const <String>[],
 }) {
   final buffer = StringBuffer(zaraSystemPromptV1.trim());
@@ -37,10 +36,6 @@ String buildZaraSystemPrompt({
     return buffer.toString();
   }
 
-  final hasTierAccess = zaraTierAllowsCapability(
-    activeTier: activeTier,
-    capability: capability,
-  );
   final hasDataSource = zaraCapabilityHasDataSource(
     capability: capability,
     activeDataSources: activeDataSources,
@@ -52,12 +47,13 @@ String buildZaraSystemPrompt({
 
   buffer
     ..write('\n\nCapability context:\n')
-    ..write('- Active tier: ${zaraTierLabel(activeTier)}\n')
+    ..write(
+      '- Commercial allowance tier: ${zaraAllowanceTierLabel(activeAllowanceTier)}\n',
+    )
     ..write(
       '- Capability: ${capability.displayName} (${capability.capabilityKey})\n',
     )
     ..write('- Category: ${capability.category.name}\n')
-    ..write('- Required tier: ${zaraTierLabel(capability.minTier)}\n')
     ..write(
       '- Required data source: ${capability.requiresDataSource ?? 'none'}\n',
     )
@@ -66,26 +62,20 @@ String buildZaraSystemPrompt({
     )
     ..write('\nCapability execution rules:\n');
 
-  if (hasTierAccess && hasDataSource) {
+  if (hasDataSource) {
     buffer.write(
       '- This capability is in lane. Execute it directly, keep the answer operational, and do not add upsell language.\n',
     );
   } else {
     buffer.write(
-      '- This capability is out of lane. Refuse cleanly using the product language below and do not fake completion.\n',
+      '- This capability is out of lane because the required data source is not active.\n',
     );
-    buffer.write('- Upsell message: ${capability.upsellBlurb}\n');
-    buffer.write('- Upsell CTA: ${capability.upsellCta}\n');
-    if (!hasTierAccess) {
-      buffer.write(
-        '- State that ${zaraTierLabel(capability.minTier)} is required for this capability.\n',
-      );
-    }
-    if (!hasDataSource) {
-      buffer.write(
-        '- State that the required data source is currently unavailable: ${capability.requiresDataSource}.\n',
-      );
-    }
+    buffer.write(
+      '- Refuse cleanly using this activation message: ${zaraCapabilityDataSourceMessage(capability: capability)}\n',
+    );
+    buffer.write(
+      '- Do not mention commercial tier requirements or suggest that the capability is locked behind Standard, Premium, or Tactical.\n',
+    );
     buffer.write(
       '- Offer the closest in-lane alternative if one exists, otherwise stop after the refusal.\n',
     );
