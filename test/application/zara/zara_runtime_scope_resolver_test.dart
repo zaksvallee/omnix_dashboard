@@ -6,6 +6,7 @@ import 'package:omnix_dashboard/application/zara/zara_runtime_scope_resolver.dar
 class _FakeZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
   Map<String, dynamic>? clientScope;
   ZaraSiteSignals siteSignals;
+  List<ZaraExplicitDataSourceActivation> explicitDataSourceActivations;
   int monthlyUsageUnits;
   final List<ZaraUsageLedgerEntry> insertedLedgerEntries =
       <ZaraUsageLedgerEntry>[];
@@ -18,6 +19,8 @@ class _FakeZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
       hasFaceRegistryEntries: false,
       hasVehicleAnalyticsSignals: false,
     ),
+    this.explicitDataSourceActivations =
+        const <ZaraExplicitDataSourceActivation>[],
     this.monthlyUsageUnits = 0,
   });
 
@@ -32,6 +35,15 @@ class _FakeZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
     required String siteId,
   }) async {
     return siteSignals;
+  }
+
+  @override
+  Future<List<ZaraExplicitDataSourceActivation>>
+  fetchExplicitDataSourceActivations({
+    required String clientId,
+    required String siteId,
+  }) async {
+    return explicitDataSourceActivations;
   }
 
   @override
@@ -194,6 +206,93 @@ void main() {
 
       expect(activeDataSources, isEmpty);
     });
+
+    test(
+      'adds explicitly activated sources on top of inferred site signals',
+      () async {
+        final dataSource = _FakeZaraRuntimeScopeDataSource(
+          siteSignals: const ZaraSiteSignals(
+            siteExists: true,
+            hasFootfallSignals: false,
+            hasFaceRegistryEntries: false,
+            hasVehicleAnalyticsSignals: false,
+          ),
+          explicitDataSourceActivations:
+              const <ZaraExplicitDataSourceActivation>[
+                ZaraExplicitDataSourceActivation(
+                  dataSourceKey: 'cv_pipeline_footfall',
+                  active: true,
+                ),
+              ],
+        );
+        final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
+
+        final activeDataSources = await resolver.resolveActiveDataSources(
+          'CLT-001',
+          'SITE-001',
+        );
+
+        expect(activeDataSources, contains('cv_pipeline_footfall'));
+        expect(activeDataSources, contains('dispatch_events'));
+      },
+    );
+
+    test('explicit inactive activation removes an inferred source', () async {
+      final dataSource = _FakeZaraRuntimeScopeDataSource(
+        siteSignals: const ZaraSiteSignals(
+          siteExists: true,
+          hasFootfallSignals: true,
+          hasFaceRegistryEntries: false,
+          hasVehicleAnalyticsSignals: false,
+        ),
+        explicitDataSourceActivations: const <ZaraExplicitDataSourceActivation>[
+          ZaraExplicitDataSourceActivation(
+            dataSourceKey: 'cv_pipeline_footfall',
+            active: false,
+          ),
+        ],
+      );
+      final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
+
+      final activeDataSources = await resolver.resolveActiveDataSources(
+        'CLT-001',
+        'SITE-001',
+      );
+
+      expect(activeDataSources, isNot(contains('cv_pipeline_footfall')));
+      expect(activeDataSources, contains('dispatch_events'));
+    });
+
+    test(
+      'sources without explicit rows still fall back to inference',
+      () async {
+        final dataSource = _FakeZaraRuntimeScopeDataSource(
+          siteSignals: const ZaraSiteSignals(
+            siteExists: true,
+            hasFootfallSignals: true,
+            hasFaceRegistryEntries: true,
+            hasVehicleAnalyticsSignals: true,
+          ),
+          explicitDataSourceActivations:
+              const <ZaraExplicitDataSourceActivation>[
+                ZaraExplicitDataSourceActivation(
+                  dataSourceKey: 'cv_pipeline_footfall',
+                  active: false,
+                ),
+              ],
+        );
+        final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
+
+        final activeDataSources = await resolver.resolveActiveDataSources(
+          'CLT-001',
+          'SITE-001',
+        );
+
+        expect(activeDataSources, isNot(contains('cv_pipeline_footfall')));
+        expect(activeDataSources, contains('fr_person_registry'));
+        expect(activeDataSources, contains('bi_vehicle_persistence'));
+      },
+    );
 
     test('records Zara usage ledger entries through the data source', () async {
       final dataSource = _FakeZaraRuntimeScopeDataSource();

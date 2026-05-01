@@ -21,11 +21,27 @@ class ZaraSiteSignals {
   });
 }
 
+class ZaraExplicitDataSourceActivation {
+  final String dataSourceKey;
+  final bool active;
+
+  const ZaraExplicitDataSourceActivation({
+    required this.dataSourceKey,
+    required this.active,
+  });
+}
+
 abstract class ZaraRuntimeScopeDataSource {
   Future<Map<String, dynamic>?> fetchClientScope(String clientId);
 
   Future<ZaraSiteSignals> fetchSiteSignals({
     String? clientId,
+    required String siteId,
+  });
+
+  Future<List<ZaraExplicitDataSourceActivation>>
+  fetchExplicitDataSourceActivations({
+    required String clientId,
     required String siteId,
   });
 
@@ -136,6 +152,47 @@ class SupabaseZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
       hasVehicleAnalyticsSignals: hasVehicleAnalyticsSignals,
       hasScenarioSupport: false,
     );
+  }
+
+  @override
+  Future<List<ZaraExplicitDataSourceActivation>>
+  fetchExplicitDataSourceActivations({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return const <ZaraExplicitDataSourceActivation>[];
+    }
+    try {
+      final rows = await supabase
+          .from('client_data_sources')
+          .select('data_source_key, active')
+          .eq('client_id', normalizedClientId)
+          .eq('site_id', normalizedSiteId);
+      return rows
+          .map(
+            (dynamic row) => ZaraExplicitDataSourceActivation(
+              dataSourceKey:
+                  (row as Map<String, dynamic>)['data_source_key']
+                      ?.toString() ??
+                  '',
+              active: row['active'] == true,
+            ),
+          )
+          .where((entry) => entry.dataSourceKey.trim().isNotEmpty)
+          .toList(growable: false);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to fetch explicit Zara data-source activations for '
+        '$normalizedClientId/$normalizedSiteId.',
+        name: 'zara.runtime_scope',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return const <ZaraExplicitDataSourceActivation>[];
+    }
   }
 
   @override
@@ -291,6 +348,7 @@ class ZaraRuntimeScopeResolver {
     String? clientId,
     String? siteId,
   ) async {
+    final normalizedClientId = clientId?.trim() ?? '';
     final normalizedSiteId = siteId?.trim() ?? '';
     if (normalizedSiteId.isEmpty) {
       return <String>{};
@@ -300,7 +358,24 @@ class ZaraRuntimeScopeResolver {
       clientId: clientId?.trim(),
       siteId: normalizedSiteId,
     );
-    return zaraActiveDataSourcesFromSignals(signals);
+    final inferredActiveDataSources = zaraActiveDataSourcesFromSignals(signals);
+    if (inferredActiveDataSources.isEmpty || normalizedClientId.isEmpty) {
+      return inferredActiveDataSources;
+    }
+
+    final explicitActivations = await dataSource
+        .fetchExplicitDataSourceActivations(
+          clientId: normalizedClientId,
+          siteId: normalizedSiteId,
+        );
+    if (explicitActivations.isEmpty) {
+      return inferredActiveDataSources;
+    }
+
+    return applyExplicitZaraDataSourceActivations(
+      inferredActiveDataSources: inferredActiveDataSources,
+      explicitActivations: explicitActivations,
+    );
   }
 
   ZaraAllowancePlan _allowancePlanFromScope(Map<String, dynamic>? row) {
@@ -312,6 +387,25 @@ class ZaraRuntimeScopeResolver {
         ZaraAllowanceTier.standard;
     return resolveZaraAllowancePlan(tier: parsedTier, clientMetadata: metadata);
   }
+}
+
+Set<String> applyExplicitZaraDataSourceActivations({
+  required Set<String> inferredActiveDataSources,
+  required Iterable<ZaraExplicitDataSourceActivation> explicitActivations,
+}) {
+  final merged = <String>{...inferredActiveDataSources};
+  for (final activation in explicitActivations) {
+    final normalizedDataSourceKey = activation.dataSourceKey.trim();
+    if (normalizedDataSourceKey.isEmpty) {
+      continue;
+    }
+    if (activation.active) {
+      merged.add(normalizedDataSourceKey);
+    } else {
+      merged.remove(normalizedDataSourceKey);
+    }
+  }
+  return merged;
 }
 
 Set<String> zaraActiveDataSourcesFromSignals(ZaraSiteSignals signals) {
