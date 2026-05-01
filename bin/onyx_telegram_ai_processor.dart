@@ -2583,7 +2583,7 @@ class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
     TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
-    final activeTier = await scopeResolver.resolveTier(clientId);
+    final allowanceTier = await scopeResolver.resolveAllowanceTier(clientId);
     final activeDataSources = await scopeResolver.resolveActiveDataSources(
       clientId,
       siteId,
@@ -2595,7 +2595,7 @@ class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
         audience: _audienceFrom(audience),
         clientId: clientId,
         siteId: siteId,
-        activeTier: activeTier,
+        allowanceTier: allowanceTier,
         activeDataSources: activeDataSources,
         siteContext: _siteContextFrom(siteAwarenessSummary),
       ),
