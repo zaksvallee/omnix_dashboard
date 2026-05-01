@@ -31,63 +31,85 @@ class _FakeZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
 }
 
 void main() {
-  group('parseZaraCapabilityTier', () {
-    test('parses known tier strings', () {
+  group('parseZaraAllowanceTier', () {
+    test('parses known allowance tier strings', () {
       expect(
-        parseZaraCapabilityTier('standard'),
-        ZaraCapabilityTier.standard,
+        parseZaraAllowanceTier('standard'),
+        ZaraAllowanceTier.standard,
       );
-      expect(parseZaraCapabilityTier('Premium'), ZaraCapabilityTier.premium);
-      expect(parseZaraCapabilityTier('TACTICAL'), ZaraCapabilityTier.tactical);
+      expect(parseZaraAllowanceTier('Premium'), ZaraAllowanceTier.premium);
+      expect(parseZaraAllowanceTier('TACTICAL'), ZaraAllowanceTier.tactical);
     });
 
-    test('returns null for unknown tier strings', () {
-      expect(parseZaraCapabilityTier('gold'), isNull);
-      expect(parseZaraCapabilityTier(null), isNull);
-      expect(parseZaraCapabilityTier(''), isNull);
+    test('returns null for unknown allowance tier strings', () {
+      expect(parseZaraAllowanceTier('gold'), isNull);
+      expect(parseZaraAllowanceTier(null), isNull);
+      expect(parseZaraAllowanceTier(''), isNull);
     });
   });
 
   group('ZaraRuntimeScopeResolver', () {
-    test('reads explicit zara_tier column first', () async {
+    test('reads explicit zara_allowance_tier column first', () async {
       final dataSource = _FakeZaraRuntimeScopeDataSource(
         clientScope: <String, dynamic>{
-          'zara_tier': 'premium',
-          'metadata': <String, dynamic>{'zara_tier': 'tactical'},
+          'zara_allowance_tier': 'premium',
+          'metadata': <String, dynamic>{
+            'zara_allowance_tier': 'tactical',
+            'zara_tier': 'standard',
+          },
         },
       );
       final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
 
-      final tier = await resolver.resolveTier('CLT-001');
+      final tier = await resolver.resolveAllowanceTier('CLT-001');
 
-      expect(tier, ZaraCapabilityTier.premium);
+      expect(tier, ZaraAllowanceTier.premium);
     });
 
-    test('falls back to metadata zara_tier when column is absent', () async {
+    test(
+      'falls back to metadata zara_allowance_tier when column is absent',
+      () async {
+        final dataSource = _FakeZaraRuntimeScopeDataSource(
+          clientScope: <String, dynamic>{
+            'metadata': <String, dynamic>{'zara_allowance_tier': 'tactical'},
+          },
+        );
+        final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
+
+        final tier = await resolver.resolveAllowanceTier('CLT-001');
+
+        expect(tier, ZaraAllowanceTier.tactical);
+      },
+    );
+
+    test('falls back to legacy metadata zara_tier when needed', () async {
       final dataSource = _FakeZaraRuntimeScopeDataSource(
         clientScope: <String, dynamic>{
-          'metadata': <String, dynamic>{'zara_tier': 'tactical'},
+          'metadata': <String, dynamic>{'zara_tier': 'premium'},
         },
       );
       final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
 
-      final tier = await resolver.resolveTier('CLT-001');
+      final tier = await resolver.resolveAllowanceTier('CLT-001');
 
-      expect(tier, ZaraCapabilityTier.tactical);
+      expect(tier, ZaraAllowanceTier.premium);
     });
 
-    test('falls back to standard when no explicit tier is stored', () async {
-      final dataSource = _FakeZaraRuntimeScopeDataSource(
-        clientScope: <String, dynamic>{
-          'metadata': <String, dynamic>{'sla_tier': 'platinum'},
-        },
-      );
-      final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
+    test(
+      'falls back to standard when no explicit allowance tier is stored',
+      () async {
+        final dataSource = _FakeZaraRuntimeScopeDataSource(
+          clientScope: <String, dynamic>{
+            'metadata': <String, dynamic>{'sla_tier': 'platinum'},
+          },
+        );
+        final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
 
-      final tier = await resolver.resolveTier('CLT-001');
+        final tier = await resolver.resolveAllowanceTier('CLT-001');
 
-      expect(tier, ZaraCapabilityTier.standard);
-    });
+        expect(tier, ZaraAllowanceTier.standard);
+      },
+    );
 
     test('returns the active data-source set from live site signals', () async {
       final dataSource = _FakeZaraRuntimeScopeDataSource(

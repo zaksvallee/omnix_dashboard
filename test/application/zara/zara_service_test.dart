@@ -75,7 +75,7 @@ void main() {
         const ZaraTurnRequest(
           userMessage: 'all clear',
           audience: ZaraAudience.client,
-          activeTier: ZaraCapabilityTier.standard,
+          allowanceTier: ZaraAllowanceTier.standard,
         ),
       );
 
@@ -86,96 +86,105 @@ void main() {
       expect(provider.callCount, 1);
     });
 
-    test('refusedTier path blocks footfall at standard tier', () async {
-      final provider = _FakeLlmProvider();
-      final service = ProviderBackedZaraService(llmProvider: provider);
+    test(
+      'standard allowance still allows footfall when the site data source is active',
+      () async {
+        final provider = _FakeLlmProvider(
+          onComplete: () => const LlmResponse(
+            text: 'Footfall today is 14 people.',
+            providerLabel: 'fake:test-provider',
+            modelId: 'fake-model',
+          ),
+        );
+        final service = ProviderBackedZaraService(llmProvider: provider);
 
-      final result = await service.handleTurn(
-        const ZaraTurnRequest(
-          userMessage: 'footfall',
-          audience: ZaraAudience.client,
-          activeTier: ZaraCapabilityTier.standard,
-        ),
-      );
+        final result = await service.handleTurn(
+          const ZaraTurnRequest(
+            userMessage: 'footfall',
+            audience: ZaraAudience.client,
+            allowanceTier: ZaraAllowanceTier.standard,
+            activeDataSources: <String>{'cv_pipeline_footfall'},
+          ),
+        );
 
-      expect(result.decision, ZaraDecision.refusedTier);
-      expect(result.capabilityKey, 'footfall_count');
-      expect(result.providerLabel, 'gated');
-      expect(result.text, contains('Tactical'));
-      expect(result.text, contains('Footfall analytics sit in Tactical'));
-      expect(provider.callCount, 0);
-    });
+        expect(result.decision, ZaraDecision.delegated);
+        expect(result.capabilityKey, 'footfall_count');
+        expect(result.text, 'Footfall today is 14 people.');
+        expect(provider.callCount, 1);
+      },
+    );
 
     test(
-      'refusedDataSource path blocks footfall without its required data source',
+      'refusedDataSource path blocks footfall when the site data source is inactive',
       () async {
         final provider = _FakeLlmProvider();
         final service = ProviderBackedZaraService(llmProvider: provider);
 
-        // Note: report_narrative_draft would be the natural Standard-tier example
-        // for this path, but is unreachable through the v1 classifier. Using
-        // footfall_count at Tactical tier instead — same code path exercised.
-        // TODO(zara): add a Standard-tier data-source test when the classifier
-        // expands to cover it.
         final result = await service.handleTurn(
           const ZaraTurnRequest(
             userMessage: 'foot traffic',
             audience: ZaraAudience.client,
-            activeTier: ZaraCapabilityTier.tactical,
+            allowanceTier: ZaraAllowanceTier.standard,
           ),
         );
 
         expect(result.decision, ZaraDecision.refusedDataSource);
         expect(result.capabilityKey, 'footfall_count');
         expect(result.providerLabel, 'gated');
-        expect(result.text, contains('cv_pipeline_footfall'));
-        expect(result.text, contains('Footfall Count'));
+        expect(result.text, contains('CV pipeline footfall'));
+        expect(result.text, contains('account manager'));
         expect(provider.callCount, 0);
       },
     );
 
-    test('fallback on no capability match returns deterministic fallback', () async {
-      final provider = _FakeLlmProvider();
-      final service = ProviderBackedZaraService(llmProvider: provider);
+    test(
+      'fallback on no capability match returns deterministic fallback',
+      () async {
+        final provider = _FakeLlmProvider();
+        final service = ProviderBackedZaraService(llmProvider: provider);
 
-      final result = await service.handleTurn(
-        const ZaraTurnRequest(
-          userMessage: "what's the weather",
-          audience: ZaraAudience.client,
-          activeTier: ZaraCapabilityTier.standard,
-        ),
-      );
+        final result = await service.handleTurn(
+          const ZaraTurnRequest(
+            userMessage: "what's the weather",
+            audience: ZaraAudience.client,
+            allowanceTier: ZaraAllowanceTier.standard,
+          ),
+        );
 
-      expect(result.decision, ZaraDecision.fallback);
-      expect(result.capabilityKey, isNull);
-      expect(result.text, 'Message received. Monitoring continues.');
-      expect(result.usedFallback, isTrue);
-      expect(provider.callCount, 0);
-    });
+        expect(result.decision, ZaraDecision.fallback);
+        expect(result.capabilityKey, isNull);
+        expect(result.text, 'Message received. Monitoring continues.');
+        expect(result.usedFallback, isTrue);
+        expect(provider.callCount, 0);
+      },
+    );
 
-    test('fallback on provider empty text carries through capability key', () async {
-      final provider = _FakeLlmProvider(
-        onComplete: () => const LlmResponse(
-          text: '   ',
-          providerLabel: 'fake:test-provider',
-          modelId: 'fake-model',
-        ),
-      );
-      final service = ProviderBackedZaraService(llmProvider: provider);
+    test(
+      'fallback on provider empty text carries through capability key',
+      () async {
+        final provider = _FakeLlmProvider(
+          onComplete: () => const LlmResponse(
+            text: '   ',
+            providerLabel: 'fake:test-provider',
+            modelId: 'fake-model',
+          ),
+        );
+        final service = ProviderBackedZaraService(llmProvider: provider);
 
-      final result = await service.handleTurn(
-        const ZaraTurnRequest(
-          userMessage: 'status check',
-          audience: ZaraAudience.client,
-          activeTier: ZaraCapabilityTier.standard,
-        ),
-      );
+        final result = await service.handleTurn(
+          const ZaraTurnRequest(
+            userMessage: 'status check',
+            audience: ZaraAudience.client,
+            allowanceTier: ZaraAllowanceTier.standard,
+          ),
+        );
 
-      expect(result.decision, ZaraDecision.fallback);
-      expect(result.capabilityKey, 'monitoring_status_brief');
-      expect(result.usedFallback, isTrue);
-      expect(provider.callCount, 1);
-    });
+        expect(result.decision, ZaraDecision.fallback);
+        expect(result.capabilityKey, 'monitoring_status_brief');
+        expect(result.usedFallback, isTrue);
+        expect(provider.callCount, 1);
+      },
+    );
 
     test('fallback on provider exception does not crash', () async {
       final provider = _FakeLlmProvider(
@@ -187,7 +196,7 @@ void main() {
         const ZaraTurnRequest(
           userMessage: 'all good',
           audience: ZaraAudience.client,
-          activeTier: ZaraCapabilityTier.standard,
+          allowanceTier: ZaraAllowanceTier.standard,
         ),
       );
 
@@ -205,7 +214,7 @@ void main() {
         const ZaraTurnRequest(
           userMessage: 'all clear',
           audience: ZaraAudience.client,
-          activeTier: ZaraCapabilityTier.standard,
+          allowanceTier: ZaraAllowanceTier.standard,
         ),
       );
 
