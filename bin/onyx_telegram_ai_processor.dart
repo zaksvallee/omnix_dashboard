@@ -5,9 +5,9 @@ import 'dart:math' as math;
 
 import '_logging.dart';
 import 'package:http/http.dart' as http;
-import 'package:omnix_dashboard/application/zara/capability_registry.dart';
 import 'package:omnix_dashboard/application/zara/llm_provider.dart';
 import 'package:omnix_dashboard/application/zara/openai_responses_llm_provider.dart';
+import 'package:omnix_dashboard/application/zara/zara_runtime_scope_resolver.dart';
 import 'package:omnix_dashboard/application/zara/zara_service.dart';
 import 'package:supabase/supabase.dart';
 
@@ -72,9 +72,15 @@ Future<void> main() async {
   final ZaraService zara = llmProvider.isConfigured
       ? ProviderBackedZaraService(llmProvider: llmProvider)
       : const UnconfiguredZaraService();
+  final zaraScopeResolver = ZaraRuntimeScopeResolver(
+    dataSource: SupabaseZaraRuntimeScopeDataSource(supabase: supabase),
+  );
 
   final aiAssistant = zara.isConfigured
-      ? ZaraTelegramAiAssistantService(zara: zara)
+      ? ZaraTelegramAiAssistantService(
+          zara: zara,
+          scopeResolver: zaraScopeResolver,
+        )
       : const UnconfiguredTelegramAiAssistantService();
 
   final processor = _OnyxTelegramAiProcessor(
@@ -2558,8 +2564,12 @@ class UnconfiguredTelegramAiAssistantService
 
 class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
   final ZaraService zara;
+  final ZaraRuntimeScopeResolver scopeResolver;
 
-  const ZaraTelegramAiAssistantService({required this.zara});
+  const ZaraTelegramAiAssistantService({
+    required this.zara,
+    required this.scopeResolver,
+  });
 
   @override
   bool get isConfigured => zara.isConfigured;
@@ -2573,11 +2583,11 @@ class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
     TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
-    // Option B v1: hardcoded tier and data sources.
-    // TODO(zara): replace with real client-tier lookup when clients.tier
-    // lands. Data-source resolution follows in the same session.
-    const ZaraCapabilityTier hardcodedTier = ZaraCapabilityTier.standard;
-    const Set<String> hardcodedDataSources = <String>{};
+    final activeTier = await scopeResolver.resolveTier(clientId);
+    final activeDataSources = await scopeResolver.resolveActiveDataSources(
+      clientId,
+      siteId,
+    );
 
     final result = await zara.handleTurn(
       ZaraTurnRequest(
@@ -2585,8 +2595,8 @@ class ZaraTelegramAiAssistantService implements TelegramAiAssistantService {
         audience: _audienceFrom(audience),
         clientId: clientId,
         siteId: siteId,
-        activeTier: hardcodedTier,
-        activeDataSources: hardcodedDataSources,
+        activeTier: activeTier,
+        activeDataSources: activeDataSources,
         siteContext: _siteContextFrom(siteAwarenessSummary),
       ),
     );
