@@ -133,10 +133,11 @@ class AnthropicLlmProvider implements LlmProvider {
         );
       }
 
-      final text = _extractTextBlock(responseBody['content']);
-      if (text.isEmpty) {
+      final text = _extractTextBlocks(responseBody['content']);
+      final toolCalls = _extractToolCalls(responseBody['content']);
+      if (text.isEmpty && toolCalls.isEmpty) {
         developer.log(
-          'Anthropic LLM provider fallback: no text content block returned.',
+          'Anthropic LLM provider fallback: no text content or tool calls returned.',
           name: 'AnthropicLlmProvider',
         );
         return LlmResponse.fallback(
@@ -154,6 +155,7 @@ class AnthropicLlmProvider implements LlmProvider {
         inputTokens: _intFromValue(usage?['input_tokens']),
         outputTokens: _intFromValue(usage?['output_tokens']),
         rawResponse: responseBody,
+        toolCalls: toolCalls,
       );
     } catch (error, stackTrace) {
       developer.log(
@@ -172,10 +174,45 @@ class AnthropicLlmProvider implements LlmProvider {
   Map<String, Object?> _messagePayload(LlmMessage message) {
     return <String, Object?>{
       'role': _anthropicRole(message.role),
-      'content': message.toolName == null || message.toolName!.trim().isEmpty
-          ? message.text
-          : '${message.toolName!.trim()}: ${message.text}',
+      'content': _anthropicContent(message),
     };
+  }
+
+  Object _anthropicContent(LlmMessage message) {
+    final normalizedToolUseId = message.toolUseId?.trim() ?? '';
+    final normalizedText = message.text.trim();
+
+    if (message.role == LlmMessageRole.tool && normalizedToolUseId.isNotEmpty) {
+      return <Map<String, Object?>>[
+        <String, Object?>{
+          'type': 'tool_result',
+          'tool_use_id': normalizedToolUseId,
+          'content': message.text,
+          if (message.isError) 'is_error': true,
+        },
+      ];
+    }
+
+    if (message.role == LlmMessageRole.assistant &&
+        message.toolCalls.isNotEmpty) {
+      final content = <Map<String, Object?>>[];
+      if (normalizedText.isNotEmpty) {
+        content.add(<String, Object?>{'type': 'text', 'text': message.text});
+      }
+      for (final toolCall in message.toolCalls) {
+        content.add(<String, Object?>{
+          'type': 'tool_use',
+          'id': toolCall.id,
+          'name': toolCall.toolName,
+          'input': toolCall.input,
+        });
+      }
+      return content;
+    }
+
+    return message.toolName == null || message.toolName!.trim().isEmpty
+        ? message.text
+        : '${message.toolName!.trim()}: ${message.text}';
   }
 
   Map<String, Object?> _toolPayload(LlmTool tool) {
@@ -195,10 +232,12 @@ String _anthropicRole(LlmMessageRole role) {
   };
 }
 
-String _extractTextBlock(Object? contentValue) {
+String _extractTextBlocks(Object? contentValue) {
   if (contentValue is! List) {
     return '';
   }
+
+  final chunks = <String>[];
   for (final block in contentValue) {
     final map = _stringKeyedMap(block);
     if (map == null) {
@@ -207,11 +246,52 @@ String _extractTextBlock(Object? contentValue) {
     if ((map['type'] ?? '').toString() == 'text') {
       final text = (map['text'] ?? '').toString().trim();
       if (text.isNotEmpty) {
-        return text;
+        chunks.add(text);
       }
     }
   }
-  return '';
+  return chunks.join('\n').trim();
+}
+
+List<LlmToolCall> _extractToolCalls(Object? contentValue) {
+  if (contentValue is! List) {
+    return const <LlmToolCall>[];
+  }
+
+  final toolCalls = <LlmToolCall>[];
+  for (final block in contentValue) {
+    final map = _stringKeyedMap(block);
+    if (map == null) {
+      continue;
+    }
+    if ((map['type'] ?? '').toString() != 'tool_use') {
+      continue;
+    }
+    final id = (map['id'] ?? '').toString().trim();
+    final toolName = (map['name'] ?? '').toString().trim();
+    if (id.isEmpty || toolName.isEmpty) {
+      continue;
+    }
+    toolCalls.add(
+      LlmToolCall(
+        id: id,
+        toolName: toolName,
+        input: _mapValue(map['input'], fallbackKey: '_raw_input'),
+      ),
+    );
+  }
+  return toolCalls;
+}
+
+Map<String, Object?> _mapValue(Object? value, {required String fallbackKey}) {
+  final asMap = _stringKeyedMap(value);
+  if (asMap != null) {
+    return asMap;
+  }
+  if (value == null) {
+    return const <String, Object?>{};
+  }
+  return <String, Object?>{fallbackKey: value};
 }
 
 int _intFromValue(Object? value) {

@@ -2,12 +2,34 @@ enum LlmMessageRole { system, user, assistant, tool }
 
 enum LlmServiceLevel { primary, escalated }
 
+class LlmToolCall {
+  final String id;
+  final String toolName;
+  final Map<String, Object?> input;
+
+  const LlmToolCall({
+    required this.id,
+    required this.toolName,
+    required this.input,
+  });
+}
+
 class LlmMessage {
   final LlmMessageRole role;
   final String text;
   final String? toolName;
+  final String? toolUseId;
+  final List<LlmToolCall> toolCalls;
+  final bool isError;
 
-  const LlmMessage({required this.role, required this.text, this.toolName});
+  const LlmMessage({
+    required this.role,
+    this.text = '',
+    this.toolName,
+    this.toolUseId,
+    this.toolCalls = const <LlmToolCall>[],
+    this.isError = false,
+  });
 }
 
 class LlmTool {
@@ -30,6 +52,7 @@ class LlmResponse {
   final int inputTokens;
   final int outputTokens;
   final Map<String, Object?> rawResponse;
+  final List<LlmToolCall> toolCalls;
 
   const LlmResponse({
     required this.text,
@@ -39,6 +62,7 @@ class LlmResponse {
     this.inputTokens = 0,
     this.outputTokens = 0,
     this.rawResponse = const <String, Object?>{},
+    this.toolCalls = const <LlmToolCall>[],
   });
 
   const LlmResponse.fallback({
@@ -48,9 +72,11 @@ class LlmResponse {
     this.inputTokens = 0,
     this.outputTokens = 0,
     this.rawResponse = const <String, Object?>{},
+    this.toolCalls = const <LlmToolCall>[],
   }) : usedFallback = true;
 
   bool get hasText => text.trim().isNotEmpty;
+  bool get hasToolCalls => toolCalls.isNotEmpty;
 }
 
 abstract class LlmProvider {

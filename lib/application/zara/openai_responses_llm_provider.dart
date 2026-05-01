@@ -103,7 +103,7 @@ class OpenAiResponsesLlmProvider implements LlmProvider {
               },
             ],
           },
-        ...messages.map(_messagePayload),
+        ...messages.expand(_messagePayloads),
       ];
       final response = await client
           .post(
@@ -149,9 +149,10 @@ class OpenAiResponsesLlmProvider implements LlmProvider {
       }
 
       final text = _extractText(decoded);
-      if (text == null || text.trim().isEmpty) {
+      final toolCalls = _extractToolCalls(decoded);
+      if ((text == null || text.trim().isEmpty) && toolCalls.isEmpty) {
         developer.log(
-          'OpenAI responses provider fallback: no output text returned.',
+          'OpenAI responses provider fallback: no output text or tool calls returned.',
           name: 'OpenAiResponsesLlmProvider',
         );
         return LlmResponse.fallback(
@@ -163,7 +164,7 @@ class OpenAiResponsesLlmProvider implements LlmProvider {
 
       final usage = _stringKeyedMap(decoded['usage']);
       return LlmResponse(
-        text: text.trim(),
+        text: text?.trim() ?? '',
         providerLabel: 'openai:$modelId',
         modelId: modelId,
         inputTokens: _intFromValue(
@@ -173,6 +174,7 @@ class OpenAiResponsesLlmProvider implements LlmProvider {
           usage?['output_tokens'] ?? usage?['completion_tokens'],
         ),
         rawResponse: decoded,
+        toolCalls: toolCalls,
       );
     } catch (error, stackTrace) {
       developer.log(
@@ -188,16 +190,56 @@ class OpenAiResponsesLlmProvider implements LlmProvider {
     }
   }
 
-  Map<String, Object?> _messagePayload(LlmMessage message) {
+  Iterable<Map<String, Object?>> _messagePayloads(LlmMessage message) sync* {
+    final normalizedText = message.text.trim();
+    final normalizedToolUseId = message.toolUseId?.trim() ?? '';
+
+    if (message.role == LlmMessageRole.tool && normalizedToolUseId.isNotEmpty) {
+      yield <String, Object?>{
+        'type': 'function_call_output',
+        'call_id': normalizedToolUseId,
+        'output': message.text,
+      };
+      return;
+    }
+
+    if (message.role == LlmMessageRole.assistant &&
+        message.toolCalls.isNotEmpty) {
+      if (normalizedText.isNotEmpty) {
+        yield _textMessagePayload(
+          role: _openAiRole(message.role),
+          text: normalizedText,
+        );
+      }
+      for (final toolCall in message.toolCalls) {
+        yield <String, Object?>{
+          'type': 'function_call',
+          'call_id': toolCall.id,
+          'name': toolCall.toolName,
+          'arguments': jsonEncode(toolCall.input),
+        };
+      }
+      return;
+    }
+
+    if (normalizedText.isEmpty) {
+      return;
+    }
+
+    yield _textMessagePayload(
+      role: _openAiRole(message.role),
+      text: normalizedText,
+    );
+  }
+
+  Map<String, Object?> _textMessagePayload({
+    required String role,
+    required String text,
+  }) {
     return <String, Object?>{
-      'role': _openAiRole(message.role),
+      'role': role,
       'content': <Map<String, String>>[
-        <String, String>{
-          'type': 'input_text',
-          'text': message.toolName == null || message.toolName!.trim().isEmpty
-              ? message.text
-              : '${message.toolName!.trim()}: ${message.text}',
-        },
+        <String, String>{'type': 'input_text', 'text': text},
       ],
     };
   }
@@ -285,6 +327,69 @@ String? _extractText(Map<String, Object?> decoded) {
     }
   }
   return null;
+}
+
+List<LlmToolCall> _extractToolCalls(Map<String, Object?> decoded) {
+  final output = decoded['output'];
+  if (output is! List) {
+    return const <LlmToolCall>[];
+  }
+
+  final toolCalls = <LlmToolCall>[];
+  for (final item in output) {
+    final map = _stringKeyedMap(item);
+    if (map == null) {
+      continue;
+    }
+    if ((map['type'] ?? '').toString() != 'function_call') {
+      continue;
+    }
+    final callId = (map['call_id'] ?? '').toString().trim();
+    final toolName = (map['name'] ?? '').toString().trim();
+    if (callId.isEmpty || toolName.isEmpty) {
+      continue;
+    }
+    toolCalls.add(
+      LlmToolCall(
+        id: callId,
+        toolName: toolName,
+        input: _parseJsonObjectString(
+          (map['arguments'] ?? '').toString(),
+          errorContext: 'OpenAI function_call arguments for $toolName',
+        ),
+      ),
+    );
+  }
+  return toolCalls;
+}
+
+Map<String, Object?> _parseJsonObjectString(
+  String rawJson, {
+  required String errorContext,
+}) {
+  final normalized = rawJson.trim();
+  if (normalized.isEmpty) {
+    return const <String, Object?>{};
+  }
+  try {
+    final decoded = jsonDecode(normalized);
+    final asMap = _stringKeyedMap(decoded);
+    if (asMap != null) {
+      return asMap;
+    }
+    developer.log(
+      '$errorContext was not a JSON object; preserving raw payload.',
+      name: 'OpenAiResponsesLlmProvider',
+    );
+  } catch (error, stackTrace) {
+    developer.log(
+      '$errorContext failed to decode; preserving raw payload.',
+      name: 'OpenAiResponsesLlmProvider',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+  return <String, Object?>{'_raw_arguments': rawJson};
 }
 
 int _intFromValue(Object? value) {
