@@ -1,10 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/zara/allowance_metering.dart';
 import 'package:omnix_dashboard/application/zara/capability_registry.dart';
 import 'package:omnix_dashboard/application/zara/zara_runtime_scope_resolver.dart';
 
 class _FakeZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
   Map<String, dynamic>? clientScope;
   ZaraSiteSignals siteSignals;
+  int monthlyUsageUnits;
+  final List<ZaraUsageLedgerEntry> insertedLedgerEntries =
+      <ZaraUsageLedgerEntry>[];
 
   _FakeZaraRuntimeScopeDataSource({
     this.clientScope,
@@ -14,6 +18,7 @@ class _FakeZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
       hasFaceRegistryEntries: false,
       hasVehicleAnalyticsSignals: false,
     ),
+    this.monthlyUsageUnits = 0,
   });
 
   @override
@@ -28,15 +33,26 @@ class _FakeZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
   }) async {
     return siteSignals;
   }
+
+  @override
+  Future<int> fetchMonthlyUsageUnits({
+    required String clientId,
+    required DateTime periodMonthUtc,
+  }) async {
+    return monthlyUsageUnits;
+  }
+
+  @override
+  Future<void> insertUsageLedgerEntry(ZaraUsageLedgerEntry entry) async {
+    insertedLedgerEntries.add(entry);
+    monthlyUsageUnits += entry.billableUnits;
+  }
 }
 
 void main() {
   group('parseZaraAllowanceTier', () {
     test('parses known allowance tier strings', () {
-      expect(
-        parseZaraAllowanceTier('standard'),
-        ZaraAllowanceTier.standard,
-      );
+      expect(parseZaraAllowanceTier('standard'), ZaraAllowanceTier.standard);
       expect(parseZaraAllowanceTier('Premium'), ZaraAllowanceTier.premium);
       expect(parseZaraAllowanceTier('TACTICAL'), ZaraAllowanceTier.tactical);
     });
@@ -111,6 +127,33 @@ void main() {
       },
     );
 
+    test(
+      'allowance context uses client metadata override for monthly units',
+      () async {
+        final dataSource = _FakeZaraRuntimeScopeDataSource(
+          clientScope: <String, dynamic>{
+            'zara_allowance_tier': 'premium',
+            'metadata': <String, dynamic>{
+              'zara_monthly_allowance_queries': 750,
+            },
+          },
+          monthlyUsageUnits: 612,
+        );
+        final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
+
+        final context = await resolver.resolveAllowanceContext(
+          'CLT-001',
+          nowUtc: DateTime.utc(2026, 5, 1, 12),
+        );
+
+        expect(context.plan.tier, ZaraAllowanceTier.premium);
+        expect(context.plan.monthlyIncludedUnits, 750);
+        expect(context.plan.sourceLabel, 'client-metadata');
+        expect(context.usage.usedUnits, 612);
+        expect(context.usage.warningThresholdUnits, 600);
+      },
+    );
+
     test('returns the active data-source set from live site signals', () async {
       final dataSource = _FakeZaraRuntimeScopeDataSource(
         siteSignals: const ZaraSiteSignals(
@@ -150,6 +193,39 @@ void main() {
       );
 
       expect(activeDataSources, isEmpty);
+    });
+
+    test('records Zara usage ledger entries through the data source', () async {
+      final dataSource = _FakeZaraRuntimeScopeDataSource();
+      final resolver = ZaraRuntimeScopeResolver(dataSource: dataSource);
+      final entry = ZaraUsageLedgerEntry(
+        clientId: 'CLT-001',
+        siteId: 'SITE-001',
+        audienceLabel: 'client',
+        deliveryModeLabel: 'telegramLive',
+        allowanceTier: ZaraAllowanceTier.standard,
+        capabilityKey: 'footfall_count',
+        decisionLabel: 'delegated',
+        providerLabel: 'openai:gpt-5.4',
+        usedFallback: false,
+        isEmergency: false,
+        billableUnits: 1,
+        createdAtUtc: DateTime.utc(2026, 5, 1, 12),
+      );
+
+      await resolver.recordUsageEntry(entry);
+      final usage = await resolver.resolveMonthlyUsage(
+        'CLT-001',
+        nowUtc: DateTime.utc(2026, 5, 1, 12),
+        allowancePlan: const ZaraAllowancePlan(
+          tier: ZaraAllowanceTier.standard,
+          monthlyIncludedUnits: 250,
+        ),
+      );
+
+      expect(dataSource.insertedLedgerEntries, hasLength(1));
+      expect(dataSource.insertedLedgerEntries.single.billableUnits, 1);
+      expect(usage.usedUnits, 1);
     });
   });
 }

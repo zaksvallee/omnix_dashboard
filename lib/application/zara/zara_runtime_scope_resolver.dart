@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:supabase/supabase.dart';
 
+import 'allowance_metering.dart';
 import 'capability_registry.dart';
 
 class ZaraSiteSignals {
@@ -27,6 +28,13 @@ abstract class ZaraRuntimeScopeDataSource {
     String? clientId,
     required String siteId,
   });
+
+  Future<int> fetchMonthlyUsageUnits({
+    required String clientId,
+    required DateTime periodMonthUtc,
+  });
+
+  Future<void> insertUsageLedgerEntry(ZaraUsageLedgerEntry entry);
 }
 
 class SupabaseZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
@@ -130,6 +138,39 @@ class SupabaseZaraRuntimeScopeDataSource implements ZaraRuntimeScopeDataSource {
     );
   }
 
+  @override
+  Future<int> fetchMonthlyUsageUnits({
+    required String clientId,
+    required DateTime periodMonthUtc,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    if (normalizedClientId.isEmpty) {
+      return 0;
+    }
+    try {
+      final row = await supabase
+          .from('zara_usage_monthly_summary')
+          .select('total_units')
+          .eq('client_id', normalizedClientId)
+          .eq('period_month', _dateValue(periodMonthUtc))
+          .maybeSingle();
+      return parsePositiveInt(row?['total_units']) ?? 0;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to fetch Zara monthly usage for $normalizedClientId.',
+        name: 'zara.runtime_scope',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return 0;
+    }
+  }
+
+  @override
+  Future<void> insertUsageLedgerEntry(ZaraUsageLedgerEntry entry) async {
+    await supabase.from('zara_usage_ledger').insert(entry.toInsertRow());
+  }
+
   Future<bool> _rowExists({
     required String table,
     required String selectColumn,
@@ -181,19 +222,69 @@ class ZaraRuntimeScopeResolver {
 
   const ZaraRuntimeScopeResolver({required this.dataSource});
 
-  Future<ZaraAllowanceTier> resolveAllowanceTier(String? clientId) async {
+  Future<ZaraAllowancePlan> resolveAllowancePlan(String? clientId) async {
     final normalizedClientId = clientId?.trim() ?? '';
+    final clientScope = normalizedClientId.isEmpty
+        ? null
+        : await dataSource.fetchClientScope(normalizedClientId);
+    return _allowancePlanFromScope(clientScope);
+  }
+
+  Future<ZaraAllowanceContext> resolveAllowanceContext(
+    String? clientId, {
+    DateTime? nowUtc,
+  }) async {
+    final effectiveNowUtc = (nowUtc ?? DateTime.now()).toUtc();
+    final plan = await resolveAllowancePlan(clientId);
+    final usage = await resolveMonthlyUsage(
+      clientId,
+      nowUtc: effectiveNowUtc,
+      allowancePlan: plan,
+    );
+    return ZaraAllowanceContext(plan: plan, usage: usage);
+  }
+
+  Future<ZaraAllowanceTier> resolveAllowanceTier(String? clientId) async {
+    final plan = await resolveAllowancePlan(clientId);
+    return plan.tier;
+  }
+
+  Future<ZaraMonthlyUsageSnapshot> resolveMonthlyUsage(
+    String? clientId, {
+    DateTime? nowUtc,
+    ZaraAllowancePlan? allowancePlan,
+  }) async {
+    final effectiveNowUtc = (nowUtc ?? DateTime.now()).toUtc();
+    final normalizedClientId = clientId?.trim() ?? '';
+    final plan =
+        allowancePlan ??
+        ZaraAllowancePlan(
+          tier: ZaraAllowanceTier.standard,
+          monthlyIncludedUnits: defaultMonthlyIncludedUnitsForTier(
+            ZaraAllowanceTier.standard,
+          ),
+        );
     if (normalizedClientId.isEmpty) {
-      return ZaraAllowanceTier.standard;
+      return ZaraMonthlyUsageSnapshot(
+        periodMonthUtc: zaraUsagePeriodMonthUtc(effectiveNowUtc),
+        plan: plan,
+        usedUnits: 0,
+      );
     }
 
-    final row = await dataSource.fetchClientScope(normalizedClientId);
-    final metadata = (row?['metadata'] as Map?)?.cast<String, dynamic>();
-    final parsedTier =
-        parseZaraAllowanceTier(row?['zara_allowance_tier']) ??
-        parseZaraAllowanceTier(metadata?['zara_allowance_tier']) ??
-        parseZaraAllowanceTier(metadata?['zara_tier']);
-    return parsedTier ?? ZaraAllowanceTier.standard;
+    final usedUnits = await dataSource.fetchMonthlyUsageUnits(
+      clientId: normalizedClientId,
+      periodMonthUtc: zaraUsagePeriodMonthUtc(effectiveNowUtc),
+    );
+    return ZaraMonthlyUsageSnapshot(
+      periodMonthUtc: zaraUsagePeriodMonthUtc(effectiveNowUtc),
+      plan: plan,
+      usedUnits: usedUnits,
+    );
+  }
+
+  Future<void> recordUsageEntry(ZaraUsageLedgerEntry entry) async {
+    await dataSource.insertUsageLedgerEntry(entry);
   }
 
   Future<Set<String>> resolveActiveDataSources(
@@ -210,6 +301,16 @@ class ZaraRuntimeScopeResolver {
       siteId: normalizedSiteId,
     );
     return zaraActiveDataSourcesFromSignals(signals);
+  }
+
+  ZaraAllowancePlan _allowancePlanFromScope(Map<String, dynamic>? row) {
+    final metadata = (row?['metadata'] as Map?)?.cast<String, dynamic>();
+    final parsedTier =
+        parseZaraAllowanceTier(row?['zara_allowance_tier']) ??
+        parseZaraAllowanceTier(metadata?['zara_allowance_tier']) ??
+        parseZaraAllowanceTier(metadata?['zara_tier']) ??
+        ZaraAllowanceTier.standard;
+    return resolveZaraAllowancePlan(tier: parsedTier, clientMetadata: metadata);
   }
 }
 
@@ -243,4 +344,11 @@ Set<String> zaraActiveDataSourcesFromSignals(ZaraSiteSignals signals) {
   // not yet assemble report bundles at runtime, so exposing it as "active"
   // would overpromise capability availability.
   return activeDataSources;
+}
+
+String _dateValue(DateTime value) {
+  final utc = value.toUtc();
+  final month = utc.month.toString().padLeft(2, '0');
+  final day = utc.day.toString().padLeft(2, '0');
+  return '${utc.year.toString().padLeft(4, '0')}-$month-$day';
 }
