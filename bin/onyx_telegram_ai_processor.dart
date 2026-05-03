@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:omnix_dashboard/application/zara/allowance_metering.dart';
 import 'package:omnix_dashboard/application/zara/llm_provider.dart';
 import 'package:omnix_dashboard/application/zara/openai_responses_llm_provider.dart';
-import 'package:omnix_dashboard/application/zara/tools/fetch_footfall_count_tool.dart';
+import 'package:omnix_dashboard/application/zara/tools/fetch_peak_occupancy_tool.dart';
 import 'package:omnix_dashboard/application/zara/tools/zara_tool.dart';
 import 'package:omnix_dashboard/application/zara/tools/zara_tool_registry.dart';
 import 'package:omnix_dashboard/application/zara/zara_runtime_scope_resolver.dart';
@@ -75,10 +75,10 @@ Future<void> main() async {
 
   final toolRegistry = ZaraToolRegistry(
     toolsByName: <String, ZaraTool>{
-      'fetch_footfall_count': FetchFootfallCountTool(supabase: supabase),
+      'fetch_peak_occupancy': FetchPeakOccupancyTool(supabase: supabase),
     },
     capabilityToToolNames: <String, List<String>>{
-      'footfall_count': <String>['fetch_footfall_count'],
+      'peak_occupancy': <String>['fetch_peak_occupancy'],
     },
   );
 

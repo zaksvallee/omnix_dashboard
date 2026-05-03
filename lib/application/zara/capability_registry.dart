@@ -86,13 +86,13 @@ zaraCapabilityRegistry = <ZaraCapabilityDefinition>[
     requiresDataSource: 'shift_instances',
   ),
   ZaraCapabilityDefinition(
-    capabilityKey: 'footfall_count',
-    displayName: 'Footfall Count',
+    capabilityKey: 'peak_occupancy',
+    displayName: 'Peak Occupancy',
     category: ZaraCapabilityCategory.analytics,
     upsellBlurb:
-        'Footfall queries need the CV pipeline footfall feed activated for this site. I can flag that through your account manager if helpful.',
+        'Peak occupancy needs the CV pipeline occupancy feed activated for this site. I can flag that through your account manager if helpful.',
     upsellCta: 'account_manager',
-    requiresDataSource: 'cv_pipeline_footfall',
+    requiresDataSource: 'cv_pipeline_occupancy',
   ),
   ZaraCapabilityDefinition(
     capabilityKey: 'face_registry_lookup',

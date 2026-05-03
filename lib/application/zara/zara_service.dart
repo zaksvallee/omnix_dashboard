@@ -116,19 +116,6 @@ ZaraCapabilityDefinition? classifyZaraCapability(String userMessage) {
   final normalised = userMessage.trim().toLowerCase();
   if (normalised.isEmpty) return null;
 
-  const footfallPhrases = <String>[
-    'footfall',
-    'foot traffic',
-    'how many people',
-    'how many came',
-    'how many visitors',
-    'visitor count',
-    'people count',
-  ];
-  if (footfallPhrases.any(normalised.contains)) {
-    return zaraCapabilityByKey('footfall_count');
-  }
-
   const incidentPhrases = <String>[
     'summarise the incident',
     'summarize the incident',
@@ -142,6 +129,15 @@ ZaraCapabilityDefinition? classifyZaraCapability(String userMessage) {
     return zaraCapabilityByKey('incident_summary_reply');
   }
 
+  const peakOccupancyPhrases = <String>[
+    'peak occupancy',
+    'highest count today',
+    'most people today',
+  ];
+  if (peakOccupancyPhrases.any(normalised.contains)) {
+    return zaraCapabilityByKey('peak_occupancy');
+  }
+
   const statusPhrases = <String>[
     'all clear',
     'all good',
@@ -151,6 +147,11 @@ ZaraCapabilityDefinition? classifyZaraCapability(String userMessage) {
     "what's happening",
     'whats happening',
     'how are things',
+    'how many on site',
+    'how many on site right now',
+    'how many people at once',
+    "who's on site",
+    'current occupancy',
   ];
   if (statusPhrases.any(normalised.contains)) {
     return zaraCapabilityByKey('monitoring_status_brief');

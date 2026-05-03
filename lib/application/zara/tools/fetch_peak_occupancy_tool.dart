@@ -5,18 +5,18 @@ import 'package:supabase/supabase.dart';
 import '../llm_provider.dart';
 import 'zara_tool.dart';
 
-class FetchFootfallCountTool implements ZaraTool {
+class FetchPeakOccupancyTool implements ZaraTool {
   final SupabaseClient supabase;
   final DateTime Function() nowUtc;
 
-  FetchFootfallCountTool({required this.supabase, DateTime Function()? nowUtc})
+  FetchPeakOccupancyTool({required this.supabase, DateTime Function()? nowUtc})
     : nowUtc = nowUtc ?? _defaultNowUtc;
 
   @override
   LlmTool get definition => const LlmTool(
-    name: 'fetch_footfall_count',
+    name: 'fetch_peak_occupancy',
     description:
-        'Fetch the peak footfall count for a site in the specified time window. Returns the highest detected occupancy reached during that window.',
+        'Fetch the peak occupancy count for a site in the specified time window. Returns the highest number of people detected on site at one moment during that window.',
     inputSchema: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
@@ -46,7 +46,7 @@ class FetchFootfallCountTool implements ZaraTool {
     final siteId = context.siteId?.trim() ?? '';
     if (siteId.isEmpty) {
       return ZaraToolExecutionResult.error(
-        'site_id is required for fetch_footfall_count',
+        'site_id is required for fetch_peak_occupancy',
       );
     }
 
@@ -106,13 +106,13 @@ class FetchFootfallCountTool implements ZaraTool {
       );
     } catch (error, stackTrace) {
       developer.log(
-        'fetch_footfall_count failed for ${context.siteId ?? 'unknown-site'}',
-        name: 'zara.tools.fetch_footfall_count',
+        'fetch_peak_occupancy failed for ${context.siteId ?? 'unknown-site'}',
+        name: 'zara.tools.fetch_peak_occupancy',
         error: error,
         stackTrace: stackTrace,
       );
       return ZaraToolExecutionResult.error(
-        'failed to fetch footfall count: $error',
+        'failed to fetch peak occupancy: $error',
       );
     }
   }
