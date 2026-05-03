@@ -106,11 +106,11 @@ class _FakeTool implements ZaraTool {
   }
 }
 
-ZaraToolRegistry _footfallToolRegistry(ZaraTool tool) {
+ZaraToolRegistry _peakOccupancyToolRegistry(ZaraTool tool) {
   return ZaraToolRegistry(
     toolsByName: <String, ZaraTool>{tool.definition.name: tool},
     capabilityToToolNames: <String, List<String>>{
-      'footfall_count': <String>[tool.definition.name],
+      'peak_occupancy': <String>[tool.definition.name],
     },
   );
 }
@@ -127,8 +127,19 @@ void main() {
         'incident_summary_reply',
       );
       expect(
-        classifyZaraCapability('how many people came today')?.capabilityKey,
-        'footfall_count',
+        classifyZaraCapability('peak occupancy today')?.capabilityKey,
+        'peak_occupancy',
+      );
+      expect(
+        classifyZaraCapability('how many people came today'),
+        isNull,
+        reason:
+            'visitor-shaped questions intentionally drop to fallback after rename',
+      );
+      expect(
+        classifyZaraCapability('how many on site right now')?.capabilityKey,
+        'monitoring_status_brief',
+        reason: 'current-occupancy questions route to monitoring_status_brief',
       );
       expect(classifyZaraCapability('Hello'), isNull);
     });
@@ -163,12 +174,12 @@ void main() {
     });
 
     test(
-      'standard allowance still allows footfall when the site data source is active',
+      'standard allowance still allows peak_occupancy when the site data source is active',
       () async {
         final provider = _FakeLlmProvider(
           scriptedResponses: const <LlmResponse>[
             LlmResponse(
-              text: 'Footfall today is 14 people.',
+              text: 'Peak occupancy today is 14 people.',
               providerLabel: 'fake:test-provider',
               modelId: 'fake-model',
             ),
@@ -178,11 +189,11 @@ void main() {
 
         final result = await service.handleTurn(
           ZaraTurnRequest(
-            userMessage: 'footfall',
+            userMessage: 'peak occupancy',
             audience: ZaraAudience.client,
             siteId: 'SITE-MS-VALLEE-RESIDENCE',
             allowanceTier: ZaraAllowanceTier.standard,
-            activeDataSources: <String>{'cv_pipeline_footfall'},
+            activeDataSources: <String>{'cv_pipeline_occupancy'},
             siteContext: ZaraSiteContext(
               observedAtUtc: DateTime.utc(2026, 5, 1, 10, 29, 39),
               perimeterClear: true,
@@ -198,8 +209,8 @@ void main() {
         );
 
         expect(result.decision, ZaraDecision.delegated);
-        expect(result.capabilityKey, 'footfall_count');
-        expect(result.text, 'Footfall today is 14 people.');
+        expect(result.capabilityKey, 'peak_occupancy');
+        expect(result.text, 'Peak occupancy today is 14 people.');
         expect(provider.callCount, 1);
         expect(provider.lastSystemPrompt, contains('Bound site scope'));
         expect(provider.lastSystemPrompt, contains('SITE-MS-VALLEE-RESIDENCE'));
@@ -217,23 +228,23 @@ void main() {
     );
 
     test(
-      'refusedDataSource path blocks footfall when the site data source is inactive',
+      'refusedDataSource path blocks peak_occupancy when the site data source is inactive',
       () async {
         final provider = _FakeLlmProvider();
         final service = ProviderBackedZaraService(llmProvider: provider);
 
         final result = await service.handleTurn(
           const ZaraTurnRequest(
-            userMessage: 'foot traffic',
+            userMessage: 'peak occupancy',
             audience: ZaraAudience.client,
             allowanceTier: ZaraAllowanceTier.standard,
           ),
         );
 
         expect(result.decision, ZaraDecision.refusedDataSource);
-        expect(result.capabilityKey, 'footfall_count');
+        expect(result.capabilityKey, 'peak_occupancy');
         expect(result.providerLabel, 'gated');
-        expect(result.text, contains('CV pipeline footfall'));
+        expect(result.text, contains('CV pipeline occupancy'));
         expect(result.text, contains('account manager'));
         expect(provider.callCount, 0);
       },
@@ -335,7 +346,7 @@ void main() {
       'tool loop happy path executes tool and feeds its result back to the provider',
       () async {
         final tool = _FakeTool(
-          name: 'fetch_footfall_count',
+          name: 'fetch_peak_occupancy',
           onExecute: (input, context) async {
             return const ZaraToolExecutionResult(
               output: <String, Object?>{
@@ -354,13 +365,13 @@ void main() {
               toolCalls: <LlmToolCall>[
                 LlmToolCall(
                   id: 'call-1',
-                  toolName: 'fetch_footfall_count',
+                  toolName: 'fetch_peak_occupancy',
                   input: <String, Object?>{'time_window': 'local_site_day'},
                 ),
               ],
             ),
             LlmResponse(
-              text: 'Footfall today is 47 people.',
+              text: 'Peak occupancy today is 47 people.',
               providerLabel: 'fake:test-provider',
               modelId: 'fake-model',
             ),
@@ -368,25 +379,25 @@ void main() {
         );
         final service = ProviderBackedZaraService(
           llmProvider: provider,
-          toolRegistry: _footfallToolRegistry(tool),
+          toolRegistry: _peakOccupancyToolRegistry(tool),
         );
 
         final result = await service.handleTurn(
           const ZaraTurnRequest(
-            userMessage: 'how many people came today',
+            userMessage: 'peak occupancy today',
             audience: ZaraAudience.client,
             clientId: 'CLIENT-MS-VALLEE',
             siteId: 'SITE-MS-VALLEE-RESIDENCE',
             allowanceTier: ZaraAllowanceTier.standard,
-            activeDataSources: <String>{'cv_pipeline_footfall'},
+            activeDataSources: <String>{'cv_pipeline_occupancy'},
           ),
         );
 
         expect(result.decision, ZaraDecision.delegated);
-        expect(result.text, 'Footfall today is 47 people.');
+        expect(result.text, 'Peak occupancy today is 47 people.');
         expect(provider.callCount, 2);
         expect(provider.toolsByCall.first, hasLength(1));
-        expect(provider.toolsByCall.first.single.name, 'fetch_footfall_count');
+        expect(provider.toolsByCall.first.single.name, 'fetch_peak_occupancy');
         expect(tool.callCount, 1);
         expect(tool.inputs.single['time_window'], 'local_site_day');
         expect(tool.contexts.single.clientId, 'CLIENT-MS-VALLEE');
@@ -398,7 +409,7 @@ void main() {
         expect(secondCallMessages[1].role, LlmMessageRole.assistant);
         expect(secondCallMessages[1].toolCalls, hasLength(1));
         expect(secondCallMessages[2].role, LlmMessageRole.tool);
-        expect(secondCallMessages[2].toolName, 'fetch_footfall_count');
+        expect(secondCallMessages[2].toolName, 'fetch_peak_occupancy');
         expect(secondCallMessages[2].toolUseId, 'call-1');
         expect(secondCallMessages[2].isError, isFalse);
         expect(
@@ -410,7 +421,7 @@ void main() {
 
     test('tool error feeds back into the second provider call', () async {
       final tool = _FakeTool(
-        name: 'fetch_footfall_count',
+        name: 'fetch_peak_occupancy',
         onExecute: (input, context) async {
           throw StateError('database offline');
         },
@@ -424,7 +435,7 @@ void main() {
             toolCalls: <LlmToolCall>[
               LlmToolCall(
                 id: 'call-2',
-                toolName: 'fetch_footfall_count',
+                toolName: 'fetch_peak_occupancy',
                 input: <String, Object?>{'time_window': 'local_site_day'},
               ),
             ],
@@ -439,16 +450,16 @@ void main() {
       );
       final service = ProviderBackedZaraService(
         llmProvider: provider,
-        toolRegistry: _footfallToolRegistry(tool),
+        toolRegistry: _peakOccupancyToolRegistry(tool),
       );
 
       final result = await service.handleTurn(
         const ZaraTurnRequest(
-          userMessage: 'how many people came today',
+          userMessage: 'peak occupancy today',
           audience: ZaraAudience.client,
           siteId: 'SITE-MS-VALLEE-RESIDENCE',
           allowanceTier: ZaraAllowanceTier.standard,
-          activeDataSources: <String>{'cv_pipeline_footfall'},
+          activeDataSources: <String>{'cv_pipeline_occupancy'},
         ),
       );
 
@@ -471,7 +482,7 @@ void main() {
       'iteration cap returns the last provider text when tool calls never terminate',
       () async {
         final tool = _FakeTool(
-          name: 'fetch_footfall_count',
+          name: 'fetch_peak_occupancy',
           onExecute: (input, context) async {
             return const ZaraToolExecutionResult(
               output: <String, Object?>{'peak_count': 47},
@@ -488,7 +499,7 @@ void main() {
               toolCalls: <LlmToolCall>[
                 LlmToolCall(
                   id: callId,
-                  toolName: 'fetch_footfall_count',
+                  toolName: 'fetch_peak_occupancy',
                   input: const <String, Object?>{
                     'time_window': 'local_site_day',
                   },
@@ -499,16 +510,16 @@ void main() {
         );
         final service = ProviderBackedZaraService(
           llmProvider: provider,
-          toolRegistry: _footfallToolRegistry(tool),
+          toolRegistry: _peakOccupancyToolRegistry(tool),
         );
 
         final result = await service.handleTurn(
           const ZaraTurnRequest(
-            userMessage: 'how many people came today',
+            userMessage: 'peak occupancy today',
             audience: ZaraAudience.client,
             siteId: 'SITE-MS-VALLEE-RESIDENCE',
             allowanceTier: ZaraAllowanceTier.standard,
-            activeDataSources: <String>{'cv_pipeline_footfall'},
+            activeDataSources: <String>{'cv_pipeline_occupancy'},
           ),
         );
 
@@ -516,7 +527,7 @@ void main() {
         expect(tool.callCount, 5);
         expect(result.decision, ZaraDecision.delegated);
         expect(result.text, 'Need another lookup.');
-        expect(result.capabilityKey, 'footfall_count');
+        expect(result.capabilityKey, 'peak_occupancy');
       },
     );
   });

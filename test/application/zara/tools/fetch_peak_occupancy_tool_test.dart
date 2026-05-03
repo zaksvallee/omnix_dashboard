@@ -3,18 +3,18 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:omnix_dashboard/application/zara/tools/fetch_footfall_count_tool.dart';
+import 'package:omnix_dashboard/application/zara/tools/fetch_peak_occupancy_tool.dart';
 import 'package:omnix_dashboard/application/zara/tools/zara_tool.dart';
 import 'package:supabase/supabase.dart';
 
 void main() {
-  group('FetchFootfallCountTool', () {
+  group('FetchPeakOccupancyTool', () {
     test(
       'happy path returns peak_count for the current local site day',
       () async {
-        final tool = FetchFootfallCountTool(
+        final tool = FetchPeakOccupancyTool(
           supabase: _buildSupabaseClient(
-            _FakeFootfallApi(
+            _FakePeakOccupancyApi(
               siteRowsById: <String, Map<String, Object?>>{
                 'SITE-1': <String, Object?>{'timezone': 'Africa/Johannesburg'},
               },
@@ -46,9 +46,9 @@ void main() {
     );
 
     test('no session row returns zero with a note', () async {
-      final tool = FetchFootfallCountTool(
+      final tool = FetchPeakOccupancyTool(
         supabase: _buildSupabaseClient(
-          _FakeFootfallApi(
+          _FakePeakOccupancyApi(
             siteRowsById: <String, Map<String, Object?>>{
               'SITE-1': <String, Object?>{'timezone': 'Africa/Johannesburg'},
             },
@@ -71,7 +71,7 @@ void main() {
     });
 
     test('siteId null returns an error result', () async {
-      final tool = FetchFootfallCountTool(
+      final tool = FetchPeakOccupancyTool(
         supabase: _buildSupabaseClient((request) async {
           return http.Response('[]', 200, request: request);
         }),
@@ -86,7 +86,7 @@ void main() {
     });
 
     test('unsupported time_window returns an error result', () async {
-      final tool = FetchFootfallCountTool(
+      final tool = FetchPeakOccupancyTool(
         supabase: _buildSupabaseClient((request) async {
           return http.Response('[]', 200, request: request);
         }),
@@ -103,9 +103,9 @@ void main() {
     test(
       'missing reset_hour defaults to 3 when computing session_date',
       () async {
-        final tool = FetchFootfallCountTool(
+        final tool = FetchPeakOccupancyTool(
           supabase: _buildSupabaseClient(
-            _FakeFootfallApi(
+            _FakePeakOccupancyApi(
               sessionRowsBySiteAndDate: <String, Map<String, Object?>>{
                 'SITE-1|2026-04-30': <String, Object?>{
                   'peak_detected': 9,
@@ -142,12 +142,12 @@ SupabaseClient _buildSupabaseClient(
   );
 }
 
-class _FakeFootfallApi {
+class _FakePeakOccupancyApi {
   final Map<String, Map<String, Object?>> siteRowsById;
   final Map<String, Map<String, Object?>> configRowsBySiteId;
   final Map<String, Map<String, Object?>> sessionRowsBySiteAndDate;
 
-  const _FakeFootfallApi({
+  const _FakePeakOccupancyApi({
     this.siteRowsById = const <String, Map<String, Object?>>{},
     this.configRowsBySiteId = const <String, Map<String, Object?>>{},
     this.sessionRowsBySiteAndDate = const <String, Map<String, Object?>>{},
