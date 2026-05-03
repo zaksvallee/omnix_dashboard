@@ -107,7 +107,6 @@ Future<void> main() async {
       apiBaseUri: apiBaseUri,
     ),
     aiAssistant: aiAssistant,
-    router: const OnyxTelegramCommandRouter(),
     pollInterval: Duration(seconds: math.max(1, pollIntervalSeconds)),
   );
 
@@ -123,14 +122,12 @@ class _OnyxTelegramAiProcessor {
   final SupabaseClient supabase;
   final TelegramBridgeService telegramBridge;
   final TelegramAiAssistantService aiAssistant;
-  final OnyxTelegramCommandRouter router;
   final Duration pollInterval;
 
   const _OnyxTelegramAiProcessor({
     required this.supabase,
     required this.telegramBridge,
     required this.aiAssistant,
-    required this.router,
     required this.pollInterval,
   });
 
@@ -222,9 +219,20 @@ class _OnyxTelegramAiProcessor {
         }
 
         logInfo('Sending row $rowId to AI/reply builder...');
-        final reply = isOnyxAlertCallback
-            ? await _handleOnyxAlertCallback(update: update, target: target)
-            : await _buildReply(update: update, target: target);
+        final String reply;
+        if (isOnyxAlertCallback) {
+          reply = await _handleOnyxAlertCallback(
+            update: update,
+            target: target,
+          );
+        } else if (_isVisitorRegistrationMessage(update.text)) {
+          reply = await _handleVisitorRegistration(
+            siteId: target.siteId,
+            prompt: update.text,
+          );
+        } else {
+          reply = await _buildReply(update: update, target: target);
+        }
         logInfo('AI response for row $rowId: ${_preview(reply)}');
         if (reply.trim().isEmpty) {
           logInfo('Row $rowId produced an empty reply.');
@@ -343,320 +351,20 @@ class _OnyxTelegramAiProcessor {
   }) async {
     final zaraCapability = classifyZaraCapability(update.text);
     if (zaraCapability != null) {
-      logInfo(
-        'Zara capability ${zaraCapability.capabilityKey} took precedence over legacy command router.',
-      );
+      logInfo('Zara handling capability ${zaraCapability.capabilityKey}');
       return _buildAiFallbackReply(update: update, target: target);
     }
 
-    final commandType = router.classify(update.text);
-    return switch (commandType) {
-      OnyxTelegramCommandType.liveStatus => _buildLiveStatusReply(
-        siteId: target.siteId,
-      ),
-      OnyxTelegramCommandType.incident => _buildIncidentReply(
-        siteId: target.siteId,
-        prompt: update.text,
-      ),
-      OnyxTelegramCommandType.dispatch => _buildDispatchReply(
-        siteId: target.siteId,
-        prompt: update.text,
-      ),
-      OnyxTelegramCommandType.report => _buildReportReply(
-        siteId: target.siteId,
-      ),
-      OnyxTelegramCommandType.guard => _buildGuardReply(siteId: target.siteId),
-      OnyxTelegramCommandType.camera => _buildCameraReply(
-        siteId: target.siteId,
-      ),
-      OnyxTelegramCommandType.intelligence => _buildIntelligenceReply(
-        siteId: target.siteId,
-      ),
-      OnyxTelegramCommandType.actionRequest => _buildActionRequestReply(
-        siteId: target.siteId,
-        prompt: update.text,
-      ),
-      OnyxTelegramCommandType.visitorRegistration => _handleVisitorRegistration(
-        siteId: target.siteId,
-        prompt: update.text,
-      ),
-      OnyxTelegramCommandType.clientStatement => Future<String>.value(
-        'Understood. I’ve noted that update and monitoring continues.',
-      ),
-      OnyxTelegramCommandType.frOnboarding => Future<String>.value(
+    if (_isFrOnboardingMessage(update.text)) {
+      return Future<String>.value(
         'To add someone to ONYX recognition:\n'
         '1. Send 3-5 clear face photos\n'
-        '2. I’ll enroll them to the site gallery\n'
+        "2. I'll enroll them to the site gallery\n"
         '3. ONYX will then recognise them on site',
-      ),
-      _ => _buildAiFallbackReply(update: update, target: target),
-    };
-  }
-
-  Future<String> _buildLiveStatusReply({required String siteId}) async {
-    final siteLabel = _siteLabel(siteId);
-    final snapshot = await _readLatestSnapshot(siteId);
-    final incidents = await _readActiveIncidents(siteId);
-    final activeOnDemandVisitors = await _readActiveOnDemandVisitors(siteId);
-    if (snapshot == null) {
-      return '$siteLabel — monitoring limited right now. No fresh site snapshot is available.';
-    }
-
-    final summary = _siteAwarenessSummaryFromRow(snapshot);
-    final displayedCount = math.max(summary.humanCount, 0);
-    final onDemandVisitorLine = _onDemandVisitorStatusLine(
-      activeOnDemandVisitors,
-    );
-    final lines = <String>[
-      '${summary.perimeterClear && incidents == 0 ? '🟢' : '🟠'} $siteLabel',
-      'Perimeter: ${summary.perimeterClear ? 'Clear' : 'Alert active'}',
-      displayedCount > 0
-          ? 'Movement detected — $displayedCount ${displayedCount == 1 ? 'person' : 'people'} on site (identity unconfirmed)'
-          : 'No movement detected on site',
-      ?onDemandVisitorLine,
-      'Active incidents: $incidents',
-      'Last update: ${_relativeAgeLabel(summary.observedAtUtc)}',
-    ];
-    final knownFaults = summary.knownFaultChannels
-        .where(_isValidChannelLabel)
-        .toList(growable: false);
-    if (knownFaults.isNotEmpty) {
-      lines.addAll(
-        knownFaults.map((channel) => 'Channel $channel: Offline (known fault)'),
       );
     }
-    return lines.join('\n');
-  }
 
-  Future<String> _buildIncidentReply({
-    required String siteId,
-    required String prompt,
-  }) async {
-    final siteLabel = _siteLabel(siteId);
-    final incidentRows = await supabase
-        .from('incidents')
-        .select(
-          'id,event_uid,status,incident_type,created_at,occurred_at,signal_received_at',
-        )
-        .eq('site_id', siteId)
-        .order('created_at', ascending: false)
-        .limit(20);
-    final todayStart = DateTime.now().toLocal();
-    final startLocal = DateTime(
-      todayStart.year,
-      todayStart.month,
-      todayStart.day,
-    );
-    final startUtc = startLocal.toUtc();
-    final filtered = incidentRows
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .where((row) {
-          final when = _asDateTimeUtc(
-            row['signal_received_at'] ??
-                row['occurred_at'] ??
-                row['created_at'],
-          );
-          return when != null && !when.isBefore(startUtc);
-        })
-        .toList(growable: false);
-    if (filtered.isEmpty) {
-      return 'No incidents recorded today at $siteLabel.';
-    }
-    final lines = <String>['Incidents today at $siteLabel:'];
-    for (final row in filtered.take(5)) {
-      final reference = (row['event_uid'] ?? row['id'] ?? 'incident')
-          .toString()
-          .trim();
-      final status = (row['status'] ?? 'open').toString().trim();
-      final incidentType = (row['incident_type'] ?? 'incident')
-          .toString()
-          .trim();
-      final when = _asDateTimeUtc(
-        row['signal_received_at'] ?? row['occurred_at'] ?? row['created_at'],
-      );
-      lines.add(
-        '- $reference — ${_humanizeLabel(incidentType)} • ${_humanizeLabel(status)} • ${_clockLabel(when)}',
-      );
-    }
-    return lines.join('\n');
-  }
-
-  Future<String> _buildReportReply({required String siteId}) async {
-    final siteLabel = _siteLabel(siteId);
-    final status = await _buildLiveStatusReply(siteId: siteId);
-    final incidents = await _readActiveIncidents(siteId);
-    final guardAssignments = await supabase
-        .from('guard_assignments')
-        .select('guard_name,shift_start,shift_end')
-        .eq('site_id', siteId)
-        .eq('is_active', true)
-        .limit(5);
-    final lines = <String>[
-      'Report — $siteLabel',
-      status,
-      'Today’s incidents: $incidents',
-    ];
-    if (guardAssignments.isEmpty) {
-      lines.add('Guard coverage: none configured');
-    } else {
-      for (final row in guardAssignments.take(2)) {
-        final assignment = Map<String, dynamic>.from(row as Map);
-        lines.add(
-          'Guard: ${(assignment['guard_name'] ?? 'Guard').toString().trim()} '
-          '(${(assignment['shift_start'] ?? '').toString().trim()} - ${(assignment['shift_end'] ?? '').toString().trim()})',
-        );
-      }
-    }
-    return lines.join('\n');
-  }
-
-  Future<String> _buildDispatchReply({
-    required String siteId,
-    required String prompt,
-  }) async {
-    final siteLabel = _siteLabel(siteId);
-    final incidentRows = await supabase
-        .from('incidents')
-        .select(
-          'id,event_uid,status,incident_type,created_at,occurred_at,signal_received_at,dispatch_time,arrival_time',
-        )
-        .eq('site_id', siteId)
-        .order('created_at', ascending: false)
-        .limit(20);
-    final dispatchedRows = incidentRows
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .where(
-          (row) =>
-              _asDateTimeUtc(row['dispatch_time']) != null ||
-              _asDateTimeUtc(row['arrival_time']) != null ||
-              _incidentIsActive((row['status'] ?? '').toString()),
-        )
-        .toList(growable: false);
-    if (dispatchedRows.isEmpty) {
-      return 'Dispatch summary: $siteLabel\n• No dispatch records are attached to this site yet.';
-    }
-    final lines = <String>['Dispatch summary: $siteLabel'];
-    for (final row in dispatchedRows.take(4)) {
-      final reference = (row['event_uid'] ?? row['id'] ?? 'incident')
-          .toString()
-          .trim();
-      final status = _humanizeLabel((row['status'] ?? 'open').toString());
-      final dispatchAt = _asDateTimeUtc(
-        row['dispatch_time'] ?? row['signal_received_at'] ?? row['occurred_at'],
-      );
-      final arrivalAt = _asDateTimeUtc(row['arrival_time']);
-      final parts = <String>[
-        reference,
-        'dispatched ${_clockLabel(dispatchAt)}',
-        'status $status',
-      ];
-      if (arrivalAt != null) {
-        parts.add('arrived ${_clockLabel(arrivalAt)}');
-      }
-      lines.add('• ${parts.join(' • ')}');
-    }
-    return lines.join('\n');
-  }
-
-  Future<String> _buildGuardReply({required String siteId}) async {
-    final siteLabel = _siteLabel(siteId);
-    final assignments = await supabase
-        .from('guard_assignments')
-        .select('guard_id,guard_name,shift_start,shift_end')
-        .eq('site_id', siteId)
-        .eq('is_active', true)
-        .limit(10);
-    if (assignments.isEmpty) {
-      return 'No guard is assigned at $siteLabel.';
-    }
-    final latestScanRows = await supabase
-        .from('patrol_checkpoint_scans')
-        .select('guard_id,checkpoint_name,scanned_at')
-        .eq('site_id', siteId)
-        .order('scanned_at', ascending: false)
-        .limit(20);
-    final latestByGuard = <String, Map<String, dynamic>>{};
-    for (final row in latestScanRows) {
-      final map = Map<String, dynamic>.from(row as Map);
-      final guardId = (map['guard_id'] ?? '').toString().trim();
-      if (guardId.isEmpty) {
-        continue;
-      }
-      latestByGuard.putIfAbsent(guardId, () => map);
-    }
-    final lines = <String>['Guard status — $siteLabel'];
-    for (final row in assignments) {
-      final assignment = Map<String, dynamic>.from(row as Map);
-      final guardId = (assignment['guard_id'] ?? '').toString().trim();
-      final guardName = (assignment['guard_name'] ?? 'Guard').toString().trim();
-      final latest = latestByGuard[guardId];
-      if (latest == null) {
-        lines.add('- $guardName — on duty, no patrol scan recorded yet');
-        continue;
-      }
-      lines.add(
-        '- $guardName — last checkpoint ${(latest['checkpoint_name'] ?? 'unknown').toString().trim()} at ${_clockLabel(_asDateTimeUtc(latest['scanned_at']))}',
-      );
-    }
-    return lines.join('\n');
-  }
-
-  Future<String> _buildCameraReply({required String siteId}) async {
-    final siteLabel = _siteLabel(siteId);
-    final snapshot = await _readLatestSnapshot(siteId);
-    if (snapshot == null) {
-      return 'Visual status: $siteLabel\n• No fresh camera snapshot is available right now.';
-    }
-    final summary = _siteAwarenessSummaryFromRow(snapshot);
-    final knownFaults = summary.knownFaultChannels
-        .where(_isValidChannelLabel)
-        .toList(growable: false);
-    return <String>[
-      'Visual status: $siteLabel',
-      '• Snapshot time: ${_clockLabel(summary.observedAtUtc)}',
-      '• Perimeter: ${summary.perimeterClear ? 'Clear' : 'Alert active'}',
-      '• Snapshot counts: ${summary.humanCount} people • ${summary.vehicleCount} vehicles • ${summary.animalCount} animals',
-      '• Active alerts: ${summary.activeAlertCount}',
-      '• Channel status: ${knownFaults.isEmpty ? 'All reported channels online' : knownFaults.map((channel) => 'CH$channel offline').join(', ')}',
-    ].join('\n');
-  }
-
-  Future<String> _buildIntelligenceReply({required String siteId}) async {
-    final siteLabel = _siteLabel(siteId);
-    final snapshot = await _readLatestSnapshot(siteId);
-    final incidents = await _readActiveIncidents(siteId);
-    if (snapshot == null) {
-      return 'Risk intelligence: $siteLabel\n• Not enough site telemetry is available yet.';
-    }
-    final summary = _siteAwarenessSummaryFromRow(snapshot);
-    final unusualLine = summary.activeAlertCount > 0
-        ? '${summary.activeAlertCount} active alert markers need review.'
-        : summary.humanCount > 0
-        ? 'Human movement is present, but no active alert markers are elevated.'
-        : 'No unusual activity pattern is standing out right now.';
-    return <String>[
-      'Risk intelligence: $siteLabel',
-      '• Current pattern: ${summary.humanCount} people • ${summary.vehicleCount} vehicles • ${summary.animalCount} animals',
-      '• Perimeter: ${summary.perimeterClear ? 'holding clear' : 'requires review'}',
-      '• Active incidents: $incidents',
-      '• Unusual marker: $unusualLine',
-    ].join('\n');
-  }
-
-  Future<String> _buildActionRequestReply({
-    required String siteId,
-    required String prompt,
-  }) async {
-    final siteLabel = _siteLabel(siteId);
-    final normalized = prompt.toLowerCase();
-    final actionLabel = normalized.contains('guard')
-        ? 'call the assigned guard unit'
-        : normalized.contains('escalate')
-        ? 'escalate the site for response'
-        : 'dispatch armed response';
-    return 'Action request: $siteLabel\n'
-        '• This will $actionLabel.\n'
-        '• Confirm before ONYX takes any action.';
+    return _buildAiFallbackReply(update: update, target: target);
   }
 
   Future<String> _handleVisitorRegistration({
@@ -1646,18 +1354,6 @@ class _OnyxTelegramAiProcessor {
     }
   }
 
-  Future<int> _readActiveIncidents(String siteId) async {
-    final rows = await supabase
-        .from('incidents')
-        .select('status')
-        .eq('site_id', siteId)
-        .order('created_at', ascending: false)
-        .limit(100);
-    return rows
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .where((row) => _incidentIsActive((row['status'] ?? '').toString()))
-        .length;
-  }
 }
 
 class _ProcessorTarget {
@@ -1836,20 +1532,6 @@ DateTime? _asDateTimeUtc(Object? value) {
   return DateTime.tryParse(value)?.toUtc();
 }
 
-bool _incidentIsActive(String value) {
-  switch (value.trim().toLowerCase()) {
-    case 'closed':
-    case 'resolved':
-    case 'all_clear':
-    case 'all clear':
-    case 'cancelled':
-    case 'canceled':
-      return false;
-    default:
-      return true;
-  }
-}
-
 String _normalizeEndpointRole(String value) {
   final normalized = value.trim().toLowerCase();
   return normalized.isEmpty ? 'client' : normalized;
@@ -1878,42 +1560,6 @@ String _siteLabel(String siteId) {
       .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
       .join(' ');
   return normalized.isEmpty ? trimmed : normalized;
-}
-
-String _humanizeLabel(String value) {
-  final trimmed = value.trim();
-  if (trimmed.isEmpty) {
-    return 'unknown';
-  }
-  return trimmed
-      .replaceAll(RegExp(r'[_\-]+'), ' ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-}
-
-String _relativeAgeLabel(DateTime observedAtUtc) {
-  final difference = DateTime.now().toUtc().difference(observedAtUtc).abs();
-  if (difference < const Duration(minutes: 1)) {
-    return 'just now';
-  }
-  if (difference < const Duration(hours: 1)) {
-    final minutes = difference.inMinutes;
-    return '$minutes ${minutes == 1 ? 'minute' : 'minutes'} ago';
-  }
-  if (difference < const Duration(days: 1)) {
-    final hours = difference.inHours;
-    return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
-  }
-  final days = difference.inDays;
-  return '$days ${days == 1 ? 'day' : 'days'} ago';
-}
-
-String _clockLabel(DateTime? instantUtc) {
-  if (instantUtc == null) {
-    return 'n/a';
-  }
-  final local = instantUtc.toLocal();
-  return _clockValue(local);
 }
 
 String _clockValue(DateTime value) {
@@ -1954,25 +1600,6 @@ DateTime? _visitEndDateTimeLocal(
   );
 }
 
-String? _onDemandVisitorStatusLine(List<Map<String, dynamic>> visitors) {
-  if (visitors.isEmpty) {
-    return null;
-  }
-  final primary = visitors.first;
-  final visitEnd = (primary['visit_end'] ?? '').toString().trim();
-  final untilLabel = visitEnd.isEmpty ? 'end of day' : visitEnd;
-  if (visitors.length == 1) {
-    final visitorName = (primary['visitor_name'] ?? '').toString().trim();
-    if (visitorName.isNotEmpty &&
-        visitorName.toLowerCase() != 'visitor' &&
-        visitorName.toLowerCase() != 'delivery') {
-      return '1 unregistered visitor on site ($visitorName) until $untilLabel';
-    }
-    return '1 unregistered visitor on site until $untilLabel';
-  }
-  return '${visitors.length} unregistered visitors on site until $untilLabel';
-}
-
 bool _visitorDepartureRequested(String prompt) {
   final normalized = prompt.trim().toLowerCase();
   return normalized.contains('leaving now') ||
@@ -2009,6 +1636,153 @@ bool _isOnyxAlertCallbackData(String text) {
       normalized.startsWith('dispatch_') ||
       normalized.startsWith('ack_') ||
       normalized.startsWith('dismiss_');
+}
+
+String _normalizeRoutingText(String message) {
+  return message
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
+const Set<String> _visitorRegistrationPhrases = <String>{
+  'cleaner is coming',
+  'cleaner is here',
+  'there is a cleaner',
+  'cleaner on site',
+  'expecting a visitor',
+  'contractor coming tomorrow',
+  'contractor is here',
+  'gardener today',
+  'cleaner came',
+  'someone is working on site',
+  'visitor coming',
+  'delivery coming',
+  'cleaner coming',
+  'gardener coming',
+  'contractor coming',
+  'is here',
+  'are here',
+  'just arrived',
+  'came in',
+  'letting in',
+  'opening for',
+  'leaving now',
+  'just left',
+  'gone now',
+};
+
+bool _isVisitorRegistrationMessage(String text) {
+  final normalized = _normalizeRoutingText(text);
+  if (normalized.isEmpty) {
+    return false;
+  }
+  const questionStarters = <String>[
+    'what ',
+    'when ',
+    'where ',
+    'who ',
+    'why ',
+    'how ',
+    'is ',
+    'are ',
+    'was ',
+    'were ',
+    'can ',
+    'could ',
+    'did ',
+    'does ',
+    'do ',
+    'will ',
+    'would ',
+    'should ',
+    'have ',
+    'has ',
+    'had ',
+  ];
+  for (final starter in questionStarters) {
+    if (normalized.startsWith(starter)) {
+      return false;
+    }
+  }
+  if (_visitorRegistrationPhrases.any(normalized.contains)) {
+    return true;
+  }
+  final isArrivalPhrase = normalized.contains(' is here') ||
+      normalized.contains(' are here') ||
+      normalized.contains(' just arrived') ||
+      normalized.contains(' came in') ||
+      normalized.contains(' arrived') ||
+      normalized.contains(' letting in') ||
+      normalized.contains(' opening for');
+  final isDeparturePhrase = normalized.contains(' leaving now') ||
+      normalized.contains(' just left') ||
+      normalized.contains(' gone now') ||
+      normalized.contains(' visitor gone') ||
+      normalized.contains(' cleaner leaving');
+  if (isDeparturePhrase) {
+    return true;
+  }
+  final mentionsVisitorRole = normalized.contains('cleaner') ||
+      normalized.contains('gardener') ||
+      normalized.contains('contractor') ||
+      normalized.contains('visitor') ||
+      normalized.contains('delivery');
+  final hasDurationHint = normalized.contains(' until ') ||
+      RegExp(r'\bfor\s+\d+\s+hours?\b').hasMatch(normalized) ||
+      normalized.contains('lunchtime');
+  if (mentionsVisitorRole) {
+    return normalized.contains('coming') ||
+        normalized.contains('expecting') ||
+        normalized.contains('today') ||
+        normalized.contains('tomorrow') ||
+        normalized.contains('arriving') ||
+        normalized.contains('here') ||
+        normalized.contains('on site') ||
+        normalized.contains('working') ||
+        hasDurationHint;
+  }
+  if (hasDurationHint && isArrivalPhrase) {
+    return true;
+  }
+  return RegExp(
+        r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+is\s+here\b",
+      ).hasMatch(normalized) ||
+      RegExp(
+        r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+just\s+arrived\b",
+      ).hasMatch(normalized);
+}
+
+const Set<String> _frOnboardingPhrases = <String>{
+  'add to the system',
+  'add to onyx',
+  'register as a resident',
+  'register as resident',
+  'register in the system',
+  'enrol in the system',
+  'enroll in the system',
+  'add resident',
+};
+
+bool _isFrOnboardingMessage(String text) {
+  final normalized = _normalizeRoutingText(text);
+  if (normalized.isEmpty) {
+    return false;
+  }
+  if (_frOnboardingPhrases.any(normalized.contains)) {
+    return true;
+  }
+  final includesAdd = normalized.contains('add ');
+  final includesRegister =
+      normalized.contains('register ') || normalized.contains('enroll ');
+  final includesPersonContext = normalized.contains('resident') ||
+      normalized.contains('staff') ||
+      normalized.contains('guard') ||
+      normalized.contains('visitor') ||
+      normalized.contains('system') ||
+      normalized.contains('recognition');
+  return (includesAdd || includesRegister) && includesPersonContext;
 }
 
 enum _OnyxAlertCallbackAction {
@@ -3255,532 +3029,6 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
           '${baseUri.path.endsWith('/') ? baseUri.path.substring(0, baseUri.path.length - 1) : baseUri.path}/bot$normalizedToken/$normalizedMethod',
       queryParameters: queryParameters,
     );
-  }
-}
-
-enum OnyxTelegramCommandType {
-  liveStatus,
-  gateAccess,
-  incident,
-  dispatch,
-  guard,
-  report,
-  camera,
-  intelligence,
-  actionRequest,
-  visitorRegistration,
-  frOnboarding,
-  clientStatement,
-  unknown,
-}
-
-class OnyxTelegramCommandRouter {
-  const OnyxTelegramCommandRouter();
-
-  static const Set<String> _liveStatusTriggers = <String>{
-    'status',
-    "what's happening",
-    'whats happening',
-    'any activity',
-    'everything okay',
-    'all good',
-    'whats on site',
-    "what's on site",
-    'how many people',
-    'how many',
-    'count',
-    'people on site',
-    'anyone on site',
-    'who is on site',
-    'occupancy',
-    'how many residents',
-    'anyone home',
-    'anyone there',
-    'who is home',
-    'whos home',
-    'which cars are home',
-    'which car is home',
-  };
-
-  static const Set<String> _gateAccessTriggers = <String>{
-    'gate',
-    'door',
-    'locked',
-    'closed',
-    'open',
-    'access',
-    'entry',
-  };
-
-  static const Set<String> _incidentTriggers = <String>{
-    'incident',
-    'what happened',
-    'last night',
-    'today',
-    'yesterday',
-    'show incident',
-  };
-
-  static const Set<String> _dispatchTriggers = <String>{
-    'response',
-    'dispatch',
-    'eta',
-    'arrived',
-    'who responded',
-  };
-
-  static const Set<String> _guardTriggers = <String>{
-    'guard',
-    'patrol',
-    'checkpoint',
-    'guard on site',
-    'missed patrol',
-    'did guard patrol',
-    'guard status',
-  };
-
-  static const Set<String> _reportTriggers = <String>{
-    'report',
-    'summary',
-    'weekly',
-    'monthly',
-    'send report',
-    'patrol report',
-  };
-
-  static const Set<String> _cameraTriggers = <String>{
-    'show me',
-    'camera',
-    'visual',
-    'clip',
-    'what triggered',
-  };
-
-  static const Set<String> _intelligenceTriggers = <String>{
-    'most risky',
-    'worst day',
-    'getting worse',
-    'trends',
-    'patterns',
-    'unusual',
-  };
-
-  static const Set<String> _actionRequestTriggers = <String>{
-    'send response',
-    'escalate',
-    'call guard',
-    'dispatch',
-  };
-
-  static const Set<String> _visitorRegistrationTriggers = <String>{
-    'cleaner is coming',
-    'cleaner is here',
-    'there is a cleaner',
-    'cleaner on site',
-    'expecting a visitor',
-    'contractor coming tomorrow',
-    'contractor is here',
-    'gardener today',
-    'cleaner came',
-    'someone is working on site',
-    'visitor coming',
-    'delivery coming',
-    'cleaner coming',
-    'gardener coming',
-    'contractor coming',
-    'is here',
-    'are here',
-    'just arrived',
-    'came in',
-    'letting in',
-    'opening for',
-    'leaving now',
-    'just left',
-    'gone now',
-  };
-
-  static const Set<String> _frOnboardingTriggers = <String>{
-    'add to the system',
-    'add to onyx',
-    'register as a resident',
-    'register as resident',
-    'register in the system',
-    'enrol in the system',
-    'enroll in the system',
-    'add resident',
-  };
-
-  static const Set<String> _identityPhrases = <String>{
-    'is my',
-    'are my',
-    'is our',
-    'are our',
-    'that was my',
-    'that was our',
-    'this is my',
-    'that is my',
-    'those are my',
-    'those are our',
-  };
-
-  static const Set<String> _statementPrefixes = <String>{
-    'the ',
-    "that's ",
-    'thats ',
-    "it's ",
-    'its ',
-    'they ',
-    'he ',
-    'she ',
-    'we ',
-    'everyone ',
-    'everyone is',
-    'all ',
-    'i have ',
-    "i've ",
-    'there is ',
-    'there are ',
-    'there will ',
-    "there'll ",
-  };
-
-  static const Set<String> _skipClassificationPhrases = <String>{
-    'yes',
-    'no',
-    'ok',
-    'okay',
-    'sure',
-    'thanks',
-    'thank you',
-    'got it',
-    'understood',
-  };
-
-  OnyxTelegramCommandType classify(String message) {
-    final normalized = _normalize(message);
-    if (normalized.isEmpty) {
-      return OnyxTelegramCommandType.unknown;
-    }
-    if (_shouldSkipClassification(normalized)) {
-      return OnyxTelegramCommandType.unknown;
-    }
-    if (_looksLikeFrOnboarding(normalized)) {
-      return OnyxTelegramCommandType.frOnboarding;
-    }
-    if (_looksLikeVisitorRegistration(normalized)) {
-      return OnyxTelegramCommandType.visitorRegistration;
-    }
-    if (_looksLikeClientStatement(normalized)) {
-      return OnyxTelegramCommandType.clientStatement;
-    }
-    if (_looksLikeActionRequest(normalized)) {
-      return OnyxTelegramCommandType.actionRequest;
-    }
-    if (_matchesAny(normalized, _intelligenceTriggers)) {
-      return OnyxTelegramCommandType.intelligence;
-    }
-    if (_matchesAny(normalized, _cameraTriggers)) {
-      return OnyxTelegramCommandType.camera;
-    }
-    if (_looksLikeDispatchQuery(normalized)) {
-      return OnyxTelegramCommandType.dispatch;
-    }
-    if (_looksLikeGateAccessQuery(normalized)) {
-      return OnyxTelegramCommandType.gateAccess;
-    }
-    if (_looksLikeIncidentQuery(normalized)) {
-      return OnyxTelegramCommandType.incident;
-    }
-    if (_matchesAny(normalized, _reportTriggers)) {
-      return OnyxTelegramCommandType.report;
-    }
-    if (_looksLikeLiveStatusQuery(normalized)) {
-      return OnyxTelegramCommandType.liveStatus;
-    }
-    if (_looksLikeGuardQuery(normalized)) {
-      return OnyxTelegramCommandType.guard;
-    }
-    return OnyxTelegramCommandType.unknown;
-  }
-
-  bool _looksLikeActionRequest(String normalized) {
-    if (_matchesAny(normalized, _actionRequestTriggers)) {
-      if (normalized == 'dispatch') {
-        return true;
-      }
-      if (normalized.contains('send response') ||
-          normalized.contains('send armed response') ||
-          normalized.contains('call guard') ||
-          normalized.contains('escalate')) {
-        return true;
-      }
-    }
-    return normalized.startsWith('dispatch ') ||
-        normalized.contains('dispatch now') ||
-        normalized.contains('dispatch response') ||
-        normalized.contains('call the guard') ||
-        normalized.contains('armed response');
-  }
-
-  bool _looksLikeDispatchQuery(String normalized) {
-    if (normalized.contains('who responded') ||
-        normalized.contains('response eta') ||
-        normalized.contains('dispatch eta') ||
-        normalized.contains('when did') && normalized.contains('arriv')) {
-      return true;
-    }
-    if (_matchesAny(normalized, _dispatchTriggers)) {
-      return normalized.contains('response') ||
-          normalized.contains('dispatch') ||
-          normalized.contains('eta') ||
-          normalized.contains('arriv') ||
-          normalized.contains('respond');
-    }
-    return false;
-  }
-
-  bool _looksLikeGuardQuery(String normalized) {
-    if (normalized.contains('guard on site')) {
-      return true;
-    }
-    return _matchesAny(normalized, _guardTriggers);
-  }
-
-  bool _looksLikeLiveStatusQuery(String normalized) {
-    if (_matchesAny(normalized, _liveStatusTriggers)) {
-      return true;
-    }
-    if (normalized == 'how many') {
-      return true;
-    }
-    if (normalized.contains('how many') &&
-        (normalized.contains('people') ||
-            normalized.contains('resident') ||
-            normalized.contains('occupancy') ||
-            normalized.contains('anyone') ||
-            normalized.contains('home') ||
-            normalized.contains('there') ||
-            normalized.contains('on site'))) {
-      return true;
-    }
-    if (normalized.contains('which cars are home') ||
-        normalized.contains('which car is home') ||
-        normalized.contains('whos home')) {
-      return true;
-    }
-    if (normalized.startsWith('is ') && normalized.endsWith(' home')) {
-      return true;
-    }
-    if (normalized.startsWith('did ') && normalized.contains(' arrive')) {
-      return true;
-    }
-    return false;
-  }
-
-  bool _looksLikeGateAccessQuery(String normalized) {
-    if (_matchesAny(normalized, _gateAccessTriggers)) {
-      final hasGateNoun =
-          normalized.contains('gate') ||
-          normalized.contains('door') ||
-          normalized.contains('access') ||
-          normalized.contains('entry');
-      if (hasGateNoun) {
-        return true;
-      }
-      return normalized.split(' ').where((value) => value.isNotEmpty).length <=
-          2;
-    }
-    final hasGateNoun =
-        normalized.contains('gate') ||
-        normalized.contains('door') ||
-        normalized.contains('access') ||
-        normalized.contains('entry');
-    if (hasGateNoun) {
-      return true;
-    }
-    final hasStateWord =
-        normalized.contains('locked') ||
-        normalized.contains('closed') ||
-        normalized.contains('open');
-    if (!hasStateWord) {
-      return false;
-    }
-    return normalized.split(' ').where((value) => value.isNotEmpty).length <= 2;
-  }
-
-  bool _looksLikeIncidentQuery(String normalized) {
-    if (_matchesAny(normalized, _incidentTriggers)) {
-      return true;
-    }
-    return normalized.contains('what happened') ||
-        normalized.contains('show incident') ||
-        normalized.contains('incident history');
-  }
-
-  bool _looksLikeClientStatement(String normalized) {
-    if (normalized.contains('?')) return false;
-    const questionStarters = <String>[
-      'what ',
-      'when ',
-      'where ',
-      'who ',
-      'why ',
-      'how ',
-      'is ',
-      'are ',
-      'was ',
-      'were ',
-      'can ',
-      'could ',
-      'did ',
-      'does ',
-      'do ',
-      'will ',
-      'would ',
-      'should ',
-      'have ',
-      'has ',
-      'had ',
-    ];
-    for (final starter in questionStarters) {
-      if (normalized.startsWith(starter)) return false;
-    }
-    for (final prefix in _statementPrefixes) {
-      if (normalized.startsWith(prefix)) return true;
-    }
-    if (_matchesAny(normalized, _identityPhrases)) return true;
-    if ((normalized.contains('coming') ||
-            normalized.contains('arriving') ||
-            normalized.contains('visitor') ||
-            normalized.contains('dropping by')) &&
-        !normalized.startsWith('is ') &&
-        !normalized.startsWith('are ')) {
-      return true;
-    }
-    return false;
-  }
-
-  bool _looksLikeVisitorRegistration(String normalized) {
-    const questionStarters = <String>[
-      'what ',
-      'when ',
-      'where ',
-      'who ',
-      'why ',
-      'how ',
-      'is ',
-      'are ',
-      'was ',
-      'were ',
-      'can ',
-      'could ',
-      'did ',
-      'does ',
-      'do ',
-      'will ',
-      'would ',
-      'should ',
-      'have ',
-      'has ',
-      'had ',
-    ];
-    for (final starter in questionStarters) {
-      if (normalized.startsWith(starter)) {
-        return false;
-      }
-    }
-    if (_matchesAny(normalized, _visitorRegistrationTriggers)) {
-      return true;
-    }
-    final isArrivalPhrase =
-        normalized.contains(' is here') ||
-        normalized.contains(' are here') ||
-        normalized.contains(' just arrived') ||
-        normalized.contains(' came in') ||
-        normalized.contains(' arrived') ||
-        normalized.contains(' letting in') ||
-        normalized.contains(' opening for');
-    final isDeparturePhrase =
-        normalized.contains(' leaving now') ||
-        normalized.contains(' just left') ||
-        normalized.contains(' gone now') ||
-        normalized.contains(' visitor gone') ||
-        normalized.contains(' cleaner leaving');
-    if (isDeparturePhrase) {
-      return true;
-    }
-    final mentionsVisitorRole =
-        normalized.contains('cleaner') ||
-        normalized.contains('gardener') ||
-        normalized.contains('contractor') ||
-        normalized.contains('visitor') ||
-        normalized.contains('delivery');
-    final hasDurationHint =
-        normalized.contains(' until ') ||
-        RegExp(r'\bfor\s+\d+\s+hours?\b').hasMatch(normalized) ||
-        normalized.contains('lunchtime');
-    if (mentionsVisitorRole) {
-      return normalized.contains('coming') ||
-          normalized.contains('expecting') ||
-          normalized.contains('today') ||
-          normalized.contains('tomorrow') ||
-          normalized.contains('arriving') ||
-          normalized.contains('here') ||
-          normalized.contains('on site') ||
-          normalized.contains('working') ||
-          hasDurationHint;
-    }
-    if (hasDurationHint && isArrivalPhrase) {
-      return true;
-    }
-    return RegExp(
-          r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+is\s+here\b",
-        ).hasMatch(normalized) ||
-        RegExp(
-          r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+just\s+arrived\b",
-        ).hasMatch(normalized);
-  }
-
-  bool _looksLikeFrOnboarding(String normalized) {
-    if (_matchesAny(normalized, _frOnboardingTriggers)) {
-      return true;
-    }
-    final includesAdd = normalized.contains('add ');
-    final includesRegister =
-        normalized.contains('register ') || normalized.contains('enroll ');
-    final includesPersonContext =
-        normalized.contains('resident') ||
-        normalized.contains('staff') ||
-        normalized.contains('guard') ||
-        normalized.contains('visitor') ||
-        normalized.contains('system') ||
-        normalized.contains('recognition');
-    return (includesAdd || includesRegister) && includesPersonContext;
-  }
-
-  bool _matchesAny(String normalized, Set<String> phrases) {
-    for (final phrase in phrases) {
-      if (normalized.contains(phrase)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool _shouldSkipClassification(String normalized) {
-    if (_skipClassificationPhrases.contains(normalized)) {
-      return true;
-    }
-    final words = normalized.split(' ').where((value) => value.isNotEmpty);
-    return words.length == 1 && _skipClassificationPhrases.contains(normalized);
-  }
-
-  String _normalize(String message) {
-    return message
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
   }
 }
 
