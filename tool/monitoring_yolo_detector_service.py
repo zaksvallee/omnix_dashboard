@@ -62,10 +62,28 @@ _FR_ENABLED_ENV_RAW = os.getenv("ONYX_FR_ENABLED")
 FR_ENABLED = (_FR_ENABLED_ENV_RAW or "false").strip().lower() == "true"
 _FACE_RECOGNITION_MODULE = None
 _FACE_RECOGNITION_IMPORT_ERROR = ""
+# Face recognition backend selector. "opencv" uses YuNet detector + SFace
+# recognizer (ONNX, runs through OpenCV DNN — Apple Silicon and Pi can both
+# accelerate). "dlib" uses face_recognition (dlib CNN/HOG — known to trip the
+# 30s watchdog on Apple Silicon CPU-only). Default opencv. Rollback: set
+# ONYX_FR_BACKEND=dlib.
+_FR_BACKEND_ENV_RAW = os.getenv("ONYX_FR_BACKEND")
+FR_BACKEND = (_FR_BACKEND_ENV_RAW or "opencv").strip().lower()
+if FR_BACKEND not in {"opencv", "dlib"}:
+    FR_BACKEND = "opencv"
+# OpenCV DNN backend/target tuning. Names map onto cv2.dnn.DNN_BACKEND_<X>
+# and cv2.dnn.DNN_TARGET_<X> at model-load time. Defaults: OPENCV + CPU.
+# For Apple Silicon try TARGET=CPU_FP16. For NVIDIA GPU try BACKEND=CUDA +
+# TARGET=CUDA_FP16. Resolution is lazy (in _ensure_models) because cv2 is
+# imported lazily.
+_FR_OPENCV_BACKEND_RAW = os.getenv("ONYX_FR_OPENCV_BACKEND")
+_FR_OPENCV_TARGET_RAW = os.getenv("ONYX_FR_OPENCV_TARGET")
 _LPR_ENABLED_ENV_RAW = os.getenv("ONYX_LPR_ENABLED")
 LPR_ENABLED = (_LPR_ENABLED_ENV_RAW or "false").strip().lower() == "true"
 _EASYOCR_MODULE = None
 _EASYOCR_IMPORT_ERROR = ""
+
+_log.info("[ONYX-FR] backend selector: ONYX_FR_BACKEND=%s (rollback to dlib via env)", FR_BACKEND)
 
 if FR_ENABLED:
     try:
@@ -170,6 +188,40 @@ def _resolved_lpr_enabled(configured_enabled: bool) -> bool:
     if _lpr_override_present():
         return LPR_ENABLED
     return configured_enabled
+
+
+def _resolve_opencv_backend_target() -> Tuple[int, int, str, str]:
+    """Resolve OpenCV DNN backend + target IDs from env.
+
+    Returns (backend_id, target_id, backend_name, target_name). Falls back
+    silently to OPENCV + CPU if the env names are not present in the local
+    cv2.dnn build (older OpenCV ARM builds may not expose CPU_FP16, etc.).
+    """
+    import cv2
+
+    backend_name = (_FR_OPENCV_BACKEND_RAW or "OPENCV").strip().upper()
+    target_name = (_FR_OPENCV_TARGET_RAW or "CPU").strip().upper()
+    backend_attr = f"DNN_BACKEND_{backend_name}"
+    target_attr = f"DNN_TARGET_{target_name}"
+    backend_id = getattr(cv2.dnn, backend_attr, None)
+    target_id = getattr(cv2.dnn, target_attr, None)
+    if backend_id is None:
+        backend_id = cv2.dnn.DNN_BACKEND_OPENCV
+        backend_name = f"OPENCV(fallback;{backend_name}_unavailable)"
+    if target_id is None:
+        target_id = cv2.dnn.DNN_TARGET_CPU
+        target_name = f"CPU(fallback;{target_name}_unavailable)"
+    return int(backend_id), int(target_id), backend_name, target_name
+
+
+def _fr_cosine_threshold() -> float:
+    raw = os.getenv("ONYX_FR_OPENCV_COSINE_THRESHOLD")
+    if not raw:
+        return 0.363
+    try:
+        return float(raw)
+    except ValueError:
+        return 0.363
 
 
 def _load_face_recognition_module() -> Optional[Any]:
@@ -626,9 +678,20 @@ class FaceRecognitionModule:
         except Exception as exc:
             self._last_error = str(exc)
             return False, self._last_error
-        if not self._gallery_face_encodings:
-            self._last_error = "Face recognition gallery is empty or contains no usable faces."
-            return False, self._last_error
+        if FR_BACKEND == "opencv":
+            if not self._gallery_embeddings:
+                self._last_error = (
+                    "Face recognition gallery has no OpenCV embeddings "
+                    "(opencv backend)."
+                )
+                return False, self._last_error
+        else:
+            if not self._gallery_face_encodings:
+                self._last_error = (
+                    "Face recognition gallery has no dlib encodings "
+                    "(dlib backend)."
+                )
+                return False, self._last_error
         self._last_error = ""
         return True, ""
 
@@ -639,66 +702,115 @@ class FaceRecognitionModule:
     ) -> Optional[Dict[str, Any]]:
         if not self.enabled:
             return None
-        face_recognition = _load_face_recognition_module()
-        if face_recognition is None:
-            self._last_error = (
-                _FACE_RECOGNITION_IMPORT_ERROR
-                or "face_recognition is not installed."
-            )
-            return None
+        backend = FR_BACKEND
+        started = time.monotonic()
+        matched = False
         try:
-            self._refresh_gallery(face_recognition)
-        except Exception as exc:
-            self._last_error = str(exc)
-            return None
-        if not self._gallery_face_encodings:
-            return None
+            face_recognition = _load_face_recognition_module()
+            if face_recognition is None:
+                self._last_error = (
+                    _FACE_RECOGNITION_IMPORT_ERROR
+                    or "face_recognition is not installed."
+                )
+                return None
+            try:
+                self._refresh_gallery(face_recognition)
+            except Exception as exc:
+                self._last_error = str(exc)
+                return None
+            if backend == "opencv":
+                if not self._gallery_embeddings:
+                    return None
+            else:
+                if not self._gallery_face_encodings:
+                    return None
 
-        height, width = image_bgr.shape[:2]
-        if width >= 1000 and height >= 600:
-            print(f"[ONYX] FR: Using HD frame {width}x{height} from RTSP")
+            height, width = image_bgr.shape[:2]
+            if width >= 1000 and height >= 600:
+                print(f"[ONYX] FR: Using HD frame {width}x{height} from RTSP")
+            _log.debug(
+                "[ONYX-FR] match start backend=%s frame=%dx%d", backend, width, height
+            )
 
-        best_match_id = ""
-        best_distance = None
-        saw_person_crop = False
-        saw_face = False
-        for crop in self._candidate_face_crops(image_bgr, detections or []):
-            saw_person_crop = True
-            best_match_id, best_distance, crop_saw_face = self._match_attempts(
-                face_recognition=face_recognition,
-                attempts=self._face_attempts(crop),
+            best_match_id = ""
+            best_distance = None
+            saw_person_crop = False
+            saw_face = False
+            for crop in self._candidate_face_crops(image_bgr, detections or []):
+                saw_person_crop = True
+                best_match_id, best_distance, crop_saw_face = self._dispatch_match(
+                    backend=backend,
+                    face_recognition=face_recognition,
+                    attempts=self._face_attempts(crop),
+                    best_match_id=best_match_id,
+                    best_distance=best_distance,
+                )
+                saw_face = saw_face or crop_saw_face
+
+            if saw_person_crop and not saw_face:
+                print("[ONYX] FR: No face in crop")
+            if not saw_face:
+                print("[ONYX] FR: Trying direct full-frame fallback")
+                best_match_id, best_distance, saw_face = self._dispatch_match(
+                    backend=backend,
+                    face_recognition=face_recognition,
+                    attempts=self._full_frame_attempts(image_bgr),
+                    best_match_id=best_match_id,
+                    best_distance=best_distance,
+                )
+            if not saw_face:
+                print("[ONYX] FR: No face found in direct fallback")
+                return None
+
+            threshold = self._match_threshold_for_backend()
+            if (
+                not best_match_id
+                or best_distance is None
+                or best_distance > threshold
+            ):
+                return None
+
+            confidence = max(0.0, min(1.0 - best_distance, 1.0))
+            flagged = "_FLAGGED_" in best_match_id
+            matched = True
+            return {
+                "face_match_id": best_match_id,
+                "face_confidence": confidence,
+                "face_distance": max(0.0, min(best_distance, 1.0)),
+                "matched": True,
+                "flagged": flagged,
+                "threat_level": "high" if flagged else None,
+            }
+        finally:
+            elapsed_ms = (time.monotonic() - started) * 1000.0
+            _log.info(
+                "[ONYX-FR] match backend=%s matched=%s elapsed_ms=%.0f",
+                backend,
+                "yes" if matched else "no",
+                elapsed_ms,
+            )
+
+    def _dispatch_match(
+        self,
+        *,
+        backend: str,
+        face_recognition: Any,
+        attempts: Sequence[Any],
+        best_match_id: str,
+        best_distance: Optional[float],
+    ) -> Tuple[str, Optional[float], bool]:
+        if backend == "opencv":
+            return self._match_attempts_opencv(
+                attempts=attempts,
                 best_match_id=best_match_id,
                 best_distance=best_distance,
             )
-            saw_face = saw_face or crop_saw_face
-
-        if saw_person_crop and not saw_face:
-            print("[ONYX] FR: No face in crop")
-        if not saw_face:
-            print("[ONYX] FR: Trying direct full-frame fallback")
-            best_match_id, best_distance, saw_face = self._match_attempts(
-                face_recognition=face_recognition,
-                attempts=self._full_frame_attempts(image_bgr),
-                best_match_id=best_match_id,
-                best_distance=best_distance,
-            )
-        if not saw_face:
-            print("[ONYX] FR: No face found in direct fallback")
-            return None
-
-        if not best_match_id or best_distance is None or best_distance > self.match_threshold:
-            return None
-
-        confidence = max(0.0, min(1.0 - best_distance, 1.0))
-        flagged = "_FLAGGED_" in best_match_id
-        return {
-            "face_match_id": best_match_id,
-            "face_confidence": confidence,
-            "face_distance": max(0.0, min(best_distance, 1.0)),
-            "matched": True,
-            "flagged": flagged,
-            "threat_level": "high" if flagged else None,
-        }
+        return self._match_attempts_dlib(
+            face_recognition=face_recognition,
+            attempts=attempts,
+            best_match_id=best_match_id,
+            best_distance=best_distance,
+        )
 
     def _ensure_models(self):
         import cv2
@@ -713,16 +825,42 @@ class FaceRecognitionModule:
             "face_recognition_sface_2021dec.onnx",
             _DEFAULT_FACE_RECOGNIZER_URL,
         )
+        if self._detector is None or self._recognizer is None:
+            backend_id, target_id, backend_name, target_name = (
+                _resolve_opencv_backend_target()
+            )
         if self._detector is None:
+            # YuNet defaults: score_threshold=0.9, nms_threshold=0.3,
+            # top_k=5000. Pass them explicitly so we can also pass
+            # backend_id / target_id (positional after top_k).
             self._detector = cv2.FaceDetectorYN_create(
                 str(detector_path),
                 "",
                 (320, 320),
+                0.9,
+                0.3,
+                5000,
+                backend_id,
+                target_id,
+            )
+            _log.info(
+                "[ONYX-FR] OpenCV detector loaded backend=%s target=%s model=%s",
+                backend_name,
+                target_name,
+                detector_path.name,
             )
         if self._recognizer is None:
             self._recognizer = cv2.FaceRecognizerSF_create(
                 str(recognizer_path),
                 "",
+                backend_id,
+                target_id,
+            )
+            _log.info(
+                "[ONYX-FR] OpenCV recognizer loaded backend=%s target=%s model=%s",
+                backend_name,
+                target_name,
+                recognizer_path.name,
             )
         return self._detector, self._recognizer
 
@@ -889,7 +1027,7 @@ class FaceRecognitionModule:
         equalized_bgr = cv2.cvtColor(equalized, cv2.COLOR_GRAY2BGR)
         return [upscaled, equalized_bgr]
 
-    def _match_attempts(
+    def _match_attempts_dlib(
         self,
         *,
         face_recognition: Any,
@@ -920,6 +1058,70 @@ class FaceRecognitionModule:
                     best_distance = distance
                     best_match_id = self._gallery_face_encodings[best_index]["match_id"]
         return best_match_id, best_distance, saw_face
+
+    def _match_attempts_opencv(
+        self,
+        *,
+        attempts: Sequence[Any],
+        best_match_id: str,
+        best_distance: Optional[float],
+    ) -> Tuple[str, Optional[float], bool]:
+        # Returns (match_id, distance, saw_face) with the SAME shape as the
+        # dlib path so callers don't change. Cosine similarity is converted
+        # to distance = 1 - cosine_similarity; the threshold check in match()
+        # uses _match_threshold_for_backend() to apply the correct one.
+        import cv2
+
+        detector, recognizer = self._ensure_models()
+        saw_face = False
+        for attempt in attempts:
+            if attempt is None or getattr(attempt, "size", 0) == 0:
+                continue
+            try:
+                faces = self._detect_faces(detector, attempt)
+            except Exception:
+                continue
+            if not faces:
+                continue
+            saw_face = True
+            for face in faces:
+                try:
+                    aligned = recognizer.alignCrop(attempt, face)
+                    feature = recognizer.feature(aligned)
+                except Exception:
+                    continue
+                best_local_score = -1.0
+                best_local_id = ""
+                for entry in self._gallery_embeddings:
+                    try:
+                        score = float(
+                            recognizer.match(
+                                feature,
+                                entry["feature"],
+                                cv2.FaceRecognizerSF_FR_COSINE,
+                            )
+                        )
+                    except Exception:
+                        continue
+                    if score > best_local_score:
+                        best_local_score = score
+                        best_local_id = str(entry["match_id"])
+                if best_local_score < 0.0 or not best_local_id:
+                    continue
+                distance = 1.0 - best_local_score
+                if best_distance is None or distance < best_distance:
+                    best_distance = distance
+                    best_match_id = best_local_id
+        return best_match_id, best_distance, saw_face
+
+    def _match_threshold_for_backend(self) -> float:
+        # dlib uses face_distance (lower is better); self.match_threshold
+        # is the dlib threshold (e.g. 0.37). OpenCV cosine similarity is
+        # converted to distance = 1 - cos_sim, so the dlib distance check
+        # `distance > threshold` works if we pass the equivalent here.
+        if FR_BACKEND == "opencv":
+            return 1.0 - _fr_cosine_threshold()
+        return self.match_threshold
 
     def _to_rgb(self, image_bgr: Any):
         import cv2
