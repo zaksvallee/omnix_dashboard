@@ -1,5 +1,6 @@
 {
   "_NOTE": "Mac-only enhancement-tier config. Consumed by scripts/mac_enhancement_start.sh to boot the YOLO/FR/LPR HTTP service on Apple Silicon with MPS acceleration. NOT for the Pi. NOT checked in with secrets — Supabase/Telegram keys below are placeholders; the detector service does not use them.",
+  "_NOTE_lpr": "2026-05-04: LPR globally disabled — zero recall at MS Vallee across 12 vehicle frames in profile sample (see instrument(lpr) commit). Per-site re-enable required for commercial sites (Engen). Recall investigation deferred.",
   "ONYX_MONITORING_YOLO_ENABLED": "true",
   "ONYX_MONITORING_YOLO_HOST": "0.0.0.0",
   "ONYX_MONITORING_YOLO_PORT": "11636",
@@ -21,8 +22,8 @@
   "ONYX_MONITORING_FR_RECOGNIZER_MODEL": "",
   "ONYX_MONITORING_FR_MATCH_THRESHOLD": "0.37",
   "ONYX_MONITORING_FR_MODEL_CACHE_DIR": "tool/model_cache/opencv_face",
-  "ONYX_LPR_ENABLED": "true",
-  "ONYX_MONITORING_LPR_ENABLED": "true",
+  "ONYX_LPR_ENABLED": "false",
+  "ONYX_MONITORING_LPR_ENABLED": "false",
   "ONYX_MONITORING_LPR_LANGS": "en",
   "ONYX_MONITORING_LPR_MIN_CONFIDENCE": "0.55"
 }
