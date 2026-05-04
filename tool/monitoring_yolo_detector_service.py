@@ -1187,6 +1187,15 @@ class PlateRecognitionModule:
         detections: Sequence[Dict[str, Any]],
         item: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
+        # [ONYX-LPR-PROFILE] per-attempt diagnostic instrumentation. The
+        # `if not self.enabled: return None` gate immediately below short-circuits
+        # detect() when LPR is disabled (ONYX_LPR_ENABLED=false), so the timing
+        # accumulators and log emissions further down never execute in that case.
+        # When LPR is enabled, this emits ~63 [ONYX-LPR-PROFILE] log lines per
+        # vehicle frame plus one summary line per detect() call. Pattern mirrors
+        # [ONYX-YOLO-TIMING] from commit 370fa10. Added 2026-05-04 during the
+        # profile run that found zero plate matches at MS Vallee (see chore(lpr)
+        # commit on the same day for the global disable decision).
         if not self.enabled:
             return None
         try:
@@ -1195,18 +1204,50 @@ class PlateRecognitionModule:
             self._last_error = str(exc)
             return None
 
+        # [ONYX-LPR-PROFILE] timing accumulators
+        detect_t0 = time.monotonic()
+        crop_count = 0
+        attempt_count = 0
+        readtext_total_ms = 0.0
+        crops_t0 = time.monotonic()
+        candidate_list = list(self._candidate_crops(image_bgr, detections, item))
+        crops_ms = (time.monotonic() - crops_t0) * 1000.0
+
         best_candidate = None
         best_score = -1.0
-        for priority, crop in self._candidate_crops(image_bgr, detections, item):
+        for priority, crop in candidate_list:
             if crop.size == 0:
                 continue
+            crop_count += 1
+            crop_h, crop_w = crop.shape[:2]
+            attempts_t0 = time.monotonic()
             attempts = self._ocr_attempts(crop)
-            for attempt in attempts:
+            attempts_ms = (time.monotonic() - attempts_t0) * 1000.0
+            for attempt_idx, attempt in enumerate(attempts, start=1):
+                attempt_count += 1
+                ocr_t0 = time.monotonic()
                 results = reader.readtext(
                     attempt,
                     detail=1,
                     paragraph=False,
                     allowlist=self.allowlist,
+                )
+                ocr_ms = (time.monotonic() - ocr_t0) * 1000.0
+                readtext_total_ms += ocr_ms
+                _log.info(
+                    "[ONYX-LPR-PROFILE] crop=%d %dx%d priority=%.2f "
+                    "attempt=%d attempt_local=%d shape=%s attempts_ms=%.1f "
+                    "ocr_ms=%.1f results=%d",
+                    crop_count,
+                    crop_w,
+                    crop_h,
+                    priority,
+                    attempt_count,
+                    attempt_idx,
+                    "x".join(str(d) for d in attempt.shape),
+                    attempts_ms if attempt_idx == 1 else 0.0,
+                    ocr_ms,
+                    len(results),
                 )
                 for raw_result in results:
                     if len(raw_result) < 3:
@@ -1225,6 +1266,30 @@ class PlateRecognitionModule:
                             "plate_number": plate,
                             "plate_confidence": confidence,
                         }
+
+        detect_ms = (time.monotonic() - detect_t0) * 1000.0
+        vehicle_count = sum(
+            1 for d in detections if d.get("label") == "vehicle"
+        )
+        try:
+            input_h, input_w = image_bgr.shape[:2]
+        except Exception:
+            input_h, input_w = 0, 0
+        _log.info(
+            "[ONYX-LPR-PROFILE] detect_total_ms=%.1f crops=%d attempts=%d "
+            "readtext_total_ms=%.1f crops_ms=%.1f ocr_overhead_ms=%.1f "
+            "input=%dx%d vehicles=%d matched=%s",
+            detect_ms,
+            crop_count,
+            attempt_count,
+            readtext_total_ms,
+            crops_ms,
+            detect_ms - readtext_total_ms - crops_ms,
+            input_w,
+            input_h,
+            vehicle_count,
+            best_candidate["plate_number"] if best_candidate else "",
+        )
         return best_candidate
 
     def _ocr_attempts(self, crop: Any) -> List[Any]:
