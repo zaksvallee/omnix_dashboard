@@ -6,7 +6,7 @@ String? _cameraStatusClarifierReply({
   required List<String> recentConversationTurns,
   required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
-  final asksCameraCheck = _containsAny(normalizedMessage, const [
+  final asksCameraCheck = telegramAiContainsAny(normalizedMessage, const [
     'did you check cameras',
     'did you check the cameras',
     'did you check camera',
@@ -20,21 +20,21 @@ String? _cameraStatusClarifierReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final remoteMonitoringOffline = _containsAny(joined, const [
+  final remoteMonitoringOffline = telegramAiContainsAny(joined, const [
     'temporarily without remote monitoring',
     'remote watch is temporarily unavailable',
     'remote monitoring is offline',
     'offline for this site',
     'monitoring path is offline',
   ]);
-  final telemetrySummaryVisible = _containsAny(joined, const [
+  final telemetrySummaryVisible = telegramAiContainsAny(joined, const [
     'site activity summary',
     'field telemetry',
     'latest field signal:',
     'guard or response-team activity signals were logged through onyx field telemetry',
     'guard or response-team activity signal was logged through onyx field telemetry',
   ]);
-  final noOpenIncident = _containsAny(joined, const [
+  final noOpenIncident = telegramAiContainsAny(joined, const [
     'not sitting as an open incident',
     'open follow-ups: 0',
     'no client-facing action has been required',
@@ -63,7 +63,7 @@ String? _cameraConnectionClarifierReply({
   required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final asksWhyNoCameras = _asksWhyNoLiveCameraAccess(normalizedMessage);
-  final asksForUrgentCameraRepair = _containsAny(normalizedMessage, const [
+  final asksForUrgentCameraRepair = telegramAiContainsAny(normalizedMessage, const [
     'rewire cameras',
     'rewire camera',
     'fix the cameras',
@@ -87,7 +87,7 @@ String? _cameraConnectionClarifierReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final remoteMonitoringOffline = _containsAny(joined, const [
+  final remoteMonitoringOffline = telegramAiContainsAny(joined, const [
     'temporarily without remote monitoring',
     'remote watch is temporarily unavailable',
     'remote monitoring is offline',
@@ -139,7 +139,7 @@ String? _cameraHealthFactPacketReply({
     return null;
   }
   final asksWhyNoCameras = _asksWhyNoLiveCameraAccess(normalizedMessage);
-  final asksForUrgentCameraRepair = _containsAny(normalizedMessage, const [
+  final asksForUrgentCameraRepair = telegramAiContainsAny(normalizedMessage, const [
     'rewire cameras',
     'rewire camera',
     'fix the cameras',
@@ -183,14 +183,14 @@ String? _cameraHealthFactPacketReply({
     normalizedMessage,
     recentConversationTurns,
   );
-  final asksCameraCheck = _containsAny(normalizedMessage, const [
+  final asksCameraCheck = telegramAiContainsAny(normalizedMessage, const [
     'did you check cameras',
     'did you check the cameras',
     'did you check camera',
     'camera check',
     'check cameras',
   ]);
-  final asksAboutRestoration = _containsAny(normalizedMessage, const [
+  final asksAboutRestoration = telegramAiContainsAny(normalizedMessage, const [
     'when will remote monitoring be back',
     'when will remote monitoring be back up',
     'when will remote monitoring be back online',
@@ -202,7 +202,7 @@ String? _cameraHealthFactPacketReply({
     'how long until monitoring',
     'when is remote monitoring back',
   ]);
-  final camerasDown = _containsAny(normalizedMessage, const [
+  final camerasDown = telegramAiContainsAny(normalizedMessage, const [
     'my cameras are down',
     'cameras are down',
     'camera is down',
@@ -373,13 +373,13 @@ String? _cameraOfflineSignalClarifierReply({
 }) {
   final mentionsOfflineCamera =
       normalizedMessage.contains('camera') &&
-      _containsAny(normalizedMessage, const [
+      telegramAiContainsAny(normalizedMessage, const [
         'currently offline',
         'is offline',
         'offline now',
         'camera offline',
       ]);
-  final asksHowSignalWasDetected = _containsAny(normalizedMessage, const [
+  final asksHowSignalWasDetected = telegramAiContainsAny(normalizedMessage, const [
     'how did you detect a signal',
     'how did you detect signal',
     'how did you detect a trigger',
@@ -400,7 +400,7 @@ String? _cameraOfflineSignalClarifierReply({
   final usesLegacyRecorderBridge =
       packet?.path == ClientCameraHealthPath.legacyLocalProxy ||
       packet?.reason == ClientCameraHealthReason.legacyProxyActive;
-  final mentionsRecorderSignal = _containsAny(joined, const [
+  final mentionsRecorderSignal = telegramAiContainsAny(joined, const [
     'latest logged signal was a recorder event',
     'latest verified activity near',
     'recent motion alerts',

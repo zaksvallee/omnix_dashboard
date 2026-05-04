@@ -14,7 +14,7 @@ String? _reassuranceClarifierReply({
 }) {
   final asksIfEverythingIsOkay =
       _isBroadReassuranceAsk(normalizedMessage) ||
-      _containsAny(normalizedMessage, const [
+      telegramAiContainsAny(normalizedMessage, const [
         'all right',
         'alright',
         'all good',
@@ -27,7 +27,7 @@ String? _reassuranceClarifierReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final remoteMonitoringOffline = _containsAny(joined, const [
+  final remoteMonitoringOffline = telegramAiContainsAny(joined, const [
     'temporarily without remote monitoring',
     'remote watch is temporarily unavailable',
     'remote monitoring is offline',
@@ -35,12 +35,12 @@ String? _reassuranceClarifierReply({
     'monitoring path is offline',
   ]);
   final explicitOnSitePresence = _hasExplicitCurrentOnSitePresence(joined);
-  final onlyGenericFieldActivity = _containsAny(joined, const [
+  final onlyGenericFieldActivity = telegramAiContainsAny(joined, const [
     'routine on-site team activity is visible',
     'field activity observed',
   ]);
   final telemetrySummaryVisible = _hasTelemetrySummaryContext(joined);
-  final noOpenIncident = _containsAny(joined, const [
+  final noOpenIncident = telegramAiContainsAny(joined, const [
     'not sitting as an open incident',
     'open follow-ups: 0',
     'no client-facing action has been required',
@@ -52,7 +52,7 @@ String? _reassuranceClarifierReply({
       (laneStage == _ClientLaneStage.responderOnSite &&
           !remoteMonitoringOffline &&
           !onlyGenericFieldActivity);
-  final fieldActivityVisible = _containsAny(joined, const [
+  final fieldActivityVisible = telegramAiContainsAny(joined, const [
     'field activity observed',
     'routine on-site team activity is visible',
     'latest signal: response arrival',
@@ -79,13 +79,13 @@ String? _reassuranceClarifierReply({
         : 'The latest ONYX telemetry shows recent field activity at ${scope.siteReference}';
     return 'Not confirmed yet. $telemetryLead, but I do not have live visual confirmation right now. If you want a manual follow-up, message here and $verificationClosing';
   }
-  final recentCommunityReportVisible = _containsAny(joined, const [
+  final recentCommunityReportVisible = telegramAiContainsAny(joined, const [
     'community reports',
     'suspicious vehicle scouting',
     'latest confirmed activity was',
     'latest confirmed report was',
   ]);
-  final noLiveVisualConfirmation = _containsAny(joined, const [
+  final noLiveVisualConfirmation = telegramAiContainsAny(joined, const [
     'do not have live visual confirmation',
     'grounding this on the current operational picture rather than a live camera check',
   ]);
@@ -124,7 +124,7 @@ String? _clientCorrectionClarifierReply({
   required bool escalatedLane,
   required bool pressuredLane,
 }) {
-  final camerasDown = _containsAny(normalizedMessage, const [
+  final camerasDown = telegramAiContainsAny(normalizedMessage, const [
     'my cameras are down',
     'cameras are down',
     'camera is down',
@@ -132,7 +132,7 @@ String? _clientCorrectionClarifierReply({
     'cctv is down',
     'cctv down',
   ]);
-  final securityNotOnSite = _containsAny(normalizedMessage, const [
+  final securityNotOnSite = telegramAiContainsAny(normalizedMessage, const [
     'security is not on site',
     'security not on site',
     'security isnt on site',
@@ -140,7 +140,7 @@ String? _clientCorrectionClarifierReply({
     'security isnt there',
     'not on site',
   ]);
-  final noUnitOnSite = _containsAny(normalizedMessage, const [
+  final noUnitOnSite = telegramAiContainsAny(normalizedMessage, const [
     'there is no unit on site',
     'there isnt a unit on site',
     'there is not a unit on site',
@@ -183,7 +183,7 @@ String? _operationalPictureClarifierReply({
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
 }) {
-  final asksAboutOperationalPicture = _containsAny(normalizedMessage, const [
+  final asksAboutOperationalPicture = telegramAiContainsAny(normalizedMessage, const [
     'what current operational picture',
     'what operational picture',
     'what do you mean operational picture',
@@ -196,13 +196,13 @@ String? _operationalPictureClarifierReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final hasCommunityReport = _containsAny(joined, const [
+  final hasCommunityReport = telegramAiContainsAny(joined, const [
     'community reports',
     'suspicious vehicle scouting',
     'latest confirmed activity was',
     'latest confirmed report was',
   ]);
-  final noOpenIncident = _containsAny(joined, const [
+  final noOpenIncident = telegramAiContainsAny(joined, const [
     'not sitting as an open incident',
     'open follow-ups: 0',
   ]);
@@ -217,7 +217,7 @@ String? _remoteMonitoringRestorationReply({
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
 }) {
-  final asksAboutRestoration = _containsAny(normalizedMessage, const [
+  final asksAboutRestoration = telegramAiContainsAny(normalizedMessage, const [
     'when will remote monitoring be back',
     'when will remote monitoring be back up',
     'when will remote monitoring be back online',
@@ -236,7 +236,7 @@ String? _remoteMonitoringRestorationReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final remoteMonitoringOffline = _containsAny(joined, const [
+  final remoteMonitoringOffline = telegramAiContainsAny(joined, const [
     'temporarily without remote monitoring',
     'remote watch is temporarily unavailable',
     'remote monitoring is offline',
@@ -253,14 +253,14 @@ String? _alertWatchAcknowledgementReply({
   required String normalizedMessage,
   required _TelegramAiScopeProfile scope,
 }) {
-  final gratitude = _containsAny(normalizedMessage, const [
+  final gratitude = telegramAiContainsAny(normalizedMessage, const [
     'thank you',
     'thanks',
     'appreciate it',
     'appreciate your help',
     'thank you for assisting',
   ]);
-  final alertWatch = _containsAny(normalizedMessage, const [
+  final alertWatch = telegramAiContainsAny(normalizedMessage, const [
     'keep me posted',
     'keep me updated',
     'let me know if anything changes',
@@ -360,7 +360,7 @@ String? _telemetryDispatchClarifierReply({
   final telemetryPresenceChallenge = _challengesTelemetryPresenceSummary(
     normalizedMessage,
   );
-  final asksWhySomeoneIsComing = _containsAny(normalizedMessage, const [
+  final asksWhySomeoneIsComing = telegramAiContainsAny(normalizedMessage, const [
     'why are they coming',
     'why are you coming',
     'why is someone coming',
@@ -388,7 +388,7 @@ String? _telemetryDispatchClarifierReply({
   final presenceVerificationContext = _hasRecentPresenceVerificationContext(
     joined,
   );
-  final unconfirmedMovementNarrative = _containsAny(joined, const [
+  final unconfirmedMovementNarrative = telegramAiContainsAny(joined, const [
     'on their way',
     'moving toward the site',
     'moving to the site',
@@ -405,7 +405,7 @@ String? _telemetryDispatchClarifierReply({
       _hasExplicitCurrentOnSitePresence(joined)) {
     return null;
   }
-  final noOpenIncident = _containsAny(joined, const [
+  final noOpenIncident = telegramAiContainsAny(joined, const [
     'not sitting as an open incident',
     'open follow-ups: 0',
     'no client-facing action has been required',

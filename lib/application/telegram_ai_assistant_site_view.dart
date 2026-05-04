@@ -429,7 +429,7 @@ String? _cameraCoverageCorrectionReply({
 }) {
   final looksLikeCoverageCountCorrection =
       RegExp(r'\b\d+\s+cameras?\b').hasMatch(normalizedMessage) &&
-      _containsAny(normalizedMessage, const ['in total', 'that leaves']);
+      telegramAiContainsAny(normalizedMessage, const ['in total', 'that leaves']);
   if (!looksLikeCoverageCountCorrection) {
     return null;
   }
@@ -539,7 +539,7 @@ String? _packetGroundedBroadStatusReply({
       nextStepQuestion: nextStepQuestion,
     );
   }
-  if (_containsAny(normalizedMessage, const ['site okay', 'site is okay']) &&
+  if (telegramAiContainsAny(normalizedMessage, const ['site okay', 'site is okay']) &&
       packet.hasContinuousVisualCoverage) {
     return 'I am not seeing active movement on site at ${scope.siteReference} right now. That does not by itself prove the site is clear, but nothing in the current signals confirms an issue on site.';
   }
