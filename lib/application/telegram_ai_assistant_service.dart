@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'client_camera_health_fact_packet_service.dart';
 import 'onyx_agent_cloud_boost_service.dart';
 import 'onyx_agent_local_brain_service.dart';
+import 'telegram_ai_intent_resolver.dart';
 import 'telegram_ai_text_utils.dart';
 import 'telegram_client_prompt_signals.dart';
 
@@ -701,7 +702,7 @@ String _telegramAssistantSystemPrompt({
   String? siteAwarenessContext,
   TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
-  final recentContext = _recentConversationContextSnippet(
+  final recentContext = telegramAiRecentConversationContextSnippet(
     recentConversationTurns,
   );
   final preferredExamplesSnippet = _preferredReplyExamplesSnippet(
@@ -748,11 +749,11 @@ String _telegramAssistantSystemPrompt({
         preferredReplyStyleTags: preferredReplyStyleTags,
         learnedReplyStyleTags: learnedReplyStyleTags,
       );
-      final laneStage = _resolveClientLaneStage(
+      final laneStage = telegramAiResolveClientLaneStage(
         normalizedMessage: normalizedMessage,
         recentConversationTurns: recentConversationTurns,
       );
-      final intent = _resolveClientReplyIntent(
+      final intent = telegramAiResolveClientReplyIntent(
         normalizedMessage,
         recentConversationTurns,
       );
@@ -760,17 +761,17 @@ String _telegramAssistantSystemPrompt({
           clientPromptContext.guardOnSite == 'true' ||
           clientPromptContext.lastGuardCheckin != 'unknown';
       final laneGuidance = <String?>[
-        if (_isEscalatedLaneContext(
+        if (telegramAiIsEscalatedLaneContext(
           normalizedMessage: normalizedMessage,
           recentConversationTurns: recentConversationTurns,
         ))
           '- This lane is already escalated/high-priority.',
-        if (_isPressuredLaneContext(
+        if (telegramAiIsPressuredLaneContext(
           normalizedMessage: normalizedMessage,
           recentConversationTurns: recentConversationTurns,
         ))
           '- This lane has repeated anxious follow-ups. Keep the reply steady and grounding.',
-        if (laneStage == _ClientLaneStage.responderOnSite)
+        if (laneStage == TelegramAiClientLaneStage.responderOnSite)
           '- Security is already on site, so answer as already on site and not ETA.',
         if (deliveryMode == TelegramAiDeliveryMode.approvalDraft)
           '- This reply is being drafted for operator approval.',
@@ -792,10 +793,10 @@ String _telegramAssistantSystemPrompt({
             '- Treat this as a corporate/enterprise site.',
           _ClientTonePack.standard => null,
         },
-        if (intent == _ClientReplyIntent.visual &&
+        if (intent == TelegramAiClientReplyIntent.visual &&
             tonePack == _ClientTonePack.residential)
           '- This is a camera/daylight validation reply. Be protective and clear.',
-        if (intent == _ClientReplyIntent.access &&
+        if (intent == TelegramAiClientReplyIntent.access &&
             tonePack == _ClientTonePack.enterprise)
           '- This is an access control reply. Focus on operational next steps.',
       ].whereType<String>().toList(growable: false);
@@ -1065,7 +1066,7 @@ String _telegramAiGuardOnSitePromptValue(String joinedContext) {
   if (joinedContext.trim().isEmpty) {
     return 'unknown';
   }
-  if (_hasExplicitCurrentOnSitePresence(joinedContext)) {
+  if (telegramAiHasExplicitCurrentOnSitePresence(joinedContext)) {
     return 'true';
   }
   if (telegramAiContainsAny(joinedContext, const [
@@ -1192,11 +1193,11 @@ String _telegramAssistantOnyxContextSummary({
   TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final normalizedMessage = telegramAiNormalizeReplyHeuristicText(messageText);
-  final laneStage = _resolveClientLaneStage(
+  final laneStage = telegramAiResolveClientLaneStage(
     normalizedMessage: normalizedMessage,
     recentConversationTurns: recentConversationTurns,
   );
-  final intent = _resolveClientReplyIntent(
+  final intent = telegramAiResolveClientReplyIntent(
     normalizedMessage,
     recentConversationTurns,
   );
@@ -1300,7 +1301,7 @@ String _fallbackReply({
     preferredReplyStyleTags: preferredReplyStyleTags,
     learnedReplyStyleTags: learnedReplyStyleTags,
   );
-  final laneStage = _resolveClientLaneStage(
+  final laneStage = telegramAiResolveClientLaneStage(
     normalizedMessage: normalized,
     recentConversationTurns: recentConversationTurns,
   );
@@ -1309,15 +1310,15 @@ String _fallbackReply({
     preferredReplyStyleTags: preferredReplyStyleTags,
     learnedReplyStyleTags: learnedReplyStyleTags,
   );
-  final escalatedLane = _isEscalatedLaneContext(
+  final escalatedLane = telegramAiIsEscalatedLaneContext(
     normalizedMessage: normalized,
     recentConversationTurns: recentConversationTurns,
   );
-  final pressuredLane = _isPressuredLaneContext(
+  final pressuredLane = telegramAiIsPressuredLaneContext(
     normalizedMessage: normalized,
     recentConversationTurns: recentConversationTurns,
   );
-  final intent = _resolveClientReplyIntent(normalized, recentConversationTurns);
+  final intent = telegramAiResolveClientReplyIntent(normalized, recentConversationTurns);
   final closing = _clientFollowUpClosing(
     recentConversationTurns,
     deliveryMode: deliveryMode,
@@ -1617,7 +1618,7 @@ String _fallbackReply({
   if (reassuranceClarifier != null) {
     return reassuranceClarifier;
   }
-  if (laneStage == _ClientLaneStage.closure) {
+  if (laneStage == TelegramAiClientLaneStage.closure) {
     if (telegramAiContainsAny(normalized, const [
       'thank you',
       'thanks',
@@ -1625,24 +1626,24 @@ String _fallbackReply({
     ])) {
       return _closureThanksReplyForTonePack(scope: scope, tonePack: tonePack);
     }
-    if (intent == _ClientReplyIntent.access) {
+    if (intent == TelegramAiClientReplyIntent.access) {
       return _closureAccessReplyForTonePack(scope: scope, tonePack: tonePack);
     }
     return _closureReplyForTonePack(scope: scope, tonePack: tonePack);
   }
-  if (laneStage == _ClientLaneStage.responderOnSite) {
-    if (intent == _ClientReplyIntent.access) {
-      return '${_onSiteAccessLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.onsite, deliveryMode: deliveryMode, escalated: escalatedLane, compressed: pressuredLane)}';
+  if (laneStage == TelegramAiClientLaneStage.responderOnSite) {
+    if (intent == TelegramAiClientReplyIntent.access) {
+      return '${_onSiteAccessLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.onsite, deliveryMode: deliveryMode, escalated: escalatedLane, compressed: pressuredLane)}';
     }
-    if (intent == _ClientReplyIntent.visual) {
-      return '${_onSiteVisualLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.visual, deliveryMode: deliveryMode, escalated: escalatedLane, compressed: pressuredLane)}';
+    if (intent == TelegramAiClientReplyIntent.visual) {
+      return '${_onSiteVisualLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.visual, deliveryMode: deliveryMode, escalated: escalatedLane, compressed: pressuredLane)}';
     }
-    if (intent == _ClientReplyIntent.worried) {
-      return '${_onSiteWorriedLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.onsite, deliveryMode: deliveryMode, escalated: escalatedLane, compressed: pressuredLane)}';
+    if (intent == TelegramAiClientReplyIntent.worried) {
+      return '${_onSiteWorriedLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.onsite, deliveryMode: deliveryMode, escalated: escalatedLane, compressed: pressuredLane)}';
     }
-    return '${_onSiteStatusLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.onsite, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: escalatedLane, compressed: pressuredLane)}';
+    return '${_onSiteStatusLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.onsite, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: escalatedLane, compressed: pressuredLane)}';
   }
-  if (intent == _ClientReplyIntent.worried) {
+  if (intent == TelegramAiClientReplyIntent.worried) {
     if (escalatedLane) {
       return '${_escalatedLeadForTonePack(scope: scope, tonePack: tonePack)} $closing';
     }
@@ -1651,31 +1652,31 @@ String _fallbackReply({
     }
     return '${_worriedLeadForTonePack(scope: scope, tonePack: tonePack, clientProfile: clientProfile)} $closing';
   }
-  if (intent == _ClientReplyIntent.access) {
+  if (intent == TelegramAiClientReplyIntent.access) {
     if (escalatedLane) {
-      return '${_escalatedAccessLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
+      return '${_escalatedAccessLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
     }
-    return '${_accessLeadForTonePack(scope: scope, tonePack: tonePack, clientProfile: clientProfile)} ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
+    return '${_accessLeadForTonePack(scope: scope, tonePack: tonePack, clientProfile: clientProfile)} ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
   }
-  if (intent == _ClientReplyIntent.eta) {
+  if (intent == TelegramAiClientReplyIntent.eta) {
     if (escalatedLane) {
-      return 'This is already escalated for ${scope.siteReference}. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.eta, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
+      return 'This is already escalated for ${scope.siteReference}. ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.eta, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
     }
-    return 'We are checking the ETA for ${scope.siteReference} now. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.eta, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
+    return 'We are checking the ETA for ${scope.siteReference} now. ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.eta, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
   }
-  if (intent == _ClientReplyIntent.movement) {
+  if (intent == TelegramAiClientReplyIntent.movement) {
     if (escalatedLane) {
-      return 'This is already escalated for ${scope.siteReference}. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.movement, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
+      return 'This is already escalated for ${scope.siteReference}. ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.movement, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
     }
-    return 'We are checking who is moving to ${scope.siteReference} now. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.movement, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: escalatedLane, compressed: pressuredLane)}';
+    return 'We are checking who is moving to ${scope.siteReference} now. ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.movement, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: escalatedLane, compressed: pressuredLane)}';
   }
-  if (intent == _ClientReplyIntent.visual) {
+  if (intent == TelegramAiClientReplyIntent.visual) {
     if (escalatedLane) {
-      return '${_escalatedVisualLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.visual, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
+      return '${_escalatedVisualLeadForTonePack(scope: scope, tonePack: tonePack)} ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.visual, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
     }
-    return '${_visualLeadForTonePack(scope: scope, tonePack: tonePack, clientProfile: clientProfile)} ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.visual, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
+    return '${_visualLeadForTonePack(scope: scope, tonePack: tonePack, clientProfile: clientProfile)} ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.visual, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
   }
-  if (intent == _ClientReplyIntent.status) {
+  if (intent == TelegramAiClientReplyIntent.status) {
     if (escalatedLane) {
       return '${_escalatedStatusLeadForTonePack(scope: scope, tonePack: tonePack)} $closing';
     }
@@ -1854,7 +1855,7 @@ String _polishReply({
   final normalizedDrift = _normalizeClientReplyDrift(
     text: _simplifyClientReplyLanguage(cleaned),
     deliveryMode: deliveryMode,
-    laneStage: _resolveClientLaneStage(
+    laneStage: telegramAiResolveClientLaneStage(
       normalizedMessage: telegramAiNormalizeReplyHeuristicText(messageText),
       recentConversationTurns: recentConversationTurns,
     ),
@@ -1905,10 +1906,10 @@ bool _shouldForceTruthGroundedClientFallback({
   if (simpleThanks) {
     return true;
   }
-  if (_challengesTelemetryPresenceSummary(normalizedMessage)) {
+  if (telegramAiChallengesTelemetryPresenceSummary(normalizedMessage)) {
     return true;
   }
-  if (_asksHypotheticalEscalationCapability(normalizedMessage)) {
+  if (telegramAiAsksHypotheticalEscalationCapability(normalizedMessage)) {
     return true;
   }
   final clientCorrection = telegramAiContainsAny(normalizedMessage, const [
@@ -1948,10 +1949,10 @@ bool _shouldForceTruthGroundedClientFallback({
   if (operationalPictureClarifier) {
     return true;
   }
-  if (_asksForCurrentSiteView(normalizedMessage) ||
-      _asksForCurrentFrameMovementCheck(normalizedMessage) ||
-      _asksForSemanticMovementIdentification(normalizedMessage) ||
-      _asksForCurrentFramePersonConfirmation(normalizedMessage)) {
+  if (telegramAiAsksForCurrentSiteView(normalizedMessage) ||
+      telegramAiAsksForCurrentFrameMovementCheck(normalizedMessage) ||
+      telegramAiAsksForSemanticMovementIdentification(normalizedMessage) ||
+      telegramAiAsksForCurrentFramePersonConfirmation(normalizedMessage)) {
     return true;
   }
   final cameraConnectionAsk =
@@ -1989,19 +1990,19 @@ bool _shouldForceTruthGroundedClientFallback({
   if (cameraConnectionAsk) {
     return true;
   }
-  if (_isGenericStatusFollowUp(normalizedMessage) &&
-      _hasRecentPresenceVerificationContext(joinedContext)) {
+  if (telegramAiIsGenericStatusFollowUp(normalizedMessage) &&
+      telegramAiHasRecentPresenceVerificationContext(joinedContext)) {
     return true;
   }
-  final issueClarifierAsk = _asksForCurrentSiteIssueCheck(normalizedMessage);
+  final issueClarifierAsk = telegramAiAsksForCurrentSiteIssueCheck(normalizedMessage);
   if (issueClarifierAsk &&
-      (_hasRecentPresenceVerificationContext(joinedContext) ||
-          _hasTelemetrySummaryContext(joinedContext))) {
+      (telegramAiHasRecentPresenceVerificationContext(joinedContext) ||
+          telegramAiHasTelemetrySummaryContext(joinedContext))) {
     return true;
   }
-  if ((_asksForCurrentFrameMovementCheck(normalizedMessage) ||
-          _isGenericStatusFollowUp(normalizedMessage)) &&
-      _hasRecentContinuousVisualActivityContext(joinedContext)) {
+  if ((telegramAiAsksForCurrentFrameMovementCheck(normalizedMessage) ||
+          telegramAiIsGenericStatusFollowUp(normalizedMessage)) &&
+      telegramAiHasRecentContinuousVisualActivityContext(joinedContext)) {
     return true;
   }
   final reassuranceAsk =
@@ -2061,7 +2062,7 @@ bool _replyConflictsWithCameraHealthFactPacket({
   if (packet == null) {
     return false;
   }
-  final asksWhyNoCameras = _asksWhyNoLiveCameraAccess(normalizedMessage);
+  final asksWhyNoCameras = telegramAiAsksWhyNoLiveCameraAccess(normalizedMessage);
   final asksForUrgentCameraRepair = telegramAiContainsAny(normalizedMessage, const [
     'rewire cameras',
     'rewire camera',
@@ -2072,10 +2073,10 @@ bool _replyConflictsWithCameraHealthFactPacket({
     'reconnect cameras',
     'reconnect camera',
   ]);
-  final asksIfConnectionIsFixed = _asksIfConnectionOrBridgeIsFixed(
+  final asksIfConnectionIsFixed = telegramAiAsksIfConnectionOrBridgeIsFixed(
     normalizedMessage,
   );
-  final assertsLiveVisualAccess = _assertsLiveVisualAccessState(
+  final assertsLiveVisualAccess = telegramAiAssertsLiveVisualAccessState(
     normalizedMessage,
   );
   final asksCameraCheck = telegramAiContainsAny(normalizedMessage, const [
@@ -2085,7 +2086,7 @@ bool _replyConflictsWithCameraHealthFactPacket({
     'camera check',
     'check cameras',
   ]);
-  final genericStatusFollowUp = _isGenericStatusFollowUp(normalizedMessage);
+  final genericStatusFollowUp = telegramAiIsGenericStatusFollowUp(normalizedMessage);
   final camerasDown = telegramAiContainsAny(normalizedMessage, const [
     'my cameras are down',
     'cameras are down',
@@ -2107,7 +2108,7 @@ bool _replyConflictsWithCameraHealthFactPacket({
       .map(telegramAiNormalizeReplyHeuristicText)
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final hasRecentCameraContext = _hasRecentCameraStatusContext(joinedContext);
+  final hasRecentCameraContext = telegramAiHasRecentCameraStatusContext(joinedContext);
   final mentionsRestoredLiveAccess = telegramAiContainsAny(normalizedReply, const [
     'yes we currently have live camera access',
     'we currently have live camera access',
@@ -2247,7 +2248,7 @@ bool _shouldPreferFallbackForClientReply({
     'open follow-ups: 0',
     'no client facing action has been required',
   ]);
-  final telemetryPresenceChallenge = _challengesTelemetryPresenceSummary(
+  final telemetryPresenceChallenge = telegramAiChallengesTelemetryPresenceSummary(
     '$normalizedMessage\n$normalizedClientAsk',
   );
   final fieldTelemetryCountChallenge =
@@ -2279,7 +2280,7 @@ bool _shouldPreferFallbackForClientReply({
       ]) ||
       normalizedMessage == 'why' ||
       normalizedMessage == 'why?';
-  final issueClarifierAsk = _asksForCurrentSiteIssueCheck(
+  final issueClarifierAsk = telegramAiAsksForCurrentSiteIssueCheck(
     '$normalizedMessage\n$normalizedClientAsk',
   );
   final gratitudeAlertWatch =
@@ -2312,10 +2313,10 @@ bool _shouldPreferFallbackForClientReply({
         'okay',
         'ok',
       ]);
-  final explicitOnSitePresence = _hasExplicitCurrentOnSitePresence(
+  final explicitOnSitePresence = telegramAiHasExplicitCurrentOnSitePresence(
     joinedContext,
   );
-  final explicitMovementConfirmation = _hasExplicitCurrentMovementConfirmation(
+  final explicitMovementConfirmation = telegramAiHasExplicitCurrentMovementConfirmation(
     joinedContext,
   );
   final explicitLiveCameraAccess =
@@ -2332,19 +2333,19 @@ bool _shouldPreferFallbackForClientReply({
       telegramAiContainsAny(normalizedReply, const ['we are checking']) &&
       telegramAiContainsAny(normalizedReply, const ['i will update you here']);
   final presenceVerificationFollowUp =
-      _isGenericStatusFollowUp(normalizedMessage) &&
-      _hasRecentPresenceVerificationContext(joinedContext);
+      telegramAiIsGenericStatusFollowUp(normalizedMessage) &&
+      telegramAiHasRecentPresenceVerificationContext(joinedContext);
   final continuousVisualWatchFollowUp =
       cameraHealthFactPacket?.hasOngoingContinuousVisualChange == true &&
-      ((_asksForCurrentFrameMovementCheck(normalizedMessage) ||
-              _asksForCurrentFramePersonConfirmation(normalizedMessage)) ||
-          (_isGenericStatusFollowUp(normalizedMessage) &&
-              _hasRecentContinuousVisualActivityContext(joinedContext))) &&
-      !_hasCurrentFrameConversationContext(
+      ((telegramAiAsksForCurrentFrameMovementCheck(normalizedMessage) ||
+              telegramAiAsksForCurrentFramePersonConfirmation(normalizedMessage)) ||
+          (telegramAiIsGenericStatusFollowUp(normalizedMessage) &&
+              telegramAiHasRecentContinuousVisualActivityContext(joinedContext))) &&
+      !telegramAiHasCurrentFrameConversationContext(
         joinedContext,
         cameraHealthFactPacket: cameraHealthFactPacket,
       ) &&
-      !_hasRecentMotionTelemetryContext(joinedContext);
+      !telegramAiHasRecentMotionTelemetryContext(joinedContext);
   final camerasDownCorrection = telegramAiContainsAny(normalizedMessage, const [
     'my cameras are down',
     'cameras are down',
@@ -2384,8 +2385,8 @@ bool _shouldPreferFallbackForClientReply({
         'repair the cameras',
         'repair the camera',
       ]) ||
-      _asksWhyNoLiveCameraAccess(normalizedMessage) ||
-      _asksIfConnectionOrBridgeIsFixed(normalizedMessage);
+      telegramAiAsksWhyNoLiveCameraAccess(normalizedMessage) ||
+      telegramAiAsksIfConnectionOrBridgeIsFixed(normalizedMessage);
   if (_replyConflictsWithCameraHealthFactPacket(
     normalizedMessage: normalizedMessage,
     normalizedReply: normalizedReply,
@@ -2394,7 +2395,7 @@ bool _shouldPreferFallbackForClientReply({
   )) {
     return true;
   }
-  if (_asksHypotheticalEscalationCapability(normalizedMessage) &&
+  if (telegramAiAsksHypotheticalEscalationCapability(normalizedMessage) &&
       telegramAiContainsAny(normalizedReply, const [
         'has been escalated to the control room now',
         'this has been escalated to the control room now',
@@ -2481,7 +2482,7 @@ bool _shouldPreferFallbackForClientReply({
     }
   }
   if (issueClarifierAsk &&
-      (_hasRecentPresenceVerificationContext(joinedContext) ||
+      (telegramAiHasRecentPresenceVerificationContext(joinedContext) ||
           telemetrySummaryVisible)) {
     final answersIssueState = telegramAiContainsAny(normalizedReply, const [
       'no confirmed active issue',
@@ -2665,27 +2666,27 @@ bool _shouldPreferFallbackForClientReply({
       return true;
     }
   }
-  final genericStatusFollowUp = _isGenericStatusFollowUp(normalizedMessage);
+  final genericStatusFollowUp = telegramAiIsGenericStatusFollowUp(normalizedMessage);
   final cameraStatusFollowUp =
       genericStatusFollowUp &&
       cameraHealthFactPacket != null &&
-      _hasRecentCameraStatusContext(joinedContext);
+      telegramAiHasRecentCameraStatusContext(joinedContext);
   final currentSiteViewAsk = asksForTelegramClientBroadStatusOrCurrentSiteView(
     normalizedMessage,
   );
   final semanticMovementIdentificationAsk =
-      _asksForSemanticMovementIdentification(
+      telegramAiAsksForSemanticMovementIdentification(
         '$normalizedMessage\n$normalizedClientAsk',
       );
-  final imageSendWhyAsk = _asksWhyImageCannotBeSent(normalizedMessage);
-  final recentUnusableCurrentImage = _recentThreadShowsUnusableCurrentImage(
+  final imageSendWhyAsk = telegramAiAsksWhyImageCannotBeSent(normalizedMessage);
+  final recentUnusableCurrentImage = telegramAiRecentThreadShowsUnusableCurrentImage(
     recentConversationTurns,
   );
-  final recentDownCameraLabel = _recentThreadDownCameraLabel(
+  final recentDownCameraLabel = telegramAiRecentThreadDownCameraLabel(
     recentConversationTurns,
   );
   final recentRecordedEventVisuals =
-      _recentThreadMentionsRecordedEventVisuals(recentConversationTurns) ||
+      telegramAiRecentThreadMentionsRecordedEventVisuals(recentConversationTurns) ||
       (normalizedMessage.contains('hikconnect') &&
           normalizedMessage.contains('visual'));
   if (cameraStatusFollowUp) {
@@ -2754,28 +2755,28 @@ bool _shouldPreferFallbackForClientReply({
       return true;
     }
   }
-  final comfortMonitoringAsk = _asksComfortOrMonitoringSupport(
+  final comfortMonitoringAsk = telegramAiAsksComfortOrMonitoringSupport(
     normalizedMessage,
   );
-  final overnightAlertAsk = _asksOvernightAlertingSupport(normalizedMessage);
-  final baselineSweepAsk = _asksForBaselineSweep(normalizedMessage);
-  final baselineSweepStatusAsk = _asksAboutBaselineSweepStatus(
-    normalizedMessage,
-    recentConversationTurns,
-  );
-  final baselineSweepEtaAsk = _asksAboutBaselineSweepEta(
+  final overnightAlertAsk = telegramAiAsksOvernightAlertingSupport(normalizedMessage);
+  final baselineSweepAsk = telegramAiAsksForBaselineSweep(normalizedMessage);
+  final baselineSweepStatusAsk = telegramAiAsksAboutBaselineSweepStatus(
     normalizedMessage,
     recentConversationTurns,
   );
-  final wholeSiteBreachReviewAsk = _asksForWholeSiteBreachReview(
+  final baselineSweepEtaAsk = telegramAiAsksAboutBaselineSweepEta(
     normalizedMessage,
     recentConversationTurns,
   );
-  final wholeSiteBreachReviewStatusAsk = _asksAboutWholeSiteBreachReviewStatus(
+  final wholeSiteBreachReviewAsk = telegramAiAsksForWholeSiteBreachReview(
     normalizedMessage,
     recentConversationTurns,
   );
-  final wholeSiteBreachReviewEtaAsk = _asksAboutWholeSiteBreachReviewEta(
+  final wholeSiteBreachReviewStatusAsk = telegramAiAsksAboutWholeSiteBreachReviewStatus(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final wholeSiteBreachReviewEtaAsk = telegramAiAsksAboutWholeSiteBreachReviewEta(
     normalizedMessage,
     recentConversationTurns,
   );
@@ -3013,7 +3014,7 @@ bool _shouldPreferFallbackForClientReply({
       'covering other cameras',
       'continuous visual watch is active on',
     ]);
-    final inventsCoverageCount = _containsCameraCoverageCountClaim(
+    final inventsCoverageCount = telegramAiContainsCameraCoverageCountClaim(
       normalizedReply,
     );
     final ignoresKnownCameraDown =
@@ -3113,7 +3114,7 @@ bool _shouldPreferFallbackForClientReply({
         'do not want to overstate the full picture',
       ]);
       if (!answersPartialCoverage ||
-          _containsCameraCoverageCountClaim(normalizedReply)) {
+          telegramAiContainsCameraCoverageCountClaim(normalizedReply)) {
         return true;
       }
     }
@@ -3157,21 +3158,21 @@ bool _shouldPreferFallbackForClientReply({
     }
   }
   final currentFrameMovementAsk =
-      _asksForCurrentFrameMovementCheck(normalizedMessage) ||
-      _asksForCurrentFramePersonConfirmation(normalizedMessage);
-  final missedMovementDetectionChallenge = _challengesMissedMovementDetection(
+      telegramAiAsksForCurrentFrameMovementCheck(normalizedMessage) ||
+      telegramAiAsksForCurrentFramePersonConfirmation(normalizedMessage);
+  final missedMovementDetectionChallenge = telegramAiChallengesMissedMovementDetection(
     normalizedMessage,
     recentConversationTurns,
   );
   final currentFrameContext =
       (currentFrameMovementAsk || missedMovementDetectionChallenge) &&
-      (_hasCurrentFrameConversationContext(
+      (telegramAiHasCurrentFrameConversationContext(
             joinedContext,
             cameraHealthFactPacket: cameraHealthFactPacket,
           ) ||
-          _hasRecentMotionTelemetryContext(joinedContext));
+          telegramAiHasRecentMotionTelemetryContext(joinedContext));
   if (currentFrameContext) {
-    final hasMotionTelemetry = _hasRecentMotionTelemetryContext(joinedContext);
+    final hasMotionTelemetry = telegramAiHasRecentMotionTelemetryContext(joinedContext);
     final answersCurrentFrameConservatively = hasMotionTelemetry
         ? telegramAiContainsAny(normalizedReply, const [
             'recent motion alerts',
@@ -3546,7 +3547,7 @@ String? _approvalDraftFallbackReply({
     '19 response teams',
     'people on site',
   ])) {
-    return 'That summary refers to recorded guard or response activity signals in ONYX telemetry, not 19 people physically on site. I can ask control to confirm the current position at ${scope.siteReference}, and ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
+    return 'That summary refers to recorded guard or response activity signals in ONYX telemetry, not 19 people physically on site. I can ask control to confirm the current position at ${scope.siteReference}, and ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
   }
   if (telegramAiContainsAny(normalizedOperatorDraft, const [
     'remote monitoring',
@@ -3599,7 +3600,7 @@ String? _fieldTelemetryCountClarifierReply({
   required bool escalatedLane,
   required bool pressuredLane,
 }) {
-  final challengesPresenceCount = _challengesTelemetryPresenceSummary(
+  final challengesPresenceCount = telegramAiChallengesTelemetryPresenceSummary(
     normalizedMessage,
   );
   if (!challengesPresenceCount) {
@@ -3619,7 +3620,7 @@ String? _fieldTelemetryCountClarifierReply({
   if (!hasTelemetrySummary) {
     return null;
   }
-  return 'That count refers to recorded guard or response activity signals in ONYX telemetry, not 19 people physically on site. I can ask control to confirm the current position at ${scope.siteReference}, and ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
+  return 'That count refers to recorded guard or response activity signals in ONYX telemetry, not 19 people physically on site. I can ask control to confirm the current position at ${scope.siteReference}, and ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
 }
 
 _TelegramAiScopeProfile _scopeProfileFor({String? clientId, String? siteId}) {
@@ -3679,19 +3680,8 @@ String _humanizeScopeLabel(String raw, {required String fallback}) {
       .join(' ');
 }
 
-enum _FollowUpMode { general, eta, step, movement, visual, onsite }
 
-enum _ClientReplyIntent {
-  general,
-  worried,
-  access,
-  eta,
-  movement,
-  visual,
-  status,
-}
 
-enum _ClientLaneStage { reassurance, escalated, responderOnSite, closure }
 
 enum _PreferredReplyStyle { defaultStyle, shareStyle }
 
@@ -3707,7 +3697,7 @@ enum _ClientProfile {
 
 String _clientFollowUpClosing(
   List<String> recentConversationTurns, {
-  _FollowUpMode mode = _FollowUpMode.general,
+  TelegramAiFollowUpMode mode = TelegramAiFollowUpMode.general,
   TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
   _PreferredReplyStyle preferredReplyStyle = _PreferredReplyStyle.defaultStyle,
   _ClientProfile clientProfile = _ClientProfile.standard,
@@ -3716,17 +3706,17 @@ String _clientFollowUpClosing(
 }) {
   if (deliveryMode == TelegramAiDeliveryMode.smsFallback) {
     switch (mode) {
-      case _FollowUpMode.general:
+      case TelegramAiFollowUpMode.general:
         return 'I will send the next confirmed step.';
-      case _FollowUpMode.eta:
+      case TelegramAiFollowUpMode.eta:
         return 'I will send the ETA when it is confirmed.';
-      case _FollowUpMode.step:
+      case TelegramAiFollowUpMode.step:
         return 'I will send the next confirmed step.';
-      case _FollowUpMode.movement:
+      case TelegramAiFollowUpMode.movement:
         return 'I will send the next movement update when it is confirmed.';
-      case _FollowUpMode.visual:
+      case TelegramAiFollowUpMode.visual:
         return 'I will send the next camera update when it is confirmed.';
-      case _FollowUpMode.onsite:
+      case TelegramAiFollowUpMode.onsite:
         return 'I will send the next on-site step when it is confirmed.';
     }
   }
@@ -3739,7 +3729,7 @@ String _clientFollowUpClosing(
   final repeatedMoment = normalized.contains('the moment control confirms');
   final preferConcise = clientProfile == _ClientProfile.conciseUpdates;
   switch (mode) {
-    case _FollowUpMode.onsite:
+    case TelegramAiFollowUpMode.onsite:
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
         return 'I will share the next on-site step here when it is confirmed.';
       }
@@ -3753,7 +3743,7 @@ String _clientFollowUpClosing(
         return 'I will update you here with the next on-site step.';
       }
       return 'I will update you here with the next on-site step.';
-    case _FollowUpMode.eta:
+    case TelegramAiFollowUpMode.eta:
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
         return 'I will share the ETA here when it is confirmed.';
       }
@@ -3769,7 +3759,7 @@ String _clientFollowUpClosing(
         return 'I will update you here when the ETA is confirmed.';
       }
       return 'I will update you here when the ETA is confirmed.';
-    case _FollowUpMode.step:
+    case TelegramAiFollowUpMode.step:
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
         return 'I will share the next confirmed step here when it is confirmed.';
       }
@@ -3782,7 +3772,7 @@ String _clientFollowUpClosing(
         return 'I will update you here with the next confirmed step.';
       }
       return 'I will update you here with the next confirmed step.';
-    case _FollowUpMode.movement:
+    case TelegramAiFollowUpMode.movement:
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
         return 'I will share the next movement here when it is confirmed.';
       }
@@ -3796,7 +3786,7 @@ String _clientFollowUpClosing(
         return 'I will update you here with the next movement update.';
       }
       return 'I will update you here with the next movement update.';
-    case _FollowUpMode.visual:
+    case TelegramAiFollowUpMode.visual:
       if (clientProfile == _ClientProfile.validationHeavy) {
         return 'I will update you here with the next confirmed camera check.';
       }
@@ -3813,7 +3803,7 @@ String _clientFollowUpClosing(
         return 'I will update you here with the latest confirmed camera check.';
       }
       return 'I will update you here with the latest confirmed camera check.';
-    case _FollowUpMode.general:
+    case TelegramAiFollowUpMode.general:
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
         return 'I will share the next confirmed step here when it is confirmed.';
       }
@@ -3833,40 +3823,40 @@ String _clientFollowUpClosing(
 String _smsFallbackReply({
   required String normalizedMessage,
   required _TelegramAiScopeProfile scope,
-  required _ClientLaneStage laneStage,
-  required _ClientReplyIntent intent,
+  required TelegramAiClientLaneStage laneStage,
+  required TelegramAiClientReplyIntent intent,
   required List<String> recentConversationTurns,
   required _PreferredReplyStyle preferredReplyStyle,
   required _ClientProfile clientProfile,
   required bool escalatedLane,
   required bool pressuredLane,
 }) {
-  if (laneStage == _ClientLaneStage.closure) {
+  if (laneStage == TelegramAiClientLaneStage.closure) {
     return '${scope.siteReference} is secure. Message immediately if anything changes.';
   }
-  if (laneStage == _ClientLaneStage.responderOnSite) {
-    if (intent == _ClientReplyIntent.visual) {
+  if (laneStage == TelegramAiClientLaneStage.responderOnSite) {
+    if (intent == TelegramAiClientReplyIntent.visual) {
       return 'Security is on site at ${scope.siteReference}. I will send the next camera update when it is confirmed.';
     }
     return 'Security is on site at ${scope.siteReference}. I will send the next on-site step when it is confirmed.';
   }
-  if (intent == _ClientReplyIntent.worried) {
+  if (intent == TelegramAiClientReplyIntent.worried) {
     if (escalatedLane) {
       return 'High-priority alert escalated for ${scope.siteReference}. I will send the next confirmed step.';
     }
     return 'We are treating ${scope.siteReference} as live. I will send the next confirmed step.';
   }
-  if (intent == _ClientReplyIntent.access) {
+  if (intent == TelegramAiClientReplyIntent.access) {
     return escalatedLane
         ? 'Access issue escalated for ${scope.siteReference}. I will send the next confirmed step.'
         : 'We are checking access for ${scope.siteReference}. I will send the next confirmed step.';
   }
-  if (intent == _ClientReplyIntent.eta) {
+  if (intent == TelegramAiClientReplyIntent.eta) {
     return escalatedLane
         ? 'Movement is escalated for ${scope.siteReference}. I will send the ETA when it is confirmed.'
         : 'We are checking the ETA for ${scope.siteReference}. I will send the ETA when it is confirmed.';
   }
-  if (intent == _ClientReplyIntent.visual) {
+  if (intent == TelegramAiClientReplyIntent.visual) {
     return escalatedLane
         ? 'Visual check escalated for ${scope.siteReference}. I will send the next camera update when it is confirmed.'
         : clientProfile == _ClientProfile.validationHeavy
@@ -4279,7 +4269,7 @@ String _closureThanksReplyForTonePack({
 String _normalizeClientReplyDrift({
   required String text,
   required TelegramAiDeliveryMode deliveryMode,
-  required _ClientLaneStage laneStage,
+  required TelegramAiClientLaneStage laneStage,
   required _PreferredReplyStyle preferredReplyStyle,
   required _ClientProfile clientProfile,
 }) {
@@ -4287,7 +4277,7 @@ String _normalizeClientReplyDrift({
   if (normalized.isEmpty) {
     return normalized;
   }
-  final followUpMode = _followUpModeFromReplyText(
+  final followUpMode = telegramAiFollowUpModeFromReplyText(
     normalized,
     laneStage: laneStage,
   );
@@ -4433,43 +4423,6 @@ String _simplifyClientReplyLanguage(String text) {
   return normalized.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
 }
 
-_FollowUpMode _followUpModeFromReplyText(
-  String text, {
-  required _ClientLaneStage laneStage,
-}) {
-  final normalized = text.trim().toLowerCase();
-  if (laneStage == _ClientLaneStage.responderOnSite &&
-      telegramAiContainsAny(normalized, const ['on site', 'on-site'])) {
-    return _FollowUpMode.onsite;
-  }
-  if (telegramAiContainsAny(normalized, const ['eta', 'live movement', 'arrival'])) {
-    return _FollowUpMode.eta;
-  }
-  if (telegramAiContainsAny(normalized, const ['access status', 'gate', 'access'])) {
-    return _FollowUpMode.step;
-  }
-  if (telegramAiContainsAny(normalized, const [
-    'responder status',
-    'movement',
-    'armed response',
-    'officer',
-  ])) {
-    return _FollowUpMode.movement;
-  }
-  if (telegramAiContainsAny(normalized, const [
-    'camera',
-    'visual',
-    'cctv',
-    'footage',
-    'latest view',
-  ])) {
-    return _FollowUpMode.visual;
-  }
-  if (laneStage == _ClientLaneStage.responderOnSite) {
-    return _FollowUpMode.onsite;
-  }
-  return _FollowUpMode.general;
-}
 
 String _replaceClosingSentence(String text, String replacement) {
   final trimmed = text.trim();
@@ -4597,980 +4550,51 @@ _PreferredReplyStyle _preferredReplyStyleFromExamplesAndTags({
   return _PreferredReplyStyle.defaultStyle;
 }
 
-bool _isEscalatedLaneContext({
-  required String normalizedMessage,
-  required List<String> recentConversationTurns,
-}) {
-  if (telegramAiContainsAny(normalizedMessage, const [
-    'help me',
-    'please help',
-    'panic',
-    'unsafe',
-    'emergency',
-    'intruder',
-    'break in',
-    'break-in',
-    'attack',
-    'gun',
-    'weapon',
-    'threat',
-  ])) {
-    return true;
-  }
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  if (joined.isEmpty) {
-    return false;
-  }
-  return telegramAiContainsAny(joined, const [
-    'escalated',
-    'client escalated',
-    'high-priority',
-    'high priority',
-    'alert received',
-    'verification requested',
-    'control room',
-    'policy:high-risk',
-  ]);
-}
 
-bool _isPressuredLaneContext({
-  required String normalizedMessage,
-  required List<String> recentConversationTurns,
-}) {
-  var pressureSignals = 0;
-  if (telegramAiContainsAny(normalizedMessage, const [
-    'worried',
-    'scared',
-    'afraid',
-    'panic',
-    'unsafe',
-    'help',
-    'any update',
-    'still waiting',
-    'still no',
-    'anything yet',
-    'what now',
-  ])) {
-    pressureSignals += 1;
-  }
-  for (final turn in recentConversationTurns.take(6)) {
-    final normalizedTurn = turn.trim().toLowerCase();
-    if (normalizedTurn.isEmpty) {
-      continue;
-    }
-    if (telegramAiContainsAny(normalizedTurn, const [
-      'worried',
-      'scared',
-      'afraid',
-      'panic',
-      'unsafe',
-      'please help',
-      'help me',
-      'any update',
-      'still waiting',
-      'still no',
-      'anything yet',
-      'what now',
-      'update?',
-      'yet?',
-    ])) {
-      pressureSignals += 1;
-    }
-  }
-  return pressureSignals >= 2;
-}
 
-_ClientLaneStage _resolveClientLaneStage({
-  required String normalizedMessage,
-  required List<String> recentConversationTurns,
-}) {
-  final joined = recentConversationTurns
-      .map(telegramAiNormalizeReplyHeuristicText)
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  if (telegramAiContainsAny(joined, const [
-    'incident resolved',
-    'site secured',
-    'resolved',
-    'all clear',
-    'closed out',
-    'closure',
-  ])) {
-    return _ClientLaneStage.closure;
-  }
-  if (telegramAiContainsAny(joined, const [
-    'responder on site',
-    'security response activated',
-    'partner dispatch sent',
-    'response activated',
-    'security is already on site',
-    'security already on site',
-    'response unit is on site',
-    'guard is on site',
-    'officer is on site',
-  ])) {
-    return _ClientLaneStage.responderOnSite;
-  }
-  if (_isEscalatedLaneContext(
-    normalizedMessage: normalizedMessage,
-    recentConversationTurns: recentConversationTurns,
-  )) {
-    return _ClientLaneStage.escalated;
-  }
-  return _ClientLaneStage.reassurance;
-}
 
-String _recentConversationContextSnippet(List<String> recentConversationTurns) {
-  final trimmed = recentConversationTurns
-      .map((value) => value.trim())
-      .where((value) => value.isNotEmpty)
-      .take(6)
-      .toList(growable: false);
-  if (trimmed.isEmpty) {
-    return 'none';
-  }
-  return trimmed.join('\n');
-}
 
-_ClientReplyIntent _resolveClientReplyIntent(
-  String normalizedMessage,
-  List<String> recentConversationTurns,
-) {
-  if (telegramAiContainsAny(normalizedMessage, const [
-    'worried',
-    'scared',
-    'afraid',
-    'panic',
-    'panicking',
-    'nervous',
-    'unsafe',
-    'can i sleep',
-    'sleep peacefully',
-    'rest easy',
-    'help me',
-    'please help',
-  ])) {
-    return _ClientReplyIntent.worried;
-  }
-  if (telegramAiContainsAny(normalizedMessage, const [
-    'gate',
-    'access',
-    'cant get in',
-    'can\'t get in',
-    'cant get out',
-    'can\'t get out',
-    'stuck outside',
-    'stuck inside',
-  ])) {
-    return _ClientReplyIntent.access;
-  }
-  if (telegramAiContainsAny(normalizedMessage, const [
-    'eta',
-    'arrival',
-    'arrive',
-    'how far',
-    'how long',
-  ])) {
-    return _ClientReplyIntent.eta;
-  }
-  if (telegramAiContainsAny(normalizedMessage, const [
-    'guard',
-    'officer',
-    'response unit',
-    'responder',
-    'armed response',
-    'police',
-    'who is coming',
-  ])) {
-    return _ClientReplyIntent.movement;
-  }
-  if (telegramAiContainsAny(normalizedMessage, const [
-    'camera',
-    'cctv',
-    'video',
-    'footage',
-    'see on camera',
-    'what do you see',
-    'daylight',
-  ])) {
-    return _ClientReplyIntent.visual;
-  }
-  if (telegramAiContainsAny(normalizedMessage, const [
-    'status',
-    'update',
-    'progress',
-    'news',
-    'happening',
-  ])) {
-    return _ClientReplyIntent.status;
-  }
-  if (_looksLikeShortFollowUp(normalizedMessage)) {
-    return _intentFromRecentConversation(recentConversationTurns);
-  }
-  return _ClientReplyIntent.general;
-}
 
-bool _looksLikeShortFollowUp(String normalizedMessage) {
-  if (normalizedMessage.isEmpty) {
-    return false;
-  }
-  if (normalizedMessage.split(RegExp(r'\s+')).length > 6) {
-    return false;
-  }
-  return telegramAiContainsAny(normalizedMessage, const [
-    'still waiting',
-    'anything yet',
-    'any update',
-    'update',
-    'check now',
-    'check again',
-    'check again now',
-    'check it now',
-    'can you check now',
-    'and now',
-    'what now',
-    'latest',
-    'still',
-    'yet',
-    'still no',
-  ]);
-}
 
-_ClientReplyIntent _intentFromRecentConversation(
-  List<String> recentConversationTurns,
-) {
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  if (joined.isEmpty) {
-    return _ClientReplyIntent.status;
-  }
-  if (telegramAiContainsAny(joined, const [
-    'latest camera view',
-    'confirmed visual update',
-  ])) {
-    return _ClientReplyIntent.visual;
-  }
-  if (telegramAiContainsAny(joined, const ['live movement', 'eta'])) {
-    return _ClientReplyIntent.eta;
-  }
-  if (telegramAiContainsAny(joined, const ['access status', 'confirmed step'])) {
-    return _ClientReplyIntent.access;
-  }
-  if (telegramAiContainsAny(joined, const ['responder status', 'movement update'])) {
-    return _ClientReplyIntent.movement;
-  }
-  if (telegramAiContainsAny(joined, const [
-    'treating this as live',
-    'you are not alone',
-  ])) {
-    return _ClientReplyIntent.worried;
-  }
-  return _ClientReplyIntent.status;
-}
 
-bool _hasTelemetrySummaryContext(String joinedContext) {
-  return telegramAiContainsAny(joinedContext, const [
-    'site activity summary',
-    'field telemetry',
-    'latest field signal:',
-    'guard or response-team activity signals were logged through onyx field telemetry',
-    'guard or response-team activity signal was logged through onyx field telemetry',
-    'guard or response team activity signals were logged through onyx field telemetry',
-    'guard or response team activity signal was logged through onyx field telemetry',
-  ]);
-}
 
-bool _hasTelemetryResponseArrivalSignal(String joinedContext) {
-  return telegramAiContainsAny(joinedContext, const [
-    'field response unit arrived on site',
-    'latest field signal: a field response unit arrived on site',
-    'response arrival signal',
-    'latest field signal: a response-arrival signal was logged through onyx field telemetry',
-    'latest field signal: response arrival',
-  ]);
-}
 
-bool _hasExplicitCurrentOnSitePresence(String joinedContext) {
-  return telegramAiContainsAny(joinedContext, const [
-    'responder on site',
-    'security is already on site',
-    'security already on site',
-    'response unit is on site',
-    'guard is on site',
-    'officer is on site',
-  ]);
-}
 
-bool _hasExplicitCurrentMovementConfirmation(String joinedContext) {
-  return telegramAiContainsAny(joinedContext, const [
-    'partner dispatch sent',
-    'security response activated',
-    'response activated',
-    'dispatch en route',
-    'unit en route',
-    'on the way',
-    'eta confirmed',
-  ]);
-}
 
-bool _asksWhyNoLiveCameraAccess(String normalizedMessage) {
-  return telegramAiContainsAny(normalizedMessage, const [
-    'why cant you see my cameras',
-    'why can you not see my cameras',
-    'why cant you see the cameras',
-    'why can you not see the cameras',
-    'why cant you see cameras',
-    'why can you not see cameras',
-    'why cant you see my camera',
-    'why can you not see my camera',
-    'why cant we view live',
-    'why can we not view live',
-    'why cant we see live',
-    'why can we not see live',
-    'why cant we view live cameras',
-    'why can we not view live cameras',
-    'why cant we see live cameras',
-    'why can we not see live cameras',
-    'why cant we view the cameras live',
-    'why can we not view the cameras live',
-  ]);
-}
 
-bool _asksIfConnectionOrBridgeIsFixed(String normalizedMessage) {
-  return telegramAiContainsAny(normalizedMessage, const [
-    'is the connection fixed',
-    'is the camera connection fixed',
-    'is the connection back',
-    'are the cameras back',
-    'is it fixed',
-    'is it back up',
-    'is monitoring back up',
-    'is the bridge restored',
-    'is the bridge back',
-    'is the bridge fixed',
-    'is the bridge online',
-    'is the local camera bridge restored',
-    'is the local camera bridge back',
-  ]);
-}
 
-bool _assertsLiveVisualAccessState(String normalizedMessage) {
-  return telegramAiContainsAny(normalizedMessage, const [
-    'live visual are active',
-    'live visual is active',
-    'live visuals are active',
-    'live visuals is active',
-    'live visual active',
-    'live visuals active',
-    'visual confirmation is active',
-    'visual confirmation active',
-    'live camera is active',
-    'live cameras are active',
-    'live camera active',
-    'live cameras active',
-    'cameras are online',
-    'camera is online',
-    'cameras online',
-    'camera online',
-    'cameras are not offline',
-    'camera is not offline',
-    'cameras arent offline',
-    'camera isnt offline',
-    'cameras are not down',
-    'camera is not down',
-    'cameras arent down',
-    'camera isnt down',
-    'cctv is online',
-    'cctv online',
-    'bridge is online',
-    'bridge online',
-    'bridge is not offline',
-    'bridge isnt offline',
-    'camera bridge is online',
-    'local camera bridge is online',
-    'camera bridge is not offline',
-    'local camera bridge is not offline',
-    'cameras are back',
-    'camera is back',
-  ]);
-}
 
-bool _asksHypotheticalEscalationCapability(String normalizedMessage) {
-  final asksEscalationCapability = telegramAiContainsAny(normalizedMessage, const [
-    'can you escalate',
-    'could you escalate',
-    'would you escalate',
-    'will you escalate',
-    'can onyx escalate',
-  ]);
-  final conditionalHelpAsk = telegramAiContainsAny(normalizedMessage, const [
-    'if i need help',
-    'if i need urgent help',
-    'if i need assistance',
-    'if something happens',
-    'if there is a problem',
-    'if theres a problem',
-  ]);
-  return asksEscalationCapability && conditionalHelpAsk;
-}
 
-bool _asksForCurrentSiteIssueCheck(String normalizedMessage) {
-  return asksForTelegramClientCurrentSiteIssueCheck(normalizedMessage);
-}
 
-bool _asksForCurrentFrameMovementCheck(String normalizedMessage) {
-  return asksForTelegramClientMovementCheck(normalizedMessage);
-}
 
-bool _asksForSemanticMovementIdentification(String normalizedMessage) {
-  final asksMovement = telegramAiContainsAny(normalizedMessage, const [
-    'any movement',
-    'movement',
-    'identify',
-    'identifying',
-    'detected',
-    'detection',
-    'see',
-  ]);
-  final asksSemanticObject = telegramAiContainsAny(normalizedMessage, const [
-    'vehicle or human',
-    'vehicles or humans',
-    'vehicle or person',
-    'person or vehicle',
-    'persons or vehicles',
-    'human or vehicle',
-    'humans or vehicles',
-    'vehicle or people',
-    'people or vehicle',
-    'vehicles or people',
-    'person or human',
-    'human or person',
-    'human',
-    'humans',
-    'person',
-    'persons',
-    'people',
-    'vehicle',
-    'vehicles',
-  ]);
-  if (!asksSemanticObject) {
-    return false;
-  }
-  return asksMovement ||
-      telegramAiContainsAny(normalizedMessage, const [
-        'what is moving',
-        'who is moving',
-        'what do you see',
-        'what are you seeing',
-      ]);
-}
 
-bool _asksForCurrentFramePersonConfirmation(String normalizedMessage) {
-  final explicitSighting = telegramAiContainsAny(normalizedMessage, const [
-    'i see someone',
-    'i can see someone',
-    'someone there',
-    'person there',
-  ]);
-  final explicitConfirmation = telegramAiContainsAny(normalizedMessage, const [
-    'can you confirm',
-    'please confirm',
-    'confirm that',
-    'confirm this',
-  ]);
-  final referencesPerson = telegramAiContainsAny(normalizedMessage, const [
-    'someone',
-    'person',
-  ]);
-  final referencesArea = telegramAiContainsAny(normalizedMessage, const [
-    'backyard',
-    'back yard',
-    'front yard',
-    'frontyard',
-    'driveway',
-    'gate',
-  ]);
-  return ((explicitSighting || explicitConfirmation) &&
-          referencesPerson &&
-          (referencesArea || explicitSighting)) ||
-      telegramAiContainsAny(normalizedMessage, const [
-        'someone in backyard',
-        'someone in the backyard',
-        'person in backyard',
-        'person in the backyard',
-      ]);
-}
 
-bool _hasCurrentFrameConversationContext(
-  String joinedContext, {
-  required ClientCameraHealthFactPacket? cameraHealthFactPacket,
-}) {
-  if (cameraHealthFactPacket?.hasCurrentVisualConfirmation == true) {
-    return true;
-  }
-  return telegramAiContainsAny(joinedContext, const [
-    'current verified frame from',
-    '[image] current verified frame from',
-    'latest verified frame',
-    'latest camera picture',
-    'visual confirmation at',
-  ]);
-}
 
-bool _hasRecentMotionTelemetryContext(String joinedContext) {
-  return telegramAiContainsAny(joinedContext, const [
-    'motion detection alarm',
-    'motion alarm',
-    'recent motion alerts',
-    'recent movement alerts',
-    'detected movement on camera',
-    'identified repeat movement activity on',
-    'movement activity on camera',
-  ]);
-}
 
-String _recentMotionTelemetryLeadLabel(String joinedContext) {
-  final cameraMatch = RegExp(
-    r'camera\s+(\d+)',
-    caseSensitive: false,
-  ).firstMatch(joinedContext);
-  final cameraDigits = cameraMatch?.group(1) ?? '';
-  if (cameraDigits.isNotEmpty) {
-    return 'recent motion alerts on Camera $cameraDigits';
-  }
-  return 'recent motion alerts';
-}
 
-bool _challengesTelemetryPresenceSummary(String normalizedMessage) {
-  final challengesExplicitCount = telegramAiContainsAny(normalizedMessage, const [
-    'there isnt 19 guard',
-    'there is not 19 guard',
-    'there arent 19 guard',
-    'there are not 19 guard',
-    'not 19 guards',
-    'not 19 response teams',
-    '19 guards or response teams on site',
-    '19 guard or response teams on site',
-    'people on site',
-  ]);
-  final mentionsPresenceTarget =
-      normalizedMessage.contains('guard') ||
-      normalizedMessage.contains('response team') ||
-      normalizedMessage.contains('people');
-  final mentionsSiteOrPremises =
-      normalizedMessage.contains('site') ||
-      normalizedMessage.contains('there') ||
-      normalizedMessage.contains('premis');
-  final deniesPresence = telegramAiContainsAny(normalizedMessage, const [
-    'there are no',
-    'there is no',
-    'there arent',
-    'there are not',
-    'there isnt',
-    'no guards',
-    'no guard',
-    'no one',
-    'nobody',
-    'not on site',
-    'not there',
-  ]);
-  return challengesExplicitCount ||
-      (mentionsPresenceTarget && mentionsSiteOrPremises && deniesPresence);
-}
 
-bool _hasRecentPresenceVerificationContext(String joinedContext) {
-  return telegramAiContainsAny(joinedContext, const [
-    'site activity summary',
-    'field telemetry',
-    'latest field signal',
-    'response-arrival signal',
-    'recorded onyx telemetry activity',
-    'recorded onyx field telemetry',
-    'recorded guard or response activity signals',
-    'not confirmed guards physically on site',
-    'not 19 people physically on site',
-    'no guard is confirmed on site',
-    'current response position',
-    'verified position update',
-    'there are no guards',
-    'there is no guard',
-    'no guards at',
-    'no guards on',
-    'security is not on site',
-    'security not on site',
-  ]);
-}
 
-bool _hasRecentContinuousVisualActivityContext(String joinedContext) {
-  return telegramAiContainsAny(joinedContext, const [
-    'live visual change',
-    'continuous visual watch',
-    'active scene change',
-    'scene change is being tracked',
-    'i am seeing live activity around',
-    'i am seeing activity around',
-    'something active is happening there',
-  ]);
-}
 
-bool _challengesMissedMovementDetection(
-  String normalizedMessage,
-  List<String> recentConversationTurns,
-) {
-  final directChallenge = telegramAiContainsAny(normalizedMessage, const [
-    'picked up nothing',
-    'you picked up nothing',
-    'detected nothing',
-    'you detected nothing',
-    'saw nothing',
-    'you saw nothing',
-    'nothing was picked up',
-  ]);
-  final walkedPastCameras =
-      telegramAiContainsAny(normalizedMessage, const [
-        'i just walked past',
-        'i walked past',
-        'walked past',
-      ]) &&
-      normalizedMessage.contains('camera');
-  final cameraCountCorrection = RegExp(
-    r'^(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+cameras?$',
-  ).hasMatch(normalizedMessage);
-  if (directChallenge || walkedPastCameras) {
-    return true;
-  }
-  if (!cameraCountCorrection) {
-    return false;
-  }
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  return telegramAiContainsAny(joined, const [
-    'picked up nothing',
-    'you picked up nothing',
-    'walked past',
-  ]);
-}
 
-String? _currentFrameConfirmationAreaLabel(String normalizedMessage) {
-  if (telegramAiContainsAny(normalizedMessage, const ['backyard', 'back yard'])) {
-    return 'backyard';
-  }
-  if (telegramAiContainsAny(normalizedMessage, const ['front yard', 'frontyard'])) {
-    return 'front yard';
-  }
-  if (normalizedMessage.contains('driveway')) {
-    return 'driveway';
-  }
-  if (normalizedMessage.contains('gate')) {
-    return 'gate area';
-  }
-  return null;
-}
 
-bool _isGenericStatusFollowUp(String normalizedMessage) {
-  return asksForTelegramClientGenericStatusFollowUp(normalizedMessage) ||
-      (normalizedMessage.split(RegExp(r'\s+')).length <= 4 &&
-          telegramAiContainsAny(normalizedMessage, const ['status', 'anything new']));
-}
 
-bool _hasRecentCameraStatusContext(String joinedContext) {
-  return telegramAiContainsAny(joinedContext, const [
-    'live camera access',
-    'live visual access',
-    'live camera confirmation',
-    'live visual confirmation',
-    'visual confirmation at',
-    'live camera visibility',
-    'camera bridge',
-    'local camera bridge',
-    'temporary local recorder bridge',
-    'remote monitoring',
-    'remote watch',
-    'monitoring connection',
-    'monitoring path',
-    'camera connection',
-    'camera access',
-    'cameras back',
-    'bridge is offline',
-    'bridge is not responding',
-    'bridge offline',
-  ]);
-}
 
-bool _recentThreadShowsUnusableCurrentImage(
-  List<String> recentConversationTurns,
-) {
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  if (joined.isEmpty) {
-    return false;
-  }
-  return telegramAiContainsAny(joined, const [
-    'do not have a usable current verified image',
-    'do not have a usable current image',
-    'could not attach the current frame',
-    'do not have a current verified image to send right now',
-  ]);
-}
 
-String? _recentThreadDownCameraLabel(List<String> recentConversationTurns) {
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  if (joined.isEmpty) {
-    return null;
-  }
-  final match = RegExp(
-    r'camera\s+(\d+)\s+(?:(?:is|was)\s+)?(?:currently\s+)?(?:down|offline)',
-  ).firstMatch(joined);
-  final digits = match?.group(1) ?? '';
-  if (digits.isEmpty) {
-    return null;
-  }
-  return 'Camera $digits';
-}
 
-bool _recentThreadMentionsRecordedEventVisuals(
-  List<String> recentConversationTurns,
-) {
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  if (joined.isEmpty) {
-    return false;
-  }
-  return telegramAiContainsAny(joined, const [
-    'latest event image',
-    'event image from camera',
-    'motion detection alarm',
-    'verification image has been retrieved',
-    'recent event image',
-    'with visuals',
-    'hikconnect',
-  ]);
-}
 
-bool _isBroadReassuranceAsk(String normalizedMessage) {
-  return asksForTelegramClientBroadReassuranceCheck(normalizedMessage);
-}
 
-bool _asksComfortOrMonitoringSupport(String normalizedMessage) {
-  return telegramAiContainsAny(normalizedMessage, const [
-    'can i sleep peacefully',
-    'can i sleep',
-    'can i rest easy',
-    'can i rest',
-    'will you monitor',
-    'will you keep monitoring',
-    'will you keep watch',
-    'will you watch',
-    'watch the site',
-    'monitor the site',
-    'keep monitoring',
-    'keep watch',
-  ]);
-}
 
-bool _asksForCurrentSiteView(String normalizedMessage) {
-  return asksForTelegramClientCurrentSiteView(normalizedMessage);
-}
 
-bool _asksWhyImageCannotBeSent(String normalizedMessage) {
-  return telegramAiContainsAny(normalizedMessage, const [
-    'why cant you send me one',
-    'why cant you send one',
-    'why cant you send me an image',
-    'why cant you send me a picture',
-    'why cant you send me a photo',
-    'why cant you send it',
-    'why cant you send one then',
-    'why can t you send me one',
-    'why can t you send one',
-    'why cant we view live',
-  ]);
-}
 
-bool _containsCameraCoverageCountClaim(String text) {
-  return RegExp(r'\b\d+\s+(?:other\s+)?cameras?\b').hasMatch(text);
-}
 
-bool _asksOvernightAlertingSupport(String normalizedMessage) {
-  return telegramAiContainsAny(normalizedMessage, const [
-    'if im asleep and something happens',
-    'if i am asleep and something happens',
-    'if something happens while im asleep',
-    'if something happens while i am asleep',
-    'will you alert me right',
-    'will you alert me',
-    'alert me right',
-    'alert me if something happens',
-    'wake me if something happens',
-  ]);
-}
 
-bool _asksForBaselineSweep(String normalizedMessage) {
-  return telegramAiContainsAny(normalizedMessage, const [
-    'quick sweep',
-    'do a quick sweep',
-    'can you do a quick sweep',
-    'baseline is normal',
-    'baseline normal',
-    'check the baseline',
-    'see that the site is normal',
-    'see that the sites baseline is normal',
-    'quick baseline check',
-  ]);
-}
 
-bool _asksAboutBaselineSweepStatus(
-  String normalizedMessage,
-  List<String> recentConversationTurns,
-) {
-  if (!_hasRecentBaselineSweepContext(recentConversationTurns)) {
-    return false;
-  }
-  return telegramAiContainsAny(normalizedMessage, const [
-    'did you check',
-    'have you checked',
-    'have you checked yet',
-    'did you sweep',
-    'did you do the sweep',
-    'did you do a sweep',
-    'did you do the check',
-    'did you check yet',
-  ]);
-}
 
-bool _asksAboutBaselineSweepEta(
-  String normalizedMessage,
-  List<String> recentConversationTurns,
-) {
-  if (!_hasRecentBaselineSweepContext(recentConversationTurns)) {
-    return false;
-  }
-  return telegramAiContainsAny(normalizedMessage, const [
-    'how long will you take',
-    'how long will this take',
-    'how long will it take',
-    'how long',
-    'when will you finish',
-  ]);
-}
 
-bool _hasRecentBaselineSweepContext(List<String> recentConversationTurns) {
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  if (joined.isEmpty) {
-    return false;
-  }
-  return telegramAiContainsAny(joined, const [
-    'quick camera check',
-    'quick sweep',
-    'baseline result',
-    'baseline normal',
-    'checking the baseline',
-  ]);
-}
 
-bool _asksForWholeSiteBreachReview(
-  String normalizedMessage,
-  List<String> recentConversationTurns,
-) {
-  final asksToCheck = telegramAiContainsAny(normalizedMessage, const [
-    'check every area',
-    'check all areas',
-    'review every area',
-    'review all areas',
-    'verify every area',
-    'verify all areas',
-    'check the whole site',
-    'check the whole property',
-    'check the entire site',
-    'check the entire property',
-  ]);
-  if (!asksToCheck) {
-    return false;
-  }
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  return telegramAiContainsAny('$normalizedMessage\n$joined', const [
-    'alarm',
-    'breach',
-    'what happened',
-    '4am',
-    '04 00',
-    '04:00',
-  ]);
-}
 
-bool _asksAboutWholeSiteBreachReviewStatus(
-  String normalizedMessage,
-  List<String> recentConversationTurns,
-) {
-  if (!_hasRecentWholeSiteBreachReviewContext(recentConversationTurns)) {
-    return false;
-  }
-  return telegramAiContainsAny(normalizedMessage, const [
-    'did you check',
-    'did you check yet',
-    'have you checked',
-    'have you checked yet',
-    'did you review it',
-    'did you review the site',
-    'any result yet',
-  ]);
-}
 
-bool _asksAboutWholeSiteBreachReviewEta(
-  String normalizedMessage,
-  List<String> recentConversationTurns,
-) {
-  if (!_hasRecentWholeSiteBreachReviewContext(recentConversationTurns)) {
-    return false;
-  }
-  return telegramAiContainsAny(normalizedMessage, const [
-    'how long will you take',
-    'how long will this take',
-    'how long will it take',
-    'how long',
-    'when will you finish',
-  ]);
-}
 
-bool _hasRecentWholeSiteBreachReviewContext(
-  List<String> recentConversationTurns,
-) {
-  final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .join('\n');
-  if (joined.isEmpty) {
-    return false;
-  }
-  return telegramAiContainsAny(joined, const [
-        'check every area',
-        'check all areas',
-        'review the site signals',
-        'full-site breach result',
-        'full site breach result',
-      ]) &&
-      telegramAiContainsAny(joined, const ['alarm', 'breach', '4am', '04:00']);
-}
 
 bool _asksForHistoricalAlarmReview(
   String normalizedMessage,

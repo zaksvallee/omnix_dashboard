@@ -4,7 +4,7 @@ String? _reassuranceClarifierReply({
   required String normalizedMessage,
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
-  required _ClientLaneStage laneStage,
+  required TelegramAiClientLaneStage laneStage,
   required _ClientTonePack tonePack,
   required _PreferredReplyStyle preferredReplyStyle,
   required _ClientProfile clientProfile,
@@ -13,7 +13,7 @@ String? _reassuranceClarifierReply({
   required bool pressuredLane,
 }) {
   final asksIfEverythingIsOkay =
-      _isBroadReassuranceAsk(normalizedMessage) ||
+      telegramAiIsBroadReassuranceAsk(normalizedMessage) ||
       telegramAiContainsAny(normalizedMessage, const [
         'all right',
         'alright',
@@ -34,22 +34,22 @@ String? _reassuranceClarifierReply({
     'offline for this site',
     'monitoring path is offline',
   ]);
-  final explicitOnSitePresence = _hasExplicitCurrentOnSitePresence(joined);
+  final explicitOnSitePresence = telegramAiHasExplicitCurrentOnSitePresence(joined);
   final onlyGenericFieldActivity = telegramAiContainsAny(joined, const [
     'routine on-site team activity is visible',
     'field activity observed',
   ]);
-  final telemetrySummaryVisible = _hasTelemetrySummaryContext(joined);
+  final telemetrySummaryVisible = telegramAiHasTelemetrySummaryContext(joined);
   final noOpenIncident = telegramAiContainsAny(joined, const [
     'not sitting as an open incident',
     'open follow-ups: 0',
     'no client-facing action has been required',
   ]);
   final latestResponseArrival =
-      telemetrySummaryVisible && _hasTelemetryResponseArrivalSignal(joined);
+      telemetrySummaryVisible && telegramAiHasTelemetryResponseArrivalSignal(joined);
   final onSiteNow =
       explicitOnSitePresence ||
-      (laneStage == _ClientLaneStage.responderOnSite &&
+      (laneStage == TelegramAiClientLaneStage.responderOnSite &&
           !remoteMonitoringOffline &&
           !onlyGenericFieldActivity);
   final fieldActivityVisible = telegramAiContainsAny(joined, const [
@@ -60,7 +60,7 @@ String? _reassuranceClarifierReply({
   ]);
   final verificationClosing = _clientFollowUpClosing(
     recentConversationTurns,
-    mode: onSiteNow ? _FollowUpMode.onsite : _FollowUpMode.step,
+    mode: onSiteNow ? TelegramAiFollowUpMode.onsite : TelegramAiFollowUpMode.step,
     deliveryMode: deliveryMode,
     preferredReplyStyle: preferredReplyStyle,
     clientProfile: clientProfile,
@@ -159,14 +159,14 @@ String? _clientCorrectionClarifierReply({
       .join('\n');
   final verificationClosing = _clientFollowUpClosing(
     recentConversationTurns,
-    mode: _FollowUpMode.step,
+    mode: TelegramAiFollowUpMode.step,
     deliveryMode: deliveryMode,
     preferredReplyStyle: preferredReplyStyle,
     clientProfile: clientProfile,
     escalated: escalatedLane,
     compressed: pressuredLane,
   );
-  if (noUnitOnSite && _hasTelemetrySummaryContext(joined)) {
+  if (noUnitOnSite && telegramAiHasTelemetrySummaryContext(joined)) {
     return 'Understood. I do not have a confirmed unit on site at ${scope.siteReference} from that earlier summary alone. That wording came from recorded ONYX field telemetry, not a confirmed current unit on site. If you want, I can ask control to confirm the current position, and $verificationClosing';
   }
   if (camerasDown && securityNotOnSite) {
@@ -312,7 +312,7 @@ String? _eventVisualImageClarifierReply({
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
 }) {
-  if (!_asksWhyImageCannotBeSent(normalizedMessage)) {
+  if (!telegramAiAsksWhyImageCannotBeSent(normalizedMessage)) {
     return null;
   }
   final joined = recentConversationTurns
@@ -322,8 +322,8 @@ String? _eventVisualImageClarifierReply({
   final mentionsRecordedEventVisuals =
       normalizedMessage.contains('hikconnect') &&
           normalizedMessage.contains('visual') ||
-      _recentThreadMentionsRecordedEventVisuals(recentConversationTurns) ||
-      _hasRecentMotionTelemetryContext(joined);
+      telegramAiRecentThreadMentionsRecordedEventVisuals(recentConversationTurns) ||
+      telegramAiHasRecentMotionTelemetryContext(joined);
   if (!mentionsRecordedEventVisuals) {
     return null;
   }
@@ -341,7 +341,7 @@ String? _hypotheticalEscalationCapabilityReply({
   required String normalizedMessage,
   required _TelegramAiScopeProfile scope,
 }) {
-  if (!_asksHypotheticalEscalationCapability(normalizedMessage)) {
+  if (!telegramAiAsksHypotheticalEscalationCapability(normalizedMessage)) {
     return null;
   }
   return 'Yes. If you need urgent help at ${scope.siteReference}, I can escalate this to the control room from here. This message has not triggered an escalation by itself. If there is immediate danger, message here and call SAPS or 112.';
@@ -357,7 +357,7 @@ String? _telemetryDispatchClarifierReply({
   required bool escalatedLane,
   required bool pressuredLane,
 }) {
-  final telemetryPresenceChallenge = _challengesTelemetryPresenceSummary(
+  final telemetryPresenceChallenge = telegramAiChallengesTelemetryPresenceSummary(
     normalizedMessage,
   );
   final asksWhySomeoneIsComing = telegramAiContainsAny(normalizedMessage, const [
@@ -371,7 +371,7 @@ String? _telemetryDispatchClarifierReply({
     'who is coming',
     'who is moving',
   ]);
-  final asksIfThereIsAnIssue = _asksForCurrentSiteIssueCheck(normalizedMessage);
+  final asksIfThereIsAnIssue = telegramAiAsksForCurrentSiteIssueCheck(normalizedMessage);
   final shortWhyFollowUp =
       normalizedMessage == 'why' || normalizedMessage == 'why?';
   if (!asksWhySomeoneIsComing &&
@@ -384,8 +384,8 @@ String? _telemetryDispatchClarifierReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final telemetrySummaryVisible = _hasTelemetrySummaryContext(joined);
-  final presenceVerificationContext = _hasRecentPresenceVerificationContext(
+  final telemetrySummaryVisible = telegramAiHasTelemetrySummaryContext(joined);
+  final presenceVerificationContext = telegramAiHasRecentPresenceVerificationContext(
     joined,
   );
   final unconfirmedMovementNarrative = telegramAiContainsAny(joined, const [
@@ -401,8 +401,8 @@ String? _telemetryDispatchClarifierReply({
       !presenceVerificationContext) {
     return null;
   }
-  if (_hasExplicitCurrentMovementConfirmation(joined) ||
-      _hasExplicitCurrentOnSitePresence(joined)) {
+  if (telegramAiHasExplicitCurrentMovementConfirmation(joined) ||
+      telegramAiHasExplicitCurrentOnSitePresence(joined)) {
     return null;
   }
   final noOpenIncident = telegramAiContainsAny(joined, const [
@@ -412,7 +412,7 @@ String? _telemetryDispatchClarifierReply({
   ]);
   final verificationClosing = _clientFollowUpClosing(
     recentConversationTurns,
-    mode: _FollowUpMode.step,
+    mode: TelegramAiFollowUpMode.step,
     deliveryMode: deliveryMode,
     preferredReplyStyle: preferredReplyStyle,
     clientProfile: clientProfile,

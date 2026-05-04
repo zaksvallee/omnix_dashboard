@@ -62,7 +62,7 @@ String? _cameraConnectionClarifierReply({
   required List<String> recentConversationTurns,
   required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
-  final asksWhyNoCameras = _asksWhyNoLiveCameraAccess(normalizedMessage);
+  final asksWhyNoCameras = telegramAiAsksWhyNoLiveCameraAccess(normalizedMessage);
   final asksForUrgentCameraRepair = telegramAiContainsAny(normalizedMessage, const [
     'rewire cameras',
     'rewire camera',
@@ -75,7 +75,7 @@ String? _cameraConnectionClarifierReply({
     'sort out the cameras',
     'sort out the camera',
   ]);
-  final asksIfConnectionIsFixed = _asksIfConnectionOrBridgeIsFixed(
+  final asksIfConnectionIsFixed = telegramAiAsksIfConnectionOrBridgeIsFixed(
     normalizedMessage,
   );
   if (!asksWhyNoCameras &&
@@ -138,7 +138,7 @@ String? _cameraHealthFactPacketReply({
   if (packet == null) {
     return null;
   }
-  final asksWhyNoCameras = _asksWhyNoLiveCameraAccess(normalizedMessage);
+  final asksWhyNoCameras = telegramAiAsksWhyNoLiveCameraAccess(normalizedMessage);
   final asksForUrgentCameraRepair = telegramAiContainsAny(normalizedMessage, const [
     'rewire cameras',
     'rewire camera',
@@ -153,33 +153,33 @@ String? _cameraHealthFactPacketReply({
     'reconnect cameras',
     'reconnect camera',
   ]);
-  final asksIfConnectionIsFixed = _asksIfConnectionOrBridgeIsFixed(
+  final asksIfConnectionIsFixed = telegramAiAsksIfConnectionOrBridgeIsFixed(
     normalizedMessage,
   );
-  final assertsLiveVisualAccess = _assertsLiveVisualAccessState(
+  final assertsLiveVisualAccess = telegramAiAssertsLiveVisualAccessState(
     normalizedMessage,
   );
-  final asksOvernightAlerting = _asksOvernightAlertingSupport(
+  final asksOvernightAlerting = telegramAiAsksOvernightAlertingSupport(
     normalizedMessage,
   );
-  final asksBaselineSweep = _asksForBaselineSweep(normalizedMessage);
-  final asksBaselineSweepStatus = _asksAboutBaselineSweepStatus(
-    normalizedMessage,
-    recentConversationTurns,
-  );
-  final asksBaselineSweepEta = _asksAboutBaselineSweepEta(
+  final asksBaselineSweep = telegramAiAsksForBaselineSweep(normalizedMessage);
+  final asksBaselineSweepStatus = telegramAiAsksAboutBaselineSweepStatus(
     normalizedMessage,
     recentConversationTurns,
   );
-  final asksWholeSiteBreachReview = _asksForWholeSiteBreachReview(
+  final asksBaselineSweepEta = telegramAiAsksAboutBaselineSweepEta(
     normalizedMessage,
     recentConversationTurns,
   );
-  final asksWholeSiteBreachReviewStatus = _asksAboutWholeSiteBreachReviewStatus(
+  final asksWholeSiteBreachReview = telegramAiAsksForWholeSiteBreachReview(
     normalizedMessage,
     recentConversationTurns,
   );
-  final asksWholeSiteBreachReviewEta = _asksAboutWholeSiteBreachReviewEta(
+  final asksWholeSiteBreachReviewStatus = telegramAiAsksAboutWholeSiteBreachReviewStatus(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final asksWholeSiteBreachReviewEta = telegramAiAsksAboutWholeSiteBreachReviewEta(
     normalizedMessage,
     recentConversationTurns,
   );
@@ -241,7 +241,7 @@ String? _cameraHealthFactPacketReply({
 
   final stepClosing = _clientFollowUpClosing(
     recentConversationTurns,
-    mode: _FollowUpMode.step,
+    mode: TelegramAiFollowUpMode.step,
     deliveryMode: deliveryMode,
     preferredReplyStyle: preferredReplyStyle,
     clientProfile: clientProfile,
@@ -250,7 +250,7 @@ String? _cameraHealthFactPacketReply({
   );
   final visualClosing = _clientFollowUpClosing(
     recentConversationTurns,
-    mode: _FollowUpMode.visual,
+    mode: TelegramAiFollowUpMode.visual,
     deliveryMode: deliveryMode,
     preferredReplyStyle: preferredReplyStyle,
     clientProfile: clientProfile,
@@ -432,14 +432,14 @@ String? _cameraHealthStatusUpdateReply({
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
 }) {
   final packet = cameraHealthFactPacket;
-  if (packet == null || !_isGenericStatusFollowUp(normalizedMessage)) {
+  if (packet == null || !telegramAiIsGenericStatusFollowUp(normalizedMessage)) {
     return null;
   }
   final joined = recentConversationTurns
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  if (!_hasRecentCameraStatusContext(joined)) {
+  if (!telegramAiHasRecentCameraStatusContext(joined)) {
     return null;
   }
   final safeClientExplanation = _clientSafeCameraExplanationText(
@@ -460,7 +460,7 @@ String? _cameraHealthStatusUpdateReply({
 
   final stepClosing = _clientFollowUpClosing(
     recentConversationTurns,
-    mode: _FollowUpMode.step,
+    mode: TelegramAiFollowUpMode.step,
     deliveryMode: deliveryMode,
     preferredReplyStyle: preferredReplyStyle,
     clientProfile: clientProfile,
@@ -482,8 +482,8 @@ String? _cameraHealthReassuranceReply({
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
 }) {
   final packet = cameraHealthFactPacket;
-  final broadReassuranceAsk = _isBroadReassuranceAsk(normalizedMessage);
-  final comfortMonitoringAsk = _asksComfortOrMonitoringSupport(
+  final broadReassuranceAsk = telegramAiIsBroadReassuranceAsk(normalizedMessage);
+  final comfortMonitoringAsk = telegramAiAsksComfortOrMonitoringSupport(
     normalizedMessage,
   );
   if (packet == null || (!broadReassuranceAsk && !comfortMonitoringAsk)) {
@@ -496,15 +496,15 @@ String? _cameraHealthReassuranceReply({
   );
   final verificationClosing = _clientFollowUpClosing(
     recentConversationTurns,
-    mode: _FollowUpMode.step,
+    mode: TelegramAiFollowUpMode.step,
     deliveryMode: deliveryMode,
     preferredReplyStyle: preferredReplyStyle,
     clientProfile: clientProfile,
     escalated: escalatedLane,
     compressed: pressuredLane,
   );
-  final downCameraLabel = _recentThreadDownCameraLabel(recentConversationTurns);
-  final recentUnusableCurrentImage = _recentThreadShowsUnusableCurrentImage(
+  final downCameraLabel = telegramAiRecentThreadDownCameraLabel(recentConversationTurns);
+  final recentUnusableCurrentImage = telegramAiRecentThreadShowsUnusableCurrentImage(
     recentConversationTurns,
   );
   final effectiveIssueStatus = _effectiveLiveSiteIssueStatus(packet);

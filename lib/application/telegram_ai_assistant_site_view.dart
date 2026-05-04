@@ -5,15 +5,15 @@ String? _currentFrameMovementClarifierReply({
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
 }) {
-  final asksMovementCheck = _asksForCurrentFrameMovementCheck(
+  final asksMovementCheck = telegramAiAsksForCurrentFrameMovementCheck(
     normalizedMessage,
   );
-  final asksPersonConfirmation = _asksForCurrentFramePersonConfirmation(
+  final asksPersonConfirmation = telegramAiAsksForCurrentFramePersonConfirmation(
     normalizedMessage,
   );
   final asksSemanticMovementIdentification =
-      _asksForSemanticMovementIdentification(normalizedMessage);
-  final challengesMissedDetection = _challengesMissedMovementDetection(
+      telegramAiAsksForSemanticMovementIdentification(normalizedMessage);
+  final challengesMissedDetection = telegramAiChallengesMissedMovementDetection(
     normalizedMessage,
     recentConversationTurns,
   );
@@ -27,8 +27,8 @@ String? _currentFrameMovementClarifierReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final hasMotionTelemetry = _hasRecentMotionTelemetryContext(joined);
-  final hasCurrentFrameContext = _hasCurrentFrameConversationContext(
+  final hasMotionTelemetry = telegramAiHasRecentMotionTelemetryContext(joined);
+  final hasCurrentFrameContext = telegramAiHasCurrentFrameConversationContext(
     joined,
     cameraHealthFactPacket: cameraHealthFactPacket,
   );
@@ -39,17 +39,17 @@ String? _currentFrameMovementClarifierReply({
     return null;
   }
   if (hasMotionTelemetry) {
-    final motionLabel = _recentMotionTelemetryLeadLabel(joined);
+    final motionLabel = telegramAiRecentMotionTelemetryLeadLabel(joined);
     if (challengesMissedDetection) {
       return 'ONYX did receive $motionLabel. It would be wrong to say nothing was picked up. What I cannot confirm from the current frame alone is who or what triggered those alerts.';
     }
-    final areaLabel = _currentFrameConfirmationAreaLabel(normalizedMessage);
+    final areaLabel = telegramAiCurrentFrameConfirmationAreaLabel(normalizedMessage);
     if (areaLabel != null) {
       return 'ONYX did receive $motionLabel. What I cannot confirm from the current frame alone is whether that was a person in the $areaLabel.';
     }
     return 'ONYX did receive $motionLabel. What I cannot confirm from the current frame alone is who or what triggered those alerts.';
   }
-  final areaLabel = _currentFrameConfirmationAreaLabel(normalizedMessage);
+  final areaLabel = telegramAiCurrentFrameConfirmationAreaLabel(normalizedMessage);
   if (areaLabel != null) {
     return 'Not confirmed from the current frame alone. I cannot confirm a person in the $areaLabel from a single image.';
   }
@@ -64,7 +64,7 @@ String? _semanticMovementIdentificationReply({
 }) {
   final packet = cameraHealthFactPacket;
   if (packet == null ||
-      !_asksForSemanticMovementIdentification(normalizedMessage)) {
+      !telegramAiAsksForSemanticMovementIdentification(normalizedMessage)) {
     return null;
   }
   final semanticActivity = _semanticActivityLabel(packet);
@@ -102,23 +102,23 @@ String? _continuousVisualWatchMovementReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final asksMovementCheck = _asksForCurrentFrameMovementCheck(
+  final asksMovementCheck = telegramAiAsksForCurrentFrameMovementCheck(
     normalizedMessage,
   );
-  final asksPersonConfirmation = _asksForCurrentFramePersonConfirmation(
+  final asksPersonConfirmation = telegramAiAsksForCurrentFramePersonConfirmation(
     normalizedMessage,
   );
   final genericStatusFollowUp =
-      _isGenericStatusFollowUp(normalizedMessage) &&
-      _hasRecentContinuousVisualActivityContext(joined);
+      telegramAiIsGenericStatusFollowUp(normalizedMessage) &&
+      telegramAiHasRecentContinuousVisualActivityContext(joined);
   if (!asksMovementCheck && !asksPersonConfirmation && !genericStatusFollowUp) {
     return null;
   }
-  if (_hasCurrentFrameConversationContext(
+  if (telegramAiHasCurrentFrameConversationContext(
         joined,
         cameraHealthFactPacket: cameraHealthFactPacket,
       ) ||
-      _hasRecentMotionTelemetryContext(joined)) {
+      telegramAiHasRecentMotionTelemetryContext(joined)) {
     return null;
   }
   final hotspot = packet.continuousVisualHotspotLabel ?? scope.siteReference;
@@ -274,18 +274,18 @@ String? _siteMovementStatusClarifierReply({
   required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
-  if (packet == null || !_asksForCurrentFrameMovementCheck(normalizedMessage)) {
+  if (packet == null || !telegramAiAsksForCurrentFrameMovementCheck(normalizedMessage)) {
     return null;
   }
   final joined = recentConversationTurns
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final hasCurrentFrameContext = _hasCurrentFrameConversationContext(
+  final hasCurrentFrameContext = telegramAiHasCurrentFrameConversationContext(
     joined,
     cameraHealthFactPacket: cameraHealthFactPacket,
   );
-  final hasMotionTelemetry = _hasRecentMotionTelemetryContext(joined);
+  final hasMotionTelemetry = telegramAiHasRecentMotionTelemetryContext(joined);
   if (hasCurrentFrameContext || hasMotionTelemetry) {
     return null;
   }
@@ -303,8 +303,8 @@ String? _siteMovementStatusClarifierReply({
   if (packet.hasContinuousVisualCoverage) {
     return 'I am not seeing active movement on site at ${scope.siteReference} right now. That does not by itself prove the site is clear, and I do not have a fresh movement confirmation to share right now.';
   }
-  final downCameraLabel = _recentThreadDownCameraLabel(recentConversationTurns);
-  final recentUnusableCurrentImage = _recentThreadShowsUnusableCurrentImage(
+  final downCameraLabel = telegramAiRecentThreadDownCameraLabel(recentConversationTurns);
+  final recentUnusableCurrentImage = telegramAiRecentThreadShowsUnusableCurrentImage(
     recentConversationTurns,
   );
   if (packet.status == ClientCameraHealthStatus.live) {
@@ -333,7 +333,7 @@ String? _siteIssueStatusClarifierReply({
   required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
-  if (packet == null || !_asksForCurrentSiteIssueCheck(normalizedMessage)) {
+  if (packet == null || !telegramAiAsksForCurrentSiteIssueCheck(normalizedMessage)) {
     return null;
   }
   final joined = recentConversationTurns
@@ -343,8 +343,8 @@ String? _siteIssueStatusClarifierReply({
   final effectiveIssueStatus = _effectiveLiveSiteIssueStatus(packet);
   if ((effectiveIssueStatus == ClientLiveSiteIssueStatus.noConfirmedIssue ||
           effectiveIssueStatus == ClientLiveSiteIssueStatus.unknown) &&
-      (_hasRecentPresenceVerificationContext(joined) ||
-          _hasTelemetrySummaryContext(joined))) {
+      (telegramAiHasRecentPresenceVerificationContext(joined) ||
+          telegramAiHasTelemetrySummaryContext(joined))) {
     return null;
   }
   switch (effectiveIssueStatus) {
@@ -383,31 +383,31 @@ String? _presenceVerificationReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final telemetrySummaryVisible = _hasTelemetrySummaryContext(joined);
-  final telemetryPresenceChallenge = _challengesTelemetryPresenceSummary(
+  final telemetrySummaryVisible = telegramAiHasTelemetrySummaryContext(joined);
+  final telemetryPresenceChallenge = telegramAiChallengesTelemetryPresenceSummary(
     normalizedMessage,
   );
   final presenceFollowUp =
-      _isGenericStatusFollowUp(normalizedMessage) &&
-      _hasRecentPresenceVerificationContext(joined);
+      telegramAiIsGenericStatusFollowUp(normalizedMessage) &&
+      telegramAiHasRecentPresenceVerificationContext(joined);
   if (!telemetryPresenceChallenge && !presenceFollowUp) {
     return null;
   }
   final verificationClosing = _clientFollowUpClosing(
     recentConversationTurns,
-    mode: _FollowUpMode.step,
+    mode: TelegramAiFollowUpMode.step,
     deliveryMode: deliveryMode,
     preferredReplyStyle: preferredReplyStyle,
     clientProfile: clientProfile,
     escalated: escalatedLane,
     compressed: pressuredLane,
   );
-  final explicitOnSitePresence = _hasExplicitCurrentOnSitePresence(joined);
-  final explicitMovementConfirmation = _hasExplicitCurrentMovementConfirmation(
+  final explicitOnSitePresence = telegramAiHasExplicitCurrentOnSitePresence(joined);
+  final explicitMovementConfirmation = telegramAiHasExplicitCurrentMovementConfirmation(
     joined,
   );
   if (explicitOnSitePresence) {
-    return 'Update: A guard is confirmed on site at ${scope.siteReference}. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.onsite, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
+    return 'Update: A guard is confirmed on site at ${scope.siteReference}. ${_clientFollowUpClosing(recentConversationTurns, mode: TelegramAiFollowUpMode.onsite, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
   }
   if (explicitMovementConfirmation) {
     return 'Update: A response movement is confirmed toward ${scope.siteReference}, but I do not yet have a guard confirmed on site. $verificationClosing';
@@ -433,7 +433,7 @@ String? _cameraCoverageCorrectionReply({
   if (!looksLikeCoverageCountCorrection) {
     return null;
   }
-  final downCameraLabel = _recentThreadDownCameraLabel(recentConversationTurns);
+  final downCameraLabel = telegramAiRecentThreadDownCameraLabel(recentConversationTurns);
   if (downCameraLabel == null) {
     return null;
   }
@@ -455,14 +455,14 @@ String? _currentSiteViewClarifierReply({
   required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
-  if (packet == null || !_asksForCurrentSiteView(normalizedMessage)) {
+  if (packet == null || !telegramAiAsksForCurrentSiteView(normalizedMessage)) {
     return null;
   }
   final joinedContext = recentConversationTurns
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final guardOnSite = _hasExplicitCurrentOnSitePresence(joinedContext);
+  final guardOnSite = telegramAiHasExplicitCurrentOnSitePresence(joinedContext);
   final nextStepQuestion = guardOnSite
       ? 'Want me to check anything specific?'
       : 'Want me to arrange a manual follow-up?';
@@ -480,8 +480,8 @@ String? _currentSiteViewClarifierReply({
       nextStepQuestion: nextStepQuestion,
     );
   }
-  final downCameraLabel = _recentThreadDownCameraLabel(recentConversationTurns);
-  final recentUnusableCurrentImage = _recentThreadShowsUnusableCurrentImage(
+  final downCameraLabel = telegramAiRecentThreadDownCameraLabel(recentConversationTurns);
+  final recentUnusableCurrentImage = telegramAiRecentThreadShowsUnusableCurrentImage(
     recentConversationTurns,
   );
   if (recentUnusableCurrentImage) {
@@ -520,7 +520,7 @@ String? _packetGroundedBroadStatusReply({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  final guardOnSite = _hasExplicitCurrentOnSitePresence(joinedContext);
+  final guardOnSite = telegramAiHasExplicitCurrentOnSitePresence(joinedContext);
   final nextStepQuestion = guardOnSite
       ? 'Want me to check anything specific?'
       : 'Want me to arrange a manual follow-up?';
