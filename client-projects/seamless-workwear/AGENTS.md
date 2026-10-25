@@ -1,0 +1,3 @@
+# Seamless Workwear project
+
+Read PROJECT-INDEX.txt, Seamless-Workwear-START-HERE.txt and the relevant numbered registers before changes. This is the canonical project root; storefront/ contains the actual code. Preserve the old seamless-workwear-dev symlink for compatibility. Keep requirements, decisions, supplier evidence, changes, tests, releases and communication metadata documented as work proceeds. No real secrets, invitation tokens or OTPs in project files. Do not deploy this storefront using the ONYX onboarding Site ID. Hosting topology is confirmed: independent Seamless backend/database; no shared live engine dependency.

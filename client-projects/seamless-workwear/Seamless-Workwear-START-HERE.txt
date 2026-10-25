@@ -1,0 +1,62 @@
+SEAMLESS WORKWEAR — START HERE
+Project reference: SW-20261022-M01
+Status checked: 25 October 2026
+
+READ THIS FIRST IN ANY NEW CHAT OR THREAD
+This project is Seamless Workwear, contacts Josh and Cady, sales@seamlessworkwear.co.za. Do not confuse it with Brand Affairs, Logo24, Little Lights or the ONYX marketing website.
+
+CANONICAL LOCATIONS
+Project hub: /Users/zaks/omnix_dashboard/client-projects/seamless-workwear
+Storefront source: /Users/zaks/omnix_dashboard/client-projects/seamless-workwear/storefront
+Supplier investigation: /Users/zaks/omnix_dashboard/client-projects/seamless-workwear/storefront/docs/supplier-integration-plan.md
+Brand implementation: /Users/zaks/omnix_dashboard/client-projects/seamless-workwear/storefront/docs/brand-implementation.md
+Source intake and pending videos: /Users/zaks/omnix_dashboard/client-projects/seamless-workwear/storefront/docs/intake.json
+Client files: /omnix_dashboard/Seamless Workwear (persistent shared project folder)
+ONBOARDING ONLY: /Users/zaks/omnix_dashboard/onyx-creative-hosted
+Existing reusable adapters: /Users/zaks/omnix_dashboard/central-commerce-engine
+
+REAL STATUS — NOT A COMPLETED STORE
+1. Requirements/assets: category PDF reviewed visually across all seven pages; seven departments and 297 total category nodes implemented. Both brand guide pages reviewed; exact four colours and locally hosted Inter/Barlow applied. Videos, remaining asset selection and current-site visual comparison are pending.
+2. Backend: independent local Node/SQLite quote backend implemented and tested. Production hosting/database, customer/staff identity and supplier worker bindings remain pending. There is no shared live engine dependency.
+3. Suppliers/intake: Amrod REST and Barron SOAP adapters inspected; new Seamless account authentication/import/calculation validation is pending. Captivity developer signup and admin-approval process confirmed, but registration not submitted. G Fox/Salty approved API/export contracts unconfirmed. Barron provider-specific intake fields and restricted backend consumption of encrypted submissions remain outstanding. Client submissions may exist; saved status is not evidence of connected providers. Do not read/display their secrets for status reporting.
+4. Catalogue/pricing: search, nested categories, responsive shell, unpriced discovery examples and requested apparel colour/size matrices implemented locally. Real supplier variant ordering, authoritative branding/pricing and stock freshness remain pending. Matrix entries are customer preferences, not verified stock.
+5. Commerce/operations: browser-local draft list plus durable private quote requests, idempotent retries and revisioned staff review implemented. Commercial quote snapshots/repricing, verified customer identity, CRM, PDFs, artwork approval, production gates and order handling remain pending.
+6. Services/launch: live ONYX private onboarding includes Ozow and PayFast (separate live/sandbox credential fields), Resend, OpenAI and other setup sections. These are intake forms, not active storefront integrations. Seamless payment processing, signed callbacks/reconciliation, its own Resend sending configuration and AI assistant are pending. Browser/mobile acceptance, monitoring, restore checks and launch/cutover remain pending. Existing Seamless production site/DNS have not been changed.
+
+ONBOARDING RELEASE RECORD — NOT THE SEAMLESS STOREFRONT
+Host: onyxcreative.co.za; Sites project appgprj_6ad79e638df48191bdea36d2070b4bb9.
+Last verified release in this thread: version 71, deployed successfully on 24 October 2026.
+Source commit: 33ca0604780ae5b9afc4a5625f728aa30c228b2c.
+PayFast addition needed no schema migration or credential rewrite. Regression proves pre-existing encrypted service rows and invitation remain unchanged when PayFast is saved.
+Existing Seamless invitation was confirmed valid and reused, not reissued. Follow-up delivered to sales@seamlessworkwear.co.za with zaks@vallee.co.za copied; Resend email ID 01a16d2b-4680-7729-a362-04c7d498c558.
+Do not copy invitation tokens, verification codes, master keys, ciphertext or real credentials into this folder, status files, emails or model prompts. Verification emails go only to the invited recipient, never the owner CC.
+
+VERIFICATION
+Local storefront: npm test --prefix seamless-workwear-dev — 9 tests passed on 25 October 2026. Real-socket HTTP smoke is blocked here by listen EPERM; handler-level HTTP checks pass. Run npm run smoke in a terminal that permits loopback listeners.
+ONYX portal: 114 tests passed for the PayFast release on 24 October. This count applies to the portal, not the storefront. Full browser acceptance is not complete.
+
+CONFIRMED ARCHITECTURE — 25 October 2026
+User explicitly selected Independent backend. The Seamless code/runtime/database are independent; reusable supplier code can be adapted but there is no shared live engine dependency. Earlier central-hosting wording is superseded. Read 04-build/BUILD-PLAN.txt and the latest build log before relying on older milestone status above.
+
+NEXT WORK
+1. Review the three video references and supplied images; complete design comparison.
+2. Provision the confirmed independent production backend/database; add customer/staff identity and operational storage controls.
+3. Correct Barron intake additively; implement restricted backend secret consumption; register Captivity through approved account setup and obtain G Fox/Salty feed packs.
+4. Connect/test Seamless-specific Amrod/Barron accounts, then the remaining approved feeds.
+5. Implement the first real end-to-end product -> variant matrix -> authoritative quote -> staff review journey. Follow with artwork gates, payments/email/AI, operational acceptance and cutover.
+
+WORK RULES
+Preserve existing client submissions and invitation. Never reset onboarding or reissue a link merely to add a section. No supplier orders or live charges without the applicable verified workflow. No cross-client credential/data reuse. Keep commercial facts, supplier verification and prototype behavior distinct.
+The user wants implementation completed here; use terminal handoffs only for upload/deployment steps that this environment cannot perform. Do not delegate the build itself to the upload handoff.
+A new chat does not automatically inherit all context: ask it to open this named handover or attach it. Keep this status document updated after real milestones.
+
+PROJECT ORGANISATION UPDATE — 25 October 2026
+The actual storefront source now lives inside this dedicated project folder under storefront/. The previous seamless-workwear-dev path is a compatibility symlink, not a second code copy. The numbered folders contain requirements, decisions, supplier progress, build logs, tests, releases, communication records, commercial facts, asset inventory and operational runbooks. Read PROJECT-INDEX.txt for the full map.
+
+LATEST BUILD INCREMENT — 25 October 2026
+Independent Node/SQLite development backend implemented under storefront/. Quote requests are validated and stored privately; client request tokens are hashed at rest; retry idempotency prevents duplicates. Staff queue requires a configured access key and revision-checked review notes. Apparel preference matrices aggregate requested colours/sizes; these are not verified supplier variants. Nine automated tests pass. Customer identity/RBAC, live supplier data, commercial pricing/artwork/payment/email/AI remain pending. No production storefront release is claimed. Check 06-deployments for Git push evidence separately from deployment.
+
+RESUMPTION VERIFICATION — 25 October 2026
+Recovered the saved increment after the prior chat failed. Nine tests pass; source syntax checks pass. Added a repeatable temporary-database HTTP smoke script and scoped push helper in 10-operations/push-verified.sh. Corrected the compatibility symlink to a portable relative target. Live HTTP smoke could not run because this environment denies listening on 127.0.0.1 (EPERM). GitHub discovery fails with Could not resolve host: github.com; repository metadata is read-only in this session. No commit, pushed branch or deployment is claimed. See 06-deployments/RELEASES.txt.
+
+LATEST CHECKPOINT — user terminal passed all 9 tests and HTTP smoke, created build/seamless-independent-quotes-20261025 and staged Seamless. Commit stopped on font-licence trailing whitespace; now corrected. Run the push helper with --resume on that branch. Remote push remains unconfirmed. Read the latest RELEASES entry before older blocked/no-branch notes.

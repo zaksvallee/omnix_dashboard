@@ -1,0 +1,7 @@
+SEAMLESS WORKWEAR — 25 October 2026 — asset register
+Existing inventory files at project root: asset-inventory.json, received-files.json, batch-01.json. They preserve original intake evidence; pending-download markers may be historical. Do not infer complete review from file receipt.
+Category PDF: libfile_f0f6d974ecd081918e74406b293df7d1, reviewed.
+Brand guide: libfile_642b8f2675588191a465dadffa3d5416, reviewed.
+Video references awaiting review: libfile_bff926ee3ab88191943bf2f7aa8af752; libfile_1a3699c30838819183931cc2f77fa620; libfile_3a4659c67b848191a97381c148e58418.
+Original archive: libfile_2aa0f49031348191a15358172b16826c. Remaining individual image IDs are in asset-inventory.json. Originals stay in the persistent Seamless project folder.
+Local source PDFs: storefront/references/. Fonts and OFL licences: storefront/public/fonts/. Hero still references a network asset; final imagery and rights/asset mapping remain pending.

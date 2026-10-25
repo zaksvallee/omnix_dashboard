@@ -1,0 +1,10 @@
+SEAMLESS WORKWEAR — 25 October 2026 — test register
+Storefront: npm test from storefront/; 4 tests pass. Covers filters, quote validation, request handler/static boundaries, taxonomy ancestry/branch identity and font routes. Not browser/mobile acceptance or supplier certification.
+ONYX onboarding PayFast release: 114 tests passed 24 October. Regression compares pre-existing encrypted service rows and invitation unchanged after saving PayFast.
+Pending: full browser/mobile review, real Seamless supplier comparisons, tenant isolation/runtime identity, signed payment callbacks/idempotency, artwork gates, email events, AI constraints, restore evidence, end-to-end staff/customer acceptance and cutover.
+
+25 October increment: 9 tests pass total. New coverage: matrix sums/duplicates/invalid cells, forged client pricing ignored, database reopen durability, request-token isolation and hash storage, duplicate retry/conflict, staff history and stale revisions, terminal closed state, HTTP authorization/origin boundaries and creation limits. Browser visual QA pending.
+
+25 October resumed verification: npm test passes all 9 tests on Node 24.13.0. Real HTTP smoke attempted with temporary SQLite and random fixture tokens, but binding 127.0.0.1 failed EPERM before HTTP assertions could run. This is blocked, not a pass. Reproducible check: npm run smoke from storefront/. Run desktop/mobile browser QA separately; it remains pending. Source node --check and shell syntax verification completed.
+
+25 October external-terminal evidence: user screenshot reports all 9 tests and HTTP smoke passed. This supersedes the earlier blocked smoke result for that external terminal only. Font licence whitespace was the following Git validation failure; cleaned without changing wording. Resume helper shell syntax verified.

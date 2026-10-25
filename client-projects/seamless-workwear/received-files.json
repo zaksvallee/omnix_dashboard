@@ -1,0 +1,16 @@
+{
+  "client": "Seamless Workwear",
+  "onyx_project_id": "b83ac707-338f-4734-a542-2806f1aa9958",
+  "commercial_status": "awaiting_acceptance_payment",
+  "files": [
+    {
+      "filename": "wetransfer_seamless-workwear_2026-10-22_1220.zip",
+      "library_file_id": "libfile_2aa0f49031348191a15358172b16826c",
+      "file_id": "file_00000000f13c8211af18776f9f53c976",
+      "size_bytes": 85678371,
+      "local_copy_status": "pending_download_connection_failed",
+      "onyx_attachment_status": "pending_zip_upload_support",
+      "note": "Original archive preserved. No archive bytes downloaded or uploaded to ONYX. Existing ONYX uploader accepts PDFs up to 5 MiB only."
+    }
+  ]
+}

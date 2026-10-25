@@ -1,0 +1,61 @@
+{
+  "client": "Seamless Workwear",
+  "start_authorized": "2026-10-23",
+  "setup_payment": {
+    "amount_zar": 3500,
+    "status": "confirmed_by_owner",
+    "invoice": "SW-20261023-01",
+    "receipt_account_differs_from_proposal": true
+  },
+  "scope_reference": "SW-20261022-M01",
+  "source_site": "https://www.seamlessworkwear.co.za/",
+  "source_site_review": "Public text inspected; visual inspection pending",
+  "suppliers": [
+    "Amrod",
+    "Barron",
+    "Captivity",
+    "G Fox",
+    "Salty"
+  ],
+  "category_source": {
+    "library_file_id": "libfile_f0f6d974ecd081918e74406b293df7d1",
+    "status": "read_and_visually_reviewed_7_pages_2026-10-23"
+  },
+  "videos": [
+    {
+      "library_file_id": "libfile_bff926ee3ab88191943bf2f7aa8af752",
+      "status": "pending_review"
+    },
+    {
+      "library_file_id": "libfile_1a3699c30838819183931cc2f77fa620",
+      "status": "pending_review"
+    },
+    {
+      "library_file_id": "libfile_3a4659c67b848191a97381c148e58418",
+      "status": "pending_review"
+    }
+  ],
+  "open_decisions": [
+    "Resolve free delivery threshold conflict: site banner R2000 vs Johannesburg section R2500",
+    "Confirm approved visual direction against existing site",
+    "Confirm supplier access and allowed branding rules",
+    "Review videos for behavior and category clarifications"
+  ],
+  "live_site_modified": false,
+  "deployed": false,
+  "brand_source": {
+    "library_file_id": "libfile_642b8f2675588191a465dadffa3d5416",
+    "status": "read_and_applied_locally_2026-10-23",
+    "colours": [
+      "#FED009",
+      "#111111",
+      "#FFFFFF",
+      "#B4B4B4"
+    ],
+    "fonts": {
+      "headings": "Inter Extra Bold",
+      "labels": "Inter Bold",
+      "body": "Barlow Semi Bold"
+    }
+  }
+}

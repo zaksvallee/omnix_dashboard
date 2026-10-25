@@ -1,0 +1,7 @@
+SEAMLESS — SOURCE DELIVERY CHECKPOINT — 25 October 2026
+Canonical project: /Users/zaks/omnix_dashboard/client-projects/seamless-workwear
+Read PROJECT-INDEX.txt and Seamless-Workwear-START-HERE.txt. Implementation is already saved in storefront/.
+From /Users/zaks/omnix_dashboard run:
+sh client-projects/seamless-workwear/10-operations/push-verified.sh
+This runs tests and a real HTTP smoke check before committing only Seamless paths to a separate source branch. It requires GitHub connectivity, loopback listeners and writable Git metadata, unavailable in the restricted session. No production deployment is performed. If it stops, inspect its error and record the actual outcome in 06-deployments/RELEASES.txt.
+Then run npm start from storefront/ and review desktop/390px layouts, customer matrix/request status and staff review. Full browser QA remains pending. Never deploy with the ONYX onboarding Site ID. Do not change existing production site/DNS. No real credentials or customer databases in commits.

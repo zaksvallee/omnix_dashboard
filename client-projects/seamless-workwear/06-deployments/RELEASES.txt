@@ -1,0 +1,12 @@
+SEAMLESS WORKWEAR — 25 October 2026 — releases
+Seamless storefront: no production deployment recorded; no Seamless domain/DNS changes. Prototype code is in storefront/.
+ONYX onboarding: version 71 successfully deployed 24 October 2026. Project appgprj_6ad79e638df48191bdea36d2070b4bb9; source commit 33ca0604780ae5b9afc4a5625f728aa30c228b2c. Added PayFast alongside Ozow; no schema migration, key rotation, credential rewrite or invitation renewal.
+Existing invitation checked valid and reused. The ONYX project ID must never be used to deploy the Seamless storefront. Record future environment, source revision, checks, release ID and rollback notes here.
+
+25 October: independent quote workflow prepared for a scoped Git branch. Production storefront/DNS remain unchanged. Push outcome is recorded separately after execution.
+
+25 October resumed push attempt: git ls-remote origin HEAD failed: Could not resolve host: github.com. Current checkout remains main; no Seamless commit or pushed branch exists from this increment. The session exposes repository metadata read-only. No production deployment/DNS changes.
+Prepared command (normal network-enabled terminal): sh client-projects/seamless-workwear/10-operations/push-verified.sh
+Intended branch: build/seamless-independent-quotes-20261025. Helper checks GitHub access, all 9 tests and real HTTP smoke before creating the branch. It refuses pre-existing staged changes/branch collisions and commits only client-projects/seamless-workwear plus the compatibility symlink. No force push, merge or production deployment. If a push fails after commit, inspect the existing branch and retry its push; do not rerun the branch-creation helper blindly. Record actual commit/remote evidence here after success.
+
+25 October external-terminal follow-up: branch build/seamless-independent-quotes-20261025 now exists locally; 49 scoped paths staged. Screenshot confirms tests/smoke passed, then git diff --check stopped on font licence whitespace before commit/push. Whitespace fixed locally. Resume command: sh client-projects/seamless-workwear/10-operations/push-verified.sh --resume. This explicitly supersedes the older no-local-branch status. No pushed commit or production deployment confirmed.

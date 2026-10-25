@@ -1,0 +1,36 @@
+SEAMLESS WORKWEAR — FOUR-WEEK EXECUTION PLAN
+Updated 25 October 2026. Sequence within the agreed four-week programme, not a reset of the commercial start date. Record actual completion and blockers, not assumed dates.
+
+WEEK 1 — FOUNDATION AND FIRST JOURNEY (IN PROGRESS)
+- DONE: dedicated project/code/docs; brand and 297-node taxonomy; architecture confirmed as independent backend.
+- IMPLEMENTED THIS INCREMENT: colour/size preference matrices; persistent unpriced requests; owner-token request lookup; idempotent retry; staff access gate; revisioned review queue/events.
+- NEXT: review videos/assets and visual direction; correct provider-specific intake; establish restricted secret delivery into Seamless runtime; prove Amrod/Barron access. Submit Captivity developer registration through approved setup. Obtain G Fox/Salty specs.
+- EXIT: private development customer->saved quote->staff review demonstrated; account/data boundaries established; supplier capabilities documented. Existing prototype data is not live inventory.
+
+WEEK 2 — REAL CATALOGUE AND AUTHORITATIVE PRICING
+- Import Seamless-authorised Amrod/Barron records; isolate feeds/runtime/costs from every other client.
+- Normalize exact variants, categories, source timestamps, stock and allowed branding/positions/dimensions.
+- Replace preference-only matrix with real supplier variant IDs and supported size/colour combinations.
+- Validate quantity pooling, setups, promotions, tax basis and markup against Seamless-specific supplier evidence. Unknown data remains held.
+- Add Captivity after approved access; G Fox/Salty only through approved APIs/exports.
+- EXIT: sampled end-to-end variant/configuration/quote calculations match verified supplier/account cases and stale/unknown inputs cannot become payable.
+
+WEEK 3 — CUSTOMER AND STAFF OPERATIONS
+- Customer/staff identity and roles, replacing development shared staff key and anonymous request token flow as required for production.
+- Durable commercial quote revisions, expiry, acceptance/repricing; CRM ownership and staff tasks; invoice/quote PDFs.
+- Private artwork originals/proofs, versioned approval/change requests and payment/proof/stock production gates.
+- Ozow and PayFast sandbox callbacks/signature/amount checks/idempotent reconciliation; independent Resend configuration/delivery events.
+- EXIT: approved operational flow with no unverified supplier purchases or payment-status assumptions.
+
+WEEK 4 — AI, ACCEPTANCE AND LAUNCH
+- Grounded OpenAI assistant via restricted catalogue/quote tools and staff escalation; controlled usage and approved key setup.
+- Delivery rules/bulky freight review, policies and business acceptance.
+- Desktop/mobile/customer/staff journey tests; restore drill, monitoring, jobs and failure recovery.
+- Validate payment/email production configuration and agreed controlled live acceptance; prepare DNS/mail-preserving cutover/rollback.
+- EXIT: explicit launch evidence. Supplier delays must be surfaced with genuine manual/unavailable paths and communicated scope impact; do not fake completed integrations to meet a date.
+
+CURRENT LIMITS
+This increment is local development, not a deployed shop or priced checkout. Staff key is process-level development access, not individual staff accounts/RBAC. Private request tokens are bearer ownership, not verified customer accounts; contact email is unverified. Source examples, matrix preferences and branding requests require review. No email, supplier order or charge is sent by saving/reviewing a request. Production database hosting, backups/retention, identity, supplier and payment integrations remain separate work.
+
+SOURCE DELIVERY GATE — 25 October 2026
+Automated checks: 9/9 pass. Real HTTP smoke: blocked by environment listener permission. Git commit/push: blocked by read-only repository metadata and GitHub DNS. Use 10-operations/push-verified.sh in a normal terminal; it verifies checks before pushing only Seamless to a separate branch. Source delivery and production launch are separate gates.

@@ -1,0 +1,9 @@
+SEAMLESS WORKWEAR — 25 October 2026 — decision register
+D01 CONFIRMED: dedicated Seamless project folder and one canonical source tree. Previous source path retained as symlink only.
+D02 CONFIRMED 25 October 2026: user selected Independent backend. Seamless gets its own backend/database, reusing integration code where appropriate; no shared live engine dependency. This supersedes central-engine hosting language in earlier plans. The ONYX onboarding vault remains a separately identified shared service; credential delivery to the independent backend is still pending.
+D03 CONFIRMED: PayFast alongside Ozow, with separate live/sandbox intake. Saving credentials does not activate payments.
+D04 CONFIRMED: adding a provider must preserve existing secrets, encryption key and invitation. No reissue merely for a new section.
+D05 CONFIRMED: client-supplied categories/branding are authoritative; no other client's private data or account tier may be reused.
+D06 OPEN: delivery configuration and bulky/outlying freight thresholds.
+D07 PENDING VERIFICATION: supplier permissions, exact pricing/branding and feed cadence for Seamless.
+D08 CONFIRMED: prepare implementation here; terminal handoff only for necessary upload/deployment work.

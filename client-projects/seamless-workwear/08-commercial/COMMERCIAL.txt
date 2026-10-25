@@ -1,0 +1,4 @@
+SEAMLESS WORKWEAR — 25 October 2026 — commercial register
+Proposal reference SW-20261022-M01. This thread's accepted managed proposal: R3500 setup + R1500/month from go-live; ONYX charges no VAT. Owner confirmed setup paid; invoice SW-20261023-01 recorded paid. Source documents are retained in the Seamless project folder.
+Generic pricing/alternative outright proposals elsewhere are not automatic changes to this contract. Reconcile any later explicit Seamless agreement before billing changes.
+Existing received-files.json commercial_status=awaiting_acceptance_payment is historical intake metadata, not the latest owner-confirmed payment fact; preserve original intake evidence rather than silently rewriting it.

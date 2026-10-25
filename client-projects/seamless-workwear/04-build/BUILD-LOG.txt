@@ -1,0 +1,12 @@
+SEAMLESS WORKWEAR — 25 October 2026 — build log
+23 October: initial isolated discovery storefront; browser-local quote list and structure validation.
+23 October: supplied brand guide and category PDF read; 7 departments/297 nodes, nested filtering, local Inter/Barlow fonts applied.
+24 October: separate ONYX onboarding service updated to include PayFast, preserving existing records and invitation (release 71). This is not a storefront deployment.
+25 October: source and notes inspected; storefront 4 tests pass. Dedicated project hub expanded into numbered documentation sections. Actual storefront moved under project folder; old source path is a compatibility symlink.
+Remaining: videos/assets, backend boundaries, scoped secrets, supplier integration, matrix/authoritative pricing, persistent quotes/CRM/artwork/orders, payment/email/AI integrations, acceptance and launch.
+
+25 October: user chose independent backend. Added requested colour/size matrices, persistent SQLite requests, hashed bearer ownership, retry idempotency, fail-closed staff queue and revisioned review history. No live supplier data, pricing or provider calls. Nine tests pass. Execution plan is BUILD-PLAN.txt.
+
+25 October resumption: recovered existing implementation; all nine tests pass again. Added storefront/scripts/http-smoke.mjs (npm run smoke), temporary fixture database only, and 10-operations/push-verified.sh (runs checks, commits only Seamless paths and pushes a separate branch). Changed legacy symlink to relative target for portability. Reconciled stale START-HERE backend/matrix status. Real loopback smoke blocked by listen EPERM; GitHub discovery blocked by DNS. Source not committed/pushed/deployed here. Next: run helper with network/listener/Git write access, then review videos/assets and authorised supplier intake.
+
+25 October terminal follow-up: user screenshot reports 9 tests and real HTTP smoke passed outside the restricted session. Branch build/seamless-independent-quotes-20261025 created and 49 Seamless paths staged; commit stopped on trailing whitespace in both OFL licence texts, line 21. Removed trailing whitespace only, preserving licence wording. Push helper now supports explicit --resume on the same branch, rejects unrelated staged paths and handles an already-created commit. Push still needs verified remote evidence.

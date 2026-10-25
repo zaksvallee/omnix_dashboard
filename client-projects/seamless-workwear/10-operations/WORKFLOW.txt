@@ -1,0 +1,10 @@
+SEAMLESS WORKWEAR — 25 October 2026 — project working rules
+Start with PROJECT-INDEX.txt and START-HERE. Work only in this project's source and explicitly identified shared components. Never reuse other retailers' credentials/prices/database.
+For every completed change record requirement/decision, affected files, meaningful checks, deployment evidence or local-only status, limitations and next task. Update the relevant register and summary; keep future changes versioned in the source repository.
+Never store real secrets in these records. Keep client-owned encrypted submissions in the approved vault; adding a section must not reset records, master key or invitation.
+The first end-to-end milestone is a real authorised product -> variant matrix -> server-authoritative quote -> staff review. Unknown price/stock/branding remains held. Later add proof/payment/production gates and operational acceptance.
+A folder helps retrieval; it does not guarantee automatic memory or access in every chat. Reference the project index by exact name and use the connected workspace/account.
+
+DOCUMENT SYNC LIMITATION — 25 October 2026: the numbered persistent folders were created, but the batch upload helper failed before preparation because its upload capability was unavailable. The expanded local registers and updated index are not yet mirrored there. Existing persistent START-HERE remains at its previous version and old source paths work through the compatibility symlink. Resume by syncing these exact files, preserving identities and checking for conflicts. Do not claim remote sync is complete.
+
+25 October architecture resolved by user: independent backend/database. Read 04-build/BUILD-PLAN.txt. Dev SQLite lives in storefront/runtime/ and is excluded from Git; no client data or real keys in source pushes. Shared staff key is temporary development access, not production RBAC. Source push does not mean deployment.

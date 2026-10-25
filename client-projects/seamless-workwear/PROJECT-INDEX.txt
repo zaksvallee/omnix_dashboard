@@ -1,0 +1,26 @@
+SEAMLESS WORKWEAR — PROJECT INDEX
+Project: SW-20261022-M01 | Updated: 25 October 2026
+
+This entire folder is reserved for Seamless Workwear. Keep it separate from Brand Affairs, Logo24, ONYX marketing and Little Lights.
+Canonical local folder: /Users/zaks/omnix_dashboard/client-projects/seamless-workwear
+Persistent project folder: /omnix_dashboard/Seamless Workwear
+
+READ FIRST: Seamless-Workwear-START-HERE.txt
+ACTUAL CODE: storefront/ (not a second build or archive)
+01-requirements/ — agreed functionality, brand/category sources and review gaps
+02-decisions/ — architecture/commercial decisions and unresolved questions
+03-suppliers/ — access, account-binding and supplier verification tracker
+04-build/ — completed work, outstanding work and dated changes
+05-testing/ — actual test evidence, acceptance gaps and limitations
+06-deployments/ — release records and the distinction between onboarding and storefront
+07-communications/ — client correspondence metadata and email-copy rules
+08-commercial/ — proposal/payment facts; no bank secrets
+09-assets/ — references, asset inventories and review status
+10-operations/ — working rules, preservation requirements and launch checklist
+source/ — existing source intake material, preserved
+
+Legacy source path /Users/zaks/omnix_dashboard/seamless-workwear-dev is a symlink to storefront/ for compatibility. Do not copy it into another build.
+Live ONYX credential portal is a separate shared service in onyx-creative-hosted. This folder records its Seamless-specific release/invitation metadata, not a copy of its complete code/database/secrets.
+
+After each milestone update the relevant register and START-HERE. Record date, change, affected path, tests, deployment result and next action. Mark verified evidence separately from assumptions. Never document real passwords/API keys, OTPs or private invitation tokens.
+New chats should search for this exact project index and START-HERE. Access depends on the connected account/workspace; context is not automatically inherited.

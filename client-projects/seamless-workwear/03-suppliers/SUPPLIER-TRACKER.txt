@@ -1,0 +1,8 @@
+SEAMLESS WORKWEAR — 25 October 2026 — supplier tracker
+Amrod: reusable REST code inspected. Seamless authentication/import/account pricing verification pending.
+Barron: reusable SOAP code inspected. Entity ID/name, TokenKey and provider-issued HTTP credentials need explicit intake/mapping. Do not guess aliases. Integration pending.
+Captivity: developer signup/admin approval verified. Registration not submitted. Multi-client rights/account-tier linkage and documented capabilities still unverified.
+G Fox: approved API/export contract not obtained.
+Salty: approved API/export contract not obtained.
+CSV/XML/SFTP is a potential supported adapter input only after supplier authorisation/specification. No scraper substitute is approved.
+Read storefront/docs/supplier-integration-plan.md for exact sources and detailed sequence. Backend scoped secret consumption is not yet implemented. Saved credentials are not proof of connected suppliers.
